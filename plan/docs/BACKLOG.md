@@ -6,9 +6,9 @@
 
 ## Current Status
 
-**Phase**: 0 - Azure Setup
-**Next Action**: Create Azure resource group
-**Last Updated**: January 25, 2026
+**Phase**: 0 - Azure Setup ✓ (Complete)
+**Next Action**: P0-010 Configure connection strings, then Phase 1
+**Last Updated**: January 25, 2026 (evening)
 
 ---
 
@@ -25,13 +25,13 @@
 | ID | Task | Size | Phase | Status | Blocked-By |
 |----|------|------|-------|--------|------------|
 | **Phase 0: Azure Setup & GitHub** |||||
-| P0-000 | Create private GitHub repo (session-sight) | S | 0 | Ready | - |
-| P0-001 | Create Azure resource group | S | 0 | Ready | - |
-| P0-002 | Provision Azure SQL (free tier) | S | 0 | Ready | P0-001 |
-| P0-003 | Provision Azure AI Search (free tier) | S | 0 | Ready | P0-001 |
-| P0-004 | Set up Azure OpenAI with GPT-4o models | M | 0 | Ready | P0-001 |
-| P0-005 | Provision Azure AI Document Intelligence | S | 0 | Ready | P0-001 |
-| P0-006 | Create Azure Key Vault | S | 0 | Ready | P0-001 |
+| P0-000 | Create private GitHub repo (session-sight) | S | 0 | Done | - |
+| P0-001 | Create Azure resource group | S | 0 | Done | - |
+| P0-002 | Provision Azure SQL (free tier) | S | 0 | Done | P0-001 |
+| P0-003 | Provision Azure AI Search (free tier) | S | 0 | Done | P0-001 |
+| P0-004 | Set up Azure OpenAI with GPT-4o models | M | 0 | Done | P0-001 |
+| P0-005 | Provision Azure AI Document Intelligence | S | 0 | Done | P0-001 |
+| P0-006 | Create Azure Key Vault | S | 0 | Done | P0-001 |
 | ~~P0-007~~ | ~~Create Azure Container Registry (ACR)~~ | - | - | Removed | *azd handles automatically* |
 | P0-008 | Configure budget alert on resource group | S | 0 | Ready | P0-001 |
 | P0-009 | Configure OpenAI daily spend alert | S | 0 | Ready | P0-004 |
@@ -134,6 +134,13 @@
 
 | ID | Task | Completed |
 |----|------|-----------|
+| P0-000 | Create private GitHub repo (session-sight) | 2026-01-25 |
+| P0-001 | Create Azure resource group | 2026-01-25 |
+| P0-002 | Provision Azure SQL (free tier) | 2026-01-25 |
+| P0-003 | Provision Azure AI Search (free tier) | 2026-01-25 |
+| P0-004 | Set up Azure OpenAI with GPT-4o models | 2026-01-25 |
+| P0-005 | Provision Azure AI Document Intelligence | 2026-01-25 |
+| P0-006 | Create Azure Key Vault | 2026-01-25 |
 | B-002 | Create 37 golden file test cases for risk assessment | 2026-01-22 |
 | B-006 | Update Phase 2 verification checklist with threshold references | 2026-01-24 |
 | B-007 | Review agent-tool-callbacks.md spec | 2026-01-24 |
@@ -147,7 +154,8 @@
 
 | Date | What Happened |
 |------|---------------|
-| 2026-01-25 | **Documentation reorg.** Created BACKLOG.md, WORKFLOW.md. Refactored PROJECT_PLAN.md to remove duplicate tracking. |
+| 2026-01-25 (PM) | **Phase 0 complete.** Created GitHub repo, SSH keys. Provisioned all Azure resources: SQL, AI Search, OpenAI (3 models), Document Intelligence, Key Vault. Stored SQL password in Key Vault. Moved plan docs into repo. |
+| 2026-01-25 (AM) | **Documentation reorg.** Created BACKLOG.md, WORKFLOW.md. Refactored PROJECT_PLAN.md to remove duplicate tracking. |
 | 2026-01-24 (PM) | **Major gap analysis & fixes.** Deleted 4 obsolete files. Added Azure AI Document Intelligence. Fixed 12 gaps. Added B-032 to B-038. Backlog now 38 items. |
 | 2026-01-24 (AM) | Addressed POC feedback: fixed risk threshold (0.9), vector dims (3072), created resilience.md, added SLO table. Added B-020-B-031. |
 | 2026-01-22 | Created 37 golden files for risk assessment (B-002). Used 3-agent review process. Fixed schema issues, added edge cases. |
