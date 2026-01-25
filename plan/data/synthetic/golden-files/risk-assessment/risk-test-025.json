@@ -1,0 +1,12 @@
+{
+  "note_id": "risk-test-025",
+  "note_content": "Teenager presented with withdrawn affect. When asked about mood, shrugged and said 'What's the point of anything?' Mother reports patient has been isolating in room and grades have dropped. Patient reluctant to engage in session. When asked directly if having thoughts of hurting self, said 'I don't know, maybe, I guess not really.' Declined to elaborate. Parent education provided on warning signs. Closer monitoring recommended.",
+  "expected_extraction": {
+    "suicidal_ideation": "passive",
+    "si_frequency": "occasional",
+    "self_harm": "none",
+    "homicidal_ideation": "none",
+    "risk_level_overall": "moderate"
+  },
+  "test_type": "Adolescent with ambiguous responses and behavioral changes"
+}

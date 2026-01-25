@@ -1,0 +1,12 @@
+{
+  "note_id": "risk-test-007",
+  "note_content": "Client expressed significant hopelessness about the future. When discussing chronic pain, stated 'Sometimes I think everyone would be better off without me.' Clarified that he has no intention of acting on this thought and no plans. Describes it as a fleeting thought that passes. Occurs once or twice a month during pain flares. Exploring referral to pain management clinic.",
+  "expected_extraction": {
+    "suicidal_ideation": "passive",
+    "si_frequency": "rare",
+    "self_harm": "none",
+    "homicidal_ideation": "none",
+    "risk_level_overall": "low"
+  },
+  "test_type": "Passive SI with perceived burdensomeness, low frequency"
+}

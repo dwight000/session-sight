@@ -1,0 +1,11 @@
+{
+  "note_id": "risk-test-019",
+  "note_content": "Patient attended regular session to discuss work stress and relationship concerns. Reports feeling overwhelmed by deadlines but is managing with exercise and time management strategies. Sleep is adequate. Appetite normal. Mood described as 'stressed but okay.' Specifically denies any suicidal ideation, self-harm urges, or thoughts of harming others. No safety concerns identified. Continue weekly sessions.",
+  "expected_extraction": {
+    "suicidal_ideation": "none",
+    "self_harm": "none",
+    "homicidal_ideation": "none",
+    "risk_level_overall": "low"
+  },
+  "test_type": "Standard session with work stress, explicit denial of SI/SH/HI"
+}

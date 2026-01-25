@@ -1,0 +1,12 @@
+{
+  "note_id": "risk-test-003",
+  "note_content": "Patient reports ongoing suicidal thoughts. When asked about plans, stated 'I've thought about driving my car off the bridge on Route 9.' Has been driving that route daily to work. No specific timeline identified but reports thoughts occur multiple times per day. Has not told anyone else. Contracted for safety, will call crisis line if urges intensify.",
+  "expected_extraction": {
+    "suicidal_ideation": "active_with_plan",
+    "si_frequency": "frequent",
+    "self_harm": "none",
+    "homicidal_ideation": "none",
+    "risk_level_overall": "high"
+  },
+  "test_type": "Active SI with plan and regular access to means"
+}

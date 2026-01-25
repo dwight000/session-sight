@@ -1,0 +1,12 @@
+{
+  "note_id": "risk-test-001",
+  "note_content": "Patient presents with significant distress today. Reports thinking about suicide daily for the past two weeks. Has developed a specific plan to overdose on prescription medications she has been stockpiling. States she has written goodbye letters to her children. Denies immediate intent but admits the urge is getting stronger. Safety plan reviewed and updated. Emergency contacts notified with patient consent.",
+  "expected_extraction": {
+    "suicidal_ideation": "active_with_plan",
+    "si_frequency": "frequent",
+    "self_harm": "none",
+    "homicidal_ideation": "none",
+    "risk_level_overall": "high"
+  },
+  "test_type": "Active SI with specific plan, stockpiled means, and preparation behaviors"
+}

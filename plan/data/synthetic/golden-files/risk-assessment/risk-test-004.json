@@ -1,0 +1,12 @@
+{
+  "note_id": "risk-test-004",
+  "note_content": "Session focused on recent escalation in suicidal ideation. Patient admits to researching methods online, specifically looking at medication dosages. Has not acquired means but reports 'getting closer to doing something.' Thoughts present several times weekly. Recent job loss identified as precipitating factor. Increased session frequency to twice weekly. Psychiatry referral placed for medication evaluation.",
+  "expected_extraction": {
+    "suicidal_ideation": "active_with_plan",
+    "si_frequency": "frequent",
+    "self_harm": "none",
+    "homicidal_ideation": "none",
+    "risk_level_overall": "high"
+  },
+  "test_type": "Active SI with research behavior and escalating pattern"
+}

@@ -1,0 +1,11 @@
+{
+  "note_id": "risk-test-023",
+  "note_content": "Career counseling session focused on job transition. Patient recently left unfulfilling corporate job to pursue teaching career. Reports excitement mixed with financial anxiety. Discussing budgeting strategies and timeline for certification. Mentions feeling 'alive again' and 'like I finally found my purpose.' Strong family support. No mental health concerns raised. Standard safety screen negative.",
+  "expected_extraction": {
+    "suicidal_ideation": "none",
+    "self_harm": "none",
+    "homicidal_ideation": "none",
+    "risk_level_overall": "low"
+  },
+  "test_type": "Positive life transition session, no risk indicators"
+}

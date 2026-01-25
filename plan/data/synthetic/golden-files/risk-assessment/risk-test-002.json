@@ -1,0 +1,12 @@
+{
+  "note_id": "risk-test-002",
+  "note_content": "Client arrived in acute distress following argument with spouse. Expressed strong suicidal ideation with intent to hang himself tonight. Has identified location in garage and rope. Reports feeling like a burden to family. Immediate psychiatric evaluation arranged. Client agreed to voluntary hospitalization. Family member contacted to remove means from home.",
+  "expected_extraction": {
+    "suicidal_ideation": "active_with_intent",
+    "si_frequency": "constant",
+    "self_harm": "none",
+    "homicidal_ideation": "none",
+    "risk_level_overall": "imminent"
+  },
+  "test_type": "Active SI with plan, intent, identified means, and timeline - imminent risk"
+}

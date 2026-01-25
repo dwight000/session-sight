@@ -1,0 +1,12 @@
+{
+  "note_id": "risk-test-005",
+  "note_content": "Patient called emergency line this morning reporting active suicidal ideation. States she wants to end her life and has been thinking about using her husband's firearm. Husband is away on business trip and she has access to gun safe combination. Reports feeling completely hopeless since learning about infidelity. Mobile crisis team dispatched. Patient voluntarily surrendered firearm to neighbor before transport to ER for evaluation.",
+  "expected_extraction": {
+    "suicidal_ideation": "active_with_plan",
+    "si_frequency": "constant",
+    "self_harm": "none",
+    "homicidal_ideation": "none",
+    "risk_level_overall": "imminent"
+  },
+  "test_type": "Active SI with lethal means access and acute crisis"
+}

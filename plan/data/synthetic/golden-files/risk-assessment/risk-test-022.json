@@ -1,0 +1,11 @@
+{
+  "note_id": "risk-test-022",
+  "note_content": "Patient processing grief following death of family pet last month. Tearful when recounting memories but demonstrates healthy grieving process. Reports sadness is gradually lifting. Has been able to return to normal activities. Good social support from friends. Sleep and appetite normalized. When asked about any dark thoughts, patient laughed and said 'No, I'm sad but I'll be okay. It was just a really good dog.' No safety concerns.",
+  "expected_extraction": {
+    "suicidal_ideation": "none",
+    "self_harm": "none",
+    "homicidal_ideation": "none",
+    "risk_level_overall": "low"
+  },
+  "test_type": "Grief processing with tearfulness but no SI - avoid false positive"
+}

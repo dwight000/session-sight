@@ -1,0 +1,12 @@
+{
+  "note_id": "risk-test-013",
+  "note_content": "Patient admitted to recent self-harm episode last week. Scratched arms until bleeding after learning she failed her exam. Had been self-harm free for 6 months prior to this incident. Also endorses passive suicidal ideation - 'Sometimes I wonder if it would matter if I was gone.' No active plans or intent. Discussed what led to relapse and updated safety plan.",
+  "expected_extraction": {
+    "suicidal_ideation": "passive",
+    "si_frequency": "occasional",
+    "self_harm": "recent",
+    "homicidal_ideation": "none",
+    "risk_level_overall": "moderate"
+  },
+  "test_type": "Recent self-harm relapse with co-occurring passive SI"
+}

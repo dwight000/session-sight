@@ -1,0 +1,11 @@
+{
+  "note_id": "risk-test-011",
+  "note_content": "Patient disclosed current self-harm behavior. Has been cutting forearms 2-3 times per week for the past month using a razor blade. Reports it helps manage overwhelming emotions after arguments with mother. Wounds are superficial and she cleans them afterward. Denies suicidal intent - 'I don't want to die, I just need to feel something different.' No history of suicidal ideation. Harm reduction strategies discussed.",
+  "expected_extraction": {
+    "suicidal_ideation": "none",
+    "self_harm": "current",
+    "homicidal_ideation": "none",
+    "risk_level_overall": "moderate"
+  },
+  "test_type": "Current self-harm (cutting) without suicidal ideation"
+}

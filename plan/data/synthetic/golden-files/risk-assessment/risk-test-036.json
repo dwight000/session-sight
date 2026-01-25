@@ -1,0 +1,11 @@
+{
+  "note_id": "risk-test-036",
+  "note_content": "Patient states she no longer has suicidal thoughts since starting the new medication. Reports 'I used to think about it constantly, but I haven't had those thoughts in over three weeks now.' Clarified that she is not currently experiencing any desire to harm herself and has not had any urges. Described previous SI as passive in nature without plans. Currently feels hopeful about treatment progress. Safety plan remains in place but patient feels confident she won't need it.",
+  "expected_extraction": {
+    "suicidal_ideation": "none",
+    "self_harm": "none",
+    "homicidal_ideation": "none",
+    "risk_level_overall": "low"
+  },
+  "test_type": "Complex negation - past SI explicitly resolved, current SI clearly denied with temporal markers"
+}

@@ -1,0 +1,11 @@
+{
+  "note_id": "risk-test-014",
+  "note_content": "Adolescent patient wearing long sleeves despite warm weather. Upon exploration, revealed she has been hitting herself in the thighs when frustrated, leaving bruises. Behavior started approximately 2 weeks ago, occurring almost daily. Denies cutting or other forms of self-injury. No suicidal thoughts. Parents unaware. Discussed disclosure and involved school counselor with patient agreement.",
+  "expected_extraction": {
+    "suicidal_ideation": "none",
+    "self_harm": "current",
+    "homicidal_ideation": "none",
+    "risk_level_overall": "moderate"
+  },
+  "test_type": "Current self-harm (hitting/bruising) in adolescent"
+}

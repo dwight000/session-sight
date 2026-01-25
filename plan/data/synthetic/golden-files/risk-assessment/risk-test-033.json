@@ -1,0 +1,12 @@
+{
+  "note_id": "risk-test-033",
+  "note_content": "Session attended with mother present. Mother reports finding text messages where patient told friend 'I want to kill myself, I can't do this anymore.' Mother also found patient researching overdose amounts online. When confronted, patient became defensive and stated 'I was just venting, I didn't mean it literally.' Patient denies current suicidal ideation and refuses to discuss further. Given collateral information indicating active SI with research behavior, safety plan initiated despite patient denial. Parents to secure medications.",
+  "expected_extraction": {
+    "suicidal_ideation": "active_with_plan",
+    "si_frequency": "occasional",
+    "self_harm": "none",
+    "homicidal_ideation": "none",
+    "risk_level_overall": "high"
+  },
+  "test_type": "Collateral conflict - family reports SI with research, patient denies - collateral should override"
+}

@@ -1,0 +1,11 @@
+{
+  "note_id": "risk-test-017",
+  "note_content": "Court-mandated patient following workplace altercation. Reports ongoing thoughts of harming former supervisor who he blames for his termination. States 'I've thought about going back there and teaching him a lesson.' When pressed on specifics, describes fantasies of physical confrontation but no concrete plan. Denies weapon access. No suicidal ideation. Discussed duty to warn obligations. Patient agreed to avoid workplace vicinity.",
+  "expected_extraction": {
+    "suicidal_ideation": "none",
+    "self_harm": "none",
+    "homicidal_ideation": "active_no_plan",
+    "risk_level_overall": "high"
+  },
+  "test_type": "Active homicidal ideation toward identified victim, vague intent"
+}
