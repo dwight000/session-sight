@@ -6,9 +6,9 @@
 
 ## Current Status
 
-**Phase**: 0 - Azure Setup ✓ (Complete)
-**Next Action**: P0-010 Configure connection strings, then Phase 1
-**Last Updated**: January 25, 2026 (evening)
+**Phase**: Spike complete, ready for Phase 1
+**Next Action**: B-025 (pin agent framework versions), then P1-001
+**Last Updated**: January 26, 2026 (evening)
 
 ---
 
@@ -33,11 +33,11 @@
 | P0-005 | Provision Azure AI Document Intelligence | S | 0 | Done | P0-001 |
 | P0-006 | Create Azure Key Vault | S | 0 | Done | P0-001 |
 | ~~P0-007~~ | ~~Create Azure Container Registry (ACR)~~ | - | - | Removed | *azd handles automatically* |
-| P0-008 | Configure budget alert on resource group | S | 0 | Ready | P0-001 |
-| P0-009 | Configure OpenAI daily spend alert | S | 0 | Ready | P0-004 |
-| P0-010 | Configure connection strings | S | 0 | Ready | P0-002, P0-003, P0-004, P0-006 |
+| P0-008 | Configure budget alert on resource group | S | 0 | Tabled | *global budget alert exists* |
+| P0-009 | Configure OpenAI daily spend alert | S | 0 | Tabled | *global budget alert exists* |
+| P0-010 | Configure connection strings | S | 0 | Done | - |
 | **Spike: Agent Framework** |||||
-| B-001 | Agent Framework spike (see pass/fail criteria in PROJECT_PLAN) | XL | Spike | Ready | P0-010 |
+| B-001 | Agent Framework spike (see pass/fail criteria in PROJECT_PLAN) | XL | Spike | Done | - |
 | B-025 | Agent Framework compatibility gate - pin versions, document | M | Spike | Ready | B-001 |
 | **Phase 1: Foundation** |||||
 | P1-001 | Set up .NET 9 solution with Aspire | M | 1 | Ready | P0-010 |
@@ -146,6 +146,8 @@
 | B-007 | Review agent-tool-callbacks.md spec | 2026-01-24 |
 | B-008 | Reconcile risk threshold to 0.9 constant | 2026-01-24 |
 | B-009 | Fix vector dims 1536->3072 in Phase 3 spec | 2026-01-24 |
+| P0-010 | Configure connection strings (all keys in Key Vault) | 2026-01-26 |
+| B-001 | Agent Framework spike — PASS (Option A, Foundry Agents) | 2026-01-26 |
 | - | Planning complete | 2026-01-24 |
 
 ---
@@ -154,6 +156,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-01-26 (PM) | **B-001 Agent Framework spike: PASS.** Option A (Foundry Agents) works. Created AI Hub + Project, connected OpenAI resource. Built AgentSpike console app: clinical extraction with tool calling, all 4 verification items pass. Aspire AppHost compiles with OpenAI wiring. Wrote SPIKE-REPORT.md. GO for Phase 1. |
 | 2026-01-25 (PM) | **Phase 0 complete.** Created GitHub repo, SSH keys. Provisioned all Azure resources: SQL, AI Search, OpenAI (3 models), Document Intelligence, Key Vault. Stored SQL password in Key Vault. Moved plan docs into repo. |
 | 2026-01-25 (AM) | **Documentation reorg.** Created BACKLOG.md, WORKFLOW.md. Refactored PROJECT_PLAN.md to remove duplicate tracking. |
 | 2026-01-24 (PM) | **Major gap analysis & fixes.** Deleted 4 obsolete files. Added Azure AI Document Intelligence. Fixed 12 gaps. Added B-032 to B-038. Backlog now 38 items. |
