@@ -6,9 +6,9 @@
 
 ## Current Status
 
-**Phase**: Spike complete, ready for Phase 1
-**Next Action**: B-025 (pin agent framework versions), then P1-001
-**Last Updated**: January 26, 2026 (evening)
+**Phase**: Phase 1 complete (core), CI/CD deferred
+**Next Action**: P1-013 (CI/CD) or P2-001 (AI extraction)
+**Last Updated**: January 28, 2026 (evening)
 
 ---
 
@@ -38,20 +38,20 @@
 | P0-010 | Configure connection strings | S | 0 | Done | - |
 | **Spike: Agent Framework** |||||
 | B-001 | Agent Framework spike (see pass/fail criteria in PROJECT_PLAN) | XL | Spike | Done | - |
-| B-025 | Agent Framework compatibility gate - pin versions, document | M | Spike | Ready | B-001 |
+| B-025 | Agent Framework compatibility gate - pin versions, document | M | Spike | Done | B-001 |
 | **Phase 1: Foundation** |||||
-| P1-001 | Set up .NET 9 solution with Aspire | M | 1 | Ready | P0-010 |
-| P1-002 | Create domain models (Clinical Schema) | M | 1 | Ready | P1-001 |
-| P1-003 | Connect to Azure SQL database | M | 1 | Ready | P1-001, P0-002 |
-| P1-004 | Basic API endpoints (CRUD) | M | 1 | Ready | P1-002, P1-003 |
-| P1-005 | Azure Blob Storage integration | M | 1 | Ready | P1-001 |
-| P1-006 | Add .gitignore (standard .NET template) | S | 1 | Ready | P1-001 |
-| P1-007 | Add .editorconfig (standard .NET formatting) | S | 1 | Ready | P1-001 |
-| P1-008 | Add LICENSE file (MIT) | S | 1 | Ready | P1-001 |
-| P1-009 | Add local build instructions to README | S | 1 | Ready | P1-001 |
-| P1-010 | Create SessionSight.Core.Tests project | S | 1 | Ready | P1-001 |
-| P1-011 | Create SessionSight.Api.Tests project | S | 1 | Ready | P1-004 |
-| P1-012 | Set up test coverage reporting | M | 1 | Ready | P1-010, P1-011 |
+| P1-001 | Set up .NET 9 solution with Aspire | M | 1 | Done | P0-010 |
+| P1-002 | Create domain models (Clinical Schema) | M | 1 | Done | P1-001 |
+| P1-003 | Connect to Azure SQL database | M | 1 | Done | P1-001, P0-002 |
+| P1-004 | Basic API endpoints (CRUD) | M | 1 | Done | P1-002, P1-003 |
+| P1-005 | Azure Blob Storage integration | M | 1 | Done | P1-001 |
+| P1-006 | Add .gitignore (standard .NET template) | S | 1 | Done | P1-001 |
+| P1-007 | Add .editorconfig (standard .NET formatting) | S | 1 | Done | P1-001 |
+| P1-008 | Add LICENSE file (MIT) | S | 1 | Done | P1-001 |
+| P1-009 | Add local build instructions to README | S | 1 | Done | P1-001 |
+| P1-010 | Create SessionSight.Core.Tests project | S | 1 | Done | P1-001 |
+| P1-011 | Create SessionSight.Api.Tests project | S | 1 | Done | P1-004 |
+| P1-012 | Set up test coverage reporting | M | 1 | Done | P1-010, P1-011 |
 | P1-013 | Set up GitHub Actions ci.yml (build + test on PR) | M | 1 | Ready | P1-001 |
 | B-026 | Configure GitHub OIDC auth for Azure | M | 1 | Ready | P0-001 |
 | B-027 | Map CI/CD secrets and vars to GitHub environments | M | 1 | Ready | B-026 |
@@ -59,15 +59,15 @@
 | B-018 | Wire up 80% coverage enforcement in CI | M | 1 | Ready | P1-012, B-028 |
 | P1-014 | Configure branch protection (require PR, passing checks) | S | 1 | Ready | P1-013 |
 | P1-015 | Export Bicep via `azd infra synth` and commit to /infra | M | 1 | Ready | P0-010 |
-| P1-016 | Add Application Insights (via Aspire) | S | 1 | Ready | P1-001 |
-| P1-017 | Add Key Vault integration (via Aspire) | M | 1 | Ready | P1-001, P0-006 |
-| P1-018 | Add health check endpoint (`/health`) | S | 1 | Ready | P1-004 |
-| P1-019 | Configure OpenAPI/Swagger (auto-generated) | S | 1 | Ready | P1-004 |
-| P1-020 | Basic error handling patterns (try-catch, logging) | M | 1 | Ready | P1-004 |
-| P1-021 | Initialize Gitflow branches (main, develop) | S | 1 | Ready | P1-001 |
+| P1-016 | Add Application Insights (via Aspire) | S | 1 | Done | P1-001 |
+| P1-017 | Add Key Vault integration (via Aspire) | M | 1 | Done | P1-001, P0-006 |
+| P1-018 | Add health check endpoint (`/health`) | S | 1 | Done | P1-004 |
+| P1-019 | Configure OpenAPI/Swagger (auto-generated) | S | 1 | Done | P1-004 |
+| P1-020 | Basic error handling patterns (try-catch, logging) | M | 1 | Done | P1-004 |
+| P1-021 | Initialize Gitflow branches (main, develop) | S | 1 | Done | P1-001 |
 | P1-022 | Make GitHub repo public (verify no secrets in history) | S | 1 | Ready | P1-006, P1-009 |
 | **Phase 2: AI Extraction Pipeline** |||||
-| P2-001 | Azure OpenAI setup (GPT-4o, GPT-4o-mini, embeddings) | M | 2 | Blocked | B-025 |
+| P2-001 | Azure OpenAI setup (GPT-4o, GPT-4o-mini, embeddings) | M | 2 | Ready | B-025 |
 | P2-002 | Model Router implementation | L | 2 | Blocked | P2-001 |
 | P2-003 | Intake Agent | L | 2 | Blocked | P2-002 |
 | P2-004 | Clinical Extractor Agent | XL | 2 | Blocked | P2-002 |
@@ -148,6 +148,14 @@
 | B-009 | Fix vector dims 1536->3072 in Phase 3 spec | 2026-01-24 |
 | P0-010 | Configure connection strings (all keys in Key Vault) | 2026-01-26 |
 | B-001 | Agent Framework spike — PASS (Option A, Foundry Agents) | 2026-01-26 |
+| B-025 | Agent Framework compatibility gate - pin versions | 2026-01-28 |
+| P1-001 | Set up .NET 9 solution with Aspire | 2026-01-28 |
+| P1-002 | Create domain models (Clinical Schema) | 2026-01-28 |
+| P1-003 | Connect to Azure SQL database | 2026-01-28 |
+| P1-004 | Basic API endpoints (CRUD) | 2026-01-28 |
+| P1-005 | Azure Blob Storage integration | 2026-01-28 |
+| P1-006 to P1-012 | Config files, tests, coverage | 2026-01-28 |
+| P1-016 to P1-021 | Health, OpenAPI, error handling, branches | 2026-01-28 |
 | - | Planning complete | 2026-01-24 |
 
 ---
@@ -156,6 +164,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-01-28 (PM) | **Phase 1 core complete.** Built all 8 projects (Core, Infrastructure, Api, Agents, AppHost, ServiceDefaults, 2 test projects). 75 unit tests passing. Aspire runs locally with SQL Server + Azurite containers. EF migrations applied. 11 API endpoints working. Scalar UI added. Deferred: CI/CD (P1-013-015), make public (P1-022). |
 | 2026-01-26 (PM) | **B-001 Agent Framework spike: PASS.** Option A (Foundry Agents) works. Created AI Hub + Project, connected OpenAI resource. Built AgentSpike console app: clinical extraction with tool calling, all 4 verification items pass. Aspire AppHost compiles with OpenAI wiring. Wrote SPIKE-REPORT.md. GO for Phase 1. |
 | 2026-01-25 (PM) | **Phase 0 complete.** Created GitHub repo, SSH keys. Provisioned all Azure resources: SQL, AI Search, OpenAI (3 models), Document Intelligence, Key Vault. Stored SQL password in Key Vault. Moved plan docs into repo. |
 | 2026-01-25 (AM) | **Documentation reorg.** Created BACKLOG.md, WORKFLOW.md. Refactored PROJECT_PLAN.md to remove duplicate tracking. |

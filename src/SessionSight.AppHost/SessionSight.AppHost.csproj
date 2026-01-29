@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Sdk Name="Aspire.AppHost.Sdk" Version="9.0.0" />
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsAspireHost>true</IsAspireHost>
+    <UserSecretsId>ce8a4dde-998c-455c-b2c9-18141f27c84f</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.Azure.Sql" />
+    <PackageReference Include="Aspire.Hosting.Azure.Storage" />
+    <!-- Azure-only (uncomment code in Program.cs when deploying) -->
+    <PackageReference Include="Aspire.Hosting.Azure.ApplicationInsights" />
+    <PackageReference Include="Aspire.Hosting.Azure.KeyVault" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SessionSight.Api\SessionSight.Api.csproj" />
+  </ItemGroup>
+
+</Project>

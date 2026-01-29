@@ -38,3 +38,8 @@ Thumbs.db
 
 # Azure
 .azure/
+
+# Test results and coverage
+TestResults/
+coverage/
+*.trx
