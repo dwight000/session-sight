@@ -1,7 +1,11 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Infrastructure — Azure SQL (RunAsContainer for local dev)
-var sql = builder.AddSqlServer("sql")
+// Password from user-secrets or Parameters config. Set with:
+//   cd src/SessionSight.AppHost && dotnet user-secrets set Parameters:sql-password "LocalDev#2026!"
+// To connect manually: Server=localhost,{port};Database=sessionsight;User Id=sa;Password={password};TrustServerCertificate=true
+var sqlPassword = builder.AddParameter("sql-password", secret: true);
+var sql = builder.AddSqlServer("sql", password: sqlPassword)
     .WithLifetime(ContainerLifetime.Persistent);
 
 var db = sql.AddDatabase("sessionsight");

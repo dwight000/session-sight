@@ -46,6 +46,34 @@ dotnet run --project src/SessionSight.AppHost
 
 Opens the Aspire dashboard with the API, SQL Server, and Blob Storage emulator.
 
+### Local Development Notes
+
+Aspire creates persistent containers for SQL Server and Azurite.
+
+**First-time setup** (set SQL password in user-secrets):
+
+```bash
+cd src/SessionSight.AppHost
+dotnet user-secrets set "Parameters:sql-password" "LocalDev#2026!"
+```
+
+**If you need to connect directly** (e.g., running API without AppHost):
+
+```bash
+# Find the SQL port
+docker ps | grep sql
+
+# Connection string (replace {port} with actual port, e.g., 32772)
+Server=localhost,{port};Database=sessionsight;User Id=sa;Password=LocalDev#2026!;TrustServerCertificate=true
+```
+
+**Reset containers** (if password issues or stale containers):
+
+```bash
+docker rm -f $(docker ps -aq --filter "name=sql-") $(docker ps -aq --filter "name=storage-")
+dotnet run --project src/SessionSight.AppHost  # Recreate with password from user-secrets
+```
+
 ## Project Structure
 
 ```
@@ -58,7 +86,7 @@ src/
   SessionSight.ServiceDefaults/  OpenTelemetry, health checks, resilience
 tests/
   SessionSight.Core.Tests/       Domain model + schema tests
-  SessionSight.Api.Tests/        Controller + validator tests
+  SessionSight.Api.Tests/        Controller, validator, integration tests
 ```
 
 ## API Endpoints
