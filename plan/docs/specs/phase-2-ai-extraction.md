@@ -132,13 +132,19 @@ SessionSight.Agents/
 
 ## 3. Model Router
 
-### Interface
+> **Implementation Note (2026-01-31):** Simplified implementation completed in P2-002.
+> - Uses `ModelTask` enum instead of `TaskType`
+> - Complexity-based overload deferred (YAGNI)
+> - `TaskClassifier.cs` not needed yet
+> - See `src/SessionSight.Agents/Routing/` for actual implementation
+
+### Interface (Original Spec)
 
 ```csharp
 public interface IModelRouter
 {
     string SelectModel(TaskType taskType);
-    string SelectModel(string taskDescription, double complexityScore);
+    string SelectModel(string taskDescription, double complexityScore);  // Deferred
 }
 
 public enum TaskType

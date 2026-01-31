@@ -87,6 +87,7 @@ src/
 tests/
   SessionSight.Core.Tests/       Domain model + schema tests
   SessionSight.Api.Tests/        Controller, validator, integration tests
+  SessionSight.Agents.Tests/     AI agent routing + service tests
 ```
 
 ## API Endpoints
