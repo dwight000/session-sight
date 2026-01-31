@@ -1,0 +1,203 @@
+name: Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        type: choice
+        options:
+          - dev
+          - prod
+        default: dev
+      mode:
+        description: 'Deployment mode'
+        type: choice
+        options:
+          - deploy
+          - what-if
+        default: deploy
+  push:
+    branches: [main, develop]
+    paths:
+      - 'infra/**'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'infra/**'
+
+# Prevent concurrent deployments to the same environment
+concurrency:
+  group: infra-${{ github.event.inputs.environment || 'dev' }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate Bicep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Bicep syntax
+        run: az bicep build --file infra/main.bicep
+
+  deploy:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    needs: validate
+    # Only deploy on push to main/develop or manual trigger (not PRs)
+    if: github.event_name != 'pull_request'
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+
+    permissions:
+      id-token: write  # Required for OIDC
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get SQL Admin Password from Key Vault
+        id: secrets
+        run: |
+          # Get SQL password from existing Key Vault (provisioned in Phase 0)
+          SQL_PASSWORD=$(az keyvault secret show \
+            --vault-name sessionsight-kv-1792 \
+            --name sql-admin-password \
+            --query value -o tsv 2>/dev/null || echo "")
+
+          # If secret doesn't exist, generate a new one
+          if [ -z "$SQL_PASSWORD" ]; then
+            SQL_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=')
+            echo "::notice::SQL password not found in Key Vault, using generated value"
+          fi
+
+          echo "::add-mask::$SQL_PASSWORD"
+          echo "sql_password=$SQL_PASSWORD" >> $GITHUB_OUTPUT
+
+      - name: Get Service Principal Object ID
+        id: sp
+        run: |
+          # Get the object ID of the service principal for RBAC assignments
+          OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
+          echo "object_id=$OBJECT_ID" >> $GITHUB_OUTPUT
+
+      - name: Deploy Infrastructure (What-If)
+        if: github.event.inputs.mode == 'what-if'
+        run: |
+          ENV=${{ github.event.inputs.environment || 'dev' }}
+          az deployment sub what-if \
+            --location eastus2 \
+            --template-file infra/main.bicep \
+            --parameters infra/main.parameters.${ENV}.json \
+            --parameters sqlAdminPassword='${{ steps.secrets.outputs.sql_password }}' \
+            --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}'
+
+      - name: Deploy Infrastructure
+        if: github.event.inputs.mode != 'what-if'
+        run: |
+          ENV=${{ github.event.inputs.environment || 'dev' }}
+          az deployment sub create \
+            --location eastus2 \
+            --name "sessionsight-infra-$(date +%Y%m%d-%H%M%S)" \
+            --template-file infra/main.bicep \
+            --parameters infra/main.parameters.${ENV}.json \
+            --parameters sqlAdminPassword='${{ steps.secrets.outputs.sql_password }}' \
+            --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}'
+
+      - name: Show Deployment Outputs
+        if: github.event.inputs.mode != 'what-if'
+        run: |
+          ENV=${{ github.event.inputs.environment || 'dev' }}
+          echo "## Deployment Outputs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Get the latest deployment
+          DEPLOYMENT_NAME=$(az deployment sub list \
+            --query "[?starts_with(name, 'sessionsight-infra-')] | sort_by(@, &timestamp) | [-1].name" \
+            -o tsv)
+
+          # Show outputs
+          az deployment sub show \
+            --name "$DEPLOYMENT_NAME" \
+            --query properties.outputs \
+            -o table >> $GITHUB_STEP_SUMMARY
+
+  preview:
+    name: Preview Changes (PR)
+    runs-on: ubuntu-latest
+    needs: validate
+    # Only run what-if on PRs
+    if: github.event_name == 'pull_request'
+    environment: dev
+
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get SQL Admin Password from Key Vault
+        id: secrets
+        run: |
+          SQL_PASSWORD=$(az keyvault secret show \
+            --vault-name sessionsight-kv-1792 \
+            --name sql-admin-password \
+            --query value -o tsv 2>/dev/null || echo "placeholder-for-whatif")
+          echo "::add-mask::$SQL_PASSWORD"
+          echo "sql_password=$SQL_PASSWORD" >> $GITHUB_OUTPUT
+
+      - name: Get Service Principal Object ID
+        id: sp
+        run: |
+          OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
+          echo "object_id=$OBJECT_ID" >> $GITHUB_OUTPUT
+
+      - name: Infrastructure What-If
+        id: whatif
+        run: |
+          {
+            echo 'output<<EOF'
+            az deployment sub what-if \
+              --location eastus2 \
+              --template-file infra/main.bicep \
+              --parameters infra/main.parameters.dev.json \
+              --parameters sqlAdminPassword='${{ steps.secrets.outputs.sql_password }}' \
+              --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
+              --no-pretty-print 2>&1 || true
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
+      - name: Comment PR with What-If Results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `### Infrastructure Changes Preview
+
+            \`\`\`
+            ${{ steps.whatif.outputs.output }}
+            \`\`\`
+
+            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });

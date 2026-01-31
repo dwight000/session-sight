@@ -6,8 +6,8 @@
 
 ## Current Status
 
-**Phase**: Phase 1 complete (core + CI)
-**Next Action**: P2-001 (AI extraction) or P1-015 (export Bicep)
+**Phase**: Phase 1 complete (core + CI + IaC)
+**Next Action**: P2-001 (AI extraction pipeline)
 **Last Updated**: January 31, 2026
 
 ---
@@ -58,7 +58,7 @@
 | B-028 | CI quality gates (format, lint, coverage threshold) | M | 1 | Done | P1-013 |
 | B-018 | Wire up 30% coverage enforcement in CI (raise to 80% by Phase 3) | M | 1 | Done | P1-012, B-028 |
 | P1-014 | Configure branch protection (require PR, passing checks) | S | 1 | Done | P1-013 |
-| P1-015 | Export Bicep via `azd infra synth` and commit to /infra | M | 1 | Ready | P0-010 |
+| P1-015 | Write Bicep IaC from scratch and commit to /infra | M | 1 | Done | P0-010 |
 | P1-016 | Add Application Insights (via Aspire) | S | 1 | Done | P1-001 |
 | P1-017 | Add Key Vault integration (via Aspire) | M | 1 | Done | P1-001, P0-006 |
 | P1-018 | Add health check endpoint (`/health`) | S | 1 | Done | P1-004 |
@@ -163,6 +163,7 @@
 | P1-022 | Make repo public | 2026-01-30 |
 | B-026 | Configure GitHub OIDC auth for Azure | 2026-01-30 |
 | B-027 | GitHub `dev` environment with OIDC secrets | 2026-01-31 |
+| P1-015 | Write Bicep IaC from scratch (infra.yml workflow) | 2026-01-31 |
 | - | Planning complete | 2026-01-24 |
 
 ---
@@ -171,6 +172,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-01-31 | **P1-015 IaC complete.** Deleted azd artifacts. Wrote Bicep from scratch: 9 modules (resourceGroup, keyVault, storage, sql, openai, search, docintell, aiHub, aiProject), main.bicep orchestration, parameter files for dev/prod. Created infra.yml workflow with OIDC auth, what-if mode for PRs, manual dispatch. All Bicep validates clean. |
 | 2026-01-31 | **B-027 GitHub Environment complete.** Created `dev` environment in GitHub. Added environment-scoped federated credential to Azure AD. Set environment secrets (AZURE_CLIENT_ID, TENANT_ID, SUBSCRIPTION_ID). Tested OIDC auth with environment - verified it can access rg-sessionsight-dev. Ready for Phase 6 deploy workflow. |
 | 2026-01-30 | **CI/CD complete.** GitHub Actions workflow with format check, build, test, 60% coverage threshold. Made repo public. Branch protection on develop (require CI pass, no approval needed). Installed gh CLI. |
 | 2026-01-28 (PM) | **Phase 1 core complete.** Built all 8 projects (Core, Infrastructure, Api, Agents, AppHost, ServiceDefaults, 2 test projects). 75 unit tests passing. Aspire runs locally with SQL Server + Azurite containers. EF migrations applied. 11 API endpoints working. Scalar UI added. Deferred: CI/CD (P1-013-015), make public (P1-022). |

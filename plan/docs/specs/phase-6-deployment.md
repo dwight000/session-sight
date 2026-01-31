@@ -1,6 +1,6 @@
 # Phase 6: Deployment
 
-> **Status**: Infrastructure ready (B-027 complete)
+> **Status**: Infrastructure ready (P1-015, B-026, B-027 complete)
 
 ## Overview
 
@@ -38,6 +38,7 @@ A `prod` environment can be added later if needed for:
 
 | Item | Status | Details |
 |------|--------|---------|
+| Bicep IaC | Done (P1-015) | 9 modules, infra.yml workflow |
 | GitHub Environment | Done (B-027) | `dev` environment created |
 | OIDC Authentication | Done (B-026, B-027) | Federated credentials for branch + environment |
 | Environment Secrets | Done (B-027) | AZURE_CLIENT_ID, TENANT_ID, SUBSCRIPTION_ID |
@@ -71,8 +72,10 @@ GitHub Actions workflow (`deploy.yml`) that:
 
 ### 2. Infrastructure Management
 
-- Export Bicep via `azd infra synth` (P1-015)
-- Drift detection: compare exported Bicep against committed
+- Hand-written Bicep IaC (P1-015 complete)
+  - 9 modular templates: resourceGroup, keyVault, storage, sql, openai, search, docintell, aiHub, aiProject
+  - `infra.yml` workflow with OIDC auth, what-if mode for PRs
+- Drift detection: `az deployment sub what-if` against committed Bicep
 - Rollback: keep previous container image tag
 
 ### 3. Release Management
@@ -83,15 +86,19 @@ GitHub Actions workflow (`deploy.yml`) that:
 
 ## Technical Approach
 
-- `azd` for deployment orchestration
 - GitHub Actions for CI/CD
 - GitHub environments for secrets
-- Bicep for infrastructure (exported via `azd infra synth`)
+- Hand-written Bicep for infrastructure (`infra.yml` workflow)
+- Separation of concerns:
+  - `ci.yml` → Build, test, coverage
+  - `infra.yml` → Azure resource deployment
+  - `deploy.yml` → Application deployment (future)
 
 ## Exit Criteria
 
 - [x] GitHub Environment `dev` exists
 - [x] OIDC authentication works with environment
+- [x] Infrastructure as Code (Bicep) complete
 - [ ] Dev environment deployed and functional
 - [ ] CI/CD pipeline runs on PR and release
 - [ ] Infra drift detection working
@@ -107,10 +114,10 @@ GitHub Actions workflow (`deploy.yml`) that:
 |----|------|--------|
 | B-026 | Configure GitHub OIDC auth for Azure | Done |
 | B-027 | Map CI/CD secrets to GitHub environments | Done |
-| P1-015 | Export Bicep via `azd infra synth` | Ready |
+| P1-015 | Write Bicep IaC from scratch | Done |
 | P6-001 | Configure dev environment resources | Blocked |
 | P6-003 | GitHub Actions deploy.yml | Blocked |
-| B-029 | Infra drift checks | Blocked |
+| B-029 | Infra drift checks | Ready |
 | B-031 | Rollback strategy | Blocked |
 | P6-005 | Create v1.0.0 release | Blocked |
 | P6-006 | Enable Dependabot | Blocked |

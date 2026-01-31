@@ -43,3 +43,4 @@ Thumbs.db
 TestResults/
 coverage/
 *.trx
+.azure

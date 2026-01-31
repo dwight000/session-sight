@@ -39,7 +39,7 @@
 | **Versioning** | SemVer + Git tags | Standard (1.0.0, 1.1.0, etc.) |
 | **Code Coverage** | 80% target | Enforced in CI |
 | **Code Formatting** | .editorconfig | Standard .NET rules |
-| **IaC** | azd + export Bicep | Auto-generate + commit to repo for visibility |
+| **IaC** | Hand-written Bicep | Full control, modular design, committed to repo |
 
 See `docs/decisions/` for full Architecture Decision Records.
 
@@ -80,7 +80,7 @@ See `docs/decisions/` for full Architecture Decision Records.
 | **Vector DB** | Azure AI Search | RAG hybrid search |
 | **Database** | Azure SQL | Structured data (free tier) |
 | **Storage** | Azure Blob Storage | Document storage (local emulator) |
-| **Deployment** | Aspire + azd | Auto-generated Bicep, one-command deploy |
+| **Deployment** | Aspire local + GitHub Actions | Bicep IaC, CI/CD workflows |
 
 > **Note (Jan 2026):** Microsoft Agent Framework is in **public preview**. GA expected later 2026. Package names may change (`Microsoft.Agents.*` vs `Azure.AI.Agents`). See B-001 spike and B-025 compatibility gate before Phase 2. Delivered via Azure AI Foundry "Agent Service."
 
@@ -94,7 +94,7 @@ See `docs/decisions/` for full Architecture Decision Records.
 │  LOCAL                              DEV (Cloud)                             │
 │  ─────                              ───────────                             │
 │  Your machine                       Azure Container Apps                    │
-│  dotnet run / Aspire                Deployed via azd / GitHub Actions       │
+│  dotnet run / Aspire                Deployed via GitHub Actions             │
 │  For coding, debugging              For testing, demos, portfolio showcase  │
 │                                                                             │
 │  ┌─────────────────────┐            ┌─────────────────────┐                │
@@ -206,7 +206,7 @@ Build the .NET 9 solution structure with Aspire orchestration. Create domain mod
 
 Set up project infrastructure: .gitignore, .editorconfig, LICENSE (MIT), and README build instructions. Create test projects (Core.Tests, Api.Tests) with coverage reporting.
 
-Configure CI/CD with GitHub Actions for build/test on PR, GitHub OIDC auth for Azure, environment secrets, and quality gates (format, lint, coverage). Set up branch protection and export Bicep via `azd infra synth`.
+Configure CI/CD with GitHub Actions for build/test on PR, GitHub OIDC auth for Azure, environment secrets, and quality gates (format, lint, coverage). Set up branch protection and write hand-written Bicep IaC with infra deployment workflow.
 
 Add observability with Application Insights, Key Vault integration, health check endpoint, and auto-generated OpenAPI docs. Establish error handling patterns and initialize Gitflow branches.
 
@@ -297,10 +297,11 @@ session-sight/
 │   └── decisions/                # Architecture Decision Records
 │       ├── ADR-002-error-handling.md
 │       └── ADR-004-risk-validation.md
-├── infra/                        # Exported Bicep (via azd infra synth)
-│   ├── main.bicep
-│   ├── main.parameters.json
-│   └── resources.bicep
+├── infra/                        # Hand-written Bicep IaC
+│   ├── main.bicep                # Entry point (subscription scope)
+│   ├── main.parameters.dev.json  # Dev environment values
+│   ├── main.parameters.prod.json # Prod environment values
+│   └── modules/                  # Modular resource definitions
 ├── src/
 │   ├── SessionSight.AppHost/      # Aspire orchestration
 │   ├── SessionSight.Api/          # REST API
@@ -371,7 +372,7 @@ Portfolio demonstrates:
 - [ ] Clean architecture patterns
 - [ ] **Modern DevOps Practices:**
   - [ ] GitHub Actions CI/CD
-  - [ ] Infrastructure as Code (Bicep via azd)
+  - [ ] Infrastructure as Code (hand-written Bicep)
   - [ ] Azure Key Vault for secrets
   - [ ] Application Insights observability
   - [ ] 80% code coverage
@@ -399,7 +400,7 @@ If you are a new Claude session:
 - CI/CD: GitHub Actions (not Azure DevOps)
 - Branching: Gitflow (main/develop/feature)
 - Secrets: Azure Key Vault (never commit secrets)
-- IaC: azd with exported Bicep committed to repo
+- IaC: Hand-written Bicep committed to repo, deployed via GitHub Actions
 
 ### Security Disclaimer
 
