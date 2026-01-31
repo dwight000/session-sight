@@ -56,7 +56,7 @@
 | B-026 | Configure GitHub OIDC auth for Azure | M | 1 | Ready | P0-001 |
 | B-027 | Map CI/CD secrets and vars to GitHub environments | M | 1 | Ready | B-026 |
 | B-028 | CI quality gates (format, lint, coverage threshold) | M | 1 | Done | P1-013 |
-| B-018 | Wire up 15% coverage enforcement in CI (raise to 80% by Phase 3) | M | 1 | Done | P1-012, B-028 |
+| B-018 | Wire up 30% coverage enforcement in CI (raise to 80% by Phase 3) | M | 1 | Done | P1-012, B-028 |
 | P1-014 | Configure branch protection (require PR, passing checks) | S | 1 | Done | P1-013 |
 | P1-015 | Export Bicep via `azd infra synth` and commit to /infra | M | 1 | Ready | P0-010 |
 | P1-016 | Add Application Insights (via Aspire) | S | 1 | Done | P1-001 |
@@ -158,7 +158,7 @@
 | P1-016 to P1-021 | Health, OpenAPI, error handling, branches | 2026-01-28 |
 | P1-013 | GitHub Actions CI workflow | 2026-01-30 |
 | B-028 | CI quality gates (format, build, test) | 2026-01-30 |
-| B-018 | Coverage enforcement (15% threshold, raise to 80% by Phase 3) | 2026-01-30 |
+| B-018 | Coverage enforcement (30% threshold, excludes migrations) | 2026-01-30 |
 | P1-014 | Branch protection on develop | 2026-01-30 |
 | P1-022 | Make repo public | 2026-01-30 |
 | - | Planning complete | 2026-01-24 |

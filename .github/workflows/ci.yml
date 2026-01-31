@@ -33,7 +33,7 @@ jobs:
       - name: Generate coverage report
         run: |
           dotnet tool restore
-          dotnet reportgenerator -reports:"coverage/**/coverage.cobertura.xml" -targetdir:coverage/report -reporttypes:Cobertura
+          dotnet reportgenerator -reports:"coverage/**/coverage.cobertura.xml" -targetdir:coverage/report -reporttypes:Cobertura -filefilters:"-**/Migrations/**"
 
       # TODO: Raise threshold as we add tests - target 80% by Phase 3 (B-018)
       - name: Check coverage threshold
@@ -41,8 +41,8 @@ jobs:
           COVERAGE=$(grep -oP 'line-rate="\K[^"]+' coverage/report/Cobertura.xml | head -1)
           PERCENT=$(echo "$COVERAGE * 100" | bc)
           echo "Coverage: $PERCENT%"
-          if (( $(echo "$COVERAGE < 0.15" | bc -l) )); then
-            echo "::error::Coverage $PERCENT% is below 15% threshold"
+          if (( $(echo "$COVERAGE < 0.30" | bc -l) )); then
+            echo "::error::Coverage $PERCENT% is below 30% threshold"
             exit 1
           fi
 

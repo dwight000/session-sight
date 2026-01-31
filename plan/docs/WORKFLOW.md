@@ -155,3 +155,4 @@ Ready --> In-Progress --> Done
 - **Synthetic data only** - Never use real patient data
 - **Microsoft Agent Framework is preview** - Document any workarounds
 - **Cloud-backed dev** - Azure services required even for local dev
+- **No Co-Authored-By** - Do not add `Co-Authored-By: Claude` to future commits (owner preference)
