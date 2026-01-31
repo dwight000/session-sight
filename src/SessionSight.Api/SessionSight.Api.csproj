@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SessionSight.Agents\SessionSight.Agents.csproj" />
     <ProjectReference Include="..\SessionSight.Core\SessionSight.Core.csproj" />
     <ProjectReference Include="..\SessionSight.Infrastructure\SessionSight.Infrastructure.csproj" />
     <ProjectReference Include="..\SessionSight.ServiceDefaults\SessionSight.ServiceDefaults.csproj" />

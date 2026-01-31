@@ -6,8 +6,8 @@
 
 ## Current Status
 
-**Phase**: Phase 1 complete (core + CI + IaC)
-**Next Action**: P2-001 (AI extraction pipeline)
+**Phase**: Phase 2 (AI extraction pipeline)
+**Next Action**: P2-003 (Intake Agent) or P2-008 (Blob trigger)
 **Last Updated**: January 31, 2026
 
 ---
@@ -68,19 +68,19 @@
 | P1-022 | Make GitHub repo public (verify no secrets in history) | S | 1 | Done | P1-006, P1-009 |
 | B-039 | Basic CRUD integration tests (Patient, Session) | S | 1 | Done | P1-004 |
 | **Phase 2: AI Extraction Pipeline** |||||
-| P2-001 | Azure OpenAI setup (GPT-4o, GPT-4o-mini, embeddings) | M | 2 | Ready | B-025 |
-| P2-002 | Model Router implementation | L | 2 | Blocked | P2-001 |
-| P2-003 | Intake Agent | L | 2 | Blocked | P2-002 |
-| P2-004 | Clinical Extractor Agent | XL | 2 | Blocked | P2-002 |
+| P2-001 | Azure OpenAI setup (GPT-4o, GPT-4o-mini, embeddings) | M | 2 | Done | B-025 |
+| P2-002 | Model Router implementation | L | 2 | Done | P2-001 |
+| P2-003 | Intake Agent | L | 2 | Ready | P2-002 |
+| P2-004 | Clinical Extractor Agent | XL | 2 | Ready | P2-002 |
 | P2-005 | Risk Assessor Agent (safety-critical) | XL | 2 | Blocked | P2-004 |
 | P2-006 | Agent-to-tool callbacks | L | 2 | Blocked | P2-003 |
 | P2-007 | Confidence scoring | M | 2 | Blocked | P2-004 |
-| P2-008 | Blob trigger ingestion (Azure Function) | L | 2 | Blocked | P1-005 |
-| B-010 | Exponential backoff for OpenAI/Search | M | 2 | Blocked | P2-001 |
+| P2-008 | Blob trigger ingestion (Azure Function) | L | 2 | Ready | P1-005 |
+| B-010 | Exponential backoff for OpenAI/Search | M | 2 | Ready | P2-001 |
 | B-011 | Idempotent job IDs for blob trigger | M | 2 | Blocked | P2-008 |
 | B-012 | Dead-letter handling for failed ingestion | M | 2 | Blocked | P2-008 |
 | B-013 | Dedupe strategy blob->SQL->AI Search | M | 2 | Blocked | P2-004 |
-| B-019 | Telemetry redaction for PHI in traces | M | 2 | Blocked | P1-016 |
+| B-019 | Telemetry redaction for PHI in traces | M | 2 | Ready | P1-016 |
 | B-032 | Document size validation (reject >30 pages) | M | 2 | Blocked | P2-008 |
 | B-033 | Internal service auth (Function->API) | M | 2 | Blocked | P2-008 |
 | B-034 | Fix idempotency race condition (SQL MERGE with HOLDLOCK) | M | 2 | Blocked | P2-008 |
@@ -91,7 +91,7 @@
 | P2-010 | Create sequence diagrams for agent interactions | M | 2 | Blocked | P2-006 |
 | **Phase 3: Summarization & RAG** |||||
 | P3-001 | Summarizer Agent (3 levels) | XL | 3 | Blocked | P2-005 |
-| P3-002 | Azure AI Search vector index | M | 3 | Blocked | P2-001 |
+| P3-002 | Azure AI Search vector index | M | 3 | Ready | P2-001 |
 | P3-003 | Embedding pipeline (text-embedding-3-large) | L | 3 | Blocked | P3-002 |
 | P3-004 | Q&A Agent with RAG | XL | 3 | Blocked | P3-003 |
 | B-003 | Synthetic data generator script | M | 3 | Blocked | P2-004 |
@@ -166,6 +166,8 @@
 | B-027 | GitHub `dev` environment with OIDC secrets | 2026-01-31 |
 | P1-015 | Write Bicep IaC from scratch (infra.yml workflow) | 2026-01-31 |
 | B-039 | Basic CRUD integration tests (Patient, Session) | 2026-01-31 |
+| P2-001 | Azure OpenAI setup (AI Foundry connection + SDK wiring) | 2026-01-31 |
+| P2-002 | Model Router implementation (tests added) | 2026-01-31 |
 | - | Planning complete | 2026-01-24 |
 
 ---
@@ -174,11 +176,11 @@
 
 | Date | What Happened |
 |------|---------------|
-| 2026-01-31 | **B-039 Integration tests complete.** Added 17 integration tests (Patient + Session CRUD) using WebApplicationFactory with in-memory DB. Coverage increased to 74%. Raised CI threshold from 30% to 70%. Fixed Aspire SQL password issue: now uses user-secrets for consistent local dev password. Updated README with local dev setup instructions. |
+| 2026-01-31 | **P2-002 Model Router complete.** Added SessionSight.Agents.Tests project with 6 unit tests for ModelRouter. Total tests now 98. P2-003, P2-004, P2-008, B-010, B-019, P3-002 now unblocked. |
+| 2026-01-31 | **P2-001 Azure OpenAI setup complete.** Created aiHubConnection.bicep module for OpenAI→Hub AAD connection. Added aiProjectEndpoint output to main.bicep. Wired SessionSight.Agents with Azure.AI.Agents.Persistent SDK. Created AIFoundryClientFactory (DI-ready) and ModelRouter (gpt-4o/gpt-4o-mini/embeddings selection). 92 tests passing. |
+| 2026-01-31 | **B-039 Integration tests complete.** Added 17 integration tests (Patient + Session CRUD) using WebApplicationFactory with in-memory DB. Coverage increased to 74%. Raised CI threshold from 30% to 70%. |
 | 2026-01-31 | **P1-015 IaC complete.** Wrote Bicep from scratch: 9 modules, main.bicep orchestration, parameter files for dev/prod. Created infra.yml workflow with OIDC auth, what-if mode for PRs, manual dispatch. |
 | 2026-01-31 | **B-027 GitHub Environment complete.** Created `dev` environment in GitHub. Added environment-scoped federated credential to Azure AD. Set environment secrets. Tested OIDC auth - verified access to rg-sessionsight-dev. |
-| 2026-01-30 | **CI/CD complete.** GitHub Actions workflow with format check, build, test, coverage threshold. Made repo public. Branch protection on develop. |
-| 2026-01-28 (PM) | **Phase 1 core complete.** Built all 8 projects. 75 unit tests passing. Aspire runs locally with SQL Server + Azurite containers. EF migrations applied. 11 API endpoints working. |
 
 ---
 

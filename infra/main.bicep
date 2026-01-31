@@ -158,6 +158,19 @@ module aiProject 'modules/aiProject.bicep' = {
   }
 }
 
+// === AI Hub to OpenAI Connection ===
+
+module aiHubConnection 'modules/aiHubConnection.bicep' = {
+  name: 'aiHubConnection'
+  scope: resourceGroup(resourceGroupName)
+  params: {
+    hubName: aiHub.outputs.name
+    connectionName: 'openai-connection'
+    openaiResourceId: openai.outputs.id
+    openaiEndpoint: openai.outputs.endpoint
+  }
+}
+
 // === Outputs ===
 
 output resourceGroupName string = rg.outputs.name
@@ -176,3 +189,4 @@ output docIntelligenceName string = docIntelligence.outputs.name
 output docIntelligenceEndpoint string = docIntelligence.outputs.endpoint
 output aiHubName string = aiHub.outputs.name
 output aiProjectName string = aiProject.outputs.name
+output aiProjectEndpoint string = 'https://${location}.api.azureml.ms/agents/v1.0/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceGroupName}/providers/Microsoft.MachineLearningServices/workspaces/${aiProject.outputs.name}'
