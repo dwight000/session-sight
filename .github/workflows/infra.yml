@@ -114,20 +114,22 @@ jobs:
       - name: Show Deployment Outputs
         if: github.event.inputs.mode != 'what-if'
         run: |
-          ENV=${{ github.event.inputs.environment || 'dev' }}
           echo "## Deployment Outputs" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Get the latest deployment
+          # Get the latest sessionsight deployment (reverse sort by name which includes timestamp)
           DEPLOYMENT_NAME=$(az deployment sub list \
-            --query "[?starts_with(name, 'sessionsight-infra-')] | sort_by(@, &timestamp) | [-1].name" \
+            --query "[?starts_with(name, 'sessionsight-infra-')].name | reverse(@) | [0]" \
             -o tsv)
 
-          # Show outputs
+          echo "Deployment: $DEPLOYMENT_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Show outputs as JSON (more reliable than table format)
           az deployment sub show \
             --name "$DEPLOYMENT_NAME" \
             --query properties.outputs \
-            -o table >> $GITHUB_STEP_SUMMARY
+            -o json >> $GITHUB_STEP_SUMMARY
 
   preview:
     name: Preview Changes (PR)
