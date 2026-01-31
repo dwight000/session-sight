@@ -64,7 +64,7 @@ public static class IntakePrompts
             Document metadata:
             - Page count: {document.Metadata.PageCount}
             - File format: {document.Metadata.FileFormat}
-            - Extraction confidence: {document.Metadata.ExtractionConfidence:P0}
+            - Extraction confidence: {document.Metadata.ExtractionConfidence * 100:F0}%
 
             Respond with JSON only.
             """;
