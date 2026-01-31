@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Scalar.AspNetCore;
+using SessionSight.Agents.Agents;
 using SessionSight.Agents.Routing;
 using SessionSight.Agents.Services;
 using SessionSight.Api.Middleware;
@@ -24,9 +25,10 @@ builder.Services.AddScoped<SessionSight.Core.Interfaces.IPatientRepository, Sess
 builder.Services.AddScoped<SessionSight.Core.Interfaces.ISessionRepository, SessionSight.Infrastructure.Repositories.SessionRepository>();
 builder.Services.AddScoped<SessionSight.Core.Interfaces.IDocumentStorage, SessionSight.Infrastructure.Storage.AzureBlobDocumentStorage>();
 
-// AI Foundry + Model Router
+// AI Foundry + Model Router + Agents
 builder.Services.AddSingleton<IAIFoundryClientFactory, AIFoundryClientFactory>();
 builder.Services.AddSingleton<IModelRouter, ModelRouter>();
+builder.Services.AddScoped<IIntakeAgent, IntakeAgent>();
 
 // Controllers + JSON serialization
 builder.Services.AddControllers()

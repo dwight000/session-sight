@@ -1,7 +1,10 @@
+using Azure.AI.Agents.Persistent;
+using Azure.AI.Inference;
 using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using SessionSight.Agents.Services;
 using SessionSight.Core.Interfaces;
 using SessionSight.Infrastructure.Data;
 
@@ -54,6 +57,15 @@ public class IntegrationTestBase : IAsyncLifetime
                     }
                     services.AddScoped<IDocumentStorage, StubDocumentStorage>();
 
+                    // Remove real AI Foundry client factory and add stub
+                    var aiFactoryDescriptor = services.SingleOrDefault(
+                        d => d.ServiceType == typeof(IAIFoundryClientFactory));
+                    if (aiFactoryDescriptor != null)
+                    {
+                        services.Remove(aiFactoryDescriptor);
+                    }
+                    services.AddSingleton<IAIFoundryClientFactory, StubAIFoundryClientFactory>();
+
                     // Add in-memory database with unique name per test class
                     services.AddDbContext<SessionSightDbContext>(options =>
                         options.UseInMemoryDatabase(_databaseName));
@@ -85,4 +97,17 @@ internal class StubDocumentStorage : IDocumentStorage
 
     public Task DeleteAsync(string blobUri)
         => Task.CompletedTask;
+}
+
+/// <summary>
+/// Stub implementation of IAIFoundryClientFactory for integration tests.
+/// Throws NotSupportedException if AI services are called during tests.
+/// </summary>
+internal class StubAIFoundryClientFactory : IAIFoundryClientFactory
+{
+    public PersistentAgentsClient CreateAgentClient()
+        => throw new NotSupportedException("AI services are not available in integration tests. Use unit tests with mocks for agent testing.");
+
+    public ChatCompletionsClient CreateChatClient()
+        => throw new NotSupportedException("AI services are not available in integration tests. Use unit tests with mocks for agent testing.");
 }

@@ -7,7 +7,7 @@
 ## Current Status
 
 **Phase**: Phase 2 (AI extraction pipeline)
-**Next Action**: P2-003 (Intake Agent) or P2-008 (Blob trigger)
+**Next Action**: P2-004 (Clinical Extractor Agent) or P2-008 (Blob trigger)
 **Last Updated**: January 31, 2026
 
 ---
@@ -70,10 +70,10 @@
 | **Phase 2: AI Extraction Pipeline** |||||
 | P2-001 | Azure OpenAI setup (GPT-4o, GPT-4o-mini, embeddings) | M | 2 | Done | B-025 |
 | P2-002 | Model Router implementation | L | 2 | Done | P2-001 |
-| P2-003 | Intake Agent | L | 2 | Ready | P2-002 |
+| P2-003 | Intake Agent | L | 2 | Done | P2-002 |
 | P2-004 | Clinical Extractor Agent | XL | 2 | Ready | P2-002 |
 | P2-005 | Risk Assessor Agent (safety-critical) | XL | 2 | Blocked | P2-004 |
-| P2-006 | Agent-to-tool callbacks | L | 2 | Blocked | P2-003 |
+| P2-006 | Agent-to-tool callbacks | L | 2 | Ready | P2-003 |
 | P2-007 | Confidence scoring | M | 2 | Blocked | P2-004 |
 | P2-008 | Blob trigger ingestion (Azure Function) | L | 2 | Ready | P1-005 |
 | B-010 | Exponential backoff for OpenAI/Search | M | 2 | Ready | P2-001 |
@@ -87,7 +87,7 @@
 | B-035 | Synchronous AI Search indexing | M | 2 | Blocked | P2-004 |
 | B-036 | Document Intelligence failure handling | M | 2 | Blocked | P2-008 |
 | B-037 | Tool call limit graceful handling | M | 2 | Blocked | P2-006 |
-| B-040 | Stub IAIFoundryClientFactory in integration tests | S | 2 | Ready | P2-002 |
+| B-040 | Stub IAIFoundryClientFactory in integration tests | S | 2 | Done | P2-002 |
 | P2-009 | Create glossary of domain terms | S | 2 | Blocked | P2-004 |
 | P2-010 | Create sequence diagrams for agent interactions | M | 2 | Blocked | P2-006 |
 | **Phase 3: Summarization & RAG** |||||
@@ -169,6 +169,8 @@
 | B-039 | Basic CRUD integration tests (Patient, Session) | 2026-01-31 |
 | P2-001 | Azure OpenAI setup (AI Foundry connection + SDK wiring) | 2026-01-31 |
 | P2-002 | Model Router implementation (tests added) | 2026-01-31 |
+| B-040 | Stub IAIFoundryClientFactory in integration tests | 2026-01-31 |
+| P2-003 | Intake Agent (first LLM call, unit tests) | 2026-01-31 |
 | - | Planning complete | 2026-01-24 |
 
 ---
@@ -177,6 +179,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-01-31 | **B-040 + P2-003 complete.** Added StubAIFoundryClientFactory to integration tests. Implemented IntakeAgent with ParsedDocument/IntakeResult models, IntakePrompts. Extended IAIFoundryClientFactory with CreateChatClient(). Added Azure.AI.Inference package. Added DocumentIntake to ModelTask enum. 16 unit tests for IntakeAgent. Total tests now 108. P2-006 now unblocked. |
 | 2026-01-31 | **P2-002 Model Router complete.** Added SessionSight.Agents.Tests project with 6 unit tests for ModelRouter. Total tests now 98. P2-003, P2-004, P2-008, B-010, B-019, P3-002 now unblocked. |
 | 2026-01-31 | **P2-001 Azure OpenAI setup complete.** Created aiHubConnection.bicep module for OpenAI→Hub AAD connection. Added aiProjectEndpoint output to main.bicep. Wired SessionSight.Agents with Azure.AI.Agents.Persistent SDK. Created AIFoundryClientFactory (DI-ready) and ModelRouter (gpt-4o/gpt-4o-mini/embeddings selection). 92 tests passing. |
 | 2026-01-31 | **B-039 Integration tests complete.** Added 17 integration tests (Patient + Session CRUD) using WebApplicationFactory with in-memory DB. Coverage increased to 74%. Raised CI threshold from 30% to 70%. |

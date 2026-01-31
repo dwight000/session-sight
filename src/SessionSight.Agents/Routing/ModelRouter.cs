@@ -8,6 +8,7 @@ public class ModelRouter : IModelRouter
 
     public string SelectModel(ModelTask task) => task switch
     {
+        ModelTask.DocumentIntake => Gpt4oMini,
         ModelTask.Extraction => Gpt4o,
         ModelTask.RiskAssessment => Gpt4o,
         ModelTask.Summarization => Gpt4oMini,

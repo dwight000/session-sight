@@ -8,6 +8,7 @@ public class ModelRouterTests
     private readonly ModelRouter _router = new();
 
     [Theory]
+    [InlineData(ModelTask.DocumentIntake, ModelRouter.Gpt4oMini)]
     [InlineData(ModelTask.Extraction, ModelRouter.Gpt4o)]
     [InlineData(ModelTask.RiskAssessment, ModelRouter.Gpt4o)]
     [InlineData(ModelTask.Summarization, ModelRouter.Gpt4oMini)]

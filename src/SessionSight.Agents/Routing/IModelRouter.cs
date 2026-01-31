@@ -7,6 +7,7 @@ public interface IModelRouter
 
 public enum ModelTask
 {
+    DocumentIntake,  // gpt-4o-mini
     Extraction,      // gpt-4o
     Summarization,   // gpt-4o-mini
     Embedding,       // text-embedding-3-large
