@@ -5,6 +5,7 @@ using Scalar.AspNetCore;
 using SessionSight.Agents.Agents;
 using SessionSight.Agents.Routing;
 using SessionSight.Agents.Services;
+using SessionSight.Agents.Validation;
 using SessionSight.Api.Middleware;
 using SessionSight.Api.Validators;
 using SessionSight.Infrastructure;
@@ -29,6 +30,9 @@ builder.Services.AddScoped<SessionSight.Core.Interfaces.IDocumentStorage, Sessio
 builder.Services.AddSingleton<IAIFoundryClientFactory, AIFoundryClientFactory>();
 builder.Services.AddSingleton<IModelRouter, ModelRouter>();
 builder.Services.AddScoped<IIntakeAgent, IntakeAgent>();
+builder.Services.AddScoped<IClinicalExtractorAgent, ClinicalExtractorAgent>();
+builder.Services.AddSingleton<ISchemaValidator, SchemaValidator>();
+builder.Services.AddSingleton<ConfidenceCalculator>();
 
 // Controllers + JSON serialization
 builder.Services.AddControllers()

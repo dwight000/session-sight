@@ -10,6 +10,7 @@ public class ModelRouter : IModelRouter
     {
         ModelTask.DocumentIntake => Gpt4oMini,
         ModelTask.Extraction => Gpt4o,
+        ModelTask.ExtractionSimple => Gpt4oMini,
         ModelTask.RiskAssessment => Gpt4o,
         ModelTask.Summarization => Gpt4oMini,
         ModelTask.Embedding => Embedding,

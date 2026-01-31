@@ -7,7 +7,7 @@
 ## Current Status
 
 **Phase**: Phase 2 (AI extraction pipeline)
-**Next Action**: P2-004 (Clinical Extractor Agent) or P2-008 (Blob trigger)
+**Next Action**: P2-005 (Risk Assessor Agent) or P2-008 (Blob trigger)
 **Last Updated**: January 31, 2026
 
 ---
@@ -71,31 +71,31 @@
 | P2-001 | Azure OpenAI setup (GPT-4o, GPT-4o-mini, embeddings) | M | 2 | Done | B-025 |
 | P2-002 | Model Router implementation | L | 2 | Done | P2-001 |
 | P2-003 | Intake Agent | L | 2 | Done | P2-002 |
-| P2-004 | Clinical Extractor Agent | XL | 2 | Ready | P2-002 |
-| P2-005 | Risk Assessor Agent (safety-critical) | XL | 2 | Blocked | P2-004 |
+| P2-004 | Clinical Extractor Agent | XL | 2 | Done | P2-002 |
+| P2-005 | Risk Assessor Agent (safety-critical) | XL | 2 | Ready | P2-004 |
 | P2-006 | Agent-to-tool callbacks | L | 2 | Ready | P2-003 |
-| P2-007 | Confidence scoring | M | 2 | Blocked | P2-004 |
+| P2-007 | Confidence scoring | M | 2 | Done | P2-004 |
 | P2-008 | Blob trigger ingestion (Azure Function) | L | 2 | Ready | P1-005 |
 | B-010 | Exponential backoff for OpenAI/Search | M | 2 | Ready | P2-001 |
 | B-011 | Idempotent job IDs for blob trigger | M | 2 | Blocked | P2-008 |
 | B-012 | Dead-letter handling for failed ingestion | M | 2 | Blocked | P2-008 |
-| B-013 | Dedupe strategy blob->SQL->AI Search | M | 2 | Blocked | P2-004 |
+| B-013 | Dedupe strategy blob->SQL->AI Search | M | 2 | Ready | P2-004 |
 | B-019 | Telemetry redaction for PHI in traces | M | 2 | Ready | P1-016 |
 | B-032 | Document size validation (reject >30 pages) | M | 2 | Blocked | P2-008 |
 | B-033 | Internal service auth (Function->API) | M | 2 | Blocked | P2-008 |
 | B-034 | Fix idempotency race condition (SQL MERGE with HOLDLOCK) | M | 2 | Blocked | P2-008 |
-| B-035 | Synchronous AI Search indexing | M | 2 | Blocked | P2-004 |
+| B-035 | Synchronous AI Search indexing | M | 2 | Ready | P2-004 |
 | B-036 | Document Intelligence failure handling | M | 2 | Blocked | P2-008 |
 | B-037 | Tool call limit graceful handling | M | 2 | Blocked | P2-006 |
 | B-040 | Stub IAIFoundryClientFactory in integration tests | S | 2 | Done | P2-002 |
-| P2-009 | Create glossary of domain terms | S | 2 | Blocked | P2-004 |
+| P2-009 | Create glossary of domain terms | S | 2 | Ready | P2-004 |
 | P2-010 | Create sequence diagrams for agent interactions | M | 2 | Blocked | P2-006 |
 | **Phase 3: Summarization & RAG** |||||
 | P3-001 | Summarizer Agent (3 levels) | XL | 3 | Blocked | P2-005 |
 | P3-002 | Azure AI Search vector index | M | 3 | Ready | P2-001 |
 | P3-003 | Embedding pipeline (text-embedding-3-large) | L | 3 | Blocked | P3-002 |
 | P3-004 | Q&A Agent with RAG | XL | 3 | Blocked | P3-003 |
-| B-003 | Synthetic data generator script | M | 3 | Blocked | P2-004 |
+| B-003 | Synthetic data generator script | M | 3 | Ready | P2-004 |
 | B-014 | Reindex/backfill job for AI Search | M | 3 | Blocked | P3-002 |
 | **Pre-Phase 3 Checkpoint (Tabled Items)** |||||
 | B-020 | RBAC / Entra ID authentication | L | 3+ | Tabled | - |
@@ -117,7 +117,7 @@
 | B-015 | Contract tests for API DTOs | M | 5 | Blocked | P1-004 |
 | B-016 | Load/concurrency tests | M | 5 | Blocked | P5-001 |
 | B-017 | Safety/red-team evals | L | 5 | Blocked | P2-005 |
-| B-038 | Golden files for non-risk fields | L | 5 | Blocked | P2-004 |
+| B-038 | Golden files for non-risk fields | L | 5 | Ready | P2-004 |
 | **Phase 6: Deployment** |||||
 | P6-001 | Configure dev environment (development Azure resources) | M | 6 | Blocked | P5-001 |
 | P6-002 | Configure prod environment (production Azure resources) | M | 6 | Blocked | P6-001 |
@@ -171,6 +171,8 @@
 | P2-002 | Model Router implementation (tests added) | 2026-01-31 |
 | B-040 | Stub IAIFoundryClientFactory in integration tests | 2026-01-31 |
 | P2-003 | Intake Agent (first LLM call, unit tests) | 2026-01-31 |
+| P2-004 | Clinical Extractor Agent (parallel 9-section extraction) | 2026-01-31 |
+| P2-007 | Confidence scoring (incorporated into P2-004) | 2026-01-31 |
 | - | Planning complete | 2026-01-24 |
 
 ---
@@ -179,6 +181,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-01-31 | **P2-004 + P2-007 complete.** Implemented ClinicalExtractorAgent with parallel 9-section extraction using Task.WhenAll. Added ExtractionPrompts for all sections. Created SchemaValidator for required fields, risk confidence thresholds (0.9), and range validation. Created ConfidenceCalculator for overall confidence and low-confidence field detection. Added ExtractionSimple to ModelTask for gpt-4o-mini extractions. 47 unit tests. Total tests now ~125. P2-005, B-013, B-035, P2-009, B-003, B-038 unblocked. |
 | 2026-01-31 | **B-040 + P2-003 complete.** Added StubAIFoundryClientFactory to integration tests. Implemented IntakeAgent with ParsedDocument/IntakeResult models, IntakePrompts. Extended IAIFoundryClientFactory with CreateChatClient(). Added Azure.AI.Inference package. Added DocumentIntake to ModelTask enum. 16 unit tests for IntakeAgent. Total tests now 108. P2-006 now unblocked. |
 | 2026-01-31 | **P2-002 Model Router complete.** Added SessionSight.Agents.Tests project with 6 unit tests for ModelRouter. Total tests now 98. P2-003, P2-004, P2-008, B-010, B-019, P3-002 now unblocked. |
 | 2026-01-31 | **P2-001 Azure OpenAI setup complete.** Created aiHubConnection.bicep module for OpenAI→Hub AAD connection. Added aiProjectEndpoint output to main.bicep. Wired SessionSight.Agents with Azure.AI.Agents.Persistent SDK. Created AIFoundryClientFactory (DI-ready) and ModelRouter (gpt-4o/gpt-4o-mini/embeddings selection). 92 tests passing. |

@@ -10,6 +10,7 @@ public class ModelRouterTests
     [Theory]
     [InlineData(ModelTask.DocumentIntake, ModelRouter.Gpt4oMini)]
     [InlineData(ModelTask.Extraction, ModelRouter.Gpt4o)]
+    [InlineData(ModelTask.ExtractionSimple, ModelRouter.Gpt4oMini)]
     [InlineData(ModelTask.RiskAssessment, ModelRouter.Gpt4o)]
     [InlineData(ModelTask.Summarization, ModelRouter.Gpt4oMini)]
     [InlineData(ModelTask.Embedding, ModelRouter.Embedding)]
