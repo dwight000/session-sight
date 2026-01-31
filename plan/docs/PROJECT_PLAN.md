@@ -30,7 +30,7 @@
 | **Testing** | Integration + golden files | AI outputs non-deterministic, verify structure not exact values |
 | **CI/CD** | GitHub Actions | GitHub portfolio, Microsoft pushing GH Actions for new features |
 | **Secrets** | Azure Key Vault | Best practice; dotnet user-secrets for local dev |
-| **Environments** | 2 (dev, prod) | Simple for POC |
+| **Environments** | Local + Dev (cloud) | Prod can be added later if needed |
 | **Observability** | Application Insights + Aspire Dashboard | Built-in Aspire support |
 | **API Auth** | API key | Simple for POC |
 | **API Docs** | Auto-generated OpenAPI | Built-in .NET 9 support |
@@ -84,20 +84,44 @@ See `docs/decisions/` for full Architecture Decision Records.
 
 > **Note (Jan 2026):** Microsoft Agent Framework is in **public preview**. GA expected later 2026. Package names may change (`Microsoft.Agents.*` vs `Azure.AI.Agents`). See B-001 spike and B-025 compatibility gate before Phase 2. Delivered via Azure AI Foundry "Agent Service."
 
-### Development Environment (Cloud-Backed)
+### Environment Model
 
 ```
-LOCAL (Aspire AppHost)                   AZURE SERVICES (Required)
-┌─────────────────────────┐              ┌─────────────────────────┐
-│ ├── Azurite (blob emu)  │              │ Azure OpenAI            │
-│ └── SessionSight.Api     │◄────────────►│ ├── GPT-4o              │
-└─────────────────────────┘              │ ├── GPT-4o-mini         │
-                                         │ └── text-embedding-3    │
-                                         │                         │
-                                         │ Azure AI Document Intel │
-                                         │ Azure AI Search         │
-                                         │ Azure SQL (free tier)   │
-                                         └─────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         SESSIONSIGHT ENVIRONMENTS                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  LOCAL                              DEV (Cloud)                             │
+│  ─────                              ───────────                             │
+│  Your machine                       Azure Container Apps                    │
+│  dotnet run / Aspire                Deployed via azd / GitHub Actions       │
+│  For coding, debugging              For testing, demos, portfolio showcase  │
+│                                                                             │
+│  ┌─────────────────────┐            ┌─────────────────────┐                │
+│  │ API runs locally    │            │ API runs in Azure   │                │
+│  │ Azurite (blob emu)  │            │ Azure Blob Storage  │                │
+│  └─────────┬───────────┘            └─────────┬───────────┘                │
+│            │                                  │                             │
+│            └──────────────┬───────────────────┘                             │
+│                           ▼                                                 │
+│            ┌─────────────────────────────────────┐                         │
+│            │  SHARED AZURE SERVICES               │                         │
+│            │  (rg-sessionsight-dev)               │                         │
+│            │  - Azure OpenAI                      │                         │
+│            │  - Azure SQL                         │                         │
+│            │  - Azure AI Search                   │                         │
+│            │  - Document Intelligence             │                         │
+│            │  - Key Vault                         │                         │
+│            └─────────────────────────────────────┘                         │
+│                                                                             │
+│  PROD (Future)                                                              │
+│  ─────────────                                                              │
+│  Not implemented. Can be added later if needed for:                         │
+│  - Separate resources for production workloads                              │
+│  - Approval gates before deployment                                         │
+│  - Different scaling/pricing tiers                                          │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 **Azure subscription required** for development (OpenAI, AI Search, SQL).
