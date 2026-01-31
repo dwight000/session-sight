@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using SessionSight.Api.DTOs;
 using SessionSight.Api.Mapping;
-using SessionSight.Core.Enums;
 using SessionSight.Core.Entities;
+using SessionSight.Core.Enums;
 using SessionSight.Core.Interfaces;
 
 namespace SessionSight.Api.Controllers;

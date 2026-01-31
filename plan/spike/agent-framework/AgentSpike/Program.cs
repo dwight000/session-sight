@@ -1,8 +1,8 @@
+using System.Text.Json;
 using Azure;
 using Azure.AI.Agents.Persistent;
 using Azure.AI.Projects;
 using Azure.Identity;
-using System.Text.Json;
 
 // ── Configuration ──────────────────────────────────────────────────
 // Option A: Foundry project endpoint (set via env var or appsettings)

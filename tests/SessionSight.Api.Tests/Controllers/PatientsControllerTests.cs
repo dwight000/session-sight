@@ -1,12 +1,12 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Moq;
 using SessionSight.Api.Controllers;
 using SessionSight.Api.DTOs;
 using SessionSight.Api.Mapping;
 using SessionSight.Core.Entities;
 using SessionSight.Core.Interfaces;
-using Microsoft.Extensions.Logging;
 
 namespace SessionSight.Api.Tests.Controllers;
 

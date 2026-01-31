@@ -20,7 +20,7 @@ var blobs = storage.AddBlobs("documents");
 builder.AddProject<Projects.SessionSight_Api>("api")
     .WithReference(db).WaitFor(db)
     .WithReference(blobs);
-    // .WithReference(insights)
-    // .WithReference(keyVault);
+// .WithReference(insights)
+// .WithReference(keyVault);
 
 builder.Build().Run();

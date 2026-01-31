@@ -1,12 +1,12 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Moq;
 using SessionSight.Api.Controllers;
 using SessionSight.Api.DTOs;
 using SessionSight.Core.Entities;
 using SessionSight.Core.Enums;
 using SessionSight.Core.Interfaces;
-using Microsoft.Extensions.Logging;
 
 namespace SessionSight.Api.Tests.Controllers;
 
@@ -29,9 +29,13 @@ public class SessionsControllerTests
         var id = Guid.NewGuid();
         var session = new Session
         {
-            Id = id, PatientId = Guid.NewGuid(), TherapistId = Guid.NewGuid(),
-            SessionDate = new DateOnly(2026, 1, 15), SessionType = SessionType.Individual,
-            Modality = SessionModality.InPerson, SessionNumber = 1
+            Id = id,
+            PatientId = Guid.NewGuid(),
+            TherapistId = Guid.NewGuid(),
+            SessionDate = new DateOnly(2026, 1, 15),
+            SessionType = SessionType.Individual,
+            Modality = SessionModality.InPerson,
+            SessionNumber = 1
         };
         _mockRepo.Setup(r => r.GetByIdAsync(id)).ReturnsAsync(session);
 
