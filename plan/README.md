@@ -3,7 +3,7 @@
 > AI-powered clinical notes analysis for mental health practices
 
 [![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)](https://dotnet.microsoft.com/)
-[![Aspire](https://img.shields.io/badge/Aspire-13.x-6C3483)](https://learn.microsoft.com/en-us/dotnet/aspire/)
+[![Aspire](https://img.shields.io/badge/Aspire-9.x-6C3483)](https://learn.microsoft.com/en-us/dotnet/aspire/)
 [![Azure OpenAI](https://img.shields.io/badge/Azure_OpenAI-GPT--4o-0078D4)](https://azure.microsoft.com/en-us/products/ai-services/openai-service)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -57,7 +57,7 @@ This project parallels enterprise AI systems like document summarization pipelin
 
 | Layer | Technology |
 |-------|------------|
-| Orchestration | .NET Aspire 13.x |
+| Orchestration | .NET Aspire 9.x |
 | Backend | .NET 9, ASP.NET Core |
 | AI Framework | Microsoft Agent Framework |
 | Document Processing | Azure AI Document Intelligence (OCR, PDF parsing) |
@@ -199,8 +199,8 @@ The Aspire dashboard will open, showing all services.
 
 | Phase | Status | Description |
 |-------|--------|-------------|
-| 0. Azure Setup | Planned | Provision Azure resources, configure connections |
-| 1. Foundation | Planned | Solution structure, domain models, basic API |
+| 0. Azure Setup | Complete | Provision Azure resources, configure connections |
+| 1. Foundation | Complete | Solution structure, domain models, basic API |
 | 2. AI Extraction | Planned | Intake + Extractor + Risk agents, model routing |
 | 3. Summarization & RAG | Planned | Multi-level summaries, Q&A agent |
 | 4. Risk Dashboard & UI | Planned | Supervisor review queue, risk visualization |

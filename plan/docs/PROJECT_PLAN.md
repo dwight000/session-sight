@@ -41,7 +41,7 @@
 | **Code Formatting** | .editorconfig | Standard .NET rules |
 | **IaC** | Hand-written Bicep | Full control, modular design, committed to repo |
 
-See `docs/decisions/` for full Architecture Decision Records.
+See `plan/docs/decisions/` for full Architecture Decision Records.
 
 ---
 
@@ -70,7 +70,7 @@ See `docs/decisions/` for full Architecture Decision Records.
 
 | Layer | Technology | Purpose |
 |-------|------------|---------|
-| **Orchestration** | .NET Aspire 13.x | Cloud-native service orchestration |
+| **Orchestration** | .NET Aspire 9.x | Cloud-native service orchestration |
 | **Backend API** | .NET 9, ASP.NET Core | REST API |
 | **AI Framework** | Microsoft Agent Framework | Multi-agent orchestration |
 | **Document Processing** | Azure AI Document Intelligence | OCR, PDF parsing, section identification |
@@ -167,7 +167,7 @@ See `docs/decisions/` for full Architecture Decision Records.
 
 ## Clinical Schema
 
-See: `docs/specs/clinical-schema.md` for full 80+ field schema.
+See: `plan/docs/specs/clinical-schema.md` for full 80+ field schema.
 
 **Key categories:**
 - Session Info (10 fields)
@@ -192,13 +192,13 @@ See: `docs/specs/clinical-schema.md` for full 80+ field schema.
 
 > **Execution Order:** Phase 0 → B-001/B-025 spike (blocks Phase 2) → Phase 1 → Phase 2 → Revisit tabled items (B-020-024) → Phase 3 → Phase 4 → Phase 5 → Phase 6
 
-> **Task Tracking:** Individual tasks for each phase are tracked in `docs/BACKLOG.md`
+> **Task Tracking:** Individual tasks for each phase are tracked in `plan/docs/BACKLOG.md`
 
 ### Phase 0: Azure & GitHub Setup
 
 Create private GitHub repository (will be made public after Phase 1 when secrets/configs are properly secured). Provision all required Azure resources: resource group, Azure SQL (free tier), Azure AI Search (free tier), Azure OpenAI with GPT-4o models, Azure AI Document Intelligence for PDF/OCR, Key Vault for secrets, and Container Registry. Set up cost guardrails with budget alerts on the resource group and OpenAI daily spend alerts. Configure connection strings for all services.
 
-**Spec:** `docs/specs/azure-setup.md`
+**Spec:** `plan/docs/specs/azure-setup.md`
 
 ### Phase 1: Foundation
 
@@ -210,7 +210,7 @@ Configure CI/CD with GitHub Actions for build/test on PR, GitHub OIDC auth for A
 
 Add observability with Application Insights, Key Vault integration, health check endpoint, and auto-generated OpenAPI docs. Establish error handling patterns and initialize Gitflow branches.
 
-**Spec:** `docs/specs/phase-1-foundation.md`
+**Spec:** `plan/docs/specs/phase-1-foundation.md`
 
 ### Phase 2: AI Extraction Pipeline
 
@@ -239,7 +239,7 @@ Build the Summarizer Agent with 3 summary levels (session, patient, practice). S
 
 Create synthetic therapy notes generator script for diverse test scenarios covering various conditions and risk levels.
 
-**Spec:** `docs/specs/phase-3-summarization-rag.md`
+**Spec:** `plan/docs/specs/phase-3-summarization-rag.md`
 
 ### Phase 4: Risk Dashboard & UI
 
@@ -247,7 +247,7 @@ Build the supervisor-facing UI for reviewing flagged sessions and monitoring pat
 
 This is a minimal frontend (API-first approach) - focus on functionality over polish.
 
-**Spec:** `docs/specs/phase-4-risk-dashboard.md`
+**Spec:** `plan/docs/specs/phase-4-risk-dashboard.md`
 
 ### Phase 5: Polish & Testing
 
@@ -255,7 +255,7 @@ Harden the system with comprehensive testing and documentation. Implement integr
 
 Create documentation: architecture diagrams (Mermaid), data flow diagrams (document → agent → DB), and API usage examples. Expand golden files to cover all 82 schema fields.
 
-**Spec:** `docs/specs/phase-5-polish-testing.md`
+**Spec:** `plan/docs/specs/phase-5-polish-testing.md`
 
 ### Phase 6: Deployment
 
@@ -263,7 +263,7 @@ Configure dev and prod environments with appropriate Azure resources. Set up Git
 
 Create GitHub Release with SemVer tag (v1.0.0), enable Dependabot for dependency updates, and prepare demo data with walkthrough documentation.
 
-**Spec:** `docs/specs/phase-6-deployment.md`
+**Spec:** `plan/docs/specs/phase-6-deployment.md`
 
 ---
 
@@ -275,7 +275,7 @@ session-sight/
 │   └── workflows/                # GitHub Actions CI/CD
 │       ├── ci.yml                # Build + test on PR
 │       └── deploy.yml            # Deploy to Azure (on release)
-├── docs/
+├── plan/docs/
 │   ├── PROJECT_PLAN.md           # Stable context (what/why) - rarely changes
 │   ├── BACKLOG.md                # Task tracker (what's next) - updated every session
 │   ├── WORKFLOW.md               # Claude session instructions (how)
@@ -325,9 +325,9 @@ session-sight/
 
 ## Research Completed
 
-Research docs in `docs/research/`:
+Research docs in `plan/docs/research/`:
 
-1. **aspire-ai-capabilities-research-2026.md**: .NET Aspire 13.x with GenAI Telemetry Visualizer, Azure OpenAI component, Azure AI Search component.
+1. **aspire-ai-capabilities-research-2026.md**: .NET Aspire 9.x with GenAI Telemetry Visualizer, Azure OpenAI component, Azure AI Search component.
 
 2. **azure-ai-foundry-agent-research-jan2026.md**: Microsoft Agent Framework (preview), Azure AI Foundry integration patterns.
 
@@ -384,11 +384,11 @@ Portfolio demonstrates:
 
 If you are a new Claude session:
 
-1. **Read `docs/BACKLOG.md`** - Current status, active work, and task list
-2. **Follow `docs/WORKFLOW.md`** - Session start/end instructions and task selection
+1. **Read `plan/docs/BACKLOG.md`** - Current status, active work, and task list
+2. **Follow `plan/docs/WORKFLOW.md`** - Session start/end instructions and task selection
 3. **Read this document** - For context, decisions, and architecture
-4. **Check phase specs** - `docs/specs/phase-*.md` for implementation details
-5. **Check research** - `docs/research/` for technology deep-dives
+4. **Check phase specs** - `plan/docs/specs/phase-*.md` for implementation details
+5. **Check research** - `plan/docs/research/` for technology deep-dives
 
 ### Key Constraints
 - Must use Microsoft Agent Framework (not raw Semantic Kernel)
@@ -421,7 +421,7 @@ All test data is AI-generated with fictional patients. Never use real patient da
 
 ## Session Workflow
 
-See `docs/WORKFLOW.md` for detailed Claude session instructions.
+See `plan/docs/WORKFLOW.md` for detailed Claude session instructions.
 
 **Quick Reference:**
 - **Start:** Read `BACKLOG.md` → Check Active Work → Pick next Ready task
@@ -431,7 +431,7 @@ See `docs/WORKFLOW.md` for detailed Claude session instructions.
 
 ## Task Tracking
 
-**All tasks are tracked in `docs/BACKLOG.md`** - the single source of truth for:
+**All tasks are tracked in `plan/docs/BACKLOG.md`** - the single source of truth for:
 - Current status and next action
 - Active work in progress
 - Full task table with dependencies

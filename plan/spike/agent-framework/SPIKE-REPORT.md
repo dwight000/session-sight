@@ -17,8 +17,8 @@
 | Azure.Identity | 1.17.1 | Works (DefaultAzureCredential via az CLI) |
 | OpenAI | 2.8.0 | Transitive dep, works |
 | System.ClientModel | 1.8.1 | Transitive dep, works |
-| Aspire.Hosting.AppHost | 8.2.2 | Works (Aspire template) |
-| Aspire.Hosting.Azure.CognitiveServices | 13.1.0 | Works (AddAzureOpenAI) |
+| Aspire.Hosting.AppHost | 9.2.1 | Works (Aspire template) |
+| Aspire.Hosting.Azure.CognitiveServices | 9.2.1 | Works (AddAzureOpenAI) |
 
 ## 3. Infrastructure Created
 
@@ -84,9 +84,9 @@ See `AgentSpike/Program.cs` — complete 280-line console app that:
 - [x] `AddAzureOpenAI("openai").AddDeployment(...)` + `WithReference(openai)` wires correctly
 
 **Notes:**
-- Used `Aspire.Hosting.Azure.CognitiveServices` 13.1.0 (latest stable)
+- Used `Aspire.Hosting.Azure.CognitiveServices` 9.2.1 (latest stable)
 - `AddDeployment(AzureOpenAIDeployment)` is deprecated; use the 3-parameter overload instead
-- Aspire workload version 8.2.2 installed (latest via `dotnet workload install aspire`)
+- Aspire workload version 9.2.1 installed (latest via `dotnet workload install aspire`)
 
 ## 7. Issues Encountered
 
