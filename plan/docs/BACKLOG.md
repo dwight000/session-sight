@@ -75,7 +75,7 @@
 | P2-005 | Risk Assessor Agent (safety-critical) | XL | 2 | Ready | P2-004 |
 | P2-006 | Agent-to-tool callbacks | L | 2 | Ready | P2-003 |
 | P2-007 | Confidence scoring | M | 2 | Done | P2-004 |
-| P2-008 | Blob trigger ingestion (Azure Function) | L | 2 | Ready | P1-005 |
+| P2-008 | Blob trigger + ExtractionOrchestrator + Doc Intelligence | XL | 2 | Ready | P2-004 |
 | B-010 | Exponential backoff for OpenAI/Search | M | 2 | Ready | P2-001 |
 | B-011 | Idempotent job IDs for blob trigger | M | 2 | Blocked | P2-008 |
 | B-012 | Dead-letter handling for failed ingestion | M | 2 | Blocked | P2-008 |
