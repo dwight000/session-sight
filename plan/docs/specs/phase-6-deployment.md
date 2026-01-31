@@ -68,7 +68,7 @@ The `session-sight-github-actions` app registration has three federated credenti
 GitHub Actions workflow (`deploy.yml`) that:
 - Triggers on push to main or manual dispatch
 - Uses `environment: dev` for OIDC auth
-- Runs `azd deploy` to deploy to Azure Container Apps
+- Deploys application to Azure Container Apps
 
 ### 2. Infrastructure Management
 

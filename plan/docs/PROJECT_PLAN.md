@@ -34,7 +34,7 @@
 | **Observability** | Application Insights + Aspire Dashboard | Built-in Aspire support |
 | **API Auth** | API key | Simple for POC |
 | **API Docs** | Auto-generated OpenAPI | Built-in .NET 9 support |
-| **Container Registry** | Azure Container Registry (ACR) | azd handles automatically |
+| **Container Registry** | Azure Container Registry (ACR) | Added via Bicep when needed |
 | **Branch Strategy** | Gitflow | main/develop/feature branches |
 | **Versioning** | SemVer + Git tags | Standard (1.0.0, 1.1.0, etc.) |
 | **Code Coverage** | 80% target | Enforced in CI |
@@ -259,7 +259,7 @@ Create documentation: architecture diagrams (Mermaid), data flow diagrams (docum
 
 ### Phase 6: Deployment
 
-Configure dev and prod environments with appropriate Azure resources. Set up GitHub Actions deploy.yml using `azd deploy`. Implement infra drift checks, dev→prod promotion model with approval rules, and rollback strategy.
+Configure dev and prod environments with appropriate Azure resources. Set up GitHub Actions deploy.yml for application deployment. Implement infra drift checks (Bicep what-if), dev→prod promotion model with approval rules, and rollback strategy.
 
 Create GitHub Release with SemVer tag (v1.0.0), enable Dependabot for dependency updates, and prepare demo data with walkthrough documentation.
 

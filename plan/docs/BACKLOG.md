@@ -32,7 +32,7 @@
 | P0-004 | Set up Azure OpenAI with GPT-4o models | M | 0 | Done | P0-001 |
 | P0-005 | Provision Azure AI Document Intelligence | S | 0 | Done | P0-001 |
 | P0-006 | Create Azure Key Vault | S | 0 | Done | P0-001 |
-| ~~P0-007~~ | ~~Create Azure Container Registry (ACR)~~ | - | - | Removed | *azd handles automatically* |
+| ~~P0-007~~ | ~~Create Azure Container Registry (ACR)~~ | - | - | Removed | *add to Bicep when needed* |
 | P0-008 | Configure budget alert on resource group | S | 0 | Tabled | *global budget alert exists* |
 | P0-009 | Configure OpenAI daily spend alert | S | 0 | Tabled | *global budget alert exists* |
 | P0-010 | Configure connection strings | S | 0 | Done | - |
@@ -119,8 +119,8 @@
 | **Phase 6: Deployment** |||||
 | P6-001 | Configure dev environment (development Azure resources) | M | 6 | Blocked | P5-001 |
 | P6-002 | Configure prod environment (production Azure resources) | M | 6 | Blocked | P6-001 |
-| P6-003 | GitHub Actions deploy.yml (azd deploy) | M | 6 | Blocked | P6-001 |
-| B-029 | Infra drift checks: azd infra synth + bicep build | M | 6 | Blocked | P1-015 |
+| P6-003 | GitHub Actions deploy.yml (app deployment) | M | 6 | Blocked | P6-001 |
+| B-029 | Infra drift checks: bicep what-if + validate | M | 6 | Ready | P1-015 |
 | B-030 | Promotion model: dev->prod approval rules | M | 6 | Blocked | P6-003 |
 | B-031 | Rollback strategy: keep last good artifact | M | 6 | Blocked | P6-003 |
 | P6-004 | Environment-specific configuration | M | 6 | Blocked | P6-002 |

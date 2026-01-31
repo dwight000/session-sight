@@ -65,7 +65,7 @@ This project parallels enterprise AI systems like document summarization pipelin
 | Embeddings | Azure OpenAI (text-embedding-3-large) |
 | Vector Search | Azure AI Search |
 | Database | Azure SQL (free tier) |
-| Deployment | Aspire + azd (auto-generated Bicep) |
+| Deployment | Aspire local + GitHub Actions (Bicep IaC) |
 
 ## Features
 
