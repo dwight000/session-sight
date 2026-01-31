@@ -68,7 +68,7 @@ jobs:
         run: |
           # Get SQL password from existing Key Vault (provisioned in Phase 0)
           SQL_PASSWORD=$(az keyvault secret show \
-            --vault-name sessionsight-kv-1792 \
+            --vault-name sessionsight-kv-dev \
             --name sql-admin-password \
             --query value -o tsv 2>/dev/null || echo "")
 
@@ -158,7 +158,7 @@ jobs:
         id: secrets
         run: |
           SQL_PASSWORD=$(az keyvault secret show \
-            --vault-name sessionsight-kv-1792 \
+            --vault-name sessionsight-kv-dev \
             --name sql-admin-password \
             --query value -o tsv 2>/dev/null || echo "placeholder-for-whatif")
           echo "::add-mask::$SQL_PASSWORD"
