@@ -35,6 +35,17 @@ jobs:
           dotnet tool restore
           dotnet reportgenerator -reports:"coverage/**/coverage.cobertura.xml" -targetdir:coverage/report -reporttypes:Cobertura
 
+      # TODO: Raise threshold to 80% once Phase 2 adds more coverage (B-018)
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(grep -oP 'line-rate="\K[^"]+' coverage/report/Cobertura.xml | head -1)
+          PERCENT=$(echo "$COVERAGE * 100" | bc)
+          echo "Coverage: $PERCENT%"
+          if (( $(echo "$COVERAGE < 0.60" | bc -l) )); then
+            echo "::error::Coverage $PERCENT% is below 60% threshold"
+            exit 1
+          fi
+
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
