@@ -87,6 +87,7 @@
 | B-035 | Synchronous AI Search indexing | M | 2 | Blocked | P2-004 |
 | B-036 | Document Intelligence failure handling | M | 2 | Blocked | P2-008 |
 | B-037 | Tool call limit graceful handling | M | 2 | Blocked | P2-006 |
+| B-040 | Stub IAIFoundryClientFactory in integration tests | S | 2 | Ready | P2-002 |
 | P2-009 | Create glossary of domain terms | S | 2 | Blocked | P2-004 |
 | P2-010 | Create sequence diagrams for agent interactions | M | 2 | Blocked | P2-006 |
 | **Phase 3: Summarization & RAG** |||||
