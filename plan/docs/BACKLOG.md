@@ -7,7 +7,7 @@
 ## Current Status
 
 **Phase**: Phase 2 (AI extraction pipeline)
-**Next Action**: P2-005 (Risk Assessor Agent) or P2-008 (Blob trigger)
+**Next Action**: P2-008 (Blob trigger + ExtractionOrchestrator + Doc Intelligence)
 **Last Updated**: January 31, 2026
 
 ---
@@ -72,7 +72,7 @@
 | P2-002 | Model Router implementation | L | 2 | Done | P2-001 |
 | P2-003 | Intake Agent | L | 2 | Done | P2-002 |
 | P2-004 | Clinical Extractor Agent | XL | 2 | Done | P2-002 |
-| P2-005 | Risk Assessor Agent (safety-critical) | XL | 2 | Ready | P2-004 |
+| P2-005 | Risk Assessor Agent (safety-critical) | XL | 2 | Done | P2-004 |
 | P2-006 | Agent-to-tool callbacks | L | 2 | Ready | P2-003 |
 | P2-007 | Confidence scoring | M | 2 | Done | P2-004 |
 | P2-008 | Blob trigger + ExtractionOrchestrator + Doc Intelligence | XL | 2 | Ready | P2-004 |
@@ -91,7 +91,7 @@
 | P2-009 | Create glossary of domain terms | S | 2 | Ready | P2-004 |
 | P2-010 | Create sequence diagrams for agent interactions | M | 2 | Blocked | P2-006 |
 | **Phase 3: Summarization & RAG** |||||
-| P3-001 | Summarizer Agent (3 levels) | XL | 3 | Blocked | P2-005 |
+| P3-001 | Summarizer Agent (3 levels) | XL | 3 | Ready | P2-005 |
 | P3-002 | Azure AI Search vector index | M | 3 | Ready | P2-001 |
 | P3-003 | Embedding pipeline (text-embedding-3-large) | L | 3 | Blocked | P3-002 |
 | P3-004 | Q&A Agent with RAG | XL | 3 | Blocked | P3-003 |
@@ -109,14 +109,14 @@
 | P4-003 | Patient history timeline view | L | 4 | Blocked | P4-001 |
 | P4-004 | Flagged session approve/dismiss workflow | M | 4 | Blocked | P4-001 |
 | **Phase 5: Polish & Testing** |||||
-| P5-001 | Integration tests (golden files) | L | 5 | Blocked | P2-005 |
+| P5-001 | Integration tests (golden files) | L | 5 | Ready | P2-005 |
 | P5-002 | Data flow diagrams (document->agent->DB) | M | 5 | Blocked | B-004 |
 | P5-003 | API usage examples | S | 5 | Blocked | P1-019 |
 | B-004 | Architecture diagrams (Mermaid) | M | 5 | Blocked | P2-010 |
 | B-005 | Load testing setup | M | 5 | Blocked | P5-001 |
 | B-015 | Contract tests for API DTOs | M | 5 | Blocked | P1-004 |
 | B-016 | Load/concurrency tests | M | 5 | Blocked | P5-001 |
-| B-017 | Safety/red-team evals | L | 5 | Blocked | P2-005 |
+| B-017 | Safety/red-team evals | L | 5 | Ready | P2-005 |
 | B-038 | Golden files for non-risk fields | L | 5 | Ready | P2-004 |
 | **Phase 6: Deployment** |||||
 | P6-001 | Configure dev environment (development Azure resources) | M | 6 | Blocked | P5-001 |

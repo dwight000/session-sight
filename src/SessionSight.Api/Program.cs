@@ -3,6 +3,7 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using Scalar.AspNetCore;
 using SessionSight.Agents.Agents;
+using SessionSight.Agents.Models;
 using SessionSight.Agents.Routing;
 using SessionSight.Agents.Services;
 using SessionSight.Agents.Validation;
@@ -31,8 +32,13 @@ builder.Services.AddSingleton<IAIFoundryClientFactory, AIFoundryClientFactory>()
 builder.Services.AddSingleton<IModelRouter, ModelRouter>();
 builder.Services.AddScoped<IIntakeAgent, IntakeAgent>();
 builder.Services.AddScoped<IClinicalExtractorAgent, ClinicalExtractorAgent>();
+builder.Services.AddScoped<IRiskAssessorAgent, RiskAssessorAgent>();
 builder.Services.AddSingleton<ISchemaValidator, SchemaValidator>();
 builder.Services.AddSingleton<ConfidenceCalculator>();
+
+// RiskAssessor configuration
+builder.Services.Configure<RiskAssessorOptions>(
+    builder.Configuration.GetSection(RiskAssessorOptions.SectionName));
 
 // Controllers + JSON serialization
 builder.Services.AddControllers()
