@@ -1,9 +1,14 @@
 using System.Text.Json.Serialization;
+using Azure;
+using Azure.AI.DocumentIntelligence;
+using Azure.Identity;
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 using SessionSight.Agents.Agents;
 using SessionSight.Agents.Models;
+using SessionSight.Agents.Orchestration;
 using SessionSight.Agents.Routing;
 using SessionSight.Agents.Services;
 using SessionSight.Agents.Validation;
@@ -39,6 +44,28 @@ builder.Services.AddSingleton<ConfidenceCalculator>();
 // RiskAssessor configuration
 builder.Services.Configure<RiskAssessorOptions>(
     builder.Configuration.GetSection(RiskAssessorOptions.SectionName));
+
+// Document Intelligence configuration
+builder.Services.Configure<DocumentIntelligenceOptions>(
+    builder.Configuration.GetSection(DocumentIntelligenceOptions.SectionName));
+
+builder.Services.AddSingleton(sp =>
+{
+    var options = sp.GetRequiredService<IOptions<DocumentIntelligenceOptions>>().Value;
+    if (string.IsNullOrEmpty(options.Endpoint))
+    {
+        // Return null client for local dev without Document Intelligence
+        return null!;
+    }
+    return new DocumentIntelligenceClient(
+        new Uri(options.Endpoint),
+        new DefaultAzureCredential());
+});
+
+builder.Services.AddScoped<IDocumentParser, DocumentIntelligenceParser>();
+
+// Extraction Orchestrator
+builder.Services.AddScoped<IExtractionOrchestrator, ExtractionOrchestrator>();
 
 // Controllers + JSON serialization
 builder.Services.AddControllers()

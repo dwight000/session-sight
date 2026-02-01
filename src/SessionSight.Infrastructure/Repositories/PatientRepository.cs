@@ -20,6 +20,9 @@ public class PatientRepository : IPatientRepository
     public async Task<Patient?> GetByIdAsync(Guid id)
         => await _context.Patients.FindAsync(id);
 
+    public async Task<Patient?> GetByExternalIdAsync(string externalId)
+        => await _context.Patients.FirstOrDefaultAsync(p => p.ExternalId == externalId);
+
     public async Task<Patient> AddAsync(Patient patient)
     {
         patient.Id = Guid.NewGuid();

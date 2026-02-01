@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\SessionSight.Agents\SessionSight.Agents.csproj" />
     <ProjectReference Include="..\..\src\SessionSight.Api\SessionSight.Api.csproj" />
     <ProjectReference Include="..\..\src\SessionSight.Core\SessionSight.Core.csproj" />
     <ProjectReference Include="..\..\src\SessionSight.Infrastructure\SessionSight.Infrastructure.csproj" />
