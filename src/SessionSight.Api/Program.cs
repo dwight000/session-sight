@@ -54,8 +54,9 @@ builder.Services.AddSingleton(sp =>
     var options = sp.GetRequiredService<IOptions<DocumentIntelligenceOptions>>().Value;
     if (string.IsNullOrEmpty(options.Endpoint))
     {
-        // Return null client for local dev without Document Intelligence
-        return null!;
+        throw new InvalidOperationException(
+            "DocumentIntelligence:Endpoint is not configured. " +
+            "Set it via user-secrets: dotnet user-secrets set \"DocumentIntelligence:Endpoint\" \"https://...\"");
     }
     return new DocumentIntelligenceClient(
         new Uri(options.Endpoint),

@@ -28,7 +28,7 @@ jobs:
         run: dotnet build session-sight.sln --no-restore --configuration Release
 
       - name: Test with coverage
-        run: dotnet test session-sight.sln --no-build --configuration Release --collect:"XPlat Code Coverage" --results-directory ./coverage
+        run: dotnet test session-sight.sln --no-build --configuration Release --collect:"XPlat Code Coverage" --results-directory ./coverage --filter "Category!=Functional"
 
       - name: Generate coverage report
         run: |

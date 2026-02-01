@@ -42,7 +42,17 @@ public class SessionRepository : ISessionRepository
     public async Task UpdateAsync(Session session)
     {
         session.UpdatedAt = DateTime.UtcNow;
-        _context.Sessions.Update(session);
+        // The entity should already be tracked from GetByIdAsync.
+        // Just save changes - EF Core will handle inserting new related entities
+        // and updating modified properties automatically.
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task AddDocumentAsync(Session session, SessionDocument document)
+    {
+        session.UpdatedAt = DateTime.UtcNow;
+        session.Document = document;
+        _context.Documents.Add(document);
         await _context.SaveChangesAsync();
     }
 }

@@ -7,10 +7,12 @@ namespace SessionSight.Api.Middleware;
 public class GlobalExceptionHandler : IExceptionHandler
 {
     private readonly ILogger<GlobalExceptionHandler> _logger;
+    private readonly IHostEnvironment _environment;
 
-    public GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger)
+    public GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger, IHostEnvironment environment)
     {
         _logger = logger;
+        _environment = environment;
     }
 
     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
@@ -26,11 +28,17 @@ public class GlobalExceptionHandler : IExceptionHandler
 
         _logger.LogError(exception, "Unhandled exception: {Title}", title);
 
+        var detail = exception is SessionSightException
+            ? exception.Message
+            : _environment.IsDevelopment()
+                ? exception.ToString()
+                : "An unexpected error occurred.";
+
         var problemDetails = new ProblemDetails
         {
             Status = statusCode,
             Title = title,
-            Detail = exception is SessionSightException ? exception.Message : "An unexpected error occurred.",
+            Detail = detail,
             Instance = httpContext.Request.Path
         };
 

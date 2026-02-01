@@ -36,7 +36,7 @@ public class DocumentsController : ControllerBase
 
         var blobUri = await _documentStorage.UploadAsync(file.FileName, file.OpenReadStream(), file.ContentType);
 
-        session.Document = new SessionDocument
+        var document = new SessionDocument
         {
             Id = Guid.NewGuid(),
             SessionId = sessionId,
@@ -48,11 +48,11 @@ public class DocumentsController : ControllerBase
             UploadedAt = DateTime.UtcNow
         };
 
-        await _sessionRepository.UpdateAsync(session);
+        await _sessionRepository.AddDocumentAsync(session, document);
 
         return Created($"/api/sessions/{sessionId}/document",
             new UploadDocumentResponse(
-                session.Document.Id,
+                document.Id,
                 sessionId,
                 file.FileName,
                 blobUri,

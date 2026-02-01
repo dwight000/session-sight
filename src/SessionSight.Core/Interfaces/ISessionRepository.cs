@@ -8,4 +8,5 @@ public interface ISessionRepository
     Task<IEnumerable<Session>> GetByPatientIdAsync(Guid patientId);
     Task<Session> AddAsync(Session session);
     Task UpdateAsync(Session session);
+    Task AddDocumentAsync(Session session, SessionDocument document);
 }
