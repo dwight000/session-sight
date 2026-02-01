@@ -7,6 +7,12 @@
       "commands": [
         "reportgenerator"
       ]
+    },
+    "security-scan": {
+      "version": "5.6.3",
+      "commands": [
+        "security-scan"
+      ]
     }
   }
 }

@@ -1,5 +1,8 @@
 <Project>
   <PropertyGroup>
+    <!-- Roslyn static analysis -->
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>Recommended</AnalysisMode>
     <!-- Fail build on code style violations -->
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
