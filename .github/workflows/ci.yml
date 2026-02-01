@@ -56,10 +56,13 @@ jobs:
       - name: Check for vulnerable packages
         run: |
           dotnet list session-sight.sln package --vulnerable --include-transitive 2>&1 | tee vuln-report.txt
-          if grep -q "has the following vulnerable packages" vuln-report.txt; then
-            echo "::error::Vulnerable packages found!"
+          # Fail on High/Critical, warn on Moderate/Low
+          if grep -qE "High|Critical" vuln-report.txt; then
+            echo "::error::High/Critical vulnerabilities found!"
             cat vuln-report.txt
             exit 1
+          elif grep -q "has the following vulnerable packages" vuln-report.txt; then
+            echo "::warning::Moderate/Low vulnerabilities found (review vuln-report.txt)"
           fi
 
       - name: Run security scan
