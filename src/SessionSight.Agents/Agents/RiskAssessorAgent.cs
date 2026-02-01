@@ -1,7 +1,7 @@
 using System.Text.Json;
-using Azure.AI.Inference;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using OpenAI.Chat;
 using SessionSight.Agents.Models;
 using SessionSight.Agents.Prompts;
 using SessionSight.Agents.Routing;
@@ -130,24 +130,23 @@ public class RiskAssessorAgent : IRiskAssessorAgent
         string modelName,
         CancellationToken ct)
     {
-        var chatClient = _clientFactory.CreateChatClient();
+        var chatClient = _clientFactory.CreateChatClient(modelName);
         var prompt = RiskPrompts.GetRiskReExtractionPrompt(noteText);
 
-        var messages = new List<ChatRequestMessage>
+        var messages = new List<ChatMessage>
         {
-            new ChatRequestSystemMessage(RiskPrompts.SystemPrompt),
-            new ChatRequestUserMessage(prompt)
+            new SystemChatMessage(RiskPrompts.SystemPrompt),
+            new UserChatMessage(prompt)
         };
 
-        var options = new ChatCompletionsOptions(messages)
+        var options = new ChatCompletionOptions
         {
-            Model = modelName,
             Temperature = 0.1f,
-            MaxTokens = 2048
+            MaxOutputTokenCount = 2048
         };
 
-        var response = await chatClient.CompleteAsync(options, ct);
-        var content = response.Value.Content;
+        var response = await chatClient.CompleteChatAsync(messages, options, ct);
+        var content = response.Value.Content[0].Text;
 
         return ParseRiskResponse(content) ?? new RiskAssessmentExtracted();
     }

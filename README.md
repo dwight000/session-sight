@@ -48,30 +48,21 @@ Opens the Aspire dashboard with the API, SQL Server, and Blob Storage emulator.
 
 ### Local Development Notes
 
-Aspire creates persistent containers for SQL Server and Azurite.
+See [docs/LOCAL_DEV.md](docs/LOCAL_DEV.md) for comprehensive local development documentation including:
+- First-time setup (secrets, Azure CLI, endpoints)
+- Finding Aspire ports
+- Running migrations manually
+- Troubleshooting common issues
 
-**First-time setup** (set SQL password in user-secrets):
+Quick start:
 
 ```bash
+# Set SQL password (first time only)
 cd src/SessionSight.AppHost
 dotnet user-secrets set "Parameters:sql-password" "LocalDev#2026!"
-```
 
-**If you need to connect directly** (e.g., running API without AppHost):
-
-```bash
-# Find the SQL port
-docker ps | grep sql
-
-# Connection string (replace {port} with actual port, e.g., 32772)
-Server=localhost,{port};Database=sessionsight;User Id=sa;Password=LocalDev#2026!;TrustServerCertificate=true
-```
-
-**Reset containers** (if password issues or stale containers):
-
-```bash
-docker rm -f $(docker ps -aq --filter "name=sql-") $(docker ps -aq --filter "name=storage-")
-dotnet run --project src/SessionSight.AppHost  # Recreate with password from user-secrets
+# Start Aspire (ensure az is in PATH)
+dotnet run
 ```
 
 ## Project Structure

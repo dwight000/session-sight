@@ -171,6 +171,38 @@ module aiHubConnection 'modules/aiHubConnection.bicep' = {
   }
 }
 
+// === Role Assignments for AI Project Managed Identity ===
+// Grant Cognitive Services User role on OpenAI and Doc Intelligence
+// so the AI Project can call these APIs using Azure AD authentication
+
+module openaiRoleAssignment 'modules/openai.bicep' = {
+  name: 'openai-role-assignment'
+  scope: resourceGroup(resourceGroupName)
+  params: {
+    name: '${prefix}-openai-${environmentName}'
+    location: location
+    tags: tags
+    // Skip model deployments - they already exist
+    deployGpt4o: false
+    deployGpt4oMini: false
+    deployEmbeddings: false
+    cognitiveServicesUserPrincipalId: aiProject.outputs.principalId
+  }
+  dependsOn: [openai, aiProject]
+}
+
+module docIntelligenceRoleAssignment 'modules/docintell.bicep' = {
+  name: 'docIntelligence-role-assignment'
+  scope: resourceGroup(resourceGroupName)
+  params: {
+    name: '${prefix}-docint-${environmentName}'
+    location: location
+    tags: tags
+    cognitiveServicesUserPrincipalId: aiProject.outputs.principalId
+  }
+  dependsOn: [docIntelligence, aiProject]
+}
+
 // === Outputs ===
 
 output resourceGroupName string = rg.outputs.name

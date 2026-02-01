@@ -1,9 +1,8 @@
-using Azure.AI.Agents.Persistent;
-using Azure.AI.Inference;
 using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using OpenAI.Chat;
 using SessionSight.Agents.Services;
 using SessionSight.Core.Interfaces;
 using SessionSight.Infrastructure.Data;
@@ -105,9 +104,6 @@ internal class StubDocumentStorage : IDocumentStorage
 /// </summary>
 internal class StubAIFoundryClientFactory : IAIFoundryClientFactory
 {
-    public PersistentAgentsClient CreateAgentClient()
-        => throw new NotSupportedException("AI services are not available in integration tests. Use unit tests with mocks for agent testing.");
-
-    public ChatCompletionsClient CreateChatClient()
+    public ChatClient CreateChatClient(string deploymentName)
         => throw new NotSupportedException("AI services are not available in integration tests. Use unit tests with mocks for agent testing.");
 }

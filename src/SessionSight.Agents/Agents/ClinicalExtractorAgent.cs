@@ -1,6 +1,6 @@
 using System.Text.Json;
-using Azure.AI.Inference;
 using Microsoft.Extensions.Logging;
+using OpenAI.Chat;
 using SessionSight.Agents.Models;
 using SessionSight.Agents.Prompts;
 using SessionSight.Agents.Routing;
@@ -150,24 +150,23 @@ public class ClinicalExtractorAgent : IClinicalExtractorAgent
 
         try
         {
-            var chatClient = _clientFactory.CreateChatClient();
+            var chatClient = _clientFactory.CreateChatClient(modelName);
             var prompt = GetPromptForSection(sectionName, noteText);
 
-            var messages = new List<ChatRequestMessage>
+            var messages = new List<ChatMessage>
             {
-                new ChatRequestSystemMessage("You are a clinical extraction assistant. Extract structured data from therapy notes accurately."),
-                new ChatRequestUserMessage(prompt)
+                new SystemChatMessage("You are a clinical extraction assistant. Extract structured data from therapy notes accurately."),
+                new UserChatMessage(prompt)
             };
 
-            var options = new ChatCompletionsOptions(messages)
+            var options = new ChatCompletionOptions
             {
-                Model = modelName,
                 Temperature = 0.1f,
-                MaxTokens = 2048
+                MaxOutputTokenCount = 2048
             };
 
-            var response = await chatClient.CompleteAsync(options, cancellationToken);
-            var content = response.Value.Content;
+            var response = await chatClient.CompleteChatAsync(messages, options, cancellationToken);
+            var content = response.Value.Content[0].Text;
 
             return ParseSectionResponse<T>(sectionName, content) ?? new T();
         }

@@ -1,6 +1,6 @@
 using System.Text.Json;
-using Azure.AI.Inference;
 using Microsoft.Extensions.Logging;
+using OpenAI.Chat;
 using SessionSight.Agents.Models;
 using SessionSight.Agents.Prompts;
 using SessionSight.Agents.Routing;
@@ -49,23 +49,22 @@ public class IntakeAgent : IIntakeAgent
         var modelName = _modelRouter.SelectModel(ModelTask.DocumentIntake);
         _logger.LogInformation("Processing document with {Model}", modelName);
 
-        var chatClient = _clientFactory.CreateChatClient();
+        var chatClient = _clientFactory.CreateChatClient(modelName);
 
-        var messages = new List<ChatRequestMessage>
+        var messages = new List<ChatMessage>
         {
-            new ChatRequestSystemMessage(IntakePrompts.SystemPrompt),
-            new ChatRequestUserMessage(IntakePrompts.BuildUserPrompt(document))
+            new SystemChatMessage(IntakePrompts.SystemPrompt),
+            new UserChatMessage(IntakePrompts.BuildUserPrompt(document))
         };
 
-        var options = new ChatCompletionsOptions(messages)
+        var options = new ChatCompletionOptions
         {
-            Model = modelName,
             Temperature = 0.1f,
-            MaxTokens = 1024
+            MaxOutputTokenCount = 1024
         };
 
-        var response = await chatClient.CompleteAsync(options, cancellationToken);
-        var content = response.Value.Content;
+        var response = await chatClient.CompleteChatAsync(messages, options, cancellationToken);
+        var content = response.Value.Content[0].Text;
 
         return ParseResponse(content, document, modelName);
     }

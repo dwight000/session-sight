@@ -31,6 +31,9 @@ param gpt4oMiniCapacity int = 10
 @description('Embeddings deployment capacity (TPM in thousands)')
 param embeddingsCapacity int = 10
 
+@description('Principal ID to grant Cognitive Services User role (e.g., AI Project managed identity)')
+param cognitiveServicesUserPrincipalId string = ''
+
 resource openai 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
   name: name
   location: location
@@ -98,6 +101,18 @@ resource embeddingsDeployment 'Microsoft.CognitiveServices/accounts/deployments@
     }
   }
   dependsOn: [gpt4oMiniDeployment] // Sequential deployment to avoid conflicts
+}
+
+// Grant Cognitive Services User role if principal provided
+// This allows the principal to call OpenAI APIs using Azure AD auth
+resource cognitiveServicesUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(cognitiveServicesUserPrincipalId)) {
+  name: guid(openai.id, cognitiveServicesUserPrincipalId, 'Cognitive Services User')
+  scope: openai
+  properties: {
+    principalId: cognitiveServicesUserPrincipalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'a97b65f3-24c7-4388-baec-2e87135dc908') // Cognitive Services User
+    principalType: 'ServicePrincipal'
+  }
 }
 
 output name string = openai.name

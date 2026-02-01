@@ -1,35 +1,36 @@
-using Azure.AI.Agents.Persistent;
-using Azure.AI.Inference;
-using Azure.AI.Projects;
+using Azure.AI.OpenAI;
 using Azure.Identity;
 using Microsoft.Extensions.Configuration;
+using OpenAI.Chat;
 
 namespace SessionSight.Agents.Services;
 
 public interface IAIFoundryClientFactory
 {
-    PersistentAgentsClient CreateAgentClient();
-    ChatCompletionsClient CreateChatClient();
+    ChatClient CreateChatClient(string deploymentName);
 }
 
 public class AIFoundryClientFactory : IAIFoundryClientFactory
 {
-    private readonly string _projectEndpoint;
+    private readonly AzureOpenAIClient _openAIClient;
 
     public AIFoundryClientFactory(IConfiguration config)
     {
-        _projectEndpoint = config["AIFoundry:ProjectEndpoint"]
-            ?? throw new InvalidOperationException("AIFoundry:ProjectEndpoint not configured");
+        var openAIEndpointStr = config["AzureOpenAI:Endpoint"]
+            ?? throw new InvalidOperationException("AzureOpenAI:Endpoint not configured");
+
+        var endpoint = new Uri(openAIEndpointStr);
+        var credential = new DefaultAzureCredential();
+
+        _openAIClient = new AzureOpenAIClient(endpoint, credential);
     }
 
-    public PersistentAgentsClient CreateAgentClient()
-        => new(_projectEndpoint, new DefaultAzureCredential());
-
-    public ChatCompletionsClient CreateChatClient()
+    /// <summary>
+    /// Creates a ChatClient for the specified deployment.
+    /// Uses Azure OpenAI SDK which works with Cognitive Services OpenAI resources.
+    /// </summary>
+    public ChatClient CreateChatClient(string deploymentName)
     {
-        var projectClient = new AIProjectClient(
-            new Uri(_projectEndpoint),
-            new DefaultAzureCredential());
-        return projectClient.GetChatCompletionsClient();
+        return _openAIClient.GetChatClient(deploymentName);
     }
 }
