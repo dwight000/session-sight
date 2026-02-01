@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using SessionSight.Core.Enums;
 
 namespace SessionSight.Core.Entities;
@@ -18,4 +19,7 @@ public class Session
     public DateTime UpdatedAt { get; set; }
     public SessionDocument? Document { get; set; }
     public ExtractionResult? Extraction { get; set; }
+
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 }

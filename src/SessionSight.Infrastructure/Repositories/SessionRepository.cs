@@ -41,11 +41,22 @@ public class SessionRepository : ISessionRepository
 
     public async Task UpdateAsync(Session session)
     {
-        session.UpdatedAt = DateTime.UtcNow;
-        // The entity should already be tracked from GetByIdAsync.
-        // Just save changes - EF Core will handle inserting new related entities
-        // and updating modified properties automatically.
-        await _context.SaveChangesAsync();
+        const int maxRetries = 3;
+        for (int attempt = 0; attempt < maxRetries; attempt++)
+        {
+            try
+            {
+                session.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+                return;
+            }
+            catch (DbUpdateConcurrencyException) when (attempt < maxRetries - 1)
+            {
+                // Reload entity with fresh values from database
+                await _context.Entry(session).ReloadAsync();
+            }
+        }
+        throw new InvalidOperationException($"Failed to update session {session.Id} after {maxRetries} attempts due to concurrency conflicts");
     }
 
     public async Task AddDocumentAsync(Session session, SessionDocument document)

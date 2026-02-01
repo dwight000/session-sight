@@ -14,5 +14,9 @@ public class SessionConfiguration : IEntityTypeConfiguration<Session>
         builder.HasOne(s => s.Therapist).WithMany(t => t.Sessions).HasForeignKey(s => s.TherapistId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(s => s.SessionType).HasConversion<string>().HasMaxLength(50);
         builder.Property(s => s.Modality).HasConversion<string>().HasMaxLength(50);
+
+        builder.Property(s => s.RowVersion)
+            .IsRowVersion()
+            .IsConcurrencyToken();
     }
 }

@@ -7,7 +7,7 @@
 ## Current Status
 
 **Phase**: Phase 2 (AI extraction pipeline)
-**Next Action**: Deploy Bicep changes, verify AI Foundry extraction works
+**Next Action**: Run E2E tests with Azure AI services to verify full extraction pipeline
 **Last Updated**: February 1, 2026
 
 ---
@@ -89,8 +89,8 @@
 | B-041 | Bicep: Add Cognitive Services User role to Doc Intel + OpenAI | M | 2 | Done | P2-008 |
 | B-042 | Fix AI Foundry → OpenAI: call Azure OpenAI directly (SDK workaround) | M | 2 | Done | B-041 |
 | B-043 | Document local dev setup (docs/LOCAL_DEV.md) | M | 1 | Done | - |
-| B-044 | Fix SessionRepository.UpdateAsync concurrency bug in extraction | M | 2 | Ready | B-042 |
-| B-045 | Create deterministic E2E test runner script | S | 1 | Ready | - |
+| B-044 | Fix SessionRepository.UpdateAsync concurrency bug in extraction | M | 2 | Done | B-042 |
+| B-045 | Create deterministic E2E test runner script | S | 1 | Done | - |
 | B-037 | Tool call limit graceful handling | M | 2 | Blocked | P2-006 |
 | B-040 | Stub IAIFoundryClientFactory in integration tests | S | 2 | Done | P2-002 |
 | P2-009 | Create glossary of domain terms | S | 2 | Ready | P2-004 |
@@ -183,6 +183,8 @@
 | B-041 | Bicep role assignments for Doc Intel + OpenAI | 2026-02-01 |
 | B-042 | AI Project → OpenAI connection (aiProjectConnection.bicep) | 2026-02-01 |
 | B-043 | Local dev documentation (docs/LOCAL_DEV.md) | 2026-02-01 |
+| B-044 | Fix SessionRepository.UpdateAsync concurrency bug (RowVersion + retry) | 2026-02-01 |
+| B-045 | Deterministic E2E test runner script (scripts/run-e2e.sh) | 2026-02-01 |
 | - | Planning complete | 2026-01-24 |
 
 ---
@@ -191,6 +193,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-01 | **B-044, B-045 complete.** Fixed concurrency bug: added RowVersion timestamp column to Session entity with EF Core concurrency token, added retry logic in SessionRepository.UpdateAsync (max 3 attempts with ReloadAsync on conflict). Created scripts/run-e2e.sh for automated E2E testing with dynamic port discovery, process cleanup, and health polling. Created scripts/start-aspire.sh for manual Aspire startup. Updated LOCAL_DEV.md with script documentation. |
 | 2026-02-01 | **B-041, B-042, B-043 complete.** Added Bicep role assignments for AI Project managed identity on Doc Intel and OpenAI (Cognitive Services User role). Created aiProjectConnection.bicep for explicit project-level OpenAI connection. Created docs/LOCAL_DEV.md with comprehensive troubleshooting (Aspire ports, migrations, secrets, az PATH). Updated README to reference new docs. All 192 unit tests pass. Bicep validates. |
 | 2026-02-01 | **P2-008 complete.** Fixed null DocumentIntelligence client bug (now throws descriptive error). Created FunctionalTests project with 4 tests (patient CRUD, session, document upload). Fixed EF Core concurrency issue in SessionRepository.UpdateAsync. Fixed blob storage download auth (use injected BlobServiceClient). Configured Document Intelligence endpoint via user-secrets. Assigned Cognitive Services User role for Doc Intel + OpenAI. Created sample-note.pdf for testing. Doc Intelligence works; AI Foundry blocked by missing OpenAI connection (B-041). Tests: 133 unit + 4 functional. |
 | 2026-01-31 | **P2-004 + P2-007 complete.** Implemented ClinicalExtractorAgent with parallel 9-section extraction using Task.WhenAll. Added ExtractionPrompts for all sections. Created SchemaValidator for required fields, risk confidence thresholds (0.9), and range validation. Created ConfidenceCalculator for overall confidence and low-confidence field detection. Added ExtractionSimple to ModelTask for gpt-4o-mini extractions. 47 unit tests. Total tests now ~125. P2-005, B-013, B-035, P2-009, B-003, B-038 unblocked. |

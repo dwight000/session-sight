@@ -106,6 +106,18 @@ dotnet ef database update \
 
 ## Running Tests
 
+### Quick E2E Test Run
+
+```bash
+# Run all E2E tests with automatic Aspire startup/cleanup
+./scripts/run-e2e.sh
+
+# Or start Aspire manually for interactive testing
+./scripts/start-aspire.sh
+# Then in another terminal:
+API_BASE_URL="https://localhost:<PORT>" dotnet test tests/SessionSight.FunctionalTests
+```
+
 ### Unit Tests Only (No Azure/Docker Required)
 
 ```bash
