@@ -75,8 +75,8 @@
 | P2-003 | Intake Agent | L | 2 | Done | P2-002 |
 | P2-004 | Clinical Extractor Agent | XL | 2 | Done | P2-002 |
 | P2-005 | Risk Assessor Agent (safety-critical) | XL | 2 | Done | P2-004 |
-| P2-006a | Agent tools: Core infra + check_risk_keywords + validate_schema | M | 2 | Ready | P2-003 |
-| P2-006b | Agent tools: ClinicalExtractor transformation + remaining tools | L | 2 | Ready | P2-006a |
+| P2-006a | Agent tools: Core infra + check_risk_keywords + validate_schema | M | 2 | Done | P2-003 |
+| P2-006b | Agent tools: ClinicalExtractor transformation + remaining tools | L | 2 | Done | P2-006a |
 | P2-007 | Confidence scoring | M | 2 | Done | P2-004 |
 | P2-008 | Blob trigger + ExtractionOrchestrator + Doc Intelligence | XL | 2 | Done | P2-004 |
 | B-010 | Exponential backoff for OpenAI/Search | M | 2 | Ready | P2-001 |
@@ -94,10 +94,10 @@
 | B-043 | Document local dev setup (docs/LOCAL_DEV.md) | M | 2 | Done | - |
 | B-044 | Fix SessionRepository.UpdateAsync concurrency bug in extraction | M | 2 | Done | B-042 |
 | B-045 | Create deterministic E2E test runner script | S | 1 | Done | - |
-| B-037 | Tool call limit graceful handling | M | 2 | Blocked | P2-006b |
+| B-037 | Tool call limit graceful handling | M | 2 | Done | P2-006b |
 | B-040 | Stub IAIFoundryClientFactory in integration tests | S | 2 | Done | P2-002 |
 | P2-009 | Create glossary of domain terms | S | 2 | Ready | P2-004 |
-| P2-010 | Create sequence diagrams for agent interactions | M | 2 | Blocked | P2-006a |
+| P2-010 | Create sequence diagrams for agent interactions | M | 2 | Ready | P2-006a |
 | **Phase 3: Summarization & RAG** |||||
 | P3-001 | Summarizer Agent (3 levels) | XL | 3 | Ready | P2-005 |
 | P3-002 | Azure AI Search vector index | M | 3 | Ready | P2-001 |
@@ -188,6 +188,9 @@
 | B-043 | Local dev documentation (docs/LOCAL_DEV.md) | 2026-02-01 |
 | B-044 | Fix SessionRepository.UpdateAsync concurrency bug (RowVersion + retry) | 2026-02-01 |
 | B-045 | Deterministic E2E test runner script (scripts/run-e2e.sh) | 2026-02-01 |
+| P2-006a | Agent tools: Core infra + check_risk_keywords + validate_schema | 2026-02-01 |
+| P2-006b | ClinicalExtractor agent loop transformation + 3 more tools | 2026-02-01 |
+| B-037 | Tool call limit graceful handling (AgentLoopRunner MaxToolCalls=15) | 2026-02-01 |
 | - | Planning complete | 2026-01-24 |
 
 ---
@@ -196,14 +199,12 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-01 | **P2-006a + P2-006b + B-037 complete.** Implemented agent tool infrastructure: IAgentTool interface, AgentLoopRunner (15 tool limit), 5 tools (check_risk_keywords, validate_schema, score_confidence, query_patient_history, lookup_diagnosis_code). Transformed ClinicalExtractorAgent from parallel batch to agent loop pattern. Added ToolCallCount to API response. 19 new tool tests. All 130 unit tests + 5 E2E tests pass. |
 | 2026-02-01 | **E2E TESTS PASS (5/5).** Final fix for concurrency: added UpdateDocumentStatusAsync and SaveExtractionResultAsync methods to avoid Session RowVersion conflicts during extraction pipeline. Updated ExtractionOrchestrator to use direct document/extraction updates. Increased HttpClient timeout to 120s for full extraction pipeline. Updated unit tests. All 192 unit tests + 5 functional tests pass. |
 | 2026-02-01 | **B-044, B-045 complete.** Fixed concurrency bug: added RowVersion timestamp column to Session entity with EF Core concurrency token, added retry logic in SessionRepository.UpdateAsync (max 3 attempts with ReloadAsync on conflict). Created scripts/run-e2e.sh for automated E2E testing with dynamic port discovery, process cleanup, and health polling. Created scripts/start-aspire.sh for manual Aspire startup. Updated LOCAL_DEV.md with script documentation. |
 | 2026-02-01 | **B-041, B-042, B-043 complete.** Added Bicep role assignments for AI Project managed identity on Doc Intel and OpenAI (Cognitive Services User role). Created aiProjectConnection.bicep for explicit project-level OpenAI connection. Created docs/LOCAL_DEV.md with comprehensive troubleshooting (Aspire ports, migrations, secrets, az PATH). Updated README to reference new docs. All 192 unit tests pass. Bicep validates. |
 | 2026-02-01 | **P2-008 complete.** Fixed null DocumentIntelligence client bug (now throws descriptive error). Created FunctionalTests project with 4 tests (patient CRUD, session, document upload). Fixed EF Core concurrency issue in SessionRepository.UpdateAsync. Fixed blob storage download auth (use injected BlobServiceClient). Configured Document Intelligence endpoint via user-secrets. Assigned Cognitive Services User role for Doc Intel + OpenAI. Created sample-note.pdf for testing. Doc Intelligence works; AI Foundry blocked by missing OpenAI connection (B-041). Tests: 133 unit + 4 functional. |
 | 2026-01-31 | **P2-004 + P2-007 complete.** Implemented ClinicalExtractorAgent with parallel 9-section extraction using Task.WhenAll. Added ExtractionPrompts for all sections. Created SchemaValidator for required fields, risk confidence thresholds (0.9), and range validation. Created ConfidenceCalculator for overall confidence and low-confidence field detection. Added ExtractionSimple to ModelTask for gpt-4o-mini extractions. 47 unit tests. Total tests now ~125. P2-005, B-013, B-035, P2-009, B-003, B-038 unblocked. |
-| 2026-01-31 | **B-040 + P2-003 complete.** Added StubAIFoundryClientFactory to integration tests. Implemented IntakeAgent with ParsedDocument/IntakeResult models, IntakePrompts. Extended IAIFoundryClientFactory with CreateChatClient(). Added Azure.AI.Inference package. Added DocumentIntake to ModelTask enum. 16 unit tests for IntakeAgent. Total tests now 108. P2-006 now unblocked. |
-| 2026-01-31 | **P2-002 Model Router complete.** Added SessionSight.Agents.Tests project with 6 unit tests for ModelRouter. Total tests now 98. P2-003, P2-004, P2-008, B-010, B-019, P3-002 now unblocked. |
-| 2026-01-31 | **P2-001 Azure OpenAI setup complete.** Created aiHubConnection.bicep module for OpenAI→Hub AAD connection. Added aiProjectEndpoint output to main.bicep. Wired SessionSight.Agents with Azure.AI.Agents.Persistent SDK. Created AIFoundryClientFactory (DI-ready) and ModelRouter (gpt-4o/gpt-4o-mini/embeddings selection). 92 tests passing. |
 
 ---
 
