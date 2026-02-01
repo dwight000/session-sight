@@ -37,7 +37,7 @@
 | **Container Registry** | Azure Container Registry (ACR) | Added via Bicep when needed |
 | **Branch Strategy** | Gitflow | main/develop/feature branches |
 | **Versioning** | SemVer + Git tags | Standard (1.0.0, 1.1.0, etc.) |
-| **Code Coverage** | 80% target | Enforced in CI |
+| **Code Coverage** | 70% current, 80% target by Phase 3 | Enforced in CI |
 | **Code Formatting** | .editorconfig | Standard .NET rules |
 | **IaC** | Hand-written Bicep | Full control, modular design, committed to repo |
 
@@ -274,7 +274,8 @@ session-sight/
 ├── .github/
 │   └── workflows/                # GitHub Actions CI/CD
 │       ├── ci.yml                # Build + test on PR
-│       └── deploy.yml            # Deploy to Azure (on release)
+│       ├── infra.yml             # Bicep what-if on PR, deploy on merge
+│       └── deploy.yml            # (Phase 6) Deploy to Azure on release
 ├── plan/docs/
 │   ├── PROJECT_PLAN.md           # Stable context (what/why) - rarely changes
 │   ├── BACKLOG.md                # Task tracker (what's next) - updated every session
@@ -297,6 +298,8 @@ session-sight/
 │   └── decisions/                # Architecture Decision Records
 │       ├── ADR-002-error-handling.md
 │       └── ADR-004-risk-validation.md
+├── plan/data/synthetic/          # Generated test data
+│   └── golden-files/risk-assessment/  # 37 risk assessment test cases (B-002)
 ├── infra/                        # Hand-written Bicep IaC
 │   ├── main.bicep                # Entry point (subscription scope)
 │   ├── main.parameters.dev.json  # Dev environment values
@@ -311,10 +314,13 @@ session-sight/
 │   ├── SessionSight.Infrastructure/  # Data access
 │   └── SessionSight.ServiceDefaults/ # Aspire defaults
 ├── tests/
-│   ├── SessionSight.Core.Tests/
-│   └── SessionSight.Api.Tests/
-├── data/synthetic/               # Generated test data
-│   └── golden-files/risk-assessment/  # 37 risk assessment test cases (B-002)
+│   ├── SessionSight.Core.Tests/      # Domain model + schema tests
+│   ├── SessionSight.Api.Tests/       # Controller, validator tests
+│   ├── SessionSight.Agents.Tests/    # Agent routing + service tests
+│   └── SessionSight.FunctionalTests/ # E2E tests (requires Aspire)
+├── scripts/                      # Developer utilities
+│   ├── run-e2e.sh                # Automated E2E test runner
+│   └── start-aspire.sh           # Manual Aspire startup
 ├── .editorconfig                 # Code formatting rules
 ├── .gitignore                    # Git ignore patterns
 ├── LICENSE                       # MIT license

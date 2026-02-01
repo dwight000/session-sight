@@ -72,13 +72,18 @@ src/
   SessionSight.Core/             Domain models, enums, schema, interfaces
   SessionSight.Infrastructure/   EF Core, repositories, blob storage
   SessionSight.Api/              REST API (11 endpoints), middleware
-  SessionSight.Agents/           AI agents (Phase 2+)
+  SessionSight.Agents/           AI agents (extraction pipeline)
+  SessionSight.BlobTrigger/      Azure Function for blob ingestion
   SessionSight.AppHost/          Aspire orchestration
   SessionSight.ServiceDefaults/  OpenTelemetry, health checks, resilience
 tests/
-  SessionSight.Core.Tests/       Domain model + schema tests
-  SessionSight.Api.Tests/        Controller, validator, integration tests
-  SessionSight.Agents.Tests/     AI agent routing + service tests
+  SessionSight.Core.Tests/       Domain model + schema tests (59 tests)
+  SessionSight.Api.Tests/        Controller, validator tests (46 tests)
+  SessionSight.Agents.Tests/     Agent routing + service tests (87 tests)
+  SessionSight.FunctionalTests/  E2E tests with Aspire (5 tests)
+scripts/
+  run-e2e.sh                     Automated E2E test runner
+  start-aspire.sh                Manual Aspire startup
 ```
 
 ## API Endpoints

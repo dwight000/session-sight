@@ -90,7 +90,7 @@
 | B-036 | Document Intelligence failure handling | M | 2 | Ready | P2-008 |
 | B-041 | Bicep: Add Cognitive Services User role to Doc Intel + OpenAI | M | 2 | Done | P2-008 |
 | B-042 | Fix AI Foundry → OpenAI: call Azure OpenAI directly (SDK workaround) | M | 2 | Done | B-041 |
-| B-043 | Document local dev setup (docs/LOCAL_DEV.md) | M | 1 | Done | - |
+| B-043 | Document local dev setup (docs/LOCAL_DEV.md) | M | 2 | Done | - |
 | B-044 | Fix SessionRepository.UpdateAsync concurrency bug in extraction | M | 2 | Done | B-042 |
 | B-045 | Create deterministic E2E test runner script | S | 1 | Done | - |
 | B-037 | Tool call limit graceful handling | M | 2 | Blocked | P2-006 |
