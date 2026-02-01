@@ -104,8 +104,9 @@ public class ExtractionOrchestratorTests
         // Assert
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("Invalid document");
-        await _sessionRepository.Received(2).UpdateAsync(Arg.Is<CoreEntities.Session>(s =>
-            s.Document!.Status == DocumentStatus.Failed));
+        // Verify document status was updated to Processing then Failed
+        await _sessionRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Processing, null);
+        await _sessionRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Failed, null);
     }
 
     [Fact]
@@ -210,8 +211,9 @@ public class ExtractionOrchestratorTests
         // Assert
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("LLM call failed");
-        await _sessionRepository.Received().UpdateAsync(Arg.Is<CoreEntities.Session>(s =>
-            s.Document!.Status == DocumentStatus.Failed));
+        // Verify document status was updated to Processing then Failed
+        await _sessionRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Processing, null);
+        await _sessionRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Failed, null);
     }
 
     [Fact]
@@ -239,13 +241,13 @@ public class ExtractionOrchestratorTests
         // Act
         await _orchestrator.ProcessSessionAsync(sessionId);
 
-        // Assert - verify UpdateAsync was called multiple times during pipeline
-        // (once for Processing status, once for saving extraction, once for Completed)
-        await _sessionRepository.Received(3).UpdateAsync(Arg.Any<CoreEntities.Session>());
-
-        // Verify final state
-        session.Document!.Status.Should().Be(DocumentStatus.Completed);
-        session.Document.ProcessedAt.Should().NotBeNull();
+        // Assert - verify document status updates and extraction save
+        // Processing status set first
+        await _sessionRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Processing, null);
+        // Extraction result saved
+        await _sessionRepository.Received().SaveExtractionResultAsync(Arg.Any<CoreEntities.ExtractionResult>());
+        // Completed status set with extracted text
+        await _sessionRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Completed, Arg.Any<string>());
     }
 
     private static CoreEntities.Session CreateTestSession(Guid sessionId)

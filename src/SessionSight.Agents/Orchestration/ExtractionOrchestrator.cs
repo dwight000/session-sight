@@ -69,9 +69,8 @@ public class ExtractionOrchestrator : IExtractionOrchestrator
             };
         }
 
-        // Update status to Processing
-        session.Document.Status = DocumentStatus.Processing;
-        await _sessionRepository.UpdateAsync(session);
+        // Update status to Processing (direct document update to avoid Session concurrency issues)
+        await _sessionRepository.UpdateDocumentStatusAsync(sessionId, DocumentStatus.Processing);
 
         try
         {
@@ -93,8 +92,7 @@ public class ExtractionOrchestrator : IExtractionOrchestrator
             if (!intakeResult.IsValidTherapyNote)
             {
                 _logger.LogWarning("Document validation failed: {Error}", intakeResult.ValidationError);
-                session.Document.Status = DocumentStatus.Failed;
-                await _sessionRepository.UpdateAsync(session);
+                await _sessionRepository.UpdateDocumentStatusAsync(sessionId, DocumentStatus.Failed);
 
                 return new OrchestrationResult
                 {
@@ -135,10 +133,8 @@ public class ExtractionOrchestrator : IExtractionOrchestrator
             var savedExtraction = await SaveExtractionAsync(session, extractionResult, modelsUsed, ct);
 
             // Update document status to Completed
-            session.Document.Status = DocumentStatus.Completed;
-            session.Document.ProcessedAt = DateTime.UtcNow;
-            session.Document.ExtractedText = parsedDoc.Content;
-            await _sessionRepository.UpdateAsync(session);
+            await _sessionRepository.UpdateDocumentStatusAsync(
+                sessionId, DocumentStatus.Completed, parsedDoc.Content);
 
             stopwatch.Stop();
             _logger.LogInformation(
@@ -160,8 +156,15 @@ public class ExtractionOrchestrator : IExtractionOrchestrator
             stopwatch.Stop();
             _logger.LogError(ex, "Extraction failed for session {SessionId}", sessionId);
 
-            session.Document.Status = DocumentStatus.Failed;
-            await _sessionRepository.UpdateAsync(session);
+            // Update document status to Failed (direct update avoids concurrency issues)
+            try
+            {
+                await _sessionRepository.UpdateDocumentStatusAsync(sessionId, DocumentStatus.Failed);
+            }
+            catch (Exception updateEx)
+            {
+                _logger.LogWarning(updateEx, "Failed to update document status to Failed for session {SessionId}", sessionId);
+            }
 
             return new OrchestrationResult
             {
@@ -193,9 +196,8 @@ public class ExtractionOrchestrator : IExtractionOrchestrator
             Data = agentResult.Data
         };
 
-        // Associate with session
-        session.Extraction = entity;
-        await _sessionRepository.UpdateAsync(session);
+        // Direct insert avoids Session RowVersion concurrency issues
+        await _sessionRepository.SaveExtractionResultAsync(entity);
 
         return entity;
     }

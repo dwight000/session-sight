@@ -36,7 +36,8 @@ public class ApiFixture : IDisposable
         Client = new HttpClient(_handler)
         {
             BaseAddress = new Uri(BaseUrl),
-            Timeout = TimeSpan.FromSeconds(30)
+            // Extraction pipeline needs time for Document Intelligence + 3 LLM agents
+            Timeout = TimeSpan.FromSeconds(120)
         };
     }
 

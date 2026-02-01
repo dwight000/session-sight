@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SessionSight.Core.Entities;
+using SessionSight.Core.Enums;
 using SessionSight.Core.Interfaces;
 using SessionSight.Infrastructure.Data;
 
@@ -64,6 +65,37 @@ public class SessionRepository : ISessionRepository
         session.UpdatedAt = DateTime.UtcNow;
         session.Document = document;
         _context.Documents.Add(document);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task UpdateDocumentStatusAsync(Guid sessionId, DocumentStatus status, string? extractedText = null)
+    {
+        // Direct update to Document table only - avoids Session RowVersion concurrency issues
+        var document = await _context.Documents
+            .FirstOrDefaultAsync(d => d.SessionId == sessionId);
+
+        if (document is null)
+        {
+            throw new InvalidOperationException($"No document found for session {sessionId}");
+        }
+
+        document.Status = status;
+        if (status == DocumentStatus.Completed)
+        {
+            document.ProcessedAt = DateTime.UtcNow;
+        }
+        if (extractedText != null)
+        {
+            document.ExtractedText = extractedText;
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task SaveExtractionResultAsync(ExtractionResult extraction)
+    {
+        // Direct insert to Extractions table - avoids Session RowVersion concurrency issues
+        _context.Extractions.Add(extraction);
         await _context.SaveChangesAsync();
     }
 }
