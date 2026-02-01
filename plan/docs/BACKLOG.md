@@ -6,9 +6,11 @@
 
 ## Current Status
 
-**Phase**: Phase 2 (AI extraction pipeline)
-**Next Action**: Run E2E tests with Azure AI services to verify full extraction pipeline
+**Phase**: Phase 2 (AI extraction pipeline) - CORE COMPLETE
+**Next Action**: Start Phase 3 (Summarization & RAG) or tackle remaining Phase 2 hardening items
 **Last Updated**: February 1, 2026
+
+**Milestone**: E2E extraction pipeline fully working (5/5 functional tests pass with real Azure AI services)
 
 ---
 
@@ -193,6 +195,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-01 | **E2E TESTS PASS (5/5).** Final fix for concurrency: added UpdateDocumentStatusAsync and SaveExtractionResultAsync methods to avoid Session RowVersion conflicts during extraction pipeline. Updated ExtractionOrchestrator to use direct document/extraction updates. Increased HttpClient timeout to 120s for full extraction pipeline. Updated unit tests. All 192 unit tests + 5 functional tests pass. |
 | 2026-02-01 | **B-044, B-045 complete.** Fixed concurrency bug: added RowVersion timestamp column to Session entity with EF Core concurrency token, added retry logic in SessionRepository.UpdateAsync (max 3 attempts with ReloadAsync on conflict). Created scripts/run-e2e.sh for automated E2E testing with dynamic port discovery, process cleanup, and health polling. Created scripts/start-aspire.sh for manual Aspire startup. Updated LOCAL_DEV.md with script documentation. |
 | 2026-02-01 | **B-041, B-042, B-043 complete.** Added Bicep role assignments for AI Project managed identity on Doc Intel and OpenAI (Cognitive Services User role). Created aiProjectConnection.bicep for explicit project-level OpenAI connection. Created docs/LOCAL_DEV.md with comprehensive troubleshooting (Aspire ports, migrations, secrets, az PATH). Updated README to reference new docs. All 192 unit tests pass. Bicep validates. |
 | 2026-02-01 | **P2-008 complete.** Fixed null DocumentIntelligence client bug (now throws descriptive error). Created FunctionalTests project with 4 tests (patient CRUD, session, document upload). Fixed EF Core concurrency issue in SessionRepository.UpdateAsync. Fixed blob storage download auth (use injected BlobServiceClient). Configured Document Intelligence endpoint via user-secrets. Assigned Cognitive Services User role for Doc Intel + OpenAI. Created sample-note.pdf for testing. Doc Intelligence works; AI Foundry blocked by missing OpenAI connection (B-041). Tests: 133 unit + 4 functional. |
