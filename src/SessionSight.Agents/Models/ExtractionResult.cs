@@ -44,6 +44,11 @@ public class ExtractionResult
     public List<string> Errors { get; set; } = new();
 
     /// <summary>
+    /// Number of tool calls made by the agent during extraction.
+    /// </summary>
+    public int ToolCallCount { get; set; }
+
+    /// <summary>
     /// Whether the extraction completed successfully.
     /// </summary>
     public bool IsSuccess => Errors.Count == 0;

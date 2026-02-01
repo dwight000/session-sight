@@ -148,7 +148,8 @@ public class ExtractionOrchestrator : IExtractionOrchestrator
                 ExtractionId = savedExtraction.Id,
                 RequiresReview = extractionResult.RequiresReview,
                 ModelsUsed = modelsUsed,
-                ElapsedMilliseconds = stopwatch.ElapsedMilliseconds
+                ElapsedMilliseconds = stopwatch.ElapsedMilliseconds,
+                ToolCallCount = extractionResult.ToolCallCount
             };
         }
         catch (Exception ex)

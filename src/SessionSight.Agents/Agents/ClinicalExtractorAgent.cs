@@ -1,10 +1,12 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
 using SessionSight.Agents.Models;
 using SessionSight.Agents.Prompts;
 using SessionSight.Agents.Routing;
 using SessionSight.Agents.Services;
+using SessionSight.Agents.Tools;
 using SessionSight.Agents.Validation;
 using SessionSight.Core.Enums;
 using SessionSight.Core.Schema;
@@ -28,7 +30,7 @@ public interface IClinicalExtractorAgent : ISessionSightAgent
 
 /// <summary>
 /// Clinical Extractor Agent implementation.
-/// Extracts 82 fields from therapy notes using parallel LLM calls.
+/// Extracts 82 fields from therapy notes using an agent loop pattern with tools.
 /// </summary>
 public class ClinicalExtractorAgent : IClinicalExtractorAgent
 {
@@ -36,6 +38,7 @@ public class ClinicalExtractorAgent : IClinicalExtractorAgent
     private readonly IModelRouter _modelRouter;
     private readonly ISchemaValidator _validator;
     private readonly ConfidenceCalculator _confidenceCalculator;
+    private readonly AgentLoopRunner _agentLoopRunner;
     private readonly ILogger<ClinicalExtractorAgent> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -49,12 +52,14 @@ public class ClinicalExtractorAgent : IClinicalExtractorAgent
         IModelRouter modelRouter,
         ISchemaValidator validator,
         ConfidenceCalculator confidenceCalculator,
+        AgentLoopRunner agentLoopRunner,
         ILogger<ClinicalExtractorAgent> logger)
     {
         _clientFactory = clientFactory;
         _modelRouter = modelRouter;
         _validator = validator;
         _confidenceCalculator = confidenceCalculator;
+        _agentLoopRunner = agentLoopRunner;
         _logger = logger;
     }
 
@@ -64,43 +69,59 @@ public class ClinicalExtractorAgent : IClinicalExtractorAgent
     {
         var noteText = intake.Document.MarkdownContent;
         var sessionId = Guid.NewGuid().ToString();
-        var modelsUsed = new HashSet<string>();
-        var errors = new List<string>();
 
         _logger.LogInformation("Starting clinical extraction for session {SessionId}", sessionId);
 
-        // Run all 9 section extractions in parallel
-        var tasks = new[]
+        var modelName = _modelRouter.SelectModel(ModelTask.Extraction);
+        var chatClient = _clientFactory.CreateChatClient(modelName);
+
+        // Build initial messages with extraction prompt
+        var messages = new List<ChatMessage>
         {
-            ExtractSectionAsync<SessionInfoExtracted>("SessionInfo", noteText, ModelTask.ExtractionSimple, modelsUsed, errors, cancellationToken),
-            ExtractSectionAsync<PresentingConcernsExtracted>("PresentingConcerns", noteText, ModelTask.ExtractionSimple, modelsUsed, errors, cancellationToken),
-            ExtractSectionAsync<MoodAssessmentExtracted>("MoodAssessment", noteText, ModelTask.Extraction, modelsUsed, errors, cancellationToken),
-            ExtractSectionAsync<RiskAssessmentExtracted>("RiskAssessment", noteText, ModelTask.RiskAssessment, modelsUsed, errors, cancellationToken),
-            ExtractSectionAsync<MentalStatusExamExtracted>("MentalStatusExam", noteText, ModelTask.Extraction, modelsUsed, errors, cancellationToken),
-            ExtractSectionAsync<InterventionsExtracted>("Interventions", noteText, ModelTask.ExtractionSimple, modelsUsed, errors, cancellationToken),
-            ExtractSectionAsync<DiagnosesExtracted>("Diagnoses", noteText, ModelTask.Extraction, modelsUsed, errors, cancellationToken),
-            ExtractSectionAsync<TreatmentProgressExtracted>("TreatmentProgress", noteText, ModelTask.ExtractionSimple, modelsUsed, errors, cancellationToken),
-            ExtractSectionAsync<NextStepsExtracted>("NextSteps", noteText, ModelTask.ExtractionSimple, modelsUsed, errors, cancellationToken)
+            new SystemChatMessage(ExtractionPrompts.SystemPrompt),
+            new UserChatMessage($"""
+                Extract clinical data from the following therapy note.
+
+                Use the available tools to:
+                1. Validate your extraction against the schema
+                2. Score confidence on your extraction
+                3. Check for risk keywords in the original text
+                4. Look up diagnosis codes if present
+
+                Return a complete JSON extraction when done.
+
+                --- THERAPY NOTE ---
+                {noteText}
+                """)
         };
 
-        var results = await Task.WhenAll(tasks);
+        // Run agent loop
+        var loopResult = await _agentLoopRunner.RunAsync(chatClient, messages, cancellationToken);
 
-        // Merge results into ClinicalExtraction
-        var extraction = new ClinicalExtraction
+        _logger.LogInformation("Agent loop completed with {ToolCalls} tool calls, IsComplete={IsComplete}",
+            loopResult.ToolCallCount, loopResult.IsComplete);
+
+        if (loopResult.IsPartial)
         {
-            SessionInfo = (SessionInfoExtracted)results[0],
-            PresentingConcerns = (PresentingConcernsExtracted)results[1],
-            MoodAssessment = (MoodAssessmentExtracted)results[2],
-            RiskAssessment = (RiskAssessmentExtracted)results[3],
-            MentalStatusExam = (MentalStatusExamExtracted)results[4],
-            Interventions = (InterventionsExtracted)results[5],
-            Diagnoses = (DiagnosesExtracted)results[6],
-            TreatmentProgress = (TreatmentProgressExtracted)results[7],
-            NextSteps = (NextStepsExtracted)results[8]
-        };
+            _logger.LogWarning("Extraction incomplete: {Reason}", loopResult.PartialReason);
 
-        // Validate and calculate confidence
-        var validation = _validator.Validate(extraction);
+            return new ExtractionResult
+            {
+                SessionId = sessionId,
+                Data = new ClinicalExtraction(),
+                RequiresReview = true,
+                LowConfidenceFields = [loopResult.PartialReason ?? "Extraction incomplete"],
+                ModelsUsed = [modelName],
+                Errors = [$"Partial extraction: {loopResult.PartialReason}"],
+                ToolCallCount = loopResult.ToolCallCount
+            };
+        }
+
+        // Parse the final extraction from agent response
+        var extraction = ParseExtractionResponse(loopResult.Content);
+
+        // Final validation and confidence scoring
+        var validationResult = _validator.Validate(extraction);
         var confidence = _confidenceCalculator.Calculate(extraction);
         var lowConfidenceFields = _confidenceCalculator.GetLowConfidenceFields(extraction);
         var hasLowConfidenceRisk = _confidenceCalculator.HasLowConfidenceRiskFields(extraction);
@@ -109,11 +130,11 @@ public class ClinicalExtractorAgent : IClinicalExtractorAgent
         extraction.Metadata = new ExtractionMetadata
         {
             ExtractionTimestamp = DateTime.UtcNow,
-            ExtractionModel = string.Join(", ", modelsUsed),
+            ExtractionModel = modelName,
             ExtractionVersion = "1.0.0",
             OverallConfidence = confidence,
             LowConfidenceFields = lowConfidenceFields,
-            RequiresReview = !validation.IsValid || hasLowConfidenceRisk
+            RequiresReview = !validationResult.IsValid || hasLowConfidenceRisk
         };
 
         _logger.LogInformation(
@@ -127,57 +148,30 @@ public class ClinicalExtractorAgent : IClinicalExtractorAgent
             OverallConfidence = confidence,
             RequiresReview = extraction.Metadata.RequiresReview,
             LowConfidenceFields = lowConfidenceFields,
-            ModelsUsed = modelsUsed.ToList(),
-            Errors = errors
+            ModelsUsed = [modelName],
+            Errors = validationResult.Errors.Select(e => e.Message).ToList(),
+            ToolCallCount = loopResult.ToolCallCount
         };
     }
 
-    private async Task<object> ExtractSectionAsync<T>(
-        string sectionName,
-        string noteText,
-        ModelTask modelTask,
-        HashSet<string> modelsUsed,
-        List<string> errors,
-        CancellationToken cancellationToken) where T : new()
+    private ClinicalExtraction ParseExtractionResponse(string? content)
     {
-        var modelName = _modelRouter.SelectModel(modelTask);
-        lock (modelsUsed)
+        if (string.IsNullOrWhiteSpace(content))
         {
-            modelsUsed.Add(modelName);
+            _logger.LogWarning("Empty extraction response from agent");
+            return new ClinicalExtraction();
         }
-
-        _logger.LogDebug("Extracting {Section} with {Model}", sectionName, modelName);
 
         try
         {
-            var chatClient = _clientFactory.CreateChatClient(modelName);
-            var prompt = GetPromptForSection(sectionName, noteText);
-
-            var messages = new List<ChatMessage>
-            {
-                new SystemChatMessage("You are a clinical extraction assistant. Extract structured data from therapy notes accurately."),
-                new UserChatMessage(prompt)
-            };
-
-            var options = new ChatCompletionOptions
-            {
-                Temperature = 0.1f,
-                MaxOutputTokenCount = 2048
-            };
-
-            var response = await chatClient.CompleteChatAsync(messages, options, cancellationToken);
-            var content = response.Value.Content[0].Text;
-
-            return ParseSectionResponse<T>(sectionName, content) ?? new T();
+            // Extract JSON from response (may be wrapped in markdown code block)
+            var json = ExtractJson(content);
+            return JsonSerializer.Deserialize<ClinicalExtraction>(json, JsonOptions) ?? new ClinicalExtraction();
         }
-        catch (Exception ex)
+        catch (JsonException ex)
         {
-            _logger.LogError(ex, "Error extracting {Section}", sectionName);
-            lock (errors)
-            {
-                errors.Add($"{sectionName}: {ex.Message}");
-            }
-            return new T();
+            _logger.LogWarning(ex, "Failed to parse extraction response as JSON");
+            return new ClinicalExtraction();
         }
     }
 

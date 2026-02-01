@@ -40,4 +40,9 @@ public class OrchestrationResult
     /// Time taken for the extraction in milliseconds.
     /// </summary>
     public long ElapsedMilliseconds { get; set; }
+
+    /// <summary>
+    /// Number of tool calls made by the agent during extraction.
+    /// </summary>
+    public int ToolCallCount { get; set; }
 }

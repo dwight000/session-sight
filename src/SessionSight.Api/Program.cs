@@ -42,9 +42,17 @@ builder.Services.AddScoped<IRiskAssessorAgent, RiskAssessorAgent>();
 builder.Services.AddSingleton<ISchemaValidator, SchemaValidator>();
 builder.Services.AddSingleton<ConfidenceCalculator>();
 
-// Agent tools
+// Agent tools (existing from P2-006a)
 builder.Services.AddSingleton<IAgentTool, CheckRiskKeywordsTool>();
 builder.Services.AddSingleton<IAgentTool, ValidateSchemaTool>();
+
+// Agent tools (new in P2-006b)
+builder.Services.AddSingleton<IAgentTool, ScoreConfidenceTool>();
+builder.Services.AddScoped<IAgentTool, QueryPatientHistoryTool>();  // Scoped - needs repository
+builder.Services.AddSingleton<IAgentTool, LookupDiagnosisCodeTool>();
+
+// Agent loop runner
+builder.Services.AddScoped<AgentLoopRunner>();
 
 // RiskAssessor configuration
 builder.Services.Configure<RiskAssessorOptions>(

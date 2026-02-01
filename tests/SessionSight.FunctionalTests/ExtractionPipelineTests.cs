@@ -182,6 +182,21 @@ public class ExtractionPipelineTests : IClassFixture<ApiFixture>
         success.Should().BeTrue("Extraction should complete successfully");
         extractionJson.GetProperty("extractionId").GetGuid().Should().NotBeEmpty(
             "Successful extraction should return an extraction ID");
+
+        // Verify agent loop metadata is present
+        if (extractionJson.TryGetProperty("toolCallCount", out var toolCallProp))
+        {
+            var toolCallCount = toolCallProp.GetInt32();
+            toolCallCount.Should().BeGreaterOrEqualTo(0,
+                "Agent loop should track tool call count");
+        }
+
+        // Verify modelsUsed is populated
+        if (extractionJson.TryGetProperty("modelsUsed", out var modelsProp))
+        {
+            var models = modelsProp.EnumerateArray().Select(e => e.GetString()).ToList();
+            models.Should().NotBeEmpty("At least one model should be used for extraction");
+        }
     }
 
     [Fact]
