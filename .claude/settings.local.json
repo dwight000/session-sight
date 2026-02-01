@@ -45,7 +45,12 @@
       "Bash(az account:*)",
       "Bash(az cognitiveservices account show:*)",
       "Bash(# Check what process is running ps -p 1624272 -o cmd --no-headers # Check if the API port is open ss -tlnp)",
-      "Bash(pgrep:*)"
+      "Bash(pgrep:*)",
+      "Bash(dotnet list:*)",
+      "Bash(dotnet security-scan:*)",
+      "Bash(dotnet:*)",
+      "Bash(gh run view:*)",
+      "Bash(echo:*)"
     ]
   }
 }
