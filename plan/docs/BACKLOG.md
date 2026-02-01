@@ -75,7 +75,8 @@
 | P2-003 | Intake Agent | L | 2 | Done | P2-002 |
 | P2-004 | Clinical Extractor Agent | XL | 2 | Done | P2-002 |
 | P2-005 | Risk Assessor Agent (safety-critical) | XL | 2 | Done | P2-004 |
-| P2-006 | Agent-to-tool callbacks | L | 2 | Ready | P2-003 |
+| P2-006a | Agent tools: Core infra + check_risk_keywords + validate_schema | M | 2 | Ready | P2-003 |
+| P2-006b | Agent tools: ClinicalExtractor transformation + remaining tools | L | 2 | Ready | P2-006a |
 | P2-007 | Confidence scoring | M | 2 | Done | P2-004 |
 | P2-008 | Blob trigger + ExtractionOrchestrator + Doc Intelligence | XL | 2 | Done | P2-004 |
 | B-010 | Exponential backoff for OpenAI/Search | M | 2 | Ready | P2-001 |
@@ -93,10 +94,10 @@
 | B-043 | Document local dev setup (docs/LOCAL_DEV.md) | M | 2 | Done | - |
 | B-044 | Fix SessionRepository.UpdateAsync concurrency bug in extraction | M | 2 | Done | B-042 |
 | B-045 | Create deterministic E2E test runner script | S | 1 | Done | - |
-| B-037 | Tool call limit graceful handling | M | 2 | Blocked | P2-006 |
+| B-037 | Tool call limit graceful handling | M | 2 | Blocked | P2-006b |
 | B-040 | Stub IAIFoundryClientFactory in integration tests | S | 2 | Done | P2-002 |
 | P2-009 | Create glossary of domain terms | S | 2 | Ready | P2-004 |
-| P2-010 | Create sequence diagrams for agent interactions | M | 2 | Blocked | P2-006 |
+| P2-010 | Create sequence diagrams for agent interactions | M | 2 | Blocked | P2-006a |
 | **Phase 3: Summarization & RAG** |||||
 | P3-001 | Summarizer Agent (3 levels) | XL | 3 | Ready | P2-005 |
 | P3-002 | Azure AI Search vector index | M | 3 | Ready | P2-001 |
