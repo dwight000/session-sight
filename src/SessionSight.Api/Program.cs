@@ -11,6 +11,7 @@ using SessionSight.Agents.Models;
 using SessionSight.Agents.Orchestration;
 using SessionSight.Agents.Routing;
 using SessionSight.Agents.Services;
+using SessionSight.Agents.Tools;
 using SessionSight.Agents.Validation;
 using SessionSight.Api.Middleware;
 using SessionSight.Api.Validators;
@@ -40,6 +41,10 @@ builder.Services.AddScoped<IClinicalExtractorAgent, ClinicalExtractorAgent>();
 builder.Services.AddScoped<IRiskAssessorAgent, RiskAssessorAgent>();
 builder.Services.AddSingleton<ISchemaValidator, SchemaValidator>();
 builder.Services.AddSingleton<ConfidenceCalculator>();
+
+// Agent tools
+builder.Services.AddSingleton<IAgentTool, CheckRiskKeywordsTool>();
+builder.Services.AddSingleton<IAgentTool, ValidateSchemaTool>();
 
 // RiskAssessor configuration
 builder.Services.Configure<RiskAssessorOptions>(
