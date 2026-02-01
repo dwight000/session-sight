@@ -5,23 +5,33 @@
 # Runs functional tests against a fresh Aspire instance with clean database.
 #
 # Usage:
-#   ./scripts/run-e2e.sh           # Fresh database (removes SQL container)
+#   ./scripts/run-e2e.sh           # Fresh start (kills processes, fresh DB)
 #   ./scripts/run-e2e.sh --keep-db # Keep existing database
+#   ./scripts/run-e2e.sh --hot     # Reuse running Aspire (fast iteration)
+#   ./scripts/run-e2e.sh --filter "FullExtraction"  # Run specific test
 #
 # What it does:
-#   1. Kills existing SessionSight/Aspire/dcp processes
-#   2. Removes old SQL container (unless --keep-db)
+#   1. Kills existing SessionSight/Aspire/dcp processes (unless --hot)
+#   2. Removes old SQL container (unless --keep-db or --hot)
 #   3. Starts Aspire (builds solution if needed)
 #   4. Polls /health endpoint until API is ready
 #   5. Discovers HTTPS port via HTTP->HTTPS redirect
 #   6. Runs EF migrations and inserts test therapist
 #   7. Runs functional tests with API_BASE_URL set
 #
+# What extraction tests verify:
+#   1. Document Intelligence (Azure) parses PDF to text
+#   2. Intake Agent (GPT-4o-mini) validates therapy note
+#   3. Clinical Extractor (GPT-4o-mini) extracts 9 sections in parallel
+#   4. Risk Assessor (GPT-4o) validates safety-critical risk data
+#   5. Results saved to database
+#
 # Troubleshooting:
 #   - If tests fail, check /tmp/aspire-e2e.log for Aspire output
 #   - If port discovery fails, try: ss -tlnp | grep SessionSight
 #   - If migrations fail, ensure SQL container is running: docker ps | grep sql
 #   - The Pipeline_FullExtraction test requires Azure AI services configured
+#   - Aspire dashboard: https://localhost:17055 (shows traces)
 #
 # Environment:
 #   - Requires Azure CLI in PATH (uses /home/dwight/virtualenvs/my_venv/bin)
@@ -37,6 +47,30 @@ LOG_FILE="/tmp/aspire-e2e.log"
 MAX_WAIT_SECONDS=120
 POLL_INTERVAL=2
 
+# Parse arguments
+HOT_MODE=false
+KEEP_DB=false
+TEST_FILTER=""
+
+for arg in "$@"; do
+    case $arg in
+        --hot)
+            HOT_MODE=true
+            KEEP_DB=true
+            ;;
+        --keep-db)
+            KEEP_DB=true
+            ;;
+        --filter)
+            shift
+            TEST_FILTER="$1"
+            ;;
+        --filter=*)
+            TEST_FILTER="${arg#*=}"
+            ;;
+    esac
+done
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -48,6 +82,10 @@ warn() { echo -e "${YELLOW}[E2E]${NC} $1"; }
 error() { echo -e "${RED}[E2E]${NC} $1"; }
 
 cleanup() {
+    if [ "$HOT_MODE" = true ]; then
+        log "Hot mode: keeping Aspire running for next iteration"
+        return
+    fi
     log "Cleaning up..."
     # Kill all related processes - order matters (children before parents)
     pkill -9 -f "SessionSight.Api" 2>/dev/null || true
@@ -61,10 +99,27 @@ cleanup() {
 
 trap cleanup EXIT
 
-# Step 1: Kill existing processes
-log "Stopping any existing Aspire/SessionSight processes..."
-cleanup
-sleep 3
+# Step 1: Kill existing processes (skip in hot mode)
+if [ "$HOT_MODE" = true ]; then
+    log "Hot mode: checking if Aspire is already running..."
+    if pgrep -f "SessionSight" > /dev/null; then
+        log "Aspire is running - reusing existing instance"
+    else
+        warn "Aspire not running - starting fresh (use regular mode next time)"
+        HOT_MODE=false
+    fi
+else
+    log "Stopping any existing Aspire/SessionSight processes..."
+    # Inline cleanup to avoid trap issues
+    pkill -9 -f "SessionSight.Api" 2>/dev/null || true
+    pkill -9 -f "SessionSight.AppHost" 2>/dev/null || true
+    pkill -9 -f "SessionSight" 2>/dev/null || true
+    pkill -9 -f "Aspire.Dashboard" 2>/dev/null || true
+    pkill -9 -f "Aspire" 2>/dev/null || true
+    pkill -9 -f "dcpctrl" 2>/dev/null || true
+    pkill -9 -f "dcp" 2>/dev/null || true
+    sleep 3
+fi
 
 # Step 2: Ensure Azure CLI is in PATH
 export PATH="/home/dwight/virtualenvs/my_venv/bin:$PATH"
@@ -73,8 +128,8 @@ if ! command -v az &> /dev/null; then
     exit 1
 fi
 
-# Step 3: Remove old SQL container for fresh database (optional: use --keep-db to preserve)
-if [ "$1" != "--keep-db" ]; then
+# Step 3: Remove old SQL container for fresh database (skip if --keep-db or --hot)
+if [ "$KEEP_DB" = false ]; then
     SQL_CONTAINER=$(docker ps -a --format '{{.Names}}' | grep sql || true)
     if [ -n "$SQL_CONTAINER" ]; then
         log "Removing old SQL container for fresh database..."
@@ -83,12 +138,16 @@ if [ "$1" != "--keep-db" ]; then
     fi
 fi
 
-# Step 4: Start Aspire
-log "Starting Aspire..."
-cd "$APPHOST_DIR"
-dotnet run > "$LOG_FILE" 2>&1 &
-ASPIRE_PID=$!
-log "Aspire started with PID $ASPIRE_PID (log: $LOG_FILE)"
+# Step 4: Start Aspire (skip if hot mode and already running)
+if [ "$HOT_MODE" = true ] && pgrep -f "SessionSight" > /dev/null; then
+    log "Reusing existing Aspire instance..."
+else
+    log "Starting Aspire..."
+    cd "$APPHOST_DIR"
+    dotnet run > "$LOG_FILE" 2>&1 &
+    ASPIRE_PID=$!
+    log "Aspire started with PID $ASPIRE_PID (log: $LOG_FILE)"
+fi
 
 # Step 5: Wait for API to be ready by polling /health
 log "Waiting for API to be ready..."
@@ -148,6 +207,13 @@ docker exec "$SQL_CONTAINER" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P
 log "Running functional tests..."
 cd "$PROJECT_ROOT"
 export API_BASE_URL="https://localhost:$API_PORT"
-dotnet test tests/SessionSight.FunctionalTests --verbosity normal
+
+if [ -n "$TEST_FILTER" ]; then
+    log "Filter: $TEST_FILTER"
+    dotnet test tests/SessionSight.FunctionalTests --verbosity normal --filter "FullyQualifiedName~$TEST_FILTER"
+else
+    dotnet test tests/SessionSight.FunctionalTests --verbosity normal
+fi
 
 log "E2E tests completed successfully!"
+log "Aspire dashboard: https://localhost:17055 (view traces)"
