@@ -35,7 +35,7 @@ jobs:
         run: dotnet restore session-sight.sln
 
       - name: Check formatting
-        run: dotnet format session-sight.sln --verify-no-changes --verbosity diagnostic
+        run: dotnet format whitespace session-sight.sln --verify-no-changes --verbosity diagnostic
 
       - name: Begin SonarCloud analysis
         if: env.SONAR_TOKEN != ''
