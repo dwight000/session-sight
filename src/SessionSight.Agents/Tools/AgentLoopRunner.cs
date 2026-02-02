@@ -58,19 +58,7 @@ public partial class AgentLoopRunner
                 LogAgentToolCalls(_logger, completion.ToolCalls.Count, toolCallCount);
 
                 // Execute tools in parallel
-                var tasks = completion.ToolCalls.Select(async tc =>
-                {
-                    var tool = _tools.FirstOrDefault(t => t.Name == tc.FunctionName);
-                    if (tool is null)
-                    {
-                        LogUnknownToolRequested(_logger, tc.FunctionName);
-                        return (tc.Id, ToolResult.Error($"Unknown tool: {tc.FunctionName}"));
-                    }
-
-                    LogExecutingTool(_logger, tc.FunctionName);
-                    return (tc.Id, await tool.ExecuteAsync(tc.FunctionArguments, ct));
-                });
-
+                var tasks = completion.ToolCalls.Select(tc => ExecuteToolCallAsync(tc, ct));
                 var results = await Task.WhenAll(tasks);
 
                 // Add tool results to conversation
@@ -95,6 +83,21 @@ public partial class AgentLoopRunner
                 $"Unexpected completion: {completion.FinishReason}",
                 toolCallCount);
         }
+    }
+
+    private async Task<(string Id, ToolResult Result)> ExecuteToolCallAsync(
+        ChatToolCall toolCall,
+        CancellationToken ct)
+    {
+        var tool = _tools.FirstOrDefault(t => t.Name == toolCall.FunctionName);
+        if (tool is null)
+        {
+            LogUnknownToolRequested(_logger, toolCall.FunctionName);
+            return (toolCall.Id, ToolResult.Error($"Unknown tool: {toolCall.FunctionName}"));
+        }
+
+        LogExecutingTool(_logger, toolCall.FunctionName);
+        return (toolCall.Id, await tool.ExecuteAsync(toolCall.FunctionArguments, ct));
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Agent hit tool call limit of {Limit}")]

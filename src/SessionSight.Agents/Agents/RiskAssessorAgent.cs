@@ -259,12 +259,7 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
 
         if (underlyingType.IsEnum)
-        {
-            var stringValue = element.GetString();
-            if (string.IsNullOrEmpty(stringValue))
-                return null;
-            return Enum.TryParse(underlyingType, stringValue, ignoreCase: true, out var result) ? result : null;
-        }
+            return DeserializeEnum(element, underlyingType);
 
         if (underlyingType == typeof(string))
             return element.GetString();
@@ -273,21 +268,28 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
             return element.ValueKind == JsonValueKind.True;
 
         if (underlyingType == typeof(List<string>))
-        {
-            if (element.ValueKind != JsonValueKind.Array)
-                return new List<string>();
-
-            var list = new List<string>();
-            foreach (var item in element.EnumerateArray())
-            {
-                var str = item.GetString();
-                if (str != null)
-                    list.Add(str);
-            }
-            return list;
-        }
+            return DeserializeStringList(element);
 
         return null;
+    }
+
+    private static object? DeserializeEnum(JsonElement element, Type enumType)
+    {
+        var stringValue = element.GetString();
+        if (string.IsNullOrEmpty(stringValue))
+            return null;
+        return Enum.TryParse(enumType, stringValue, ignoreCase: true, out var result) ? result : null;
+    }
+
+    private static List<string> DeserializeStringList(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Array)
+            return [];
+
+        return element.EnumerateArray()
+            .Select(item => item.GetString())
+            .Where(str => str != null)
+            .ToList()!;
     }
 
     private static SourceMapping? DeserializeSourceMapping(JsonElement element)

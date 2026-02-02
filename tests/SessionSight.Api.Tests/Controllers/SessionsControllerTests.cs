@@ -1,6 +1,5 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using Moq;
 using SessionSight.Api.Controllers;
 using SessionSight.Api.DTOs;
@@ -13,14 +12,12 @@ namespace SessionSight.Api.Tests.Controllers;
 public class SessionsControllerTests
 {
     private readonly Mock<ISessionRepository> _mockRepo;
-    private readonly Mock<ILogger<SessionsController>> _mockLogger;
     private readonly SessionsController _controller;
 
     public SessionsControllerTests()
     {
         _mockRepo = new Mock<ISessionRepository>();
-        _mockLogger = new Mock<ILogger<SessionsController>>();
-        _controller = new SessionsController(_mockRepo.Object, _mockLogger.Object);
+        _controller = new SessionsController(_mockRepo.Object);
     }
 
     [Fact]

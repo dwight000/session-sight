@@ -294,96 +294,87 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
         if (element.ValueKind == JsonValueKind.Null)
             return null;
 
-        // Handle nullable types
         var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
 
-        // Handle enums
-        if (underlyingType.IsEnum)
+        // Delegate to type-specific handlers to reduce complexity
+        return underlyingType switch
         {
-            var stringValue = element.GetString();
-            if (string.IsNullOrEmpty(stringValue))
-                return null;
-            return Enum.TryParse(underlyingType, stringValue, ignoreCase: true, out var result) ? result : null;
+            _ when underlyingType.IsEnum => DeserializeEnum(element, underlyingType),
+            _ when underlyingType == typeof(string) => element.GetString(),
+            _ when underlyingType == typeof(int) => element.TryGetInt32(out var i) ? i : null,
+            _ when underlyingType == typeof(bool) => element.ValueKind == JsonValueKind.True,
+            _ when underlyingType == typeof(double) => element.TryGetDouble(out var d) ? d : null,
+            _ when underlyingType == typeof(DateOnly) => DeserializeDateOnly(element),
+            _ when underlyingType == typeof(TimeOnly) => DeserializeTimeOnly(element),
+            _ when underlyingType == typeof(List<string>) => DeserializeStringList(element),
+            _ when underlyingType == typeof(Dictionary<string, string>) => DeserializeStringDictionary(element),
+            _ when IsEnumList(underlyingType) => DeserializeEnumList(element, underlyingType),
+            _ => null
+        };
+    }
+
+    private static object? DeserializeEnum(JsonElement element, Type enumType)
+    {
+        var stringValue = element.GetString();
+        if (string.IsNullOrEmpty(stringValue))
+            return null;
+        return Enum.TryParse(enumType, stringValue, ignoreCase: true, out var result) ? result : null;
+    }
+
+    private static DateOnly? DeserializeDateOnly(JsonElement element)
+    {
+        var dateStr = element.GetString();
+        return DateOnly.TryParse(dateStr, out var date) ? date : null;
+    }
+
+    private static TimeOnly? DeserializeTimeOnly(JsonElement element)
+    {
+        var timeStr = element.GetString();
+        return TimeOnly.TryParse(timeStr, out var time) ? time : null;
+    }
+
+    private static List<string> DeserializeStringList(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Array)
+            return [];
+
+        return element.EnumerateArray()
+            .Select(item => item.GetString())
+            .Where(str => str != null)
+            .ToList()!;
+    }
+
+    private static Dictionary<string, string> DeserializeStringDictionary(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+            return [];
+
+        return element.EnumerateObject()
+            .Where(prop => prop.Value.GetString() != null)
+            .ToDictionary(prop => prop.Name, prop => prop.Value.GetString()!);
+    }
+
+    private static bool IsEnumList(Type type) =>
+        type.IsGenericType &&
+        type.GetGenericTypeDefinition() == typeof(List<>) &&
+        type.GetGenericArguments()[0].IsEnum;
+
+    private static object? DeserializeEnumList(JsonElement element, Type listType)
+    {
+        if (element.ValueKind != JsonValueKind.Array)
+            return null;
+
+        var itemType = listType.GetGenericArguments()[0];
+        var list = (System.Collections.IList)Activator.CreateInstance(listType)!;
+
+        foreach (var item in element.EnumerateArray())
+        {
+            var str = item.GetString();
+            if (!string.IsNullOrEmpty(str) && Enum.TryParse(itemType, str, ignoreCase: true, out var enumValue))
+                list.Add(enumValue);
         }
 
-        // Handle common types
-        if (underlyingType == typeof(string))
-            return element.GetString();
-
-        if (underlyingType == typeof(int))
-            return element.TryGetInt32(out var i) ? i : null;
-
-        if (underlyingType == typeof(bool))
-            return element.ValueKind == JsonValueKind.True;
-
-        if (underlyingType == typeof(double))
-            return element.TryGetDouble(out var d) ? d : null;
-
-        if (underlyingType == typeof(DateOnly))
-        {
-            var dateStr = element.GetString();
-            return DateOnly.TryParse(dateStr, out var date) ? date : null;
-        }
-
-        if (underlyingType == typeof(TimeOnly))
-        {
-            var timeStr = element.GetString();
-            return TimeOnly.TryParse(timeStr, out var time) ? time : null;
-        }
-
-        // Handle List<string>
-        if (underlyingType == typeof(List<string>))
-        {
-            if (element.ValueKind != JsonValueKind.Array)
-                return new List<string>();
-
-            var list = new List<string>();
-            foreach (var item in element.EnumerateArray())
-            {
-                var str = item.GetString();
-                if (str != null)
-                    list.Add(str);
-            }
-            return list;
-        }
-
-        // Handle List<enum>
-        if (underlyingType.IsGenericType && underlyingType.GetGenericTypeDefinition() == typeof(List<>))
-        {
-            var itemType = underlyingType.GetGenericArguments()[0];
-            if (itemType.IsEnum && element.ValueKind == JsonValueKind.Array)
-            {
-                var listType = typeof(List<>).MakeGenericType(itemType);
-                var list = (System.Collections.IList)Activator.CreateInstance(listType)!;
-                foreach (var item in element.EnumerateArray())
-                {
-                    var str = item.GetString();
-                    if (!string.IsNullOrEmpty(str) && Enum.TryParse(itemType, str, ignoreCase: true, out var enumValue))
-                    {
-                        list.Add(enumValue);
-                    }
-                }
-                return list;
-            }
-        }
-
-        // Handle Dictionary<string, string>
-        if (underlyingType == typeof(Dictionary<string, string>))
-        {
-            if (element.ValueKind != JsonValueKind.Object)
-                return new Dictionary<string, string>();
-
-            var dict = new Dictionary<string, string>();
-            foreach (var prop in element.EnumerateObject())
-            {
-                var val = prop.Value.GetString();
-                if (val != null)
-                    dict[prop.Name] = val;
-            }
-            return dict;
-        }
-
-        return null;
+        return list;
     }
 
     private static SourceMapping? DeserializeSourceMapping(JsonElement element)
