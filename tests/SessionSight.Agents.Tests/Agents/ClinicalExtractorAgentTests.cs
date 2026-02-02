@@ -187,4 +187,94 @@ public class ClinicalExtractorAgentTests
         prompt.Should().Contain("riskLevelOverall");
         prompt.Should().Contain("0.90"); // Confidence threshold mentioned
     }
+
+    [Fact]
+    public void ParseSectionResponse_TimeOnlyField_ParsesCorrectly()
+    {
+        var json = """
+            {
+                "sessionStartTime": {"value": "14:30", "confidence": 0.90, "source": null}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<SessionInfoExtracted>("SessionInfo", json);
+
+        result.Should().NotBeNull();
+        result.SessionStartTime.Value.Should().Be(new TimeOnly(14, 30));
+    }
+
+    [Fact]
+    public void ParseSectionResponse_BoolField_ParsesCorrectly()
+    {
+        var json = """
+            {
+                "treatmentProgressMade": {"value": true, "confidence": 0.95, "source": null}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<TreatmentProgressExtracted>("TreatmentProgress", json);
+
+        result.Should().NotBeNull();
+        result.TreatmentProgressMade.Value.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ParseSectionResponse_DoubleField_ParsesCorrectly()
+    {
+        var json = """
+            {
+                "gafScoreCurrent": {"value": 65.5, "confidence": 0.85, "source": null}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<TreatmentProgressExtracted>("TreatmentProgress", json);
+
+        result.Should().NotBeNull();
+        result.GafScoreCurrent.Value.Should().Be(65.5);
+    }
+
+    [Fact]
+    public void ParseSectionResponse_EmptyStringList_ReturnsEmptyList()
+    {
+        var json = """
+            {
+                "protectiveFactors": {"value": [], "confidence": 0.50, "source": null}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<RiskAssessmentExtracted>("RiskAssessment", json);
+
+        result.Should().NotBeNull();
+        result.ProtectiveFactors.Value.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ParseSectionResponse_InvalidEnumValue_ReturnsNull()
+    {
+        var json = """
+            {
+                "sessionType": {"value": "InvalidType", "confidence": 0.90, "source": null}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<SessionInfoExtracted>("SessionInfo", json);
+
+        result.Should().NotBeNull();
+        result.SessionType.Value.Should().BeNull();
+    }
+
+    [Fact]
+    public void ParseSectionResponse_EmptyEnumList_ReturnsEmptyList()
+    {
+        var json = """
+            {
+                "techniquesUsed": {"value": [], "confidence": 0.50, "source": null}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<InterventionsExtracted>("Interventions", json);
+
+        result.Should().NotBeNull();
+        result.TechniquesUsed.Value.Should().BeEmpty();
+    }
 }
