@@ -108,6 +108,26 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
 
+      - name: Check for high severity SonarCloud issues
+        if: env.SONAR_TOKEN != ''
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          # Query SonarCloud API for BLOCKER and CRITICAL issues
+          RESPONSE=$(curl -s -u "${SONAR_TOKEN}:" \
+            "https://sonarcloud.io/api/issues/search?componentKeys=dwight000_session-sight&severities=BLOCKER,CRITICAL&statuses=OPEN,CONFIRMED,REOPENED&ps=100")
+
+          COUNT=$(echo "$RESPONSE" | jq '.total')
+          echo "Found $COUNT high severity issues (BLOCKER/CRITICAL)"
+
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error::Found $COUNT high severity SonarCloud issues that must be fixed"
+            echo ""
+            echo "High severity issues:"
+            echo "$RESPONSE" | jq -r '.issues[] | "  \(.severity) [\(.type)]: \(.message)\n    File: \(.component | split(":")[1]):\(.line)\n    Rule: \(.rule)\n"'
+            exit 1
+          fi
+
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
