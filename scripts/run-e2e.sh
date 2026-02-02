@@ -68,6 +68,9 @@ for arg in "$@"; do
         --filter=*)
             TEST_FILTER="${arg#*=}"
             ;;
+        *)
+            # Ignore unknown arguments
+            ;;
     esac
 done
 

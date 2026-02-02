@@ -13,16 +13,13 @@ public class DocumentsController : ControllerBase
 {
     private readonly ISessionRepository _sessionRepository;
     private readonly IDocumentStorage _documentStorage;
-    private readonly ILogger<DocumentsController> _logger;
 
     public DocumentsController(
         ISessionRepository sessionRepository,
-        IDocumentStorage documentStorage,
-        ILogger<DocumentsController> logger)
+        IDocumentStorage documentStorage)
     {
         _sessionRepository = sessionRepository;
         _documentStorage = documentStorage;
-        _logger = logger;
     }
 
     [HttpPost("document")]

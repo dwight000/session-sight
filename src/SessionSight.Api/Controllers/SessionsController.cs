@@ -10,12 +10,10 @@ namespace SessionSight.Api.Controllers;
 public class SessionsController : ControllerBase
 {
     private readonly ISessionRepository _sessionRepository;
-    private readonly ILogger<SessionsController> _logger;
 
-    public SessionsController(ISessionRepository sessionRepository, ILogger<SessionsController> logger)
+    public SessionsController(ISessionRepository sessionRepository)
     {
         _sessionRepository = sessionRepository;
-        _logger = logger;
     }
 
     [HttpGet("sessions/{id:guid}")]

@@ -50,7 +50,12 @@
       "Bash(dotnet security-scan:*)",
       "Bash(dotnet:*)",
       "Bash(gh run view:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(gh api:*)",
+      "Bash(gh run download:*)",
+      "Bash(tee:*)",
+      "Bash(gh run watch:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

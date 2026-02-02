@@ -10,12 +10,10 @@ namespace SessionSight.Api.Controllers;
 public class PatientsController : ControllerBase
 {
     private readonly IPatientRepository _repository;
-    private readonly ILogger<PatientsController> _logger;
 
-    public PatientsController(IPatientRepository repository, ILogger<PatientsController> logger)
+    public PatientsController(IPatientRepository repository)
     {
         _repository = repository;
-        _logger = logger;
     }
 
     [HttpGet]
