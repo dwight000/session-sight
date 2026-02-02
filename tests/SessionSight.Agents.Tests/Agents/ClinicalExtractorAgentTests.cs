@@ -208,29 +208,29 @@ public class ClinicalExtractorAgentTests
     {
         var json = """
             {
-                "treatmentProgressMade": {"value": true, "confidence": 0.95, "source": null}
+                "meansRestrictionDiscussed": {"value": true, "confidence": 0.95, "source": null}
             }
             """;
 
-        var result = ClinicalExtractorAgent.ParseSectionResponse<TreatmentProgressExtracted>("TreatmentProgress", json);
+        var result = ClinicalExtractorAgent.ParseSectionResponse<RiskAssessmentExtracted>("RiskAssessment", json);
 
         result.Should().NotBeNull();
-        result.TreatmentProgressMade.Value.Should().BeTrue();
+        result.MeansRestrictionDiscussed.Value.Should().BeTrue();
     }
 
     [Fact]
-    public void ParseSectionResponse_DoubleField_ParsesCorrectly()
+    public void ParseSectionResponse_IntField_ParsesCorrectly()
     {
         var json = """
             {
-                "gafScoreCurrent": {"value": 65.5, "confidence": 0.85, "source": null}
+                "selfReportedMood": {"value": 7, "confidence": 0.85, "source": null}
             }
             """;
 
-        var result = ClinicalExtractorAgent.ParseSectionResponse<TreatmentProgressExtracted>("TreatmentProgress", json);
+        var result = ClinicalExtractorAgent.ParseSectionResponse<MoodAssessmentExtracted>("MoodAssessment", json);
 
         result.Should().NotBeNull();
-        result.GafScoreCurrent.Value.Should().Be(65.5);
+        result.SelfReportedMood.Value.Should().Be(7);
     }
 
     [Fact]
@@ -260,7 +260,7 @@ public class ClinicalExtractorAgentTests
         var result = ClinicalExtractorAgent.ParseSectionResponse<SessionInfoExtracted>("SessionInfo", json);
 
         result.Should().NotBeNull();
-        result.SessionType.Value.Should().BeNull();
+        result.SessionType.Value.Should().Be(default);
     }
 
     [Fact]
