@@ -277,4 +277,81 @@ public class ClinicalExtractorAgentTests
         result.Should().NotBeNull();
         result.TechniquesUsed.Value.Should().BeEmpty();
     }
+
+    [Fact]
+    public void ParseSectionResponse_DictionaryField_ParsesCorrectly()
+    {
+        var json = """
+            {
+                "goalProgress": {"value": {"Reduce anxiety": "Good progress", "Improve sleep": "Moderate"}, "confidence": 0.85, "source": null}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<TreatmentProgressExtracted>("TreatmentProgress", json);
+
+        result.Should().NotBeNull();
+        result.GoalProgress.Value.Should().HaveCount(2);
+        result.GoalProgress.Value.Should().ContainKey("Reduce anxiety");
+        result.GoalProgress.Value["Reduce anxiety"].Should().Be("Good progress");
+    }
+
+    [Fact]
+    public void ParseSectionResponse_InvalidDateFormat_ReturnsDefault()
+    {
+        var json = """
+            {
+                "sessionDate": {"value": "not-a-date", "confidence": 0.50, "source": null}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<SessionInfoExtracted>("SessionInfo", json);
+
+        result.Should().NotBeNull();
+        result.SessionDate.Value.Should().Be(default);
+    }
+
+    [Fact]
+    public void ParseSectionResponse_InvalidTimeFormat_ReturnsDefault()
+    {
+        var json = """
+            {
+                "sessionStartTime": {"value": "not-a-time", "confidence": 0.50, "source": null}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<SessionInfoExtracted>("SessionInfo", json);
+
+        result.Should().NotBeNull();
+        result.SessionStartTime.Value.Should().Be(default);
+    }
+
+    [Fact]
+    public void ParseSectionResponse_NonArrayForStringList_ReturnsEmptyList()
+    {
+        var json = """
+            {
+                "protectiveFactors": {"value": "not-an-array", "confidence": 0.50, "source": null}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<RiskAssessmentExtracted>("RiskAssessment", json);
+
+        result.Should().NotBeNull();
+        result.ProtectiveFactors.Value.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ParseSectionResponse_EmptyEnumString_ReturnsNull()
+    {
+        var json = """
+            {
+                "sessionType": {"value": "", "confidence": 0.50, "source": null}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<SessionInfoExtracted>("SessionInfo", json);
+
+        result.Should().NotBeNull();
+        result.SessionType.Value.Should().Be(default);
+    }
 }
