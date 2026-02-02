@@ -90,15 +90,14 @@ jobs:
       - name: Generate coverage report
         run: dotnet reportgenerator -reports:"coverage/**/coverage.cobertura.xml" -targetdir:coverage/report -reporttypes:Cobertura -filefilters:"-**/Migrations/**"
 
-      # Target 80% by Phase 3 (B-018) - currently at ~63%
-      # TODO: Get coverage back to 65%+ (dropped after agent loop refactoring)
+      # Coverage threshold set 1% above SonarCloud (80%) to catch issues early
       - name: Check coverage threshold
         run: |
           COVERAGE=$(grep -oP 'line-rate="\K[^"]+' coverage/report/Cobertura.xml | head -1)
           PERCENT=$(echo "$COVERAGE * 100" | bc)
           echo "Coverage: $PERCENT%"
-          if (( $(echo "$COVERAGE < 0.60" | bc -l) )); then
-            echo "::error::Coverage $PERCENT% is below 60% threshold"
+          if (( $(echo "$COVERAGE < 0.81" | bc -l) )); then
+            echo "::error::Coverage $PERCENT% is below 81% threshold (SonarCloud requires 80%)"
             exit 1
           fi
 
