@@ -39,7 +39,6 @@ jobs:
 
       - name: Begin SonarCloud analysis
         if: env.SONAR_TOKEN != ''
-        continue-on-error: true  # SonarCloud is optional until project is set up
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
@@ -49,7 +48,8 @@ jobs:
             /d:sonar.token="${SONAR_TOKEN}" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.coverageReportPaths="coverage/report/Cobertura.xml" \
-            /d:sonar.qualitygate.wait=false
+            /d:sonar.exclusions="**/Migrations/**,**/obj/**,**/bin/**,plan/spike/**" \
+            /d:sonar.qualitygate.wait=true
 
       - name: Verify analyzer configuration
         run: |
@@ -104,7 +104,6 @@ jobs:
 
       - name: End SonarCloud analysis
         if: env.SONAR_TOKEN != ''
-        continue-on-error: true  # SonarCloud is optional until project is set up
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
