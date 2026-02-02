@@ -47,7 +47,7 @@ jobs:
             /o:"dwight000" \
             /d:sonar.token="${SONAR_TOKEN}" \
             /d:sonar.host.url="https://sonarcloud.io" \
-            /d:sonar.coverageReportPaths="coverage/report/Cobertura.xml" \
+            /d:sonar.cs.opencover.reportsPaths="coverage/**/coverage.opencover.xml" \
             /d:sonar.exclusions="**/Migrations/**,**/obj/**,**/bin/**,plan/spike/**" \
             /d:sonar.qualitygate.wait=true
 
@@ -85,7 +85,7 @@ jobs:
           fi
 
       - name: Test with coverage
-        run: dotnet test session-sight.sln --no-build --configuration Release --collect:"XPlat Code Coverage" --results-directory ./coverage --filter "Category!=Functional"
+        run: dotnet test session-sight.sln --no-build --configuration Release --collect:"XPlat Code Coverage" --results-directory ./coverage --filter "Category!=Functional" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover,cobertura
 
       - name: Generate coverage report
         run: dotnet reportgenerator -reports:"coverage/**/coverage.cobertura.xml" -targetdir:coverage/report -reporttypes:Cobertura -filefilters:"-**/Migrations/**"
