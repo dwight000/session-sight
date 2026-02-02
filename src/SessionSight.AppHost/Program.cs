@@ -17,10 +17,10 @@ var storage = builder.AddAzureStorage("storage")
 var blobs = storage.AddBlobs("documents");
 
 // Blob containers for ingestion pipeline
-var incoming = storage.AddBlobs("incoming");
-var processing = storage.AddBlobs("processing");
-var processed = storage.AddBlobs("processed");
-var failed = storage.AddBlobs("failed");
+_ = storage.AddBlobs("incoming");
+_ = storage.AddBlobs("processing");
+_ = storage.AddBlobs("processed");
+_ = storage.AddBlobs("failed");
 
 // Azure-only resources (require Azure subscription — uncomment when deploying)
 // var insights = builder.AddAzureApplicationInsights("insights");

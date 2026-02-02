@@ -138,11 +138,12 @@ public class DocumentIntelligenceParser : IDocumentParser
         // Group cells by row
         foreach (var cell in table.Cells)
         {
-            if (!rows.ContainsKey(cell.RowIndex))
+            if (!rows.TryGetValue(cell.RowIndex, out var rowCells))
             {
-                rows[cell.RowIndex] = new List<(int Col, string Content)>();
+                rowCells = new List<(int Col, string Content)>();
+                rows[cell.RowIndex] = rowCells;
             }
-            rows[cell.RowIndex].Add((cell.ColumnIndex, cell.Content));
+            rowCells.Add((cell.ColumnIndex, cell.Content));
         }
 
         // Build markdown table

@@ -63,16 +63,16 @@ public class SchemaValidator : ISchemaValidator
         var sh = risk.SelfHarm.Value;
         var hi = risk.HomicidalIdeation.Value;
 
-        return (si != default && si != SuicidalIdeation.None)
-            || (sh != default && sh != SelfHarm.None)
-            || (hi != default && hi != HomicidalIdeation.None);
+        return si != SuicidalIdeation.None
+            || sh != SelfHarm.None
+            || hi != HomicidalIdeation.None;
     }
 
     private static void ValidateRiskConfidence(RiskAssessmentExtracted risk, List<ValidationError> errors)
     {
         // Suicidal ideation confidence check
         var si = risk.SuicidalIdeation.Value;
-        if (si != default && si != SuicidalIdeation.None
+        if (si != SuicidalIdeation.None
             && risk.SuicidalIdeation.Confidence < RiskConfidenceThreshold)
         {
             errors.Add(new ValidationError(
@@ -83,7 +83,7 @@ public class SchemaValidator : ISchemaValidator
 
         // Self-harm confidence check
         var sh = risk.SelfHarm.Value;
-        if (sh != default && sh != SelfHarm.None
+        if (sh != SelfHarm.None
             && risk.SelfHarm.Confidence < RiskConfidenceThreshold)
         {
             errors.Add(new ValidationError(
@@ -94,7 +94,7 @@ public class SchemaValidator : ISchemaValidator
 
         // Homicidal ideation confidence check
         var hi = risk.HomicidalIdeation.Value;
-        if (hi != default && hi != HomicidalIdeation.None
+        if (hi != HomicidalIdeation.None
             && risk.HomicidalIdeation.Confidence < RiskConfidenceThreshold)
         {
             errors.Add(new ValidationError(

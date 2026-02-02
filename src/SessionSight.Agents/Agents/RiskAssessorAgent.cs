@@ -489,8 +489,8 @@ public class RiskAssessorAgent : IRiskAssessorAgent
         // Merge MeansRestrictionDiscussed - true if either says true
         merged.MeansRestrictionDiscussed = new ExtractedField<bool>
         {
-            Value = (original.MeansRestrictionDiscussed.Value == true) ||
-                    (reExtracted.MeansRestrictionDiscussed.Value == true),
+            Value = original.MeansRestrictionDiscussed.Value ||
+                    reExtracted.MeansRestrictionDiscussed.Value,
             Confidence = Math.Max(original.MeansRestrictionDiscussed.Confidence,
                                   reExtracted.MeansRestrictionDiscussed.Confidence)
         };
@@ -599,7 +599,7 @@ public class RiskAssessorAgent : IRiskAssessorAgent
         };
     }
 
-    private void CheckKeywordMismatch(RiskAssessmentResult result, KeywordCheckResult keywords)
+    private static void CheckKeywordMismatch(RiskAssessmentResult result, KeywordCheckResult keywords)
     {
         // Check if suicidal keywords found but extraction shows None
         if (keywords.SuicidalMatches.Count > 0)
@@ -635,7 +635,7 @@ public class RiskAssessorAgent : IRiskAssessorAgent
         }
     }
 
-    private void DetermineReviewRequirements(RiskAssessmentResult result)
+    private static void DetermineReviewRequirements(RiskAssessmentResult result)
     {
         // Rule 1: Any discrepancy requires review
         if (result.Discrepancies.Count > 0)

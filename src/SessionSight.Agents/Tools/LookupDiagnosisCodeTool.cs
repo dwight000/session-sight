@@ -69,7 +69,7 @@ public class LookupDiagnosisCodeTool : IAgentTool
                     Code = normalizedCode,
                     Description = description,
                     IsValid = true,
-                    CodeSystem = normalizedCode.StartsWith("F") ? "ICD-10" : "Unknown"
+                    CodeSystem = normalizedCode.StartsWith('F') ? "ICD-10" : "Unknown"
                 }));
             }
 

@@ -1,7 +1,6 @@
 using System.Text.Json;
 using FluentAssertions;
 using SessionSight.Agents.Tools;
-using SessionSight.Agents.Validation;
 using SessionSight.Core.Enums;
 using SessionSight.Core.Schema;
 
@@ -9,14 +8,7 @@ namespace SessionSight.Agents.Tests.Tools;
 
 public class ScoreConfidenceToolTests
 {
-    private readonly ConfidenceCalculator _calculator;
-    private readonly ScoreConfidenceTool _tool;
-
-    public ScoreConfidenceToolTests()
-    {
-        _calculator = new ConfidenceCalculator();  // Real implementation
-        _tool = new ScoreConfidenceTool(_calculator);
-    }
+    private readonly ScoreConfidenceTool _tool = new();
 
     [Fact]
     public void Name_ReturnsExpectedValue()

@@ -37,7 +37,6 @@ public class ClinicalExtractorAgent : IClinicalExtractorAgent
     private readonly IAIFoundryClientFactory _clientFactory;
     private readonly IModelRouter _modelRouter;
     private readonly ISchemaValidator _validator;
-    private readonly ConfidenceCalculator _confidenceCalculator;
     private readonly AgentLoopRunner _agentLoopRunner;
     private readonly ILogger<ClinicalExtractorAgent> _logger;
 
@@ -51,14 +50,12 @@ public class ClinicalExtractorAgent : IClinicalExtractorAgent
         IAIFoundryClientFactory clientFactory,
         IModelRouter modelRouter,
         ISchemaValidator validator,
-        ConfidenceCalculator confidenceCalculator,
         AgentLoopRunner agentLoopRunner,
         ILogger<ClinicalExtractorAgent> logger)
     {
         _clientFactory = clientFactory;
         _modelRouter = modelRouter;
         _validator = validator;
-        _confidenceCalculator = confidenceCalculator;
         _agentLoopRunner = agentLoopRunner;
         _logger = logger;
     }
@@ -122,9 +119,9 @@ public class ClinicalExtractorAgent : IClinicalExtractorAgent
 
         // Final validation and confidence scoring
         var validationResult = _validator.Validate(extraction);
-        var confidence = _confidenceCalculator.Calculate(extraction);
-        var lowConfidenceFields = _confidenceCalculator.GetLowConfidenceFields(extraction);
-        var hasLowConfidenceRisk = _confidenceCalculator.HasLowConfidenceRiskFields(extraction);
+        var confidence = ConfidenceCalculator.Calculate(extraction);
+        var lowConfidenceFields = ConfidenceCalculator.GetLowConfidenceFields(extraction);
+        var hasLowConfidenceRisk = ConfidenceCalculator.HasLowConfidenceRiskFields(extraction);
 
         // Set metadata
         extraction.Metadata = new ExtractionMetadata

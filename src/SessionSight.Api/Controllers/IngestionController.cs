@@ -97,6 +97,7 @@ public class IngestionController : ControllerBase
         _logger.LogInformation("Created session {SessionId} for patient {PatientId}", session.Id, patient.Id);
 
         // 3. Trigger extraction asynchronously (fire-and-forget)
+        // Intentionally use CancellationToken.None - don't cancel when the HTTP request completes
         _ = Task.Run(async () =>
         {
             try
@@ -109,7 +110,7 @@ public class IngestionController : ControllerBase
             {
                 _logger.LogError(ex, "Background extraction failed for session {SessionId}", session.Id);
             }
-        });
+        }, CancellationToken.None);
 
         return Accepted(new ProcessNoteResponse(
             session.Id,

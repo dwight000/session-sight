@@ -15,13 +15,6 @@ public class ScoreConfidenceTool : IAgentTool
         PropertyNameCaseInsensitive = true
     };
 
-    private readonly ConfidenceCalculator _calculator;
-
-    public ScoreConfidenceTool(ConfidenceCalculator calculator)
-    {
-        _calculator = calculator;
-    }
-
     public string Name => "score_confidence";
 
     public string Description => "Calculate confidence scores for a clinical extraction. Returns overall confidence score and list of any low-confidence fields.";
@@ -55,9 +48,9 @@ public class ScoreConfidenceTool : IAgentTool
             }
 
             var threshold = request.Threshold ?? 0.7;
-            var overallConfidence = _calculator.Calculate(request.Extraction);
-            var lowConfidenceFields = _calculator.GetLowConfidenceFields(request.Extraction, threshold);
-            var hasLowConfidenceRiskFields = _calculator.HasLowConfidenceRiskFields(request.Extraction);
+            var overallConfidence = ConfidenceCalculator.Calculate(request.Extraction);
+            var lowConfidenceFields = ConfidenceCalculator.GetLowConfidenceFields(request.Extraction, threshold);
+            var hasLowConfidenceRiskFields = ConfidenceCalculator.HasLowConfidenceRiskFields(request.Extraction);
 
             return Task.FromResult(ToolResult.Ok(new ScoreConfidenceOutput
             {

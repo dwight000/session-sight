@@ -7,8 +7,6 @@ namespace SessionSight.Agents.Tests.Validation;
 
 public class ConfidenceCalculatorTests
 {
-    private readonly ConfidenceCalculator _calculator = new();
-
     [Fact]
     public void Calculate_AllFieldsWithConfidence_ReturnsAverage()
     {
@@ -44,7 +42,7 @@ public class ConfidenceCalculatorTests
             NextSteps = new NextStepsExtracted()
         };
 
-        var result = _calculator.Calculate(extraction);
+        var result = ConfidenceCalculator.Calculate(extraction);
 
         // Fields with non-default values: SessionDate (0.90), SessionType (0.80)
         // SuicidalIdeation.None is the default value and won't be counted
@@ -57,7 +55,7 @@ public class ConfidenceCalculatorTests
     {
         var extraction = new ClinicalExtraction();
 
-        var result = _calculator.Calculate(extraction);
+        var result = ConfidenceCalculator.Calculate(extraction);
 
         result.Should().Be(0.0);
     }
@@ -87,7 +85,7 @@ public class ConfidenceCalculatorTests
             }
         };
 
-        var result = _calculator.HasLowConfidenceRiskFields(extraction);
+        var result = ConfidenceCalculator.HasLowConfidenceRiskFields(extraction);
 
         result.Should().BeFalse();
     }
@@ -107,7 +105,7 @@ public class ConfidenceCalculatorTests
             }
         };
 
-        var result = _calculator.HasLowConfidenceRiskFields(extraction);
+        var result = ConfidenceCalculator.HasLowConfidenceRiskFields(extraction);
 
         result.Should().BeTrue();
     }
@@ -127,7 +125,7 @@ public class ConfidenceCalculatorTests
             }
         };
 
-        var result = _calculator.HasLowConfidenceRiskFields(extraction);
+        var result = ConfidenceCalculator.HasLowConfidenceRiskFields(extraction);
 
         result.Should().BeTrue();
     }
@@ -152,7 +150,7 @@ public class ConfidenceCalculatorTests
             }
         };
 
-        var result = _calculator.HasLowConfidenceRiskFields(extraction);
+        var result = ConfidenceCalculator.HasLowConfidenceRiskFields(extraction);
 
         result.Should().BeFalse();
     }
@@ -192,7 +190,7 @@ public class ConfidenceCalculatorTests
             NextSteps = new NextStepsExtracted()
         };
 
-        var result = _calculator.GetLowConfidenceFields(extraction);
+        var result = ConfidenceCalculator.GetLowConfidenceFields(extraction);
 
         result.Should().Contain("SessionInfo.PatientId");
         result.Should().Contain("MoodAssessment.SelfReportedMood");
@@ -222,8 +220,8 @@ public class ConfidenceCalculatorTests
             NextSteps = new NextStepsExtracted()
         };
 
-        var resultWithDefaultThreshold = _calculator.GetLowConfidenceFields(extraction, threshold: 0.7);
-        var resultWithHighThreshold = _calculator.GetLowConfidenceFields(extraction, threshold: 0.9);
+        var resultWithDefaultThreshold = ConfidenceCalculator.GetLowConfidenceFields(extraction, threshold: 0.7);
+        var resultWithHighThreshold = ConfidenceCalculator.GetLowConfidenceFields(extraction, threshold: 0.9);
 
         resultWithDefaultThreshold.Should().NotContain("SessionInfo.SessionDate");
         resultWithHighThreshold.Should().Contain("SessionInfo.SessionDate");

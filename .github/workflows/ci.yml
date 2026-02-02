@@ -70,9 +70,11 @@ jobs:
         run: |
           dotnet tool restore
           dotnet security-scan session-sight.sln --excl-proj="*Tests*" 2>&1 | tee security-report.txt
-          # Warn but don't fail - fix issues incrementally
+          # Fail build if security issues found
           if grep -q "Found [1-9]" security-report.txt; then
-            echo "::warning::Security issues found - review security-report.txt"
+            echo "::error::Security issues found - review security-report.txt"
+            cat security-report.txt
+            exit 1
           fi
 
       - name: Test with coverage

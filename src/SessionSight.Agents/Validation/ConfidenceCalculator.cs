@@ -19,7 +19,7 @@ public class ConfidenceCalculator
     /// </summary>
     /// <param name="extraction">The extraction to calculate confidence for.</param>
     /// <returns>Average confidence score across all extracted fields with values.</returns>
-    public double Calculate(ClinicalExtraction extraction)
+    public static double Calculate(ClinicalExtraction extraction)
     {
         var scores = new List<double>();
 
@@ -41,13 +41,13 @@ public class ConfidenceCalculator
     /// </summary>
     /// <param name="extraction">The extraction to check.</param>
     /// <returns>True if any critical risk field has confidence below threshold.</returns>
-    public bool HasLowConfidenceRiskFields(ClinicalExtraction extraction)
+    public static bool HasLowConfidenceRiskFields(ClinicalExtraction extraction)
     {
         var risk = extraction.RiskAssessment;
 
         // Check suicidal ideation confidence when present
         var si = risk.SuicidalIdeation.Value;
-        if (si != default && si != SuicidalIdeation.None
+        if (si != SuicidalIdeation.None
             && risk.SuicidalIdeation.Confidence < RiskConfidenceThreshold)
         {
             return true;
@@ -55,7 +55,7 @@ public class ConfidenceCalculator
 
         // Check self-harm confidence when present
         var sh = risk.SelfHarm.Value;
-        if (sh != default && sh != SelfHarm.None
+        if (sh != SelfHarm.None
             && risk.SelfHarm.Confidence < RiskConfidenceThreshold)
         {
             return true;
@@ -63,7 +63,7 @@ public class ConfidenceCalculator
 
         // Check homicidal ideation confidence when present
         var hi = risk.HomicidalIdeation.Value;
-        if (hi != default && hi != HomicidalIdeation.None
+        if (hi != HomicidalIdeation.None
             && risk.HomicidalIdeation.Confidence < RiskConfidenceThreshold)
         {
             return true;
@@ -86,7 +86,7 @@ public class ConfidenceCalculator
     /// <param name="extraction">The extraction to check.</param>
     /// <param name="threshold">Minimum confidence threshold.</param>
     /// <returns>List of field names with confidence below threshold.</returns>
-    public List<string> GetLowConfidenceFields(ClinicalExtraction extraction, double threshold = 0.7)
+    public static List<string> GetLowConfidenceFields(ClinicalExtraction extraction, double threshold = 0.7)
     {
         var lowConfidenceFields = new List<string>();
 

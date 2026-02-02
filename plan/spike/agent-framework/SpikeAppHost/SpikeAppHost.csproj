@@ -8,6 +8,8 @@
     <Nullable>enable</Nullable>
     <IsAspireHost>true</IsAspireHost>
     <UserSecretsId>088c7c2c-567c-459c-a2c2-40f04d1a3132</UserSecretsId>
+    <!-- Spike/prototype code - exclude from analysis -->
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
   </PropertyGroup>
 
   <ItemGroup>

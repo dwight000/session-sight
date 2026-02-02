@@ -2,8 +2,10 @@
   <PropertyGroup>
     <!-- Roslyn static analysis -->
     <AnalysisLevel>latest</AnalysisLevel>
-    <AnalysisMode>Recommended</AnalysisMode>
+    <AnalysisMode>Minimum</AnalysisMode>
     <!-- Fail build on code style violations -->
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Treat analyzer warnings as errors -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 </Project>

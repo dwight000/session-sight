@@ -42,20 +42,22 @@ public class AzureBlobDocumentStorage : IDocumentStorage
 
     private BlobClient GetBlobClientFromUri(string blobUri)
     {
-        // Extract container and blob name from URI to use the authenticated client
+        // Extract blob path from URI to use the authenticated client
         var uri = new Uri(blobUri);
-        var pathParts = uri.AbsolutePath.TrimStart('/').Split('/', 3);
-        // Path format: accountName/containerName/blobPath (for Azurite)
-        // or: containerName/blobPath (for Azure)
-        var containerName = pathParts.Length >= 2 ? pathParts[^2].Split('/')[0] : ContainerName;
-        var blobPath = pathParts.Length >= 2 ? string.Join("/", pathParts.Skip(pathParts.Length >= 3 ? 1 : 0).Take(pathParts.Length - 1)) : pathParts[^1];
 
-        // For simpler parsing, just extract the blob path after the container name
+        // Extract the blob path after the container name
         var fullPath = uri.AbsolutePath;
         var containerIndex = fullPath.IndexOf(ContainerName, StringComparison.OrdinalIgnoreCase);
+        string blobPath;
         if (containerIndex >= 0)
         {
             blobPath = fullPath.Substring(containerIndex + ContainerName.Length + 1);
+        }
+        else
+        {
+            // Fallback: use the last path segment
+            var pathParts = fullPath.TrimStart('/').Split('/');
+            blobPath = pathParts[^1];
         }
 
         var containerClient = _blobServiceClient.GetBlobContainerClient(ContainerName);

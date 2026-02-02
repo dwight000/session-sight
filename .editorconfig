@@ -64,3 +64,11 @@ dotnet_naming_style.prefix_underscore.required_prefix = _
 [*Tests*/**/*.cs]
 # Allow underscores in test method names (standard convention)
 dotnet_diagnostic.CA1707.severity = none
+
+# EF Core generated migrations - suppress all analyzer warnings
+[src/SessionSight.Infrastructure/Migrations/*.cs]
+dotnet_analyzer_diagnostic.severity = none
+
+# Spike/prototype code - suppress all analyzer warnings
+[plan/spike/**/*.cs]
+dotnet_analyzer_diagnostic.severity = none

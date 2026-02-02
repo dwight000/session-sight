@@ -28,6 +28,11 @@ public interface IIntakeAgent : ISessionSightAgent
 /// </summary>
 public class IntakeAgent : IIntakeAgent
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     private readonly IAIFoundryClientFactory _clientFactory;
     private readonly IModelRouter _modelRouter;
     private readonly ILogger<IntakeAgent> _logger;
@@ -76,10 +81,7 @@ public class IntakeAgent : IIntakeAgent
 
         try
         {
-            var parsed = JsonSerializer.Deserialize<IntakeResponseDto>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
+            var parsed = JsonSerializer.Deserialize<IntakeResponseDto>(json, JsonOptions);
 
             if (parsed == null)
             {

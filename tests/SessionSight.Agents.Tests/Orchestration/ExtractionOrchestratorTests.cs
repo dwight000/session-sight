@@ -50,7 +50,7 @@ public class ExtractionOrchestratorTests
     {
         // Arrange
         var sessionId = Guid.NewGuid();
-        _sessionRepository.GetByIdAsync(sessionId).Returns((CoreEntities.Session?)null);
+        _sessionRepository.GetByIdAsync(sessionId).Returns(null as CoreEntities.Session);
 
         // Act
         var result = await _orchestrator.ProcessSessionAsync(sessionId);

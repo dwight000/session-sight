@@ -40,7 +40,6 @@ builder.Services.AddScoped<IIntakeAgent, IntakeAgent>();
 builder.Services.AddScoped<IClinicalExtractorAgent, ClinicalExtractorAgent>();
 builder.Services.AddScoped<IRiskAssessorAgent, RiskAssessorAgent>();
 builder.Services.AddSingleton<ISchemaValidator, SchemaValidator>();
-builder.Services.AddSingleton<ConfidenceCalculator>();
 
 // Agent tools (existing from P2-006a)
 builder.Services.AddSingleton<IAgentTool, CheckRiskKeywordsTool>();
