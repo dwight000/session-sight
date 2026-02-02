@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using SessionSight.Core.Interfaces;
 
@@ -66,8 +67,8 @@ public class QueryPatientHistoryTool : IAgentTool
                 .Take(maxSessions)
                 .Select(s => new SessionSummary
                 {
-                    SessionId = s.Id.ToString(),
-                    SessionDate = s.SessionDate.ToString("yyyy-MM-dd"),
+                    SessionId = s.Id.ToString("D", CultureInfo.InvariantCulture),
+                    SessionDate = s.SessionDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     SessionNumber = s.SessionNumber,
                     SessionType = s.SessionType.ToString(),
                     HasExtraction = s.Extraction is not null,
@@ -90,20 +91,20 @@ public class QueryPatientHistoryTool : IAgentTool
     }
 }
 
-internal class QueryPatientHistoryInput
+internal sealed class QueryPatientHistoryInput
 {
     public string? PatientId { get; set; }
     public int? MaxSessions { get; set; }
 }
 
-internal class QueryPatientHistoryOutput
+internal sealed class QueryPatientHistoryOutput
 {
     public string PatientId { get; set; } = string.Empty;
     public int SessionCount { get; set; }
     public List<SessionSummary> Sessions { get; set; } = [];
 }
 
-internal class SessionSummary
+internal sealed class SessionSummary
 {
     public string SessionId { get; set; } = string.Empty;
     public string SessionDate { get; set; } = string.Empty;

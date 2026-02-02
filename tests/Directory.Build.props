@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <!-- Test project specific: suppress underscore naming (test conventions allow Method_Scenario_Result) -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+    <!-- Test project specific: allow generic Exception in test assertions -->
+    <NoWarn>$(NoWarn);CA2201</NoWarn>
+    <!-- Test project specific: format providers less critical in test code -->
+    <NoWarn>$(NoWarn);CA1305</NoWarn>
+  </PropertyGroup>
+</Project>

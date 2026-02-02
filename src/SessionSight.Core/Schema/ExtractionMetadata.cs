@@ -7,6 +7,6 @@ public class ExtractionMetadata
     public string ExtractionVersion { get; set; } = "1.0.0";
     public double OverallConfidence { get; set; }
     public List<string> LowConfidenceFields { get; set; } = new();
-    public string? ExtractionNotes { get; set; } = null;
+    public string? ExtractionNotes { get; set; }
     public bool RequiresReview { get; set; }
 }

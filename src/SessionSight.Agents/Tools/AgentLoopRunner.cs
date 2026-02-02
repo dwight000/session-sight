@@ -6,7 +6,7 @@ namespace SessionSight.Agents.Tools;
 /// <summary>
 /// Runs an agent loop that allows the LLM to call tools until completion.
 /// </summary>
-public class AgentLoopRunner
+public partial class AgentLoopRunner
 {
     public const int MaxToolCalls = 15;
 
@@ -32,7 +32,7 @@ public class AgentLoopRunner
             // Check tool limit BEFORE making call
             if (toolCallCount >= MaxToolCalls)
             {
-                _logger.LogWarning("Agent hit tool call limit of {Limit}", MaxToolCalls);
+                LogToolCallLimitHit(_logger, MaxToolCalls);
                 return AgentLoopResult.Partial(
                     $"Tool limit ({MaxToolCalls}) exceeded - extraction incomplete",
                     toolCallCount);
@@ -55,8 +55,7 @@ public class AgentLoopRunner
             {
                 toolCallCount += completion.ToolCalls.Count;
 
-                _logger.LogDebug("Agent requested {Count} tool calls (total: {Total})",
-                    completion.ToolCalls.Count, toolCallCount);
+                LogAgentToolCalls(_logger, completion.ToolCalls.Count, toolCallCount);
 
                 // Execute tools in parallel
                 var tasks = completion.ToolCalls.Select(async tc =>
@@ -64,11 +63,11 @@ public class AgentLoopRunner
                     var tool = _tools.FirstOrDefault(t => t.Name == tc.FunctionName);
                     if (tool is null)
                     {
-                        _logger.LogWarning("Unknown tool requested: {Name}", tc.FunctionName);
+                        LogUnknownToolRequested(_logger, tc.FunctionName);
                         return (tc.Id, ToolResult.Error($"Unknown tool: {tc.FunctionName}"));
                     }
 
-                    _logger.LogDebug("Executing tool {Name}", tc.FunctionName);
+                    LogExecutingTool(_logger, tc.FunctionName);
                     return (tc.Id, await tool.ExecuteAsync(tc.FunctionArguments, ct));
                 });
 
@@ -77,7 +76,7 @@ public class AgentLoopRunner
                 // Add tool results to conversation
                 foreach (var (id, result) in results)
                 {
-                    messages.Add(new ToolChatMessage(id, result.Data.ToString()));
+                    messages.Add(new ToolChatMessage(id, result.Data?.ToString() ?? string.Empty));
                 }
 
                 continue;
@@ -91,10 +90,25 @@ public class AgentLoopRunner
             }
 
             // Unexpected finish reason
-            _logger.LogWarning("Unexpected finish reason: {Reason}", completion.FinishReason);
+            LogUnexpectedFinishReason(_logger, completion.FinishReason);
             return AgentLoopResult.Partial(
                 $"Unexpected completion: {completion.FinishReason}",
                 toolCallCount);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Agent hit tool call limit of {Limit}")]
+    private static partial void LogToolCallLimitHit(ILogger logger, int limit);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Agent requested {Count} tool calls (total: {Total})")]
+    private static partial void LogAgentToolCalls(ILogger logger, int count, int total);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Unknown tool requested: {Name}")]
+    private static partial void LogUnknownToolRequested(ILogger logger, string name);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Executing tool {Name}")]
+    private static partial void LogExecutingTool(ILogger logger, string name);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Unexpected finish reason: {Reason}")]
+    private static partial void LogUnexpectedFinishReason(ILogger logger, ChatFinishReason reason);
 }

@@ -59,12 +59,12 @@ public class CheckRiskKeywordsTool : IAgentTool
     }
 }
 
-internal class CheckRiskKeywordsInput
+internal sealed class CheckRiskKeywordsInput
 {
     public string? Text { get; set; }
 }
 
-internal class CheckRiskKeywordsOutput
+internal sealed class CheckRiskKeywordsOutput
 {
     public List<string> SuicidalMatches { get; set; } = [];
     public List<string> SelfHarmMatches { get; set; } = [];

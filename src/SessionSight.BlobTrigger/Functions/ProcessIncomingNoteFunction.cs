@@ -42,7 +42,7 @@ public partial class ProcessIncomingNoteFunction
         string fileName,
         FunctionContext context)
     {
-        _logger.LogInformation("Processing blob: {PatientId}/{FileName}", patientId, fileName);
+        LogProcessingBlob(_logger, patientId, fileName);
 
         try
         {
@@ -52,9 +52,7 @@ public partial class ProcessIncomingNoteFunction
 
             if (fileSize > MaxFileSizeBytes)
             {
-                _logger.LogWarning(
-                    "File too large: {Size} bytes (max: {MaxSize}). Moving to failed.",
-                    fileSize, MaxFileSizeBytes);
+                LogFileTooLarge(_logger, fileSize, MaxFileSizeBytes);
                 await MoveBlobAsync(blobClient, "failed", patientId, fileName, "File exceeds 50MB limit");
                 return;
             }
@@ -62,9 +60,9 @@ public partial class ProcessIncomingNoteFunction
             // 2. Validate file type
             var extension = Path.GetExtension(fileName).ToLowerInvariant();
             var validExtensions = new[] { ".pdf", ".doc", ".docx", ".txt", ".rtf" };
-            if (!validExtensions.Contains(extension))
+            if (!validExtensions.Contains(extension, StringComparer.Ordinal))
             {
-                _logger.LogWarning("Invalid file type: {Extension}. Moving to failed.", extension);
+                LogInvalidFileType(_logger, extension);
                 await MoveBlobAsync(blobClient, "failed", patientId, fileName, $"Invalid file type: {extension}");
                 return;
             }
@@ -73,7 +71,7 @@ public partial class ProcessIncomingNoteFunction
             var processingUri = await MoveBlobAsync(blobClient, "processing", patientId, fileName);
             if (processingUri is null)
             {
-                _logger.LogError("Failed to move blob to processing container");
+                LogFailedToMoveBlob(_logger);
                 return;
             }
 
@@ -94,9 +92,7 @@ public partial class ProcessIncomingNoteFunction
 
             if (response.IsSuccessStatusCode)
             {
-                _logger.LogInformation(
-                    "Successfully submitted note for processing. PatientId: {PatientId}, File: {FileName}",
-                    patientId, fileName);
+                LogSuccessfullySubmitted(_logger, patientId, fileName);
 
                 // Move to processed on success
                 var processingClient = _blobServiceClient.GetBlobContainerClient("processing")
@@ -106,9 +102,7 @@ public partial class ProcessIncomingNoteFunction
             else
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError(
-                    "API call failed with status {StatusCode}: {Error}",
-                    response.StatusCode, errorContent);
+                LogApiCallFailed(_logger, response.StatusCode, errorContent);
 
                 // Move to failed
                 var processingClient = _blobServiceClient.GetBlobContainerClient("processing")
@@ -118,7 +112,7 @@ public partial class ProcessIncomingNoteFunction
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing blob {PatientId}/{FileName}", patientId, fileName);
+            LogBlobProcessingError(_logger, ex, patientId, fileName);
             await MoveBlobAsync(blobClient, "failed", patientId, fileName, ex.Message);
         }
     }
@@ -164,19 +158,19 @@ public partial class ProcessIncomingNoteFunction
 
             if (properties.Value.CopyStatus != Azure.Storage.Blobs.Models.CopyStatus.Success)
             {
-                _logger.LogError("Failed to copy blob. Status: {Status}", properties.Value.CopyStatus);
+                LogCopyFailed(_logger, properties.Value.CopyStatus);
                 return null;
             }
 
             // Delete source blob
             await sourceClient.DeleteIfExistsAsync();
 
-            _logger.LogDebug("Moved blob from {Source} to {Target}", sourceClient.Uri, targetClient.Uri);
+            LogBlobMoved(_logger, sourceClient.Uri, targetClient.Uri);
             return targetClient.Uri.ToString();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error moving blob to {Container}", targetContainer);
+            LogMoveError(_logger, ex, targetContainer);
             return null;
         }
     }
@@ -207,7 +201,7 @@ public partial class ProcessIncomingNoteFunction
         }
 
         // Default to today
-        _logger.LogWarning("Could not parse date from filename '{FileName}', using today", fileName);
+        LogDateParseWarning(_logger, fileName);
         return DateOnly.FromDateTime(DateTime.UtcNow);
     }
 
@@ -220,10 +214,43 @@ public partial class ProcessIncomingNoteFunction
     /// <summary>
     /// Request DTO matching the API endpoint.
     /// </summary>
-    private record ProcessNoteRequest(
+    private sealed record ProcessNoteRequest(
         string PatientId,
         string BlobUri,
         DateOnly SessionDate,
         string FileName
     );
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Processing blob: {PatientId}/{FileName}")]
+    private static partial void LogProcessingBlob(ILogger logger, string patientId, string fileName);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "File too large: {Size} bytes (max: {MaxSize}). Moving to failed.")]
+    private static partial void LogFileTooLarge(ILogger logger, long size, long maxSize);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Invalid file type: {Extension}. Moving to failed.")]
+    private static partial void LogInvalidFileType(ILogger logger, string extension);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Failed to move blob to processing container")]
+    private static partial void LogFailedToMoveBlob(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Successfully submitted note for processing. PatientId: {PatientId}, File: {FileName}")]
+    private static partial void LogSuccessfullySubmitted(ILogger logger, string patientId, string fileName);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "API call failed with status {StatusCode}: {Error}")]
+    private static partial void LogApiCallFailed(ILogger logger, System.Net.HttpStatusCode statusCode, string error);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error processing blob {PatientId}/{FileName}")]
+    private static partial void LogBlobProcessingError(ILogger logger, Exception exception, string patientId, string fileName);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Failed to copy blob. Status: {Status}")]
+    private static partial void LogCopyFailed(ILogger logger, Azure.Storage.Blobs.Models.CopyStatus status);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Moved blob from {Source} to {Target}")]
+    private static partial void LogBlobMoved(ILogger logger, Uri source, Uri target);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error moving blob to {Container}")]
+    private static partial void LogMoveError(ILogger logger, Exception exception, string container);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Could not parse date from filename '{FileName}', using today")]
+    private static partial void LogDateParseWarning(ILogger logger, string fileName);
 }

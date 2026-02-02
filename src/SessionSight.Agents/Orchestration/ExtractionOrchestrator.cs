@@ -12,7 +12,7 @@ namespace SessionSight.Agents.Orchestration;
 /// <summary>
 /// Orchestrates the full extraction pipeline from document parsing through risk assessment.
 /// </summary>
-public class ExtractionOrchestrator : IExtractionOrchestrator
+public partial class ExtractionOrchestrator : IExtractionOrchestrator
 {
     private readonly IDocumentParser _documentParser;
     private readonly IIntakeAgent _intakeAgent;
@@ -45,7 +45,7 @@ public class ExtractionOrchestrator : IExtractionOrchestrator
         var stopwatch = Stopwatch.StartNew();
         var modelsUsed = new List<string>();
 
-        _logger.LogInformation("Starting extraction for session {SessionId}", sessionId);
+        LogStartingExtraction(_logger, sessionId);
 
         // Step 0: Get session with document
         var session = await _sessionRepository.GetByIdAsync(sessionId);
@@ -75,23 +75,20 @@ public class ExtractionOrchestrator : IExtractionOrchestrator
         try
         {
             // Step 1: Download blob and parse with Document Intelligence
-            _logger.LogDebug("Downloading document from {BlobUri}", session.Document.BlobUri);
+            LogDownloadingDocument(_logger, session.Document.BlobUri);
             await using var stream = await _documentStorage.DownloadAsync(session.Document.BlobUri);
             var parsedDoc = await _documentParser.ParseAsync(stream, session.Document.OriginalFileName, ct);
 
-            _logger.LogInformation(
-                "Document parsed: {PageCount} pages, {Confidence:P0} confidence",
-                parsedDoc.Metadata.PageCount,
-                parsedDoc.Metadata.ExtractionConfidence);
+            LogDocumentParsed(_logger, parsedDoc.Metadata.PageCount, parsedDoc.Metadata.ExtractionConfidence);
 
             // Step 2: Intake Agent - metadata extraction and validation
-            _logger.LogDebug("Running Intake Agent");
+            LogRunningIntakeAgent(_logger);
             var intakeResult = await _intakeAgent.ProcessAsync(parsedDoc, ct);
             modelsUsed.Add(intakeResult.ModelUsed);
 
             if (!intakeResult.IsValidTherapyNote)
             {
-                _logger.LogWarning("Document validation failed: {Error}", intakeResult.ValidationError);
+                LogDocumentValidationFailed(_logger, intakeResult.ValidationError);
                 await _sessionRepository.UpdateDocumentStatusAsync(sessionId, DocumentStatus.Failed);
 
                 return new OrchestrationResult
@@ -105,13 +102,13 @@ public class ExtractionOrchestrator : IExtractionOrchestrator
             }
 
             // Step 3: Clinical Extractor - schema extraction
-            _logger.LogDebug("Running Clinical Extractor Agent");
+            LogRunningClinicalExtractor(_logger);
             var extractionResult = await _extractorAgent.ExtractAsync(intakeResult, ct);
-            extractionResult.SessionId = sessionId.ToString();
+            extractionResult.SessionId = sessionId.ToString("D", System.Globalization.CultureInfo.InvariantCulture);
             modelsUsed.AddRange(extractionResult.ModelsUsed);
 
             // Step 4: Risk Assessor - safety validation
-            _logger.LogDebug("Running Risk Assessor Agent");
+            LogRunningRiskAssessor(_logger);
             var riskResult = await _riskAssessor.AssessAsync(
                 extractionResult, parsedDoc.MarkdownContent, ct);
             modelsUsed.Add(riskResult.ModelUsed);
@@ -137,9 +134,7 @@ public class ExtractionOrchestrator : IExtractionOrchestrator
                 sessionId, DocumentStatus.Completed, parsedDoc.Content);
 
             stopwatch.Stop();
-            _logger.LogInformation(
-                "Extraction completed for session {SessionId} in {Elapsed}ms. RequiresReview: {RequiresReview}",
-                sessionId, stopwatch.ElapsedMilliseconds, extractionResult.RequiresReview);
+            LogExtractionCompleted(_logger, sessionId, stopwatch.ElapsedMilliseconds, extractionResult.RequiresReview);
 
             return new OrchestrationResult
             {
@@ -155,7 +150,7 @@ public class ExtractionOrchestrator : IExtractionOrchestrator
         catch (Exception ex)
         {
             stopwatch.Stop();
-            _logger.LogError(ex, "Extraction failed for session {SessionId}", sessionId);
+            LogExtractionFailed(_logger, ex, sessionId);
 
             // Update document status to Failed (direct update avoids concurrency issues)
             try
@@ -164,7 +159,7 @@ public class ExtractionOrchestrator : IExtractionOrchestrator
             }
             catch (Exception updateEx)
             {
-                _logger.LogWarning(updateEx, "Failed to update document status to Failed for session {SessionId}", sessionId);
+                LogStatusUpdateFailed(_logger, updateEx, sessionId);
             }
 
             return new OrchestrationResult
@@ -202,4 +197,34 @@ public class ExtractionOrchestrator : IExtractionOrchestrator
 
         return entity;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Starting extraction for session {SessionId}")]
+    private static partial void LogStartingExtraction(ILogger logger, Guid sessionId);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Downloading document from {BlobUri}")]
+    private static partial void LogDownloadingDocument(ILogger logger, string blobUri);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Document parsed: {PageCount} pages, {Confidence:P0} confidence")]
+    private static partial void LogDocumentParsed(ILogger logger, int pageCount, double confidence);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Running Intake Agent")]
+    private static partial void LogRunningIntakeAgent(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Document validation failed: {Error}")]
+    private static partial void LogDocumentValidationFailed(ILogger logger, string? error);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Running Clinical Extractor Agent")]
+    private static partial void LogRunningClinicalExtractor(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Running Risk Assessor Agent")]
+    private static partial void LogRunningRiskAssessor(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Extraction completed for session {SessionId} in {Elapsed}ms. RequiresReview: {RequiresReview}")]
+    private static partial void LogExtractionCompleted(ILogger logger, Guid sessionId, long elapsed, bool requiresReview);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Extraction failed for session {SessionId}")]
+    private static partial void LogExtractionFailed(ILogger logger, Exception exception, Guid sessionId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to update document status to Failed for session {SessionId}")]
+    private static partial void LogStatusUpdateFailed(ILogger logger, Exception exception, Guid sessionId);
 }

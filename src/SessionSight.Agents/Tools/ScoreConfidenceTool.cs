@@ -67,13 +67,13 @@ public class ScoreConfidenceTool : IAgentTool
     }
 }
 
-internal class ScoreConfidenceInput
+internal sealed class ScoreConfidenceInput
 {
     public ClinicalExtraction? Extraction { get; set; }
     public double? Threshold { get; set; }
 }
 
-internal class ScoreConfidenceOutput
+internal sealed class ScoreConfidenceOutput
 {
     public double OverallConfidence { get; set; }
     public List<string> LowConfidenceFields { get; set; } = [];

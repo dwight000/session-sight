@@ -26,7 +26,7 @@ public interface IIntakeAgent : ISessionSightAgent
 /// Intake Agent implementation. Uses gpt-4o-mini to validate documents
 /// and extract metadata before passing to the extraction pipeline.
 /// </summary>
-public class IntakeAgent : IIntakeAgent
+public partial class IntakeAgent : IIntakeAgent
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -52,7 +52,7 @@ public class IntakeAgent : IIntakeAgent
     public async Task<IntakeResult> ProcessAsync(ParsedDocument document, CancellationToken cancellationToken = default)
     {
         var modelName = _modelRouter.SelectModel(ModelTask.DocumentIntake);
-        _logger.LogInformation("Processing document with {Model}", modelName);
+        LogProcessingDocument(_logger, modelName);
 
         var chatClient = _clientFactory.CreateChatClient(modelName);
 
@@ -137,7 +137,7 @@ public class IntakeAgent : IIntakeAgent
             }
         }
 
-        if (trimmed.StartsWith("```"))
+        if (trimmed.StartsWith("```", StringComparison.Ordinal))
         {
             var startIndex = trimmed.IndexOf('\n') + 1;
             var endIndex = trimmed.LastIndexOf("```", StringComparison.Ordinal);
@@ -164,7 +164,7 @@ public class IntakeAgent : IIntakeAgent
     /// <summary>
     /// DTO for deserializing the LLM response.
     /// </summary>
-    internal class IntakeResponseDto
+    internal sealed class IntakeResponseDto
     {
         public bool IsValidTherapyNote { get; set; }
         public string? ValidationError { get; set; }
@@ -175,4 +175,7 @@ public class IntakeAgent : IIntakeAgent
         public string? Language { get; set; }
         public int EstimatedWordCount { get; set; }
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Processing document with {Model}")]
+    private static partial void LogProcessingDocument(ILogger logger, string model);
 }

@@ -12,7 +12,7 @@ namespace SessionSight.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/ingestion")]
-public class IngestionController : ControllerBase
+public partial class IngestionController : ControllerBase
 {
     private readonly IPatientRepository _patientRepository;
     private readonly ISessionRepository _sessionRepository;
@@ -60,15 +60,13 @@ public class IngestionController : ControllerBase
             return BadRequest("FileName is required");
         }
 
-        _logger.LogInformation(
-            "Processing note for patient {PatientId}, file: {FileName}",
-            request.PatientId, request.FileName);
+        LogProcessingNote(_logger, request.PatientId, request.FileName);
 
         // 1. Find or create patient
         var patient = await _patientRepository.GetByExternalIdAsync(request.PatientId);
         if (patient is null)
         {
-            _logger.LogInformation("Creating new patient with ExternalId: {ExternalId}", request.PatientId);
+            LogCreatingPatient(_logger, request.PatientId);
             patient = await _patientRepository.AddAsync(new Patient
             {
                 ExternalId = request.PatientId,
@@ -94,7 +92,7 @@ public class IngestionController : ControllerBase
         };
 
         session = await _sessionRepository.AddAsync(session);
-        _logger.LogInformation("Created session {SessionId} for patient {PatientId}", session.Id, patient.Id);
+        LogCreatedSession(_logger, session.Id, patient.Id);
 
         // 3. Trigger extraction asynchronously (fire-and-forget)
         // Intentionally use CancellationToken.None - don't cancel when the HTTP request completes
@@ -102,13 +100,13 @@ public class IngestionController : ControllerBase
         {
             try
             {
-                _logger.LogDebug("Starting background extraction for session {SessionId}", session.Id);
+                LogStartingBackgroundExtraction(_logger, session.Id);
                 await _orchestrator.ProcessSessionAsync(session.Id, CancellationToken.None);
-                _logger.LogInformation("Background extraction completed for session {SessionId}", session.Id);
+                LogBackgroundExtractionCompleted(_logger, session.Id);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Background extraction failed for session {SessionId}", session.Id);
+                LogBackgroundExtractionFailed(_logger, ex, session.Id);
             }
         }, CancellationToken.None);
 
@@ -131,4 +129,22 @@ public class IngestionController : ControllerBase
             _ => "application/octet-stream"
         };
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Processing note for patient {PatientId}, file: {FileName}")]
+    private static partial void LogProcessingNote(ILogger logger, string patientId, string fileName);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Creating new patient with ExternalId: {ExternalId}")]
+    private static partial void LogCreatingPatient(ILogger logger, string externalId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Created session {SessionId} for patient {PatientId}")]
+    private static partial void LogCreatedSession(ILogger logger, Guid sessionId, Guid patientId);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Starting background extraction for session {SessionId}")]
+    private static partial void LogStartingBackgroundExtraction(ILogger logger, Guid sessionId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Background extraction completed for session {SessionId}")]
+    private static partial void LogBackgroundExtractionCompleted(ILogger logger, Guid sessionId);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Background extraction failed for session {SessionId}")]
+    private static partial void LogBackgroundExtractionFailed(ILogger logger, Exception ex, Guid sessionId);
 }

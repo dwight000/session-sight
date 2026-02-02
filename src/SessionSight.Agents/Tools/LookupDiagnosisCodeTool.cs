@@ -91,12 +91,12 @@ public class LookupDiagnosisCodeTool : IAgentTool
     }
 }
 
-internal class LookupDiagnosisCodeInput
+internal sealed class LookupDiagnosisCodeInput
 {
     public string? Code { get; set; }
 }
 
-internal class LookupDiagnosisCodeOutput
+internal sealed class LookupDiagnosisCodeOutput
 {
     public string Code { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;

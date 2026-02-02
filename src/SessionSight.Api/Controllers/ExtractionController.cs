@@ -10,7 +10,7 @@ namespace SessionSight.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/extraction")]
-public class ExtractionController : ControllerBase
+public partial class ExtractionController : ControllerBase
 {
     private readonly IExtractionOrchestrator _orchestrator;
     private readonly ISessionRepository _sessionRepository;
@@ -62,17 +62,21 @@ public class ExtractionController : ControllerBase
             return Conflict("Extraction already completed. Use GET /api/sessions/{sessionId}/extraction to retrieve results.");
         }
 
-        _logger.LogInformation("Triggering extraction for session {SessionId}", sessionId);
+        LogTriggeringExtraction(_logger, sessionId);
 
         var result = await _orchestrator.ProcessSessionAsync(sessionId, ct);
 
         if (!result.Success)
         {
-            _logger.LogWarning(
-                "Extraction failed for session {SessionId}: {Error}",
-                sessionId, result.ErrorMessage);
+            LogExtractionFailed(_logger, sessionId, result.ErrorMessage);
         }
 
         return Ok(result);
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Triggering extraction for session {SessionId}")]
+    private static partial void LogTriggeringExtraction(ILogger logger, Guid sessionId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Extraction failed for session {SessionId}: {Error}")]
+    private static partial void LogExtractionFailed(ILogger logger, Guid sessionId, string? error);
 }

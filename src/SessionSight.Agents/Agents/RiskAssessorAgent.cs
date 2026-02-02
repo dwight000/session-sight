@@ -35,7 +35,7 @@ public interface IRiskAssessorAgent : ISessionSightAgent
 /// Risk Assessor Agent implementation.
 /// Provides safety-critical second-pass validation of risk assessment fields.
 /// </summary>
-public class RiskAssessorAgent : IRiskAssessorAgent
+public partial class RiskAssessorAgent : IRiskAssessorAgent
 {
     private readonly IAIFoundryClientFactory _clientFactory;
     private readonly IModelRouter _modelRouter;
@@ -69,7 +69,7 @@ public class RiskAssessorAgent : IRiskAssessorAgent
         string originalNoteText,
         CancellationToken ct = default)
     {
-        _logger.LogInformation("Starting risk assessment for session {SessionId}", extraction.SessionId);
+        LogStartingRiskAssessment(_logger, extraction.SessionId);
 
         var result = new RiskAssessmentResult
         {
@@ -87,7 +87,7 @@ public class RiskAssessorAgent : IRiskAssessorAgent
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during risk re-extraction for session {SessionId}", extraction.SessionId);
+            LogRiskReExtractionError(_logger, ex, extraction.SessionId);
             result.ValidatedExtraction = new RiskAssessmentExtracted();
             result.ReviewReasons.Add($"Re-extraction failed: {ex.Message}");
             result.RequiresReview = true;
@@ -118,9 +118,7 @@ public class RiskAssessorAgent : IRiskAssessorAgent
         // Step 5: Determine if review is required
         DetermineReviewRequirements(result);
 
-        _logger.LogInformation(
-            "Risk assessment completed for session {SessionId}. RequiresReview: {RequiresReview}, RiskLevel: {RiskLevel}, Discrepancies: {DiscrepancyCount}",
-            extraction.SessionId, result.RequiresReview, result.DeterminedRiskLevel, result.Discrepancies.Count);
+        LogRiskAssessmentCompleted(_logger, extraction.SessionId, result.RequiresReview, result.DeterminedRiskLevel, result.Discrepancies.Count);
 
         return result;
     }
@@ -184,7 +182,7 @@ public class RiskAssessorAgent : IRiskAssessorAgent
             }
         }
 
-        if (trimmed.StartsWith("```"))
+        if (trimmed.StartsWith("```", StringComparison.Ordinal))
         {
             var startIndex = trimmed.IndexOf('\n') + 1;
             var endIndex = trimmed.LastIndexOf("```", StringComparison.Ordinal);
@@ -641,7 +639,7 @@ public class RiskAssessorAgent : IRiskAssessorAgent
         if (result.Discrepancies.Count > 0)
         {
             result.RequiresReview = true;
-            if (!result.ReviewReasons.Any(r => r.Contains("Discrepancy")))
+            if (!result.ReviewReasons.Any(r => r.Contains("Discrepancy", StringComparison.Ordinal)))
             {
                 result.ReviewReasons.Add(
                     $"Discrepancies found in {result.Discrepancies.Count} field(s): {string.Join(", ", result.Discrepancies.Select(d => d.FieldName))}");
@@ -670,7 +668,7 @@ public class RiskAssessorAgent : IRiskAssessorAgent
         }
 
         // Rule 5: Keyword matches already added reasons in CheckKeywordMismatch
-        if (result.ReviewReasons.Any(r => r.Contains("keywords detected")))
+        if (result.ReviewReasons.Any(r => r.Contains("keywords detected", StringComparison.Ordinal)))
         {
             result.RequiresReview = true;
         }
@@ -710,4 +708,13 @@ public class RiskAssessorAgent : IRiskAssessorAgent
 
         return reExtractedRisk > originalRisk;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Starting risk assessment for session {SessionId}")]
+    private static partial void LogStartingRiskAssessment(ILogger logger, string sessionId);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error during risk re-extraction for session {SessionId}")]
+    private static partial void LogRiskReExtractionError(ILogger logger, Exception exception, string sessionId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Risk assessment completed for session {SessionId}. RequiresReview: {RequiresReview}, RiskLevel: {RiskLevel}, Discrepancies: {DiscrepancyCount}")]
+    private static partial void LogRiskAssessmentCompleted(ILogger logger, string sessionId, bool requiresReview, RiskLevelOverall? riskLevel, int discrepancyCount);
 }

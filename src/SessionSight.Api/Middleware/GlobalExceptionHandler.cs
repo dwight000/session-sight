@@ -4,7 +4,7 @@ using SessionSight.Core.Exceptions;
 
 namespace SessionSight.Api.Middleware;
 
-public class GlobalExceptionHandler : IExceptionHandler
+public partial class GlobalExceptionHandler : IExceptionHandler
 {
     private readonly ILogger<GlobalExceptionHandler> _logger;
     private readonly IHostEnvironment _environment;
@@ -26,7 +26,7 @@ public class GlobalExceptionHandler : IExceptionHandler
             _ => (StatusCodes.Status500InternalServerError, "Internal Server Error")
         };
 
-        _logger.LogError(exception, "Unhandled exception: {Title}", title);
+        LogUnhandledException(_logger, exception, title);
 
         var detail = exception is SessionSightException
             ? exception.Message
@@ -54,4 +54,7 @@ public class GlobalExceptionHandler : IExceptionHandler
 
         return true;
     }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Unhandled exception: {Title}")]
+    private static partial void LogUnhandledException(ILogger logger, Exception exception, string title);
 }

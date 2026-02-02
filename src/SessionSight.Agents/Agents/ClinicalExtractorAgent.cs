@@ -32,7 +32,7 @@ public interface IClinicalExtractorAgent : ISessionSightAgent
 /// Clinical Extractor Agent implementation.
 /// Extracts 82 fields from therapy notes using an agent loop pattern with tools.
 /// </summary>
-public class ClinicalExtractorAgent : IClinicalExtractorAgent
+public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
 {
     private readonly IAIFoundryClientFactory _clientFactory;
     private readonly IModelRouter _modelRouter;
@@ -65,9 +65,9 @@ public class ClinicalExtractorAgent : IClinicalExtractorAgent
     public async Task<ExtractionResult> ExtractAsync(IntakeResult intake, CancellationToken cancellationToken = default)
     {
         var noteText = intake.Document.MarkdownContent;
-        var sessionId = Guid.NewGuid().ToString();
+        var sessionId = Guid.NewGuid().ToString("D", System.Globalization.CultureInfo.InvariantCulture);
 
-        _logger.LogInformation("Starting clinical extraction for session {SessionId}", sessionId);
+        LogStartingClinicalExtraction(_logger, sessionId);
 
         var modelName = _modelRouter.SelectModel(ModelTask.Extraction);
         var chatClient = _clientFactory.CreateChatClient(modelName);
@@ -95,12 +95,11 @@ public class ClinicalExtractorAgent : IClinicalExtractorAgent
         // Run agent loop
         var loopResult = await _agentLoopRunner.RunAsync(chatClient, messages, cancellationToken);
 
-        _logger.LogInformation("Agent loop completed with {ToolCalls} tool calls, IsComplete={IsComplete}",
-            loopResult.ToolCallCount, loopResult.IsComplete);
+        LogAgentLoopCompleted(_logger, loopResult.ToolCallCount, loopResult.IsComplete);
 
         if (loopResult.IsPartial)
         {
-            _logger.LogWarning("Extraction incomplete: {Reason}", loopResult.PartialReason);
+            LogExtractionIncomplete(_logger, loopResult.PartialReason);
 
             return new ExtractionResult
             {
@@ -134,9 +133,7 @@ public class ClinicalExtractorAgent : IClinicalExtractorAgent
             RequiresReview = !validationResult.IsValid || hasLowConfidenceRisk
         };
 
-        _logger.LogInformation(
-            "Clinical extraction completed for session {SessionId}. Confidence: {Confidence:F2}, RequiresReview: {RequiresReview}",
-            sessionId, confidence, extraction.Metadata.RequiresReview);
+        LogClinicalExtractionCompleted(_logger, sessionId, confidence, extraction.Metadata.RequiresReview);
 
         return new ExtractionResult
         {
@@ -155,7 +152,7 @@ public class ClinicalExtractorAgent : IClinicalExtractorAgent
     {
         if (string.IsNullOrWhiteSpace(content))
         {
-            _logger.LogWarning("Empty extraction response from agent");
+            LogEmptyExtractionResponse(_logger);
             return new ClinicalExtraction();
         }
 
@@ -167,7 +164,7 @@ public class ClinicalExtractorAgent : IClinicalExtractorAgent
         }
         catch (JsonException ex)
         {
-            _logger.LogWarning(ex, "Failed to parse extraction response as JSON");
+            LogJsonParseFailure(_logger, ex);
             return new ClinicalExtraction();
         }
     }
@@ -222,7 +219,7 @@ public class ClinicalExtractorAgent : IClinicalExtractorAgent
             }
         }
 
-        if (trimmed.StartsWith("```"))
+        if (trimmed.StartsWith("```", StringComparison.Ordinal))
         {
             var startIndex = trimmed.IndexOf('\n') + 1;
             var endIndex = trimmed.LastIndexOf("```", StringComparison.Ordinal);
@@ -410,4 +407,22 @@ public class ClinicalExtractorAgent : IClinicalExtractorAgent
 
         return mapping;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Starting clinical extraction for session {SessionId}")]
+    private static partial void LogStartingClinicalExtraction(ILogger logger, string sessionId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Agent loop completed with {ToolCalls} tool calls, IsComplete={IsComplete}")]
+    private static partial void LogAgentLoopCompleted(ILogger logger, int toolCalls, bool isComplete);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Extraction incomplete: {Reason}")]
+    private static partial void LogExtractionIncomplete(ILogger logger, string? reason);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Clinical extraction completed for session {SessionId}. Confidence: {Confidence:F2}, RequiresReview: {RequiresReview}")]
+    private static partial void LogClinicalExtractionCompleted(ILogger logger, string sessionId, double confidence, bool requiresReview);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Empty extraction response from agent")]
+    private static partial void LogEmptyExtractionResponse(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to parse extraction response as JSON")]
+    private static partial void LogJsonParseFailure(ILogger logger, Exception exception);
 }

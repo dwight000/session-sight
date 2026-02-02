@@ -70,18 +70,18 @@ public class ValidateSchemaTool : IAgentTool
     }
 }
 
-internal class ValidateSchemaInput
+internal sealed class ValidateSchemaInput
 {
     public ClinicalExtraction? Extraction { get; set; }
 }
 
-internal class ValidateSchemaOutput
+internal sealed class ValidateSchemaOutput
 {
     public bool IsValid { get; set; }
     public List<ValidationErrorDto> Errors { get; set; } = [];
 }
 
-internal class ValidationErrorDto
+internal sealed class ValidationErrorDto
 {
     public string Field { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;

@@ -51,6 +51,13 @@ jobs:
             /d:sonar.coverageReportPaths="coverage/report/Cobertura.xml" \
             /d:sonar.qualitygate.wait=false
 
+      - name: Verify analyzer configuration
+        run: |
+          # Confirm Recommended mode is set (prevent regression)
+          grep -q "AnalysisMode>Recommended" Directory.Build.props || (echo "AnalysisMode should be Recommended" && exit 1)
+          grep -q "TreatWarningsAsErrors>true" Directory.Build.props || (echo "TreatWarningsAsErrors should be true" && exit 1)
+          echo "Analyzer configuration verified: Recommended mode with warnings as errors"
+
       - name: Build
         run: dotnet build session-sight.sln --no-restore --configuration Release
 

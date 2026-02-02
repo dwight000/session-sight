@@ -11,7 +11,7 @@ namespace SessionSight.Agents.Services;
 /// Parses documents using Azure Document Intelligence service.
 /// Uses the prebuilt-layout model for text, table, and structure extraction.
 /// </summary>
-public class DocumentIntelligenceParser : IDocumentParser
+public partial class DocumentIntelligenceParser : IDocumentParser
 {
     private readonly DocumentIntelligenceClient _client;
     private readonly DocumentIntelligenceOptions _options;
@@ -29,7 +29,7 @@ public class DocumentIntelligenceParser : IDocumentParser
 
     public async Task<ParsedDocument> ParseAsync(Stream document, string fileName, CancellationToken ct = default)
     {
-        _logger.LogInformation("Parsing document: {FileName}", fileName);
+        LogParsingDocument(_logger, fileName);
 
         // Read stream to memory for size validation and BinaryData conversion
         using var memoryStream = new MemoryStream();
@@ -60,10 +60,7 @@ public class DocumentIntelligenceParser : IDocumentParser
                 $"Document page count ({result.Pages.Count}) exceeds maximum allowed ({_options.MaxPageCount})");
         }
 
-        _logger.LogInformation(
-            "Document parsed: {PageCount} pages, {ParagraphCount} paragraphs",
-            result.Pages.Count,
-            result.Paragraphs?.Count ?? 0);
+        LogDocumentParsed(_logger, result.Pages.Count, result.Paragraphs?.Count ?? 0);
 
         return new ParsedDocument
         {
@@ -96,12 +93,12 @@ public class DocumentIntelligenceParser : IDocumentParser
 
             if (role == ParagraphRole.Title)
             {
-                markdown.AppendLine($"# {paragraph.Content}");
+                markdown.Append("# ").AppendLine(paragraph.Content);
                 markdown.AppendLine();
             }
             else if (role == ParagraphRole.SectionHeading)
             {
-                markdown.AppendLine($"## {paragraph.Content}");
+                markdown.Append("## ").AppendLine(paragraph.Content);
                 markdown.AppendLine();
             }
             else if (role == ParagraphRole.PageHeader || role == ParagraphRole.PageFooter)
@@ -150,13 +147,13 @@ public class DocumentIntelligenceParser : IDocumentParser
         foreach (var rowIndex in rows.Keys.OrderBy(r => r))
         {
             var cells = rows[rowIndex].OrderBy(c => c.Col).Select(c => c.Content);
-            markdown.AppendLine($"| {string.Join(" | ", cells)} |");
+            markdown.Append("| ").Append(string.Join(" | ", cells)).AppendLine(" |");
 
             // Add header separator after first row
             if (rowIndex == 0)
             {
                 var separator = string.Join(" | ", Enumerable.Repeat("---", table.ColumnCount));
-                markdown.AppendLine($"| {separator} |");
+                markdown.Append("| ").Append(separator).AppendLine(" |");
             }
         }
 
@@ -272,4 +269,10 @@ public class DocumentIntelligenceParser : IDocumentParser
 
         return wordCount > 0 ? totalConfidence / wordCount : 0.95;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Parsing document: {FileName}")]
+    private static partial void LogParsingDocument(ILogger logger, string fileName);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Document parsed: {PageCount} pages, {ParagraphCount} paragraphs")]
+    private static partial void LogDocumentParsed(ILogger logger, int pageCount, int paragraphCount);
 }
