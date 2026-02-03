@@ -85,7 +85,7 @@ warn() { echo -e "${YELLOW}[E2E]${NC} $1"; }
 error() { echo -e "${RED}[E2E]${NC} $1"; }
 
 cleanup() {
-    if [ "$HOT_MODE" = true ]; then
+    if [[ "$HOT_MODE" = true ]]; then
         log "Hot mode: keeping Aspire running for next iteration"
         return
     fi
@@ -103,7 +103,7 @@ cleanup() {
 trap cleanup EXIT
 
 # Step 1: Kill existing processes (skip in hot mode)
-if [ "$HOT_MODE" = true ]; then
+if [[ "$HOT_MODE" = true ]]; then
     log "Hot mode: checking if Aspire is already running..."
     if pgrep -f "SessionSight" > /dev/null; then
         log "Aspire is running - reusing existing instance"
@@ -132,9 +132,9 @@ if ! command -v az &> /dev/null; then
 fi
 
 # Step 3: Remove old SQL container for fresh database (skip if --keep-db or --hot)
-if [ "$KEEP_DB" = false ]; then
+if [[ "$KEEP_DB" = false ]]; then
     SQL_CONTAINER=$(docker ps -a --format '{{.Names}}' | grep sql || true)
-    if [ -n "$SQL_CONTAINER" ]; then
+    if [[ -n "$SQL_CONTAINER" ]]; then
         log "Removing old SQL container for fresh database..."
         docker rm -f "$SQL_CONTAINER" 2>/dev/null || true
         sleep 2
@@ -142,7 +142,7 @@ if [ "$KEEP_DB" = false ]; then
 fi
 
 # Step 4: Start Aspire (skip if hot mode and already running)
-if [ "$HOT_MODE" = true ] && pgrep -f "SessionSight" > /dev/null; then
+if [[ "$HOT_MODE" = true ]] && pgrep -f "SessionSight" > /dev/null; then
     log "Reusing existing Aspire instance..."
 else
     log "Starting Aspire..."
@@ -157,14 +157,14 @@ log "Waiting for API to be ready..."
 SECONDS_WAITED=0
 API_PORT=""
 
-while [ $SECONDS_WAITED -lt $MAX_WAIT_SECONDS ]; do
+while [[ $SECONDS_WAITED -lt $MAX_WAIT_SECONDS ]]; do
     # Find HTTP port by checking SessionSight.Api process
     HTTP_PORTS=$(ss -tlnp 2>/dev/null | grep "SessionSight.Ap" | grep -oP '127\.0\.0\.1:\K[0-9]+' | sort -u)
 
     for PORT in $HTTP_PORTS; do
         # Check if this port redirects to HTTPS (API behavior)
         REDIRECT=$(curl -sI "http://localhost:$PORT/health" 2>/dev/null | grep -i "Location:" | grep -oP 'https://localhost:\K[0-9]+' || true)
-        if [ -n "$REDIRECT" ]; then
+        if [[ -n "$REDIRECT" ]]; then
             # Found the redirect - now check if HTTPS is healthy
             if curl -sk "https://localhost:$REDIRECT/health" 2>/dev/null | grep -q "Healthy"; then
                 API_PORT=$REDIRECT
@@ -179,7 +179,7 @@ while [ $SECONDS_WAITED -lt $MAX_WAIT_SECONDS ]; do
 done
 echo ""
 
-if [ -z "$API_PORT" ]; then
+if [[ -z "$API_PORT" ]]; then
     error "API did not become ready within $MAX_WAIT_SECONDS seconds"
     error "Last log entries:"
     tail -20 "$LOG_FILE"
@@ -211,7 +211,7 @@ log "Running functional tests..."
 cd "$PROJECT_ROOT"
 export API_BASE_URL="https://localhost:$API_PORT"
 
-if [ -n "$TEST_FILTER" ]; then
+if [[ -n "$TEST_FILTER" ]]; then
     log "Filter: $TEST_FILTER"
     dotnet test tests/SessionSight.FunctionalTests --verbosity normal --filter "FullyQualifiedName~$TEST_FILTER"
 else
