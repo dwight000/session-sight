@@ -177,7 +177,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         Session session,
         AgentExtractionResult agentResult,
         List<string> modelsUsed,
-        CancellationToken ct)
+        CancellationToken _)
     {
         // Convert agent result to entity
         var entity = new ExtractionResult

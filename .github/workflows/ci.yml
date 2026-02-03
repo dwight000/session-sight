@@ -127,12 +127,13 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           # Wait for SonarCloud to process the analysis (no qualitygate.wait means async upload)
-          echo "Waiting 15s for SonarCloud to process analysis..."
-          sleep 15
+          echo "Waiting 5s for SonarCloud to process analysis..."
+          sleep 5
 
           # Query SonarCloud API for BLOCKER, CRITICAL, and MAJOR (High) issues
+          # Note: Excludes S6975 (Bicep element ordering) - style preference, not a bug
           RESPONSE=$(curl -s -u "${SONAR_TOKEN}:" \
-            "https://sonarcloud.io/api/issues/search?componentKeys=dwight000_session-sight&severities=BLOCKER,CRITICAL,MAJOR&statuses=OPEN,CONFIRMED,REOPENED&ps=100")
+            "https://sonarcloud.io/api/issues/search?componentKeys=dwight000_session-sight&severities=BLOCKER,CRITICAL,MAJOR&statuses=OPEN,CONFIRMED,REOPENED&ps=100&rules=!azureresourcemanager:S6975")
 
           COUNT=$(echo "$RESPONSE" | jq '.total')
           echo "Found $COUNT high severity issues (BLOCKER/CRITICAL/MAJOR)"

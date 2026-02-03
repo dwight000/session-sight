@@ -234,7 +234,7 @@ public partial class DocumentIntelligenceParser : IDocumentParser
         return sections;
     }
 
-    private static int GetPageNumber(DocumentParagraph paragraph, AnalyzeResult result)
+    private static int GetPageNumber(DocumentParagraph paragraph, AnalyzeResult _)
     {
         if (paragraph.BoundingRegions is null || paragraph.BoundingRegions.Count == 0)
         {

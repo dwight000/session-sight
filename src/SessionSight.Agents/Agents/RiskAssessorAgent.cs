@@ -544,10 +544,8 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         ExtractedField<SiFrequency> field2)
     {
         // SiFrequency: Rare=0, Occasional=1, Frequent=2, Constant=3
-        SiFrequency? v1 = field1.Value;
-        SiFrequency? v2 = field2.Value;
-        var s1 = v1.HasValue ? (int)v1.Value : 0;
-        var s2 = v2.HasValue ? (int)v2.Value : 0;
+        var s1 = (int)field1.Value;
+        var s2 = (int)field2.Value;
         return s1 >= s2 ? field1 : field2;
     }
 
@@ -556,10 +554,8 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         ExtractedField<SiIntensity> field2)
     {
         // SiIntensity: Fleeting=0, Mild=1, Moderate=2, Severe=3
-        SiIntensity? v1 = field1.Value;
-        SiIntensity? v2 = field2.Value;
-        var s1 = v1.HasValue ? (int)v1.Value : 0;
-        var s2 = v2.HasValue ? (int)v2.Value : 0;
+        var s1 = (int)field1.Value;
+        var s2 = (int)field2.Value;
         return s1 >= s2 ? field1 : field2;
     }
 
@@ -604,8 +600,8 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         // Check if suicidal keywords found but extraction shows None
         if (keywords.SuicidalMatches.Count > 0)
         {
-            SuicidalIdeation? si = result.ValidatedExtraction.SuicidalIdeation.Value;
-            if (!si.HasValue || si.Value == SuicidalIdeation.None)
+            var si = result.ValidatedExtraction.SuicidalIdeation.Value;
+            if (si == SuicidalIdeation.None)
             {
                 result.ReviewReasons.Add(
                     $"Suicidal keywords detected ({string.Join(", ", keywords.SuicidalMatches)}) but extraction shows 'None'");
@@ -615,8 +611,8 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         // Check if self-harm keywords found but extraction shows None
         if (keywords.SelfHarmMatches.Count > 0)
         {
-            SelfHarm? sh = result.ValidatedExtraction.SelfHarm.Value;
-            if (!sh.HasValue || sh.Value == SelfHarm.None)
+            var sh = result.ValidatedExtraction.SelfHarm.Value;
+            if (sh == SelfHarm.None)
             {
                 result.ReviewReasons.Add(
                     $"Self-harm keywords detected ({string.Join(", ", keywords.SelfHarmMatches)}) but extraction shows 'None'");
@@ -626,8 +622,8 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         // Check if homicidal keywords found but extraction shows None
         if (keywords.HomicidalMatches.Count > 0)
         {
-            HomicidalIdeation? hi = result.ValidatedExtraction.HomicidalIdeation.Value;
-            if (!hi.HasValue || hi.Value == HomicidalIdeation.None)
+            var hi = result.ValidatedExtraction.HomicidalIdeation.Value;
+            if (hi == HomicidalIdeation.None)
             {
                 result.ReviewReasons.Add(
                     $"Homicidal keywords detected ({string.Join(", ", keywords.HomicidalMatches)}) but extraction shows 'None'");

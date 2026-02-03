@@ -47,7 +47,7 @@ public class QueryPatientHistoryTool : IAgentTool
     {
         try
         {
-            var request = JsonSerializer.Deserialize<QueryPatientHistoryInput>(input.ToStream(), JsonOptions);
+            var request = await JsonSerializer.DeserializeAsync<QueryPatientHistoryInput>(input.ToStream(), JsonOptions, ct);
 
             if (string.IsNullOrEmpty(request?.PatientId))
             {

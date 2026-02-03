@@ -6,7 +6,7 @@ namespace SessionSight.Agents.Validation;
 /// <summary>
 /// Calculates overall confidence scores for clinical extractions.
 /// </summary>
-public class ConfidenceCalculator
+public static class ConfidenceCalculator
 {
     /// <summary>
     /// Minimum confidence threshold for risk assessment fields.

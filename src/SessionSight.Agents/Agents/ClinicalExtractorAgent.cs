@@ -324,13 +324,13 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
     private static DateOnly? DeserializeDateOnly(JsonElement element)
     {
         var dateStr = element.GetString();
-        return DateOnly.TryParse(dateStr, out var date) ? date : null;
+        return DateOnly.TryParse(dateStr, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var date) ? date : null;
     }
 
     private static TimeOnly? DeserializeTimeOnly(JsonElement element)
     {
         var timeStr = element.GetString();
-        return TimeOnly.TryParse(timeStr, out var time) ? time : null;
+        return TimeOnly.TryParse(timeStr, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var time) ? time : null;
     }
 
     private static List<string> DeserializeStringList(JsonElement element)

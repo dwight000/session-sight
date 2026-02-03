@@ -291,8 +291,8 @@ public class ClinicalExtractorAgentTests
 
         result.Should().NotBeNull();
         result.GoalProgress.Value.Should().HaveCount(2);
-        result.GoalProgress.Value.Should().ContainKey("Reduce anxiety");
-        result.GoalProgress.Value["Reduce anxiety"].Should().Be("Good progress");
+        result.GoalProgress.Value!.Should().ContainKey("Reduce anxiety");
+        result.GoalProgress.Value!["Reduce anxiety"].Should().Be("Good progress");
     }
 
     [Fact]

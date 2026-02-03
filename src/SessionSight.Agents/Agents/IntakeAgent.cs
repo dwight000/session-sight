@@ -155,7 +155,7 @@ public partial class IntakeAgent : IIntakeAgent
         if (string.IsNullOrWhiteSpace(dateStr))
             return null;
 
-        if (DateOnly.TryParse(dateStr, out var date))
+        if (DateOnly.TryParse(dateStr, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var date))
             return date;
 
         return null;

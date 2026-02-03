@@ -25,4 +25,4 @@ builder.Services.AddHttpClient("SessionSightApi", client =>
     client.DefaultRequestHeaders.Add("Accept", "application/json");
 });
 
-builder.Build().Run();
+await builder.Build().RunAsync();

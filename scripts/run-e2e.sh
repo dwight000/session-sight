@@ -80,9 +80,9 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-log() { echo -e "${GREEN}[E2E]${NC} $1"; }
-warn() { echo -e "${YELLOW}[E2E]${NC} $1"; }
-error() { echo -e "${RED}[E2E]${NC} $1"; }
+log() { local msg="$1"; echo -e "${GREEN}[E2E]${NC} $msg"; return 0; }
+warn() { local msg="$1"; echo -e "${YELLOW}[E2E]${NC} $msg"; return 0; }
+error() { local msg="$1"; echo -e "${RED}[E2E]${NC} $msg"; return 0; }
 
 cleanup() {
     if [[ "$HOT_MODE" = true ]]; then
@@ -164,12 +164,10 @@ while [[ $SECONDS_WAITED -lt $MAX_WAIT_SECONDS ]]; do
     for PORT in $HTTP_PORTS; do
         # Check if this port redirects to HTTPS (API behavior)
         REDIRECT=$(curl -sI "http://localhost:$PORT/health" 2>/dev/null | grep -i "Location:" | grep -oP 'https://localhost:\K[0-9]+' || true)
-        if [[ -n "$REDIRECT" ]]; then
-            # Found the redirect - now check if HTTPS is healthy
-            if curl -sk "https://localhost:$REDIRECT/health" 2>/dev/null | grep -q "Healthy"; then
-                API_PORT=$REDIRECT
-                break 2
-            fi
+        # Found the redirect - now check if HTTPS is healthy
+        if [[ -n "$REDIRECT" ]] && curl -sk "https://localhost:$REDIRECT/health" 2>/dev/null | grep -q "Healthy"; then
+            API_PORT=$REDIRECT
+            break 2
         fi
     done
 

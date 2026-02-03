@@ -28,11 +28,19 @@ public partial class GlobalExceptionHandler : IExceptionHandler
 
         LogUnhandledException(_logger, exception, title);
 
-        var detail = exception is SessionSightException
-            ? exception.Message
-            : _environment.IsDevelopment()
-                ? exception.ToString()
-                : "An unexpected error occurred.";
+        string detail;
+        if (exception is SessionSightException)
+        {
+            detail = exception.Message;
+        }
+        else if (_environment.IsDevelopment())
+        {
+            detail = exception.ToString();
+        }
+        else
+        {
+            detail = "An unexpected error occurred.";
+        }
 
         var problemDetails = new ProblemDetails
         {
