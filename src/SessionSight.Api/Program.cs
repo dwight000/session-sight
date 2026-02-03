@@ -40,6 +40,11 @@ builder.Services.AddScoped<IIntakeAgent, IntakeAgent>();
 builder.Services.AddScoped<IClinicalExtractorAgent, ClinicalExtractorAgent>();
 builder.Services.AddScoped<IRiskAssessorAgent, RiskAssessorAgent>();
 builder.Services.AddScoped<ISummarizerAgent, SummarizerAgent>();
+builder.Services.AddScoped<ExtractionAgents>(sp => new ExtractionAgents(
+    sp.GetRequiredService<IIntakeAgent>(),
+    sp.GetRequiredService<IClinicalExtractorAgent>(),
+    sp.GetRequiredService<IRiskAssessorAgent>(),
+    sp.GetRequiredService<ISummarizerAgent>()));
 builder.Services.AddSingleton<ISchemaValidator, SchemaValidator>();
 
 // Agent tools (existing from P2-006a)

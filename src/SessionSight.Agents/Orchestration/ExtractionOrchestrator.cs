@@ -12,15 +12,21 @@ using AgentExtractionResult = SessionSight.Agents.Models.ExtractionResult;
 namespace SessionSight.Agents.Orchestration;
 
 /// <summary>
+/// Groups agent dependencies for the extraction orchestrator.
+/// </summary>
+public record ExtractionAgents(
+    IIntakeAgent Intake,
+    IClinicalExtractorAgent Extractor,
+    IRiskAssessorAgent RiskAssessor,
+    ISummarizerAgent Summarizer);
+
+/// <summary>
 /// Orchestrates the full extraction pipeline from document parsing through risk assessment.
 /// </summary>
 public partial class ExtractionOrchestrator : IExtractionOrchestrator
 {
     private readonly IDocumentParser _documentParser;
-    private readonly IIntakeAgent _intakeAgent;
-    private readonly IClinicalExtractorAgent _extractorAgent;
-    private readonly IRiskAssessorAgent _riskAssessor;
-    private readonly ISummarizerAgent _summarizer;
+    private readonly ExtractionAgents _agents;
     private readonly ISessionRepository _sessionRepository;
     private readonly IDocumentStorage _documentStorage;
     private readonly ILogger<ExtractionOrchestrator> _logger;
@@ -32,19 +38,13 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
     public ExtractionOrchestrator(
         IDocumentParser documentParser,
-        IIntakeAgent intakeAgent,
-        IClinicalExtractorAgent extractorAgent,
-        IRiskAssessorAgent riskAssessor,
-        ISummarizerAgent summarizer,
+        ExtractionAgents agents,
         ISessionRepository sessionRepository,
         IDocumentStorage documentStorage,
         ILogger<ExtractionOrchestrator> logger)
     {
         _documentParser = documentParser;
-        _intakeAgent = intakeAgent;
-        _extractorAgent = extractorAgent;
-        _riskAssessor = riskAssessor;
-        _summarizer = summarizer;
+        _agents = agents;
         _sessionRepository = sessionRepository;
         _documentStorage = documentStorage;
         _logger = logger;
@@ -93,7 +93,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
             // Step 2: Intake Agent - metadata extraction and validation
             LogRunningIntakeAgent(_logger);
-            var intakeResult = await _intakeAgent.ProcessAsync(parsedDoc, ct);
+            var intakeResult = await _agents.Intake.ProcessAsync(parsedDoc, ct);
             modelsUsed.Add(intakeResult.ModelUsed);
 
             if (!intakeResult.IsValidTherapyNote)
@@ -113,13 +113,13 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
             // Step 3: Clinical Extractor - schema extraction
             LogRunningClinicalExtractor(_logger);
-            var extractionResult = await _extractorAgent.ExtractAsync(intakeResult, ct);
+            var extractionResult = await _agents.Extractor.ExtractAsync(intakeResult, ct);
             extractionResult.SessionId = sessionId.ToString("D", System.Globalization.CultureInfo.InvariantCulture);
             modelsUsed.AddRange(extractionResult.ModelsUsed);
 
             // Step 4: Risk Assessor - safety validation
             LogRunningRiskAssessor(_logger);
-            var riskResult = await _riskAssessor.AssessAsync(
+            var riskResult = await _agents.RiskAssessor.AssessAsync(
                 extractionResult, parsedDoc.MarkdownContent, ct);
             modelsUsed.Add(riskResult.ModelUsed);
 
@@ -141,7 +141,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             SessionSummary? sessionSummary = null;
             try
             {
-                sessionSummary = await _summarizer.SummarizeSessionAsync(extractionResult, ct);
+                sessionSummary = await _agents.Summarizer.SummarizeSessionAsync(extractionResult, ct);
                 modelsUsed.Add(sessionSummary.ModelUsed);
             }
             catch (Exception ex)

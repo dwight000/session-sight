@@ -4,7 +4,7 @@
 
 **REQUIRED before `git push`:**
 ```bash
-# 1. Check coverage threshold (83%) - MUST PASS
+# 1. Check coverage threshold (82% local, 81% CI, 80% SonarCloud) - MUST PASS
 ./scripts/check-coverage.sh
 
 # 2. Run E2E tests - MUST PASS

@@ -293,59 +293,7 @@ public partial class SummarizerAgent : ISummarizerAgent
         try
         {
             var parsed = JsonSerializer.Deserialize<JsonElement>(json, JsonOptions);
-            var summary = new PatientSummary();
-
-            if (parsed.TryGetProperty("progressNarrative", out var narrative))
-                summary.ProgressNarrative = narrative.GetString() ?? string.Empty;
-
-            if (parsed.TryGetProperty("moodTrend", out var mood))
-            {
-                var moodStr = mood.GetString();
-                if (Enum.TryParse<MoodTrend>(moodStr, ignoreCase: true, out var trend))
-                    summary.MoodTrend = trend;
-            }
-
-            if (parsed.TryGetProperty("recurringThemes", out var themes) &&
-                themes.ValueKind == JsonValueKind.Array)
-            {
-                summary.RecurringThemes = themes.EnumerateArray()
-                    .Select(t => t.GetString())
-                    .Where(s => s != null)
-                    .ToList()!;
-            }
-
-            if (parsed.TryGetProperty("goalProgress", out var goals) &&
-                goals.ValueKind == JsonValueKind.Array)
-            {
-                summary.GoalProgress = goals.EnumerateArray()
-                    .Select(g =>
-                    {
-                        var gp = new GoalProgress();
-                        if (g.TryGetProperty("goal", out var goal))
-                            gp.Goal = goal.GetString() ?? string.Empty;
-                        if (g.TryGetProperty("status", out var status))
-                            gp.Status = status.GetString() ?? string.Empty;
-                        return gp;
-                    })
-                    .ToList();
-            }
-
-            if (parsed.TryGetProperty("effectiveInterventions", out var effective) &&
-                effective.ValueKind == JsonValueKind.Array)
-            {
-                summary.EffectiveInterventions = effective.EnumerateArray()
-                    .Select(i => i.GetString())
-                    .Where(s => s != null)
-                    .ToList()!;
-            }
-
-            if (parsed.TryGetProperty("recommendedFocus", out var focus))
-                summary.RecommendedFocus = focus.GetString() ?? string.Empty;
-
-            if (parsed.TryGetProperty("riskTrendSummary", out var riskTrend))
-                summary.RiskTrendSummary = riskTrend.GetString() ?? string.Empty;
-
-            return summary;
+            return BuildPatientSummaryFromJson(parsed);
         }
         catch (JsonException)
         {
@@ -355,6 +303,70 @@ public partial class SummarizerAgent : ISummarizerAgent
                 MoodTrend = MoodTrend.InsufficientData
             };
         }
+    }
+
+    private static PatientSummary BuildPatientSummaryFromJson(JsonElement parsed)
+    {
+        var summary = new PatientSummary();
+
+        if (parsed.TryGetProperty("progressNarrative", out var narrative))
+            summary.ProgressNarrative = narrative.GetString() ?? string.Empty;
+
+        if (parsed.TryGetProperty("moodTrend", out var mood))
+            summary.MoodTrend = ParseMoodTrend(mood.GetString());
+
+        if (parsed.TryGetProperty("recurringThemes", out var themes))
+            summary.RecurringThemes = ParseStringArray(themes);
+
+        if (parsed.TryGetProperty("goalProgress", out var goals))
+            summary.GoalProgress = ParseGoalProgressArray(goals);
+
+        if (parsed.TryGetProperty("effectiveInterventions", out var effective))
+            summary.EffectiveInterventions = ParseStringArray(effective);
+
+        if (parsed.TryGetProperty("recommendedFocus", out var focus))
+            summary.RecommendedFocus = focus.GetString() ?? string.Empty;
+
+        if (parsed.TryGetProperty("riskTrendSummary", out var riskTrend))
+            summary.RiskTrendSummary = riskTrend.GetString() ?? string.Empty;
+
+        return summary;
+    }
+
+    private static MoodTrend ParseMoodTrend(string? moodStr)
+    {
+        if (Enum.TryParse<MoodTrend>(moodStr, ignoreCase: true, out var trend))
+            return trend;
+        return MoodTrend.InsufficientData;
+    }
+
+    private static List<string> ParseStringArray(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Array)
+            return new List<string>();
+
+        return element.EnumerateArray()
+            .Select(e => e.GetString())
+            .Where(s => s != null)
+            .ToList()!;
+    }
+
+    private static List<GoalProgress> ParseGoalProgressArray(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Array)
+            return new List<GoalProgress>();
+
+        return element.EnumerateArray()
+            .Select(g =>
+            {
+                var gp = new GoalProgress();
+                if (g.TryGetProperty("goal", out var goal))
+                    gp.Goal = goal.GetString() ?? string.Empty;
+                if (g.TryGetProperty("status", out var status))
+                    gp.Status = status.GetString() ?? string.Empty;
+                return gp;
+            })
+            .ToList();
     }
 
     private static RiskSummary? ParseRiskSummary(JsonElement element)

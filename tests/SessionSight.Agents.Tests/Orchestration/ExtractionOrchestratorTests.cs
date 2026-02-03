@@ -42,12 +42,10 @@ public class ExtractionOrchestratorTests
         _summarizer.SummarizeSessionAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<CancellationToken>())
             .Returns(new SessionSummary { OneLiner = "Test summary", ModelUsed = "gpt-4o-mini" });
 
+        var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _summarizer);
         _orchestrator = new ExtractionOrchestrator(
             _documentParser,
-            _intakeAgent,
-            _extractorAgent,
-            _riskAssessor,
-            _summarizer,
+            agents,
             _sessionRepository,
             _documentStorage,
             _logger);

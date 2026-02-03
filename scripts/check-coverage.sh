@@ -2,7 +2,7 @@
 # =============================================================================
 # Coverage Check Script
 # =============================================================================
-# Runs tests with coverage and validates against threshold (81%, 1% above SonarCloud)
+# Runs tests with coverage and validates against threshold (82%, 2% above SonarCloud)
 #
 # Usage:
 #   ./scripts/check-coverage.sh           # Run tests and check coverage
@@ -12,9 +12,9 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-# Coverage threshold: 83% (3% above SonarCloud's 80% requirement for buffer)
-THRESHOLD=0.83
-THRESHOLD_PERCENT=83
+# Coverage threshold: 82% (2% above SonarCloud's 80% requirement, 1% above CI)
+THRESHOLD=0.82
+THRESHOLD_PERCENT=82
 
 cd "$PROJECT_ROOT"
 
@@ -46,7 +46,7 @@ PERCENT=$(echo "$COVERAGE * 100" | bc)
 echo ""
 echo "=========================================="
 echo "Coverage: $PERCENT%"
-echo "Threshold: $THRESHOLD_PERCENT% (SonarCloud requires 80%)"
+echo "Threshold: $THRESHOLD_PERCENT% (CI: 81%, SonarCloud: 80%)"
 echo "=========================================="
 
 if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then

@@ -55,8 +55,9 @@
       "Bash(gh run download:*)",
       "Bash(tee:*)",
       "Bash(gh run watch:*)",
-      "Bash(git commit:*)",
-      "Bash(gh run rerun:*)"
+      "Bash(gh run rerun:*)",
+      "Bash(./scripts/check-coverage.sh:*)",
+      "Bash(bash scripts/check-coverage.sh:*)"
     ]
   }
 }
