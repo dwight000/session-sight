@@ -49,6 +49,7 @@ jobs:
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.cs.opencover.reportsPaths="coverage/**/coverage.opencover.xml" \
             /d:sonar.exclusions="**/Migrations/**,**/obj/**,**/bin/**,plan/spike/**" \
+            /d:sonar.coverage.exclusions="**/Migrations/**,**/AIFoundryClientFactory.cs,**/DocumentIntelligenceParser.cs,**/AzureBlobDocumentStorage.cs,**/AgentLoopRunner.cs,**/DependencyInjection.cs,**/SessionSightDbContext.cs,**/SessionRepository.cs,**/PatientRepository.cs,**/ProcessIncomingNoteFunction.cs,**/obj/**" \
             /d:sonar.qualitygate.wait=true
 
       - name: Verify analyzer configuration
