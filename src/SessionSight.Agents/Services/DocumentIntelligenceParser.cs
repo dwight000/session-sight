@@ -252,22 +252,17 @@ public partial class DocumentIntelligenceParser : IDocumentParser
         }
 
         // Calculate average word confidence across all pages
-        var totalConfidence = 0.0;
-        var wordCount = 0;
+        var allWords = result.Pages
+            .Where(page => page.Words is not null)
+            .SelectMany(page => page.Words);
 
-        foreach (var page in result.Pages)
+        var wordList = allWords.ToList();
+        if (wordList.Count == 0)
         {
-            if (page.Words is not null)
-            {
-                foreach (var word in page.Words)
-                {
-                    totalConfidence += word.Confidence;
-                    wordCount++;
-                }
-            }
+            return 0.95;
         }
 
-        return wordCount > 0 ? totalConfidence / wordCount : 0.95;
+        return wordList.Average(word => word.Confidence);
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Parsing document: {FileName}")]

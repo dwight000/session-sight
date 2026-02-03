@@ -53,29 +53,14 @@ public static class DangerKeywordChecker
         var lowerText = noteText.ToLowerInvariant();
         var result = new KeywordCheckResult();
 
-        foreach (var keyword in SuicidalKeywords)
-        {
-            if (ContainsKeyword(lowerText, keyword))
-            {
-                result.SuicidalMatches.Add(keyword);
-            }
-        }
+        result.SuicidalMatches.AddRange(
+            SuicidalKeywords.Where(keyword => ContainsKeyword(lowerText, keyword)));
 
-        foreach (var keyword in SelfHarmKeywords)
-        {
-            if (ContainsKeyword(lowerText, keyword))
-            {
-                result.SelfHarmMatches.Add(keyword);
-            }
-        }
+        result.SelfHarmMatches.AddRange(
+            SelfHarmKeywords.Where(keyword => ContainsKeyword(lowerText, keyword)));
 
-        foreach (var keyword in HomicidalKeywords)
-        {
-            if (ContainsKeyword(lowerText, keyword))
-            {
-                result.HomicidalMatches.Add(keyword);
-            }
-        }
+        result.HomicidalMatches.AddRange(
+            HomicidalKeywords.Where(keyword => ContainsKeyword(lowerText, keyword)));
 
         return result;
     }
