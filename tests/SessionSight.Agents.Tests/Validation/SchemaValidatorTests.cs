@@ -194,6 +194,163 @@ public class SchemaValidatorTests
             e.Severity == ValidationSeverity.Warning);
     }
 
+    [Fact]
+    public void Validate_LowConfidenceSelfHarm_ReturnsWarning()
+    {
+        var extraction = CreateValidExtraction();
+        extraction.RiskAssessment.SelfHarm = new ExtractedField<SelfHarm>
+        {
+            Value = SelfHarm.Historical,
+            Confidence = 0.75 // Below 0.9 threshold
+        };
+
+        var result = _validator.Validate(extraction);
+
+        result.Errors.Should().ContainSingle(e =>
+            e.Field == "RiskAssessment.SelfHarm" &&
+            e.Severity == ValidationSeverity.Warning);
+    }
+
+    [Fact]
+    public void Validate_LowConfidenceHomicidalIdeation_ReturnsWarning()
+    {
+        var extraction = CreateValidExtraction();
+        extraction.RiskAssessment.HomicidalIdeation = new ExtractedField<HomicidalIdeation>
+        {
+            Value = HomicidalIdeation.Passive,
+            Confidence = 0.80 // Below 0.9 threshold
+        };
+        extraction.RiskAssessment.RiskLevelOverall = new ExtractedField<RiskLevelOverall>
+        {
+            Value = RiskLevelOverall.Moderate,
+            Confidence = 0.95
+        };
+
+        var result = _validator.Validate(extraction);
+
+        result.Errors.Should().ContainSingle(e =>
+            e.Field == "RiskAssessment.HomicidalIdeation" &&
+            e.Severity == ValidationSeverity.Warning);
+    }
+
+    [Fact]
+    public void Validate_LowConfidenceImminentRisk_ReturnsWarning()
+    {
+        var extraction = CreateValidExtraction();
+        extraction.RiskAssessment.RiskLevelOverall = new ExtractedField<RiskLevelOverall>
+        {
+            Value = RiskLevelOverall.Imminent,
+            Confidence = 0.80 // Below 0.9 threshold
+        };
+
+        var result = _validator.Validate(extraction);
+
+        result.Errors.Should().ContainSingle(e =>
+            e.Field == "RiskAssessment.RiskLevelOverall" &&
+            e.Severity == ValidationSeverity.Warning);
+    }
+
+    [Fact]
+    public void Validate_NegativeSessionNumber_ReturnsError()
+    {
+        var extraction = CreateValidExtraction();
+        extraction.SessionInfo.SessionNumber = new ExtractedField<int>
+        {
+            Value = -1,
+            Confidence = 0.90
+        };
+
+        var result = _validator.Validate(extraction);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().ContainSingle(e => e.Field == "SessionInfo.SessionNumber");
+    }
+
+    [Fact]
+    public void Validate_NegativeMood_ReturnsError()
+    {
+        var extraction = CreateValidExtraction();
+        extraction.MoodAssessment.SelfReportedMood = new ExtractedField<int>
+        {
+            Value = -5, // Negative is invalid
+            Confidence = 0.90
+        };
+
+        var result = _validator.Validate(extraction);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().ContainSingle(e => e.Field == "MoodAssessment.SelfReportedMood");
+    }
+
+    [Fact]
+    public void Validate_ActiveWithIntentSI_SafetyPlanNotNeeded_ReturnsWarning()
+    {
+        var extraction = CreateValidExtraction();
+        extraction.RiskAssessment.SuicidalIdeation = new ExtractedField<SuicidalIdeation>
+        {
+            Value = SuicidalIdeation.ActiveWithIntent,
+            Confidence = 0.95
+        };
+        extraction.RiskAssessment.SafetyPlanStatus = new ExtractedField<SafetyPlanStatus>
+        {
+            Value = SafetyPlanStatus.NotNeeded,
+            Confidence = 0.90
+        };
+        extraction.RiskAssessment.RiskLevelOverall = new ExtractedField<RiskLevelOverall>
+        {
+            Value = RiskLevelOverall.Imminent,
+            Confidence = 0.95
+        };
+
+        var result = _validator.Validate(extraction);
+
+        result.Errors.Should().Contain(e =>
+            e.Field == "RiskAssessment.SafetyPlanStatus" &&
+            e.Severity == ValidationSeverity.Warning);
+    }
+
+    [Fact]
+    public void Validate_SelfHarmIndicator_WithoutOverallRisk_ReturnsError()
+    {
+        var extraction = CreateValidExtraction();
+        extraction.RiskAssessment.SelfHarm = new ExtractedField<SelfHarm>
+        {
+            Value = SelfHarm.Current,
+            Confidence = 0.95
+        };
+        extraction.RiskAssessment.RiskLevelOverall = new ExtractedField<RiskLevelOverall>
+        {
+            Value = default,
+            Confidence = 0
+        };
+
+        var result = _validator.Validate(extraction);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().ContainSingle(e => e.Field == "RiskAssessment.RiskLevelOverall");
+    }
+
+    [Fact]
+    public void Validate_HomicidalIndicator_WithoutOverallRisk_ReturnsError()
+    {
+        var extraction = CreateValidExtraction();
+        extraction.RiskAssessment.HomicidalIdeation = new ExtractedField<HomicidalIdeation>
+        {
+            Value = HomicidalIdeation.ActiveNoPlan,
+            Confidence = 0.95
+        };
+        extraction.RiskAssessment.RiskLevelOverall = new ExtractedField<RiskLevelOverall>
+        {
+            Value = default,
+            Confidence = 0
+        };
+
+        var result = _validator.Validate(extraction);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().ContainSingle(e => e.Field == "RiskAssessment.RiskLevelOverall");
+    }
+
     private static ClinicalExtraction CreateValidExtraction()
     {
         return new ClinicalExtraction

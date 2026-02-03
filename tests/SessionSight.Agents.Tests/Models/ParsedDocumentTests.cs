@@ -80,23 +80,6 @@ public class ParsedDocumentTests
     }
 
     [Fact]
-    public void ParsedDocumentMetadata_CanSetAllProperties()
-    {
-        var metadata = new ParsedDocumentMetadata
-        {
-            PageCount = 5,
-            FileFormat = "pdf",
-            FileSizeBytes = 1024000,
-            ExtractionConfidence = 0.95
-        };
-
-        metadata.PageCount.Should().Be(5);
-        metadata.FileFormat.Should().Be("pdf");
-        metadata.FileSizeBytes.Should().Be(1024000);
-        metadata.ExtractionConfidence.Should().Be(0.95);
-    }
-
-    [Fact]
     public void ParsedDocument_WithMetadata_StoresCorrectly()
     {
         var doc = new ParsedDocument

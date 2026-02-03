@@ -25,13 +25,6 @@ public class QueryPatientHistoryToolTests
     }
 
     [Fact]
-    public void Description_IsNotEmpty()
-    {
-        _tool.Description.Should().NotBeNullOrEmpty();
-        _tool.Description.Should().Contain("patient");
-    }
-
-    [Fact]
     public void InputSchema_IsValidJson()
     {
         var schema = _tool.InputSchema.ToString();

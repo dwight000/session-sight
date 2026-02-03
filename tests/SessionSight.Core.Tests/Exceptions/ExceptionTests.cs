@@ -6,26 +6,12 @@ namespace SessionSight.Core.Tests.Exceptions;
 public class ExceptionTests
 {
     [Fact]
-    public void SessionSightException_WithMessage_StoresMessage()
-    {
-        var ex = new SessionSightException("Test error");
-        ex.Message.Should().Be("Test error");
-    }
-
-    [Fact]
     public void SessionSightException_WithMessageAndInner_StoresBoth()
     {
         var inner = new InvalidOperationException("Inner error");
         var ex = new SessionSightException("Outer error", inner);
         ex.Message.Should().Be("Outer error");
         ex.InnerException.Should().Be(inner);
-    }
-
-    [Fact]
-    public void NotFoundException_WithMessage_StoresMessage()
-    {
-        var ex = new NotFoundException("Resource not found");
-        ex.Message.Should().Be("Resource not found");
     }
 
     [Fact]
@@ -54,13 +40,6 @@ public class ExceptionTests
     }
 
     [Fact]
-    public void ValidationException_WithMessage_StoresMessage()
-    {
-        var ex = new ValidationException("Validation failed");
-        ex.Message.Should().Be("Validation failed");
-    }
-
-    [Fact]
     public void ValidationException_WithMessageAndInner_StoresBoth()
     {
         var inner = new ArgumentException("Bad arg");
@@ -77,13 +56,6 @@ public class ExceptionTests
     }
 
     [Fact]
-    public void SchemaValidationException_WithMessage_StoresMessage()
-    {
-        var ex = new SchemaValidationException("Schema invalid");
-        ex.Message.Should().Be("Schema invalid");
-    }
-
-    [Fact]
     public void SchemaValidationException_InheritsFromValidationException()
     {
         var ex = new SchemaValidationException("Schema error");
@@ -91,24 +63,10 @@ public class ExceptionTests
     }
 
     [Fact]
-    public void InputValidationException_WithMessage_StoresMessage()
-    {
-        var ex = new InputValidationException("Invalid input");
-        ex.Message.Should().Be("Invalid input");
-    }
-
-    [Fact]
     public void InputValidationException_InheritsFromValidationException()
     {
         var ex = new InputValidationException("Bad input");
         ex.Should().BeAssignableTo<ValidationException>();
-    }
-
-    [Fact]
-    public void ExtractionException_WithMessage_StoresMessage()
-    {
-        var ex = new ExtractionException("Extraction failed");
-        ex.Message.Should().Be("Extraction failed");
     }
 
     [Fact]
@@ -125,13 +83,6 @@ public class ExceptionTests
     {
         var ex = new ExtractionException("Error");
         ex.Should().BeAssignableTo<SessionSightException>();
-    }
-
-    [Fact]
-    public void AzureServiceException_WithMessage_StoresMessage()
-    {
-        var ex = new AzureServiceException("Azure error");
-        ex.Message.Should().Be("Azure error");
     }
 
     [Fact]

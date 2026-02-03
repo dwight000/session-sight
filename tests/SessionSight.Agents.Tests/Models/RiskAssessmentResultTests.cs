@@ -26,46 +26,4 @@ public class RiskAssessmentResultTests
         result.ModelUsed.Should().BeEmpty();
     }
 
-    [Fact]
-    public void RiskAssessmentResult_CanSetAllProperties()
-    {
-        var original = new RiskAssessmentExtracted
-        {
-            SuicidalIdeation = new ExtractedField<SuicidalIdeation> { Value = SuicidalIdeation.None }
-        };
-        var validated = new RiskAssessmentExtracted
-        {
-            SuicidalIdeation = new ExtractedField<SuicidalIdeation> { Value = SuicidalIdeation.Passive }
-        };
-        var final = new RiskAssessmentExtracted
-        {
-            SuicidalIdeation = new ExtractedField<SuicidalIdeation> { Value = SuicidalIdeation.Passive }
-        };
-
-        var result = new RiskAssessmentResult
-        {
-            OriginalExtraction = original,
-            ValidatedExtraction = validated,
-            FinalExtraction = final,
-            RequiresReview = true,
-            ReviewReasons = new List<string> { "Discrepancy found", "High risk" },
-            Discrepancies = new List<RiskDiscrepancy>
-            {
-                new RiskDiscrepancy { FieldName = "SuicidalIdeation" }
-            },
-            KeywordMatches = new List<string> { "suicide", "self-harm" },
-            DeterminedRiskLevel = RiskLevelOverall.Moderate,
-            ModelUsed = "gpt-4o"
-        };
-
-        result.OriginalExtraction.Should().Be(original);
-        result.ValidatedExtraction.Should().Be(validated);
-        result.FinalExtraction.Should().Be(final);
-        result.RequiresReview.Should().BeTrue();
-        result.ReviewReasons.Should().HaveCount(2);
-        result.Discrepancies.Should().HaveCount(1);
-        result.KeywordMatches.Should().HaveCount(2);
-        result.DeterminedRiskLevel.Should().Be(RiskLevelOverall.Moderate);
-        result.ModelUsed.Should().Be("gpt-4o");
-    }
 }

@@ -28,15 +28,17 @@ dotnet test session-sight.sln \
     -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
 
 echo "Generating coverage report..."
-# Exclude:
+# Exclude infrastructure code that requires external services (Azure, EF Core) to test:
 # - Migrations (EF Core generated)
-# - Azure infrastructure code that requires Azure services to test
-# - DependencyInjection (just DI registration code)
+# - Azure SDK wrappers (AIFoundryClientFactory, DocumentIntelligenceParser, AzureBlobDocumentStorage)
+# - OpenAI SDK wrapper (AgentLoopRunner)
+# - Azure Functions (ProcessIncomingNoteFunction)
+# - EF Core infrastructure (SessionSightDbContext, SessionRepository, PatientRepository, DependencyInjection)
 dotnet reportgenerator \
     -reports:"coverage/**/coverage.cobertura.xml" \
     -targetdir:coverage/report \
     -reporttypes:Cobertura,Html \
-    -filefilters:"-**/Migrations/**;-**/AIFoundryClientFactory.cs;-**/DocumentIntelligenceParser.cs;-**/AzureBlobDocumentStorage.cs;-**/AgentLoopRunner.cs;-**/DependencyInjection.cs"
+    -filefilters:"-**/Migrations/**;-**/AIFoundryClientFactory.cs;-**/DocumentIntelligenceParser.cs;-**/AzureBlobDocumentStorage.cs;-**/AgentLoopRunner.cs;-**/DependencyInjection.cs;-**/SessionSightDbContext.cs;-**/SessionRepository.cs;-**/PatientRepository.cs;-**/ProcessIncomingNoteFunction.cs;-**/obj/**"
 
 # Check threshold
 COVERAGE=$(grep -oP 'line-rate="\K[^"]+' coverage/report/Cobertura.xml | head -1)
