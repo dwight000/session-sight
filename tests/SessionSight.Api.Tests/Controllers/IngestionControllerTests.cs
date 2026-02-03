@@ -211,4 +211,82 @@ public class IngestionControllerTests
         capturedSession.Document.OriginalFileName.Should().Be("therapy-note.pdf");
         capturedSession.Document.ContentType.Should().Be("application/pdf");
     }
+
+    [Theory]
+    [InlineData("note.pdf", "application/pdf")]
+    [InlineData("note.PDF", "application/pdf")]
+    [InlineData("note.doc", "application/msword")]
+    [InlineData("note.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")]
+    [InlineData("note.txt", "text/plain")]
+    [InlineData("note.rtf", "application/rtf")]
+    [InlineData("note.xyz", "application/octet-stream")]
+    [InlineData("note", "application/octet-stream")]
+    public async Task ProcessNote_DifferentFileExtensions_SetsCorrectContentType(string fileName, string expectedContentType)
+    {
+        var patient = new Patient { Id = Guid.NewGuid(), ExternalId = "P12345" };
+        Session? capturedSession = null;
+
+        _mockPatientRepo.Setup(r => r.GetByExternalIdAsync("P12345"))
+            .ReturnsAsync(patient);
+        _mockSessionRepo.Setup(r => r.AddAsync(It.IsAny<Session>()))
+            .Callback<Session>(s => capturedSession = s)
+            .ReturnsAsync((Session s) => { s.Id = Guid.NewGuid(); return s; });
+
+        var request = new ProcessNoteRequest(
+            PatientId: "P12345",
+            BlobUri: $"https://storage/blob/{fileName}",
+            SessionDate: DateOnly.FromDateTime(DateTime.Today),
+            FileName: fileName
+        );
+
+        await _controller.ProcessNote(request, CancellationToken.None);
+
+        capturedSession.Should().NotBeNull();
+        capturedSession!.Document!.ContentType.Should().Be(expectedContentType);
+    }
+
+    [Fact]
+    public async Task ProcessNote_WhitespacePatientId_ReturnsBadRequest()
+    {
+        var request = new ProcessNoteRequest(
+            PatientId: "   ",
+            BlobUri: "https://storage/blob",
+            SessionDate: DateOnly.FromDateTime(DateTime.Today),
+            FileName: "note.pdf"
+        );
+
+        var result = await _controller.ProcessNote(request, CancellationToken.None);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task ProcessNote_WhitespaceBlobUri_ReturnsBadRequest()
+    {
+        var request = new ProcessNoteRequest(
+            PatientId: "P12345",
+            BlobUri: "   ",
+            SessionDate: DateOnly.FromDateTime(DateTime.Today),
+            FileName: "note.pdf"
+        );
+
+        var result = await _controller.ProcessNote(request, CancellationToken.None);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task ProcessNote_WhitespaceFileName_ReturnsBadRequest()
+    {
+        var request = new ProcessNoteRequest(
+            PatientId: "P12345",
+            BlobUri: "https://storage/blob",
+            SessionDate: DateOnly.FromDateTime(DateTime.Today),
+            FileName: "   "
+        );
+
+        var result = await _controller.ProcessNote(request, CancellationToken.None);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
 }

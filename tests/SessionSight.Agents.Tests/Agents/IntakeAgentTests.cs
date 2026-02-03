@@ -169,6 +169,144 @@ public class IntakeAgentTests
         prompt.Length.Should().BeLessThan(longContent.Length);
     }
 
+    [Fact]
+    public void ParseResponse_NullDocumentType_ReturnsEmptyString()
+    {
+        var json = """
+            {
+                "isValidTherapyNote": true,
+                "validationError": null,
+                "documentType": null,
+                "sessionDate": "2026-01-15",
+                "patientId": "P12345",
+                "therapistName": "Dr. Smith",
+                "language": null,
+                "estimatedWordCount": 500
+            }
+            """;
+        var document = CreateSampleDocument();
+
+        var result = IntakeAgent.ParseResponse(json, document, "gpt-4o-mini");
+
+        result.Metadata.DocumentType.Should().BeEmpty();
+        result.Metadata.Language.Should().Be("en"); // Default when null
+    }
+
+    [Fact]
+    public void ParseResponse_InvalidDateFormat_ReturnsNullDate()
+    {
+        var json = """
+            {
+                "isValidTherapyNote": true,
+                "validationError": null,
+                "documentType": "Session Note",
+                "sessionDate": "not-a-date",
+                "patientId": "P12345",
+                "therapistName": "Dr. Smith",
+                "language": "en",
+                "estimatedWordCount": 500
+            }
+            """;
+        var document = CreateSampleDocument();
+
+        var result = IntakeAgent.ParseResponse(json, document, "gpt-4o-mini");
+
+        result.Metadata.SessionDate.Should().BeNull();
+    }
+
+    [Fact]
+    public void ParseResponse_EmptyDateString_ReturnsNullDate()
+    {
+        var json = """
+            {
+                "isValidTherapyNote": true,
+                "validationError": null,
+                "documentType": "Session Note",
+                "sessionDate": "",
+                "patientId": "P12345",
+                "therapistName": "Dr. Smith",
+                "language": "en",
+                "estimatedWordCount": 500
+            }
+            """;
+        var document = CreateSampleDocument();
+
+        var result = IntakeAgent.ParseResponse(json, document, "gpt-4o-mini");
+
+        result.Metadata.SessionDate.Should().BeNull();
+    }
+
+    [Fact]
+    public void ParseResponse_WhitespaceOnlyDate_ReturnsNullDate()
+    {
+        var json = """
+            {
+                "isValidTherapyNote": true,
+                "validationError": null,
+                "documentType": "Session Note",
+                "sessionDate": "   ",
+                "patientId": "P12345",
+                "therapistName": "Dr. Smith",
+                "language": "en",
+                "estimatedWordCount": 500
+            }
+            """;
+        var document = CreateSampleDocument();
+
+        var result = IntakeAgent.ParseResponse(json, document, "gpt-4o-mini");
+
+        result.Metadata.SessionDate.Should().BeNull();
+    }
+
+    [Fact]
+    public void ParseResponse_VariousDateFormats_ParsesSuccessfully()
+    {
+        var formats = new[]
+        {
+            ("2026-01-15", new DateOnly(2026, 1, 15)),
+            ("2026/01/15", new DateOnly(2026, 1, 15)),
+            ("January 15, 2026", new DateOnly(2026, 1, 15))
+        };
+
+        foreach (var (dateStr, expected) in formats)
+        {
+            var json = $$"""
+                {
+                    "isValidTherapyNote": true,
+                    "validationError": null,
+                    "documentType": "Session Note",
+                    "sessionDate": "{{dateStr}}",
+                    "patientId": null,
+                    "therapistName": null,
+                    "language": "en",
+                    "estimatedWordCount": 100
+                }
+                """;
+            var document = CreateSampleDocument();
+
+            var result = IntakeAgent.ParseResponse(json, document, "gpt-4o-mini");
+
+            result.Metadata.SessionDate.Should().Be(expected, $"Failed to parse date format: {dateStr}");
+        }
+    }
+
+    [Fact]
+    public void ExtractJson_WithNoCodeBlock_ReturnsContent()
+    {
+        var input = """{"isValidTherapyNote": true}""";
+        var result = IntakeAgent.ExtractJson(input);
+        result.Should().Be("""{"isValidTherapyNote": true}""");
+    }
+
+    [Fact]
+    public void ExtractJson_WithIncompleteCodeBlock_ReturnsOriginal()
+    {
+        var input = "```json\n{\"isValidTherapyNote\": true}";
+        var result = IntakeAgent.ExtractJson(input);
+        // When no closing ```, should handle gracefully
+        result.Should().NotBeNullOrEmpty();
+    }
+
     private static ParsedDocument CreateSampleDocument()
     {
         return new ParsedDocument

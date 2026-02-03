@@ -354,4 +354,73 @@ public class ClinicalExtractorAgentTests
         result.Should().NotBeNull();
         result.SessionType.Value.Should().Be(default);
     }
+
+    [Fact]
+    public void ParseSectionResponse_ValidRiskAssessment_ParsesAllFields()
+    {
+        var json = """
+            {
+                "suicidalIdeation": {"value": "Passive", "confidence": 0.92, "source": {"text": "Patient reports passive thoughts", "section": "risk"}},
+                "selfHarm": {"value": "Historical", "confidence": 0.88, "source": null},
+                "homicidalIdeation": {"value": "None", "confidence": 0.95, "source": null},
+                "riskLevelOverall": {"value": "Moderate", "confidence": 0.85, "source": null}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<RiskAssessmentExtracted>("RiskAssessment", json);
+
+        result.Should().NotBeNull();
+        result.SuicidalIdeation.Value.Should().Be(SuicidalIdeation.Passive);
+        result.SuicidalIdeation.Confidence.Should().Be(0.92);
+        result.SelfHarm.Value.Should().Be(SelfHarm.Historical);
+        result.HomicidalIdeation.Value.Should().Be(HomicidalIdeation.None);
+        result.RiskLevelOverall.Value.Should().Be(RiskLevelOverall.Moderate);
+    }
+
+    [Fact]
+    public void ParseSectionResponse_BooleanField_ParsesCorrectly()
+    {
+        var json = """
+            {
+                "meansRestrictionDiscussed": {"value": true, "confidence": 0.90, "source": null}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<RiskAssessmentExtracted>("RiskAssessment", json);
+
+        result.Should().NotBeNull();
+        result.MeansRestrictionDiscussed.Value.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ParseSectionResponse_TimeField_ParsesCorrectly()
+    {
+        var json = """
+            {
+                "sessionStartTime": {"value": "14:30:00", "confidence": 0.90, "source": null},
+                "sessionEndTime": {"value": "15:20:00", "confidence": 0.85, "source": null}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<SessionInfoExtracted>("SessionInfo", json);
+
+        result.Should().NotBeNull();
+        result.SessionStartTime.Value.Should().Be(new TimeOnly(14, 30, 0));
+        result.SessionEndTime.Value.Should().Be(new TimeOnly(15, 20, 0));
+    }
+
+    [Fact]
+    public void ParseSectionResponse_ModalityEnum_ParsesCorrectly()
+    {
+        var json = """
+            {
+                "sessionModality": {"value": "TelehealthVideo", "confidence": 0.92, "source": null}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<SessionInfoExtracted>("SessionInfo", json);
+
+        result.Should().NotBeNull();
+        result.SessionModality.Value.Should().Be(SessionModality.TelehealthVideo);
+    }
 }

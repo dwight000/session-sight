@@ -87,8 +87,9 @@ jobs:
       - name: Test with coverage
         run: dotnet test session-sight.sln --no-build --configuration Release --collect:"XPlat Code Coverage" --results-directory ./coverage --filter "Category!=Functional" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover,cobertura
 
+      # Exclude: Migrations, Azure infrastructure code (requires Azure services), DI registration
       - name: Generate coverage report
-        run: dotnet reportgenerator -reports:"coverage/**/coverage.cobertura.xml" -targetdir:coverage/report -reporttypes:Cobertura -filefilters:"-**/Migrations/**"
+        run: dotnet reportgenerator -reports:"coverage/**/coverage.cobertura.xml" -targetdir:coverage/report -reporttypes:Cobertura -filefilters:"-**/Migrations/**;-**/AIFoundryClientFactory.cs;-**/DocumentIntelligenceParser.cs;-**/AzureBlobDocumentStorage.cs;-**/AgentLoopRunner.cs;-**/DependencyInjection.cs"
 
       # Coverage threshold set 1% above SonarCloud (80%) to catch issues early
       - name: Check coverage threshold

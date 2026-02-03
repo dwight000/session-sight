@@ -326,4 +326,226 @@ public class RiskAssessorAgentTests
         disc.ResolvedValue.Should().Be("ActiveWithPlan"); // More severe
         disc.ResolutionReason.Should().Contain("Conservative merge");
     }
+
+    [Fact]
+    public void GetSeverityScore_HomicidalIdeation_ReturnsCorrectScores()
+    {
+        RiskAssessorAgent.GetSeverityScore("HomicidalIdeation", "None").Should().Be(0);
+        RiskAssessorAgent.GetSeverityScore("HomicidalIdeation", "Passive").Should().Be(1);
+        RiskAssessorAgent.GetSeverityScore("HomicidalIdeation", "ActiveNoPlan").Should().Be(2);
+        RiskAssessorAgent.GetSeverityScore("HomicidalIdeation", "ActiveWithPlan").Should().Be(3);
+    }
+
+    [Fact]
+    public void GetSeverityScore_UnknownFieldName_ReturnsZero()
+    {
+        RiskAssessorAgent.GetSeverityScore("UnknownField", "value").Should().Be(0);
+    }
+
+    [Fact]
+    public void GetSeverityScore_UnknownValue_ReturnsZero()
+    {
+        RiskAssessorAgent.GetSeverityScore("SuicidalIdeation", "UnknownValue").Should().Be(0);
+        RiskAssessorAgent.GetSeverityScore("SelfHarm", "UnknownValue").Should().Be(0);
+        RiskAssessorAgent.GetSeverityScore("HomicidalIdeation", "UnknownValue").Should().Be(0);
+        RiskAssessorAgent.GetSeverityScore("RiskLevelOverall", "UnknownValue").Should().Be(0);
+    }
+
+    [Fact]
+    public void ExtractJson_GenericCodeBlock_ExtractsContent()
+    {
+        var input = """
+            ```
+            {"suicidalIdeation": {"value": "None", "confidence": 0.95}}
+            ```
+            """;
+        var result = RiskAssessorAgent.ExtractJson(input);
+        result.Should().Be("""{"suicidalIdeation": {"value": "None", "confidence": 0.95}}""");
+    }
+
+    [Fact]
+    public void ExtractJson_PlainText_ReturnsAsIs()
+    {
+        var input = "plain text content";
+        var result = RiskAssessorAgent.ExtractJson(input);
+        result.Should().Be("plain text content");
+    }
+
+    [Fact]
+    public void ConservativeMerge_SiFrequency_MoreSevereWins()
+    {
+        var original = new RiskAssessmentExtracted
+        {
+            SuicidalIdeation = new ExtractedField<SuicidalIdeation> { Value = SuicidalIdeation.None, Confidence = 0.95 },
+            SelfHarm = new ExtractedField<SelfHarm> { Value = SelfHarm.None, Confidence = 0.95 },
+            HomicidalIdeation = new ExtractedField<HomicidalIdeation> { Value = HomicidalIdeation.None, Confidence = 0.95 },
+            RiskLevelOverall = new ExtractedField<RiskLevelOverall> { Value = RiskLevelOverall.Low, Confidence = 0.95 },
+            SiFrequency = new ExtractedField<SiFrequency> { Value = SiFrequency.Rare, Confidence = 0.90 }
+        };
+        var reExtracted = new RiskAssessmentExtracted
+        {
+            SuicidalIdeation = new ExtractedField<SuicidalIdeation> { Value = SuicidalIdeation.None, Confidence = 0.93 },
+            SelfHarm = new ExtractedField<SelfHarm> { Value = SelfHarm.None, Confidence = 0.93 },
+            HomicidalIdeation = new ExtractedField<HomicidalIdeation> { Value = HomicidalIdeation.None, Confidence = 0.93 },
+            RiskLevelOverall = new ExtractedField<RiskLevelOverall> { Value = RiskLevelOverall.Low, Confidence = 0.93 },
+            SiFrequency = new ExtractedField<SiFrequency> { Value = SiFrequency.Frequent, Confidence = 0.88 }
+        };
+
+        var merged = RiskAssessorAgent.ConservativeMerge(original, reExtracted);
+
+        merged.SiFrequency.Value.Should().Be(SiFrequency.Frequent);
+    }
+
+    [Fact]
+    public void ConservativeMerge_SiIntensity_MoreSevereWins()
+    {
+        var original = new RiskAssessmentExtracted
+        {
+            SuicidalIdeation = new ExtractedField<SuicidalIdeation> { Value = SuicidalIdeation.None, Confidence = 0.95 },
+            SelfHarm = new ExtractedField<SelfHarm> { Value = SelfHarm.None, Confidence = 0.95 },
+            HomicidalIdeation = new ExtractedField<HomicidalIdeation> { Value = HomicidalIdeation.None, Confidence = 0.95 },
+            RiskLevelOverall = new ExtractedField<RiskLevelOverall> { Value = RiskLevelOverall.Low, Confidence = 0.95 },
+            SiIntensity = new ExtractedField<SiIntensity> { Value = SiIntensity.Mild, Confidence = 0.90 }
+        };
+        var reExtracted = new RiskAssessmentExtracted
+        {
+            SuicidalIdeation = new ExtractedField<SuicidalIdeation> { Value = SuicidalIdeation.None, Confidence = 0.93 },
+            SelfHarm = new ExtractedField<SelfHarm> { Value = SelfHarm.None, Confidence = 0.93 },
+            HomicidalIdeation = new ExtractedField<HomicidalIdeation> { Value = HomicidalIdeation.None, Confidence = 0.93 },
+            RiskLevelOverall = new ExtractedField<RiskLevelOverall> { Value = RiskLevelOverall.Low, Confidence = 0.93 },
+            SiIntensity = new ExtractedField<SiIntensity> { Value = SiIntensity.Severe, Confidence = 0.88 }
+        };
+
+        var merged = RiskAssessorAgent.ConservativeMerge(original, reExtracted);
+
+        merged.SiIntensity.Value.Should().Be(SiIntensity.Severe);
+    }
+
+    [Fact]
+    public void ConservativeMerge_StringFields_PreferNonNull()
+    {
+        var original = new RiskAssessmentExtracted
+        {
+            SuicidalIdeation = new ExtractedField<SuicidalIdeation> { Value = SuicidalIdeation.None, Confidence = 0.95 },
+            SelfHarm = new ExtractedField<SelfHarm> { Value = SelfHarm.None, Confidence = 0.95 },
+            HomicidalIdeation = new ExtractedField<HomicidalIdeation> { Value = HomicidalIdeation.None, Confidence = 0.95 },
+            RiskLevelOverall = new ExtractedField<RiskLevelOverall> { Value = RiskLevelOverall.Low, Confidence = 0.95 },
+            ShRecency = new ExtractedField<string> { Value = "3 months ago", Confidence = 0.85 }
+        };
+        var reExtracted = new RiskAssessmentExtracted
+        {
+            SuicidalIdeation = new ExtractedField<SuicidalIdeation> { Value = SuicidalIdeation.None, Confidence = 0.93 },
+            SelfHarm = new ExtractedField<SelfHarm> { Value = SelfHarm.None, Confidence = 0.93 },
+            HomicidalIdeation = new ExtractedField<HomicidalIdeation> { Value = HomicidalIdeation.None, Confidence = 0.93 },
+            RiskLevelOverall = new ExtractedField<RiskLevelOverall> { Value = RiskLevelOverall.Low, Confidence = 0.93 },
+            ShRecency = new ExtractedField<string> { Value = null, Confidence = 0 }
+        };
+
+        var merged = RiskAssessorAgent.ConservativeMerge(original, reExtracted);
+
+        merged.ShRecency.Value.Should().Be("3 months ago");
+    }
+
+    [Fact]
+    public void ConservativeMerge_HomicidalTarget_PreferNonNull()
+    {
+        var original = new RiskAssessmentExtracted
+        {
+            SuicidalIdeation = new ExtractedField<SuicidalIdeation> { Value = SuicidalIdeation.None, Confidence = 0.95 },
+            SelfHarm = new ExtractedField<SelfHarm> { Value = SelfHarm.None, Confidence = 0.95 },
+            HomicidalIdeation = new ExtractedField<HomicidalIdeation> { Value = HomicidalIdeation.None, Confidence = 0.95 },
+            RiskLevelOverall = new ExtractedField<RiskLevelOverall> { Value = RiskLevelOverall.Low, Confidence = 0.95 },
+            HiTarget = new ExtractedField<string> { Value = null, Confidence = 0 }
+        };
+        var reExtracted = new RiskAssessmentExtracted
+        {
+            SuicidalIdeation = new ExtractedField<SuicidalIdeation> { Value = SuicidalIdeation.None, Confidence = 0.93 },
+            SelfHarm = new ExtractedField<SelfHarm> { Value = SelfHarm.None, Confidence = 0.93 },
+            HomicidalIdeation = new ExtractedField<HomicidalIdeation> { Value = HomicidalIdeation.None, Confidence = 0.93 },
+            RiskLevelOverall = new ExtractedField<RiskLevelOverall> { Value = RiskLevelOverall.Low, Confidence = 0.93 },
+            HiTarget = new ExtractedField<string> { Value = "coworker", Confidence = 0.80 }
+        };
+
+        var merged = RiskAssessorAgent.ConservativeMerge(original, reExtracted);
+
+        merged.HiTarget.Value.Should().Be("coworker");
+    }
+
+    [Fact]
+    public void ConservativeMerge_SafetyPlanStatus_PrefersHigherConfidence()
+    {
+        var original = new RiskAssessmentExtracted
+        {
+            SuicidalIdeation = new ExtractedField<SuicidalIdeation> { Value = SuicidalIdeation.None, Confidence = 0.95 },
+            SelfHarm = new ExtractedField<SelfHarm> { Value = SelfHarm.None, Confidence = 0.95 },
+            HomicidalIdeation = new ExtractedField<HomicidalIdeation> { Value = HomicidalIdeation.None, Confidence = 0.95 },
+            RiskLevelOverall = new ExtractedField<RiskLevelOverall> { Value = RiskLevelOverall.Low, Confidence = 0.95 },
+            SafetyPlanStatus = new ExtractedField<SafetyPlanStatus> { Value = SafetyPlanStatus.NotNeeded, Confidence = 0.80 }
+        };
+        var reExtracted = new RiskAssessmentExtracted
+        {
+            SuicidalIdeation = new ExtractedField<SuicidalIdeation> { Value = SuicidalIdeation.None, Confidence = 0.93 },
+            SelfHarm = new ExtractedField<SelfHarm> { Value = SelfHarm.None, Confidence = 0.93 },
+            HomicidalIdeation = new ExtractedField<HomicidalIdeation> { Value = HomicidalIdeation.None, Confidence = 0.93 },
+            RiskLevelOverall = new ExtractedField<RiskLevelOverall> { Value = RiskLevelOverall.Low, Confidence = 0.93 },
+            SafetyPlanStatus = new ExtractedField<SafetyPlanStatus> { Value = SafetyPlanStatus.InPlace, Confidence = 0.90 }
+        };
+
+        var merged = RiskAssessorAgent.ConservativeMerge(original, reExtracted);
+
+        merged.SafetyPlanStatus.Value.Should().Be(SafetyPlanStatus.InPlace);
+    }
+
+    [Fact]
+    public void ParseRiskResponse_WithSourceMapping_ParsesCorrectly()
+    {
+        var json = """
+            {
+                "suicidalIdeation": {
+                    "value": "Passive",
+                    "confidence": 0.92,
+                    "source": {
+                        "text": "Patient says they wish they wouldn't wake up",
+                        "startChar": 100,
+                        "endChar": 150,
+                        "section": "risk assessment"
+                    }
+                }
+            }
+            """;
+
+        var result = RiskAssessorAgent.ParseRiskResponse(json);
+
+        result.Should().NotBeNull();
+        result!.SuicidalIdeation.Value.Should().Be(SuicidalIdeation.Passive);
+        result.SuicidalIdeation.Confidence.Should().Be(0.92);
+        result.SuicidalIdeation.Source.Should().NotBeNull();
+        result.SuicidalIdeation.Source!.Text.Should().Contain("Patient says");
+        result.SuicidalIdeation.Source.Section.Should().Be("risk assessment");
+    }
+
+    [Fact]
+    public void ParseRiskResponse_BoolField_ParsesCorrectly()
+    {
+        var json = """
+            {
+                "meansRestrictionDiscussed": {"value": true, "confidence": 0.90}
+            }
+            """;
+
+        var result = RiskAssessorAgent.ParseRiskResponse(json);
+
+        result.Should().NotBeNull();
+        result!.MeansRestrictionDiscussed.Value.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ParseRiskResponse_EmptyJson_ReturnsEmptyExtraction()
+    {
+        var json = "{}";
+
+        var result = RiskAssessorAgent.ParseRiskResponse(json);
+
+        result.Should().NotBeNull();
+    }
 }
