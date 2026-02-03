@@ -13,4 +13,9 @@ public class ExtractionResult
     public bool RequiresReview { get; set; }
     public DateTime ExtractedAt { get; set; }
     public ClinicalExtraction Data { get; set; } = new();
+
+    /// <summary>
+    /// Session summary stored as JSON string.
+    /// </summary>
+    public string? SummaryJson { get; set; }
 }

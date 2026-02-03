@@ -39,6 +39,7 @@ builder.Services.AddSingleton<IModelRouter, ModelRouter>();
 builder.Services.AddScoped<IIntakeAgent, IntakeAgent>();
 builder.Services.AddScoped<IClinicalExtractorAgent, ClinicalExtractorAgent>();
 builder.Services.AddScoped<IRiskAssessorAgent, RiskAssessorAgent>();
+builder.Services.AddScoped<ISummarizerAgent, SummarizerAgent>();
 builder.Services.AddSingleton<ISchemaValidator, SchemaValidator>();
 
 // Agent tools (existing from P2-006a)

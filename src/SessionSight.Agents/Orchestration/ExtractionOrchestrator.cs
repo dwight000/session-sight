@@ -1,6 +1,8 @@
 using System.Diagnostics;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using SessionSight.Agents.Agents;
+using SessionSight.Agents.Models;
 using SessionSight.Agents.Services;
 using SessionSight.Core.Entities;
 using SessionSight.Core.Enums;
@@ -18,15 +20,22 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
     private readonly IIntakeAgent _intakeAgent;
     private readonly IClinicalExtractorAgent _extractorAgent;
     private readonly IRiskAssessorAgent _riskAssessor;
+    private readonly ISummarizerAgent _summarizer;
     private readonly ISessionRepository _sessionRepository;
     private readonly IDocumentStorage _documentStorage;
     private readonly ILogger<ExtractionOrchestrator> _logger;
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
 
     public ExtractionOrchestrator(
         IDocumentParser documentParser,
         IIntakeAgent intakeAgent,
         IClinicalExtractorAgent extractorAgent,
         IRiskAssessorAgent riskAssessor,
+        ISummarizerAgent summarizer,
         ISessionRepository sessionRepository,
         IDocumentStorage documentStorage,
         ILogger<ExtractionOrchestrator> logger)
@@ -35,6 +44,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         _intakeAgent = intakeAgent;
         _extractorAgent = extractorAgent;
         _riskAssessor = riskAssessor;
+        _summarizer = summarizer;
         _sessionRepository = sessionRepository;
         _documentStorage = documentStorage;
         _logger = logger;
@@ -126,8 +136,22 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             // Replace the risk assessment section with the final validated version
             extractionResult.Data.RiskAssessment = riskResult.FinalExtraction;
 
+            // Step 5.5: Generate session summary
+            LogRunningSummarizer(_logger);
+            SessionSummary? sessionSummary = null;
+            try
+            {
+                sessionSummary = await _summarizer.SummarizeSessionAsync(extractionResult, ct);
+                modelsUsed.Add(sessionSummary.ModelUsed);
+            }
+            catch (Exception ex)
+            {
+                LogSummarizerError(_logger, ex, sessionId);
+                // Summary generation failure is non-fatal - continue with extraction save
+            }
+
             // Step 6: Save to database
-            var savedExtraction = await SaveExtractionAsync(session, extractionResult, modelsUsed);
+            var savedExtraction = await SaveExtractionAsync(session, extractionResult, modelsUsed, sessionSummary);
 
             // Update document status to Completed
             await _sessionRepository.UpdateDocumentStatusAsync(
@@ -173,13 +197,14 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         }
     }
 
-    private async Task<ExtractionResult> SaveExtractionAsync(
+    private async Task<SessionSight.Core.Entities.ExtractionResult> SaveExtractionAsync(
         Session session,
         AgentExtractionResult agentResult,
-        List<string> modelsUsed)
+        List<string> modelsUsed,
+        SessionSummary? sessionSummary)
     {
         // Convert agent result to entity
-        var entity = new ExtractionResult
+        var entity = new SessionSight.Core.Entities.ExtractionResult
         {
             Id = Guid.NewGuid(),
             SessionId = session.Id,
@@ -188,7 +213,10 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             OverallConfidence = agentResult.OverallConfidence,
             RequiresReview = agentResult.RequiresReview,
             ExtractedAt = DateTime.UtcNow,
-            Data = agentResult.Data
+            Data = agentResult.Data,
+            SummaryJson = sessionSummary != null
+                ? JsonSerializer.Serialize(sessionSummary, JsonOptions)
+                : null
         };
 
         // Direct insert avoids Session RowVersion concurrency issues
@@ -217,6 +245,12 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Running Risk Assessor Agent")]
     private static partial void LogRunningRiskAssessor(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Running Summarizer Agent")]
+    private static partial void LogRunningSummarizer(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Summarizer Agent failed for session {SessionId}, continuing without summary")]
+    private static partial void LogSummarizerError(ILogger logger, Exception exception, Guid sessionId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Extraction completed for session {SessionId} in {Elapsed}ms. RequiresReview: {RequiresReview}")]
     private static partial void LogExtractionCompleted(ILogger logger, Guid sessionId, long elapsed, bool requiresReview);

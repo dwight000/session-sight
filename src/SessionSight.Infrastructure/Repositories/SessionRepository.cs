@@ -98,4 +98,61 @@ public class SessionRepository : ISessionRepository
         _context.Extractions.Add(extraction);
         await _context.SaveChangesAsync();
     }
+
+    public async Task<IEnumerable<Session>> GetByPatientIdInDateRangeAsync(Guid patientId, DateOnly? startDate, DateOnly? endDate)
+    {
+        var query = _context.Sessions
+            .Include(s => s.Document)
+            .Include(s => s.Extraction)
+            .Include(s => s.Patient)
+            .Where(s => s.PatientId == patientId);
+
+        if (startDate.HasValue)
+        {
+            query = query.Where(s => s.SessionDate >= startDate.Value);
+        }
+
+        if (endDate.HasValue)
+        {
+            query = query.Where(s => s.SessionDate <= endDate.Value);
+        }
+
+        return await query
+            .OrderByDescending(s => s.SessionDate)
+            .AsNoTracking()
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Session>> GetAllInDateRangeAsync(DateOnly startDate, DateOnly endDate)
+        => await _context.Sessions
+            .Include(s => s.Document)
+            .Include(s => s.Extraction)
+            .Include(s => s.Patient)
+            .Where(s => s.SessionDate >= startDate && s.SessionDate <= endDate)
+            .OrderByDescending(s => s.SessionDate)
+            .AsNoTracking()
+            .ToListAsync();
+
+    public async Task<IEnumerable<Session>> GetFlaggedSessionsAsync(DateOnly startDate, DateOnly endDate)
+        => await _context.Sessions
+            .Include(s => s.Document)
+            .Include(s => s.Extraction)
+            .Include(s => s.Patient)
+            .Where(s => s.SessionDate >= startDate && s.SessionDate <= endDate)
+            .Where(s => s.Extraction != null && s.Extraction.RequiresReview)
+            .OrderByDescending(s => s.SessionDate)
+            .AsNoTracking()
+            .ToListAsync();
+
+    public async Task UpdateExtractionSummaryAsync(Guid extractionId, string summaryJson)
+    {
+        var extraction = await _context.Extractions.FindAsync(extractionId);
+        if (extraction is null)
+        {
+            throw new InvalidOperationException($"Extraction {extractionId} not found");
+        }
+
+        extraction.SummaryJson = summaryJson;
+        await _context.SaveChangesAsync();
+    }
 }

@@ -10,6 +10,7 @@ using SessionSight.Core.Enums;
 using SessionSight.Core.Interfaces;
 using SessionSight.Core.Schema;
 using AgentModels = SessionSight.Agents.Models;
+using AgentExtractionResult = SessionSight.Agents.Models.ExtractionResult;
 using CoreEntities = SessionSight.Core.Entities;
 
 namespace SessionSight.Agents.Tests.Orchestration;
@@ -20,6 +21,7 @@ public class ExtractionOrchestratorTests
     private readonly IIntakeAgent _intakeAgent;
     private readonly IClinicalExtractorAgent _extractorAgent;
     private readonly IRiskAssessorAgent _riskAssessor;
+    private readonly ISummarizerAgent _summarizer;
     private readonly ISessionRepository _sessionRepository;
     private readonly IDocumentStorage _documentStorage;
     private readonly ILogger<ExtractionOrchestrator> _logger;
@@ -31,15 +33,21 @@ public class ExtractionOrchestratorTests
         _intakeAgent = Substitute.For<IIntakeAgent>();
         _extractorAgent = Substitute.For<IClinicalExtractorAgent>();
         _riskAssessor = Substitute.For<IRiskAssessorAgent>();
+        _summarizer = Substitute.For<ISummarizerAgent>();
         _sessionRepository = Substitute.For<ISessionRepository>();
         _documentStorage = Substitute.For<IDocumentStorage>();
         _logger = Substitute.For<ILogger<ExtractionOrchestrator>>();
+
+        // Default: summarizer returns a valid summary
+        _summarizer.SummarizeSessionAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<CancellationToken>())
+            .Returns(new SessionSummary { OneLiner = "Test summary", ModelUsed = "gpt-4o-mini" });
 
         _orchestrator = new ExtractionOrchestrator(
             _documentParser,
             _intakeAgent,
             _extractorAgent,
             _riskAssessor,
+            _summarizer,
             _sessionRepository,
             _documentStorage,
             _logger);
