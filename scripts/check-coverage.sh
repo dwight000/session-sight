@@ -12,10 +12,9 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-# Coverage threshold: 81% (1% above SonarCloud's 80% requirement)
-# Current coverage ~80% after excluding Azure infrastructure code
-THRESHOLD=0.81
-THRESHOLD_PERCENT=81
+# Coverage threshold: 83% (3% above SonarCloud's 80% requirement for buffer)
+THRESHOLD=0.83
+THRESHOLD_PERCENT=83
 
 cd "$PROJECT_ROOT"
 

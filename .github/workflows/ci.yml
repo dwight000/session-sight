@@ -92,14 +92,14 @@ jobs:
       - name: Generate coverage report
         run: dotnet reportgenerator -reports:"coverage/**/coverage.cobertura.xml" -targetdir:coverage/report -reporttypes:Cobertura -filefilters:"-**/Migrations/**;-**/AIFoundryClientFactory.cs;-**/DocumentIntelligenceParser.cs;-**/AzureBlobDocumentStorage.cs;-**/AgentLoopRunner.cs;-**/DependencyInjection.cs;-**/SessionSightDbContext.cs;-**/SessionRepository.cs;-**/PatientRepository.cs;-**/ProcessIncomingNoteFunction.cs;-**/obj/**"
 
-      # Coverage threshold set 1% above SonarCloud (80%) to catch issues early
+      # Coverage threshold set 3% above SonarCloud (80%) to catch issues early
       - name: Check coverage threshold
         run: |
           COVERAGE=$(grep -oP 'line-rate="\K[^"]+' coverage/report/Cobertura.xml | head -1)
           PERCENT=$(echo "$COVERAGE * 100" | bc)
           echo "Coverage: $PERCENT%"
-          if (( $(echo "$COVERAGE < 0.81" | bc -l) )); then
-            echo "::error::Coverage $PERCENT% is below 81% threshold (SonarCloud requires 80%)"
+          if (( $(echo "$COVERAGE < 0.83" | bc -l) )); then
+            echo "::error::Coverage $PERCENT% is below 83% threshold (SonarCloud requires 80%)"
             exit 1
           fi
 
