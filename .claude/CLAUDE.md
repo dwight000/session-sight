@@ -1,5 +1,18 @@
 # SessionSight Project Guide
 
+## Before Pushing Code
+
+**REQUIRED before `git push`:**
+```bash
+# 1. Check coverage threshold (83%) - MUST PASS
+./scripts/check-coverage.sh
+
+# 2. Run E2E tests - MUST PASS
+./scripts/run-e2e.sh
+```
+
+If coverage fails, add more unit tests before pushing.
+
 ## Architecture Overview
 
 **Pipeline:** Document → IntakeAgent → ClinicalExtractorAgent → RiskAssessorAgent → Database
