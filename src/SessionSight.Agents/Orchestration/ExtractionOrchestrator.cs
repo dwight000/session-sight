@@ -127,7 +127,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             extractionResult.Data.RiskAssessment = riskResult.FinalExtraction;
 
             // Step 6: Save to database
-            var savedExtraction = await SaveExtractionAsync(session, extractionResult, modelsUsed, ct);
+            var savedExtraction = await SaveExtractionAsync(session, extractionResult, modelsUsed);
 
             // Update document status to Completed
             await _sessionRepository.UpdateDocumentStatusAsync(
@@ -176,8 +176,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
     private async Task<ExtractionResult> SaveExtractionAsync(
         Session session,
         AgentExtractionResult agentResult,
-        List<string> modelsUsed,
-        CancellationToken _)
+        List<string> modelsUsed)
     {
         // Convert agent result to entity
         var entity = new ExtractionResult

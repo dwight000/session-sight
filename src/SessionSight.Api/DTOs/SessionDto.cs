@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using SessionSight.Core.Enums;
 
 namespace SessionSight.Api.DTOs;
@@ -15,18 +16,18 @@ public record SessionDto(
     DateTime UpdatedAt);
 
 public record CreateSessionRequest(
-    Guid PatientId,
-    Guid TherapistId,
-    DateOnly SessionDate,
-    SessionType SessionType,
-    SessionModality Modality,
+    [property: JsonRequired] Guid PatientId,
+    [property: JsonRequired] Guid TherapistId,
+    [property: JsonRequired] DateOnly SessionDate,
+    [property: JsonRequired] SessionType SessionType,
+    [property: JsonRequired] SessionModality Modality,
     int? DurationMinutes,
-    int SessionNumber);
+    [property: JsonRequired] int SessionNumber);
 
 public record UpdateSessionRequest(
-    Guid TherapistId,
-    DateOnly SessionDate,
-    SessionType SessionType,
-    SessionModality Modality,
+    [property: JsonRequired] Guid TherapistId,
+    [property: JsonRequired] DateOnly SessionDate,
+    [property: JsonRequired] SessionType SessionType,
+    [property: JsonRequired] SessionModality Modality,
     int? DurationMinutes,
-    int SessionNumber);
+    [property: JsonRequired] int SessionNumber);

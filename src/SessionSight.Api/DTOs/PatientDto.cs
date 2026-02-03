@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace SessionSight.Api.DTOs;
 
 public record PatientDto(
@@ -13,10 +15,10 @@ public record CreatePatientRequest(
     string ExternalId,
     string FirstName,
     string LastName,
-    DateOnly DateOfBirth);
+    [property: JsonRequired] DateOnly DateOfBirth);
 
 public record UpdatePatientRequest(
     string ExternalId,
     string FirstName,
     string LastName,
-    DateOnly DateOfBirth);
+    [property: JsonRequired] DateOnly DateOfBirth);

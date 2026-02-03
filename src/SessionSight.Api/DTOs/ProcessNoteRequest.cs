@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace SessionSight.Api.DTOs;
 
 /// <summary>
@@ -18,7 +20,7 @@ public record ProcessNoteRequest(
     /// <summary>
     /// Date of the therapy session.
     /// </summary>
-    DateOnly SessionDate,
+    [property: JsonRequired] DateOnly SessionDate,
 
     /// <summary>
     /// Original filename.

@@ -195,7 +195,7 @@ public partial class DocumentIntelligenceParser : IDocumentParser
                 }
 
                 // Start new section
-                var pageNumber = GetPageNumber(paragraph, result);
+                var pageNumber = GetPageNumber(paragraph);
                 currentSection = new Models.DocumentSection
                 {
                     Heading = paragraph.Content,
@@ -210,7 +210,7 @@ public partial class DocumentIntelligenceParser : IDocumentParser
                 // Add content to current section
                 if (currentSection is null)
                 {
-                    var pageNumber = GetPageNumber(paragraph, result);
+                    var pageNumber = GetPageNumber(paragraph);
                     currentSection = new Models.DocumentSection
                     {
                         Heading = null,
@@ -220,7 +220,7 @@ public partial class DocumentIntelligenceParser : IDocumentParser
                 }
 
                 currentContent.AppendLine(paragraph.Content);
-                currentSection.EndPage = GetPageNumber(paragraph, result);
+                currentSection.EndPage = GetPageNumber(paragraph);
             }
         }
 
@@ -234,7 +234,7 @@ public partial class DocumentIntelligenceParser : IDocumentParser
         return sections;
     }
 
-    private static int GetPageNumber(DocumentParagraph paragraph, AnalyzeResult _)
+    private static int GetPageNumber(DocumentParagraph paragraph)
     {
         if (paragraph.BoundingRegions is null || paragraph.BoundingRegions.Count == 0)
         {

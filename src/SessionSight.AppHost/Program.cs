@@ -22,15 +22,9 @@ _ = storage.AddBlobs("processing");
 _ = storage.AddBlobs("processed");
 _ = storage.AddBlobs("failed");
 
-// Azure-only resources (require Azure subscription — uncomment when deploying)
-// var insights = builder.AddAzureApplicationInsights("insights");
-// var keyVault = builder.AddAzureKeyVault("secrets");
-
 // API project
 builder.AddProject<Projects.SessionSight_Api>("api")
     .WithReference(db).WaitFor(db)
     .WithReference(blobs);
-// .WithReference(insights)
-// .WithReference(keyVault);
 
-builder.Build().Run();
+await builder.Build().RunAsync();

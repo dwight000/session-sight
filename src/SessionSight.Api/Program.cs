@@ -115,7 +115,9 @@ app.UseHttpsRedirection();
 app.MapControllers();
 app.MapDefaultEndpoints();
 
-app.Run();
+await app.RunAsync();
 
 // Make the implicit Program class public for WebApplicationFactory integration tests
+#pragma warning disable S1118 // Utility classes should not have public constructors
 public partial class Program { }
+#pragma warning restore S1118
