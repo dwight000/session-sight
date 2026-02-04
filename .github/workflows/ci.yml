@@ -131,9 +131,9 @@ jobs:
           sleep 5
 
           # Query SonarCloud API for BLOCKER, CRITICAL, and MAJOR (High) issues
-          # Exclusions: S6975 (Bicep ordering), S125 (commented code)
+          # Exclusions: S6975 (Bicep ordering), S125 (commented code), S7684 (.NET config env vars)
           RESPONSE=$(curl -s -u "${SONAR_TOKEN}:" \
-            "https://sonarcloud.io/api/issues/search?componentKeys=dwight000_session-sight&severities=BLOCKER,CRITICAL,MAJOR&statuses=OPEN,CONFIRMED,REOPENED&ps=100")
+            "https://sonarcloud.io/api/issues/search?componentKeys=dwight000_session-sight&severities=BLOCKER,CRITICAL,MAJOR&statuses=OPEN,CONFIRMED,REOPENED&ps=100&rules=!shelldre:S7684")
 
           COUNT=$(echo "$RESPONSE" | jq '.total')
           echo "Found $COUNT high severity issues (BLOCKER/CRITICAL/MAJOR)"

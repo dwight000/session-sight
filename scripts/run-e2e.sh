@@ -210,6 +210,7 @@ cd "$PROJECT_ROOT"
 export API_BASE_URL="https://localhost:$API_PORT"
 
 # Read search endpoint from user secrets (same source as AppHost)
+# Uses .NET config format (AzureSearch__Endpoint) for test process to match API config
 SEARCH_ENDPOINT=$(dotnet user-secrets list --project "$APPHOST_DIR" 2>/dev/null | grep "search-endpoint" | cut -d'=' -f2 | tr -d ' ')
 if [[ -n "$SEARCH_ENDPOINT" ]]; then
     export AzureSearch__Endpoint="$SEARCH_ENDPOINT"
