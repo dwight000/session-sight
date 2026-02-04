@@ -20,6 +20,7 @@
     <!-- Aspire Components (client-side) -->
     <PackageVersion Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" Version="9.2.1" />
     <PackageVersion Include="Aspire.Azure.Storage.Blobs" Version="9.2.1" />
+    <PackageVersion Include="Azure.Search.Documents" Version="11.7.0" />
     <!-- EF Core -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.4" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.4" />

@@ -16,6 +16,7 @@ using SessionSight.Agents.Validation;
 using SessionSight.Api.Middleware;
 using SessionSight.Api.Validators;
 using SessionSight.Infrastructure;
+using SessionSight.Infrastructure.Search;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -82,6 +83,12 @@ builder.Services.AddSingleton(sp =>
 });
 
 builder.Services.AddScoped<IDocumentParser, DocumentIntelligenceParser>();
+
+// Azure AI Search
+builder.Services.Configure<SearchOptions>(
+    builder.Configuration.GetSection(SearchOptions.SectionName));
+builder.Services.AddSingleton<ISearchIndexService, SearchIndexService>();
+builder.Services.AddHostedService<SearchIndexInitializer>();
 
 // Extraction Orchestrator
 builder.Services.AddScoped<IExtractionOrchestrator, ExtractionOrchestrator>();
