@@ -46,11 +46,27 @@ cd src/SessionSight.Api
 dotnet user-secrets set "DocumentIntelligence:Endpoint" "https://sessionsight-docint-dev.cognitiveservices.azure.com/"
 dotnet user-secrets set "AIFoundry:ProjectEndpoint" "https://eastus2.api.azureml.ms/agents/v1.0/subscriptions/<sub-id>/resourceGroups/rg-sessionsight-dev/providers/Microsoft.MachineLearningServices/workspaces/sessionsight-aiproject-dev"
 dotnet user-secrets set "AzureOpenAI:Endpoint" "https://sessionsight-openai-dev.openai.azure.com/"
+dotnet user-secrets set "AzureSearch:Endpoint" "https://sessionsight-search-dev.search.windows.net"
 ```
 
 Replace `<sub-id>` with your Azure subscription ID.
 
 **Why AzureOpenAI:Endpoint?** The AI Foundry SDK's `GetChatCompletionsClient()` only discovers Serverless connections, but we deploy Azure OpenAI as a Cognitive Services resource (AzureOpenAI connection). The code calls Azure OpenAI directly to work around this SDK limitation.
+
+**AzureSearch:Endpoint** enables the embedding pipeline (P3-003) for semantic search. Without it, session indexing is skipped but extraction still works.
+
+**Note:** For Azure Search to work with `DefaultAzureCredential`, your user needs the **Search Index Data Contributor** role. Deploy with your user object ID:
+
+```bash
+# Get your user object ID
+USER_ID=$(az ad signed-in-user show --query id -o tsv)
+
+# Deploy Bicep with developer role assignment
+az deployment sub create \
+  --location eastus2 \
+  --template-file infra/main.bicep \
+  --parameters environmentName=dev sqlAdminPassword=<password> developerUserObjectId=$USER_ID
+```
 
 ### 3. Start Aspire
 
@@ -273,3 +289,4 @@ dotnet run --project src/SessionSight.AppHost
 | SessionSight.Api | `DocumentIntelligence:Endpoint` | Azure Doc Intelligence URL |
 | SessionSight.Api | `AIFoundry:ProjectEndpoint` | Azure AI Project URL (for Agents) |
 | SessionSight.Api | `AzureOpenAI:Endpoint` | Azure OpenAI URL (for chat completions) |
+| SessionSight.Api | `AzureSearch:Endpoint` | Azure AI Search URL (for embedding/RAG) |

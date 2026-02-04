@@ -20,6 +20,9 @@ param sqlAdminPassword string
 @description('Object ID of the service principal for RBAC assignments')
 param servicePrincipalObjectId string = ''
 
+@description('Object ID of a developer user for local dev RBAC assignments (e.g., for DefaultAzureCredential)')
+param developerUserObjectId string = ''
+
 // === Variables ===
 
 var prefix = 'sessionsight'
@@ -201,6 +204,40 @@ module docIntelligenceRoleAssignment 'modules/docintell.bicep' = {
     cognitiveServicesUserPrincipalId: aiProject.outputs.principalId
   }
   dependsOn: [docIntelligence, aiProject]
+}
+
+// === Search Role Assignment for AI Project ===
+// Grant Search Index Data Contributor so the API can index session embeddings
+
+module searchRoleAssignment 'modules/search.bicep' = {
+  name: 'search-role-assignment-aiproject'
+  scope: resourceGroup(resourceGroupName)
+  params: {
+    name: '${prefix}-search-${environmentName}'
+    location: location
+    tags: tags
+    skuName: environmentName == 'prod' ? 'basic' : 'free'
+    searchIndexDataContributorPrincipalId: aiProject.outputs.principalId
+    searchIndexDataContributorPrincipalType: 'ServicePrincipal'
+  }
+  dependsOn: [search, aiProject]
+}
+
+// === Search Role Assignment for Developer ===
+// Grant Search Index Data Contributor for local dev with DefaultAzureCredential
+
+module searchRoleAssignmentDeveloper 'modules/search.bicep' = if (!empty(developerUserObjectId)) {
+  name: 'search-role-assignment-developer'
+  scope: resourceGroup(resourceGroupName)
+  params: {
+    name: '${prefix}-search-${environmentName}'
+    location: location
+    tags: tags
+    skuName: environmentName == 'prod' ? 'basic' : 'free'
+    searchIndexDataContributorPrincipalId: developerUserObjectId
+    searchIndexDataContributorPrincipalType: 'User'
+  }
+  dependsOn: [search]
 }
 
 // === Outputs ===

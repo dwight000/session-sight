@@ -209,6 +209,13 @@ log "Running functional tests..."
 cd "$PROJECT_ROOT"
 export API_BASE_URL="https://localhost:$API_PORT"
 
+# Read search endpoint from user secrets (same source as AppHost)
+SEARCH_ENDPOINT=$(dotnet user-secrets list --project "$APPHOST_DIR" 2>/dev/null | grep "search-endpoint" | cut -d'=' -f2 | tr -d ' ')
+if [[ -n "$SEARCH_ENDPOINT" ]]; then
+    export AzureSearch__Endpoint="$SEARCH_ENDPOINT"
+    log "Using search endpoint from user secrets"
+fi
+
 if [[ -n "$TEST_FILTER" ]]; then
     log "Filter: $TEST_FILTER"
     dotnet test tests/SessionSight.FunctionalTests --verbosity normal --filter "FullyQualifiedName~$TEST_FILTER"

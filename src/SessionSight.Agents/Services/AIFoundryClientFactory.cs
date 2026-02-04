@@ -2,12 +2,14 @@ using Azure.AI.OpenAI;
 using Azure.Identity;
 using Microsoft.Extensions.Configuration;
 using OpenAI.Chat;
+using OpenAI.Embeddings;
 
 namespace SessionSight.Agents.Services;
 
 public interface IAIFoundryClientFactory
 {
     ChatClient CreateChatClient(string deploymentName);
+    EmbeddingClient CreateEmbeddingClient(string deploymentName);
 }
 
 public class AIFoundryClientFactory : IAIFoundryClientFactory
@@ -32,5 +34,14 @@ public class AIFoundryClientFactory : IAIFoundryClientFactory
     public ChatClient CreateChatClient(string deploymentName)
     {
         return _openAIClient.GetChatClient(deploymentName);
+    }
+
+    /// <summary>
+    /// Creates an EmbeddingClient for the specified deployment.
+    /// Uses Azure OpenAI SDK for embedding generation.
+    /// </summary>
+    public EmbeddingClient CreateEmbeddingClient(string deploymentName)
+    {
+        return _openAIClient.GetEmbeddingClient(deploymentName);
     }
 }

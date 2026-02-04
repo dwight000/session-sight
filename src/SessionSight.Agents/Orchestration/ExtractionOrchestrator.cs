@@ -29,6 +29,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
     private readonly ExtractionAgents _agents;
     private readonly ISessionRepository _sessionRepository;
     private readonly IDocumentStorage _documentStorage;
+    private readonly ISessionIndexingService _sessionIndexingService;
     private readonly ILogger<ExtractionOrchestrator> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -41,12 +42,14 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         ExtractionAgents agents,
         ISessionRepository sessionRepository,
         IDocumentStorage documentStorage,
+        ISessionIndexingService sessionIndexingService,
         ILogger<ExtractionOrchestrator> logger)
     {
         _documentParser = documentParser;
         _agents = agents;
         _sessionRepository = sessionRepository;
         _documentStorage = documentStorage;
+        _sessionIndexingService = sessionIndexingService;
         _logger = logger;
     }
 
@@ -150,6 +153,19 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                 // Summary generation failure is non-fatal - continue with extraction save
             }
 
+            // Step 5.6: Index session for search (embedding + search index)
+            try
+            {
+                LogIndexingStarted(_logger, sessionId);
+                await _sessionIndexingService.IndexSessionAsync(session, extractionResult, sessionSummary, ct);
+                LogIndexingCompleted(_logger, sessionId);
+            }
+            catch (Exception ex)
+            {
+                LogIndexingError(_logger, ex, sessionId);
+                // Indexing failure is non-fatal - continue with extraction save
+            }
+
             // Step 6: Save to database
             var savedExtraction = await SaveExtractionAsync(session, extractionResult, modelsUsed, sessionSummary);
 
@@ -251,6 +267,15 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Summarizer Agent failed for session {SessionId}, continuing without summary")]
     private static partial void LogSummarizerError(ILogger logger, Exception exception, Guid sessionId);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Starting session indexing for session {SessionId}")]
+    private static partial void LogIndexingStarted(ILogger logger, Guid sessionId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Session indexing completed for session {SessionId}")]
+    private static partial void LogIndexingCompleted(ILogger logger, Guid sessionId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Session indexing failed for session {SessionId}, continuing without indexing")]
+    private static partial void LogIndexingError(ILogger logger, Exception exception, Guid sessionId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Extraction completed for session {SessionId} in {Elapsed}ms. RequiresReview: {RequiresReview}")]
     private static partial void LogExtractionCompleted(ILogger logger, Guid sessionId, long elapsed, bool requiresReview);

@@ -90,6 +90,10 @@ builder.Services.Configure<SearchOptions>(
 builder.Services.AddSingleton<ISearchIndexService, SearchIndexService>();
 builder.Services.AddHostedService<SearchIndexInitializer>();
 
+// Embedding and Session Indexing
+builder.Services.AddSingleton<IEmbeddingService, EmbeddingService>();
+builder.Services.AddScoped<ISessionIndexingService, SessionIndexingService>();
+
 // Extraction Orchestrator
 builder.Services.AddScoped<IExtractionOrchestrator, ExtractionOrchestrator>();
 

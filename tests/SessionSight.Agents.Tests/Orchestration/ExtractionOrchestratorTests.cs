@@ -24,6 +24,7 @@ public class ExtractionOrchestratorTests
     private readonly ISummarizerAgent _summarizer;
     private readonly ISessionRepository _sessionRepository;
     private readonly IDocumentStorage _documentStorage;
+    private readonly ISessionIndexingService _sessionIndexingService;
     private readonly ILogger<ExtractionOrchestrator> _logger;
     private readonly ExtractionOrchestrator _orchestrator;
 
@@ -36,6 +37,7 @@ public class ExtractionOrchestratorTests
         _summarizer = Substitute.For<ISummarizerAgent>();
         _sessionRepository = Substitute.For<ISessionRepository>();
         _documentStorage = Substitute.For<IDocumentStorage>();
+        _sessionIndexingService = Substitute.For<ISessionIndexingService>();
         _logger = Substitute.For<ILogger<ExtractionOrchestrator>>();
 
         // Default: summarizer returns a valid summary
@@ -48,6 +50,7 @@ public class ExtractionOrchestratorTests
             agents,
             _sessionRepository,
             _documentStorage,
+            _sessionIndexingService,
             _logger);
     }
 

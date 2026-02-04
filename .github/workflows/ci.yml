@@ -49,7 +49,7 @@ jobs:
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.cs.opencover.reportsPaths="coverage/**/coverage.opencover.xml" \
             /d:sonar.exclusions="**/Migrations/**,**/obj/**,**/bin/**,plan/spike/**,infra/**" \
-            /d:sonar.coverage.exclusions="**/Migrations/**,**/AIFoundryClientFactory.cs,**/DocumentIntelligenceParser.cs,**/AzureBlobDocumentStorage.cs,**/AgentLoopRunner.cs,**/DependencyInjection.cs,**/SessionSightDbContext.cs,**/SessionRepository.cs,**/PatientRepository.cs,**/ProcessIncomingNoteFunction.cs,**/SearchIndexService.cs,**/SearchIndexInitializer.cs,**/obj/**"
+            /d:sonar.coverage.exclusions="**/Migrations/**,**/AIFoundryClientFactory.cs,**/DocumentIntelligenceParser.cs,**/AzureBlobDocumentStorage.cs,**/AgentLoopRunner.cs,**/DependencyInjection.cs,**/SessionSightDbContext.cs,**/SessionRepository.cs,**/PatientRepository.cs,**/ProcessIncomingNoteFunction.cs,**/SearchIndexService.cs,**/SearchIndexInitializer.cs,**/EmbeddingService.cs,**/obj/**"
             # Disabled: sonar.qualitygate.wait=true
             # Free tier can't customize quality gate (stuck at 80% new code coverage).
             # Instead we use "Check for high severity SonarCloud issues" step below
@@ -94,7 +94,7 @@ jobs:
 
       # Exclude: Migrations, Azure infrastructure code (requires Azure services), DI registration, EF Core infrastructure
       - name: Generate coverage report
-        run: dotnet reportgenerator -reports:"coverage/**/coverage.cobertura.xml" -targetdir:coverage/report -reporttypes:Cobertura -filefilters:"-**/Migrations/**;-**/AIFoundryClientFactory.cs;-**/DocumentIntelligenceParser.cs;-**/AzureBlobDocumentStorage.cs;-**/AgentLoopRunner.cs;-**/DependencyInjection.cs;-**/SessionSightDbContext.cs;-**/SessionRepository.cs;-**/PatientRepository.cs;-**/ProcessIncomingNoteFunction.cs;-**/SearchIndexService.cs;-**/SearchIndexInitializer.cs;-**/obj/**"
+        run: dotnet reportgenerator -reports:"coverage/**/coverage.cobertura.xml" -targetdir:coverage/report -reporttypes:Cobertura -filefilters:"-**/Migrations/**;-**/AIFoundryClientFactory.cs;-**/DocumentIntelligenceParser.cs;-**/AzureBlobDocumentStorage.cs;-**/AgentLoopRunner.cs;-**/DependencyInjection.cs;-**/SessionSightDbContext.cs;-**/SessionRepository.cs;-**/PatientRepository.cs;-**/ProcessIncomingNoteFunction.cs;-**/SearchIndexService.cs;-**/SearchIndexInitializer.cs;-**/EmbeddingService.cs;-**/obj/**"
 
       # LOCAL COVERAGE CHECK: Set 1% above SonarCloud's 80% requirement.
       # This catches coverage drops early, before SonarCloud analysis.

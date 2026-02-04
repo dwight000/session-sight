@@ -22,9 +22,14 @@ _ = storage.AddBlobs("processing");
 _ = storage.AddBlobs("processed");
 _ = storage.AddBlobs("failed");
 
+// Azure AI Search endpoint (for embedding/RAG). Set with:
+//   cd src/SessionSight.AppHost && dotnet user-secrets set Parameters:search-endpoint "https://sessionsight-search-dev.search.windows.net"
+var searchEndpoint = builder.AddParameter("search-endpoint");
+
 // API project
 builder.AddProject<Projects.SessionSight_Api>("api")
     .WithReference(db).WaitFor(db)
-    .WithReference(blobs);
+    .WithReference(blobs)
+    .WithEnvironment("AzureSearch__Endpoint", searchEndpoint);
 
 await builder.Build().RunAsync();

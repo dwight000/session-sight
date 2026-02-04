@@ -20,6 +20,13 @@ param replicaCount int = 1
 @description('Number of partitions (only for paid tiers)')
 param partitionCount int = 1
 
+@description('Principal ID to grant Search Index Data Contributor role (e.g., AI Project managed identity)')
+param searchIndexDataContributorPrincipalId string = ''
+
+@description('Principal type for the contributor role assignment')
+@allowed(['ServicePrincipal', 'User', 'Group'])
+param searchIndexDataContributorPrincipalType string = 'ServicePrincipal'
+
 resource search 'Microsoft.Search/searchServices@2024-06-01-preview' = {
   name: name
   location: location
@@ -33,6 +40,25 @@ resource search 'Microsoft.Search/searchServices@2024-06-01-preview' = {
     partitionCount: skuName == 'free' ? 1 : partitionCount
     replicaCount: skuName == 'free' ? 1 : replicaCount
     semanticSearch: skuName == 'free' ? 'disabled' : 'free'
+    // Enable both API key and Azure AD (RBAC) authentication
+    authOptions: {
+      aadOrApiKey: {
+        aadAuthFailureMode: 'http403'
+      }
+    }
+  }
+}
+
+// Grant Search Index Data Contributor role if principal provided
+// This allows the principal to read/write/delete documents in search indexes
+// Role ID: 8ebe5a00-799e-43f5-93ac-243d3dce84a7
+resource searchIndexDataContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(searchIndexDataContributorPrincipalId)) {
+  name: guid(search.id, searchIndexDataContributorPrincipalId, 'Search Index Data Contributor')
+  scope: search
+  properties: {
+    principalId: searchIndexDataContributorPrincipalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '8ebe5a00-799e-43f5-93ac-243d3dce84a7') // Search Index Data Contributor
+    principalType: searchIndexDataContributorPrincipalType
   }
 }
 

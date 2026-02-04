@@ -7,10 +7,10 @@
 ## Current Status
 
 **Phase**: Phase 3 (Summarization & RAG) - IN PROGRESS
-**Next Action**: P3-003 (Embedding pipeline) or P3-004 (Q&A Agent)
-**Last Updated**: February 3, 2026
+**Next Action**: P3-004 (Q&A Agent)
+**Last Updated**: February 4, 2026
 
-**Milestone**: Search index infrastructure complete, Summarizer Agent complete
+**Milestone**: Embedding pipeline complete, sessions now indexed with vectors for semantic search
 
 ---
 
@@ -101,8 +101,8 @@
 | **Phase 3: Summarization & RAG** |||||
 | P3-001 | Summarizer Agent (3 levels) | XL | 3 | Done | P2-005 |
 | P3-002 | Azure AI Search vector index | M | 3 | Done | P2-001 |
-| P3-003 | Embedding pipeline (text-embedding-3-large) | L | 3 | Ready | P3-002 |
-| P3-004 | Q&A Agent with RAG | XL | 3 | Blocked | P3-003 |
+| P3-003 | Embedding pipeline (text-embedding-3-large) | L | 3 | Done | P3-002 |
+| P3-004 | Q&A Agent with RAG | XL | 3 | Ready | P3-003 |
 | B-003 | Synthetic data generator script | M | 3 | Ready | P2-004 |
 | B-014 | Reindex/backfill job for AI Search | M | 3 | Ready | P3-002 |
 | **Pre-Phase 3 Checkpoint (Tabled Items)** |||||
@@ -194,6 +194,7 @@
 | - | Planning complete | 2026-01-24 |
 | P3-001 | Summarizer Agent (session, patient, practice summaries) | 2026-02-02 |
 | P3-002 | Azure AI Search vector index infrastructure | 2026-02-03 |
+| P3-003 | Embedding pipeline (text-embedding-3-large) | 2026-02-04 |
 
 ---
 
@@ -201,11 +202,11 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-04 | **P3-003 complete.** Embedding pipeline implementation: EmbeddingService (text-embedding-3-large, 3072-dim, 30s timeout), SessionIndexingService (composes embedding text, builds search document), integrated into ExtractionOrchestrator Step 5.6. Added Bicep RBAC for Search Index Data Contributor role. Fixed null Interventions field causing 400 error on Azure Search. Config via user secrets parameter instead of hardcoded. All 7 E2E tests pass. Coverage 85.47%. Unblocks P3-004. |
 | 2026-02-03 | **P3-002 complete.** Added Azure AI Search vector index infrastructure: SearchIndexService (graceful degradation), SessionSearchDocument (12 fields, 3072-dim vector), SearchIndexInitializer (IHostedService). HNSW algorithm with cosine similarity. High-performance logging via [LoggerMessage]. Coverage exclusions added. 2 unit tests + 1 E2E test. Coverage 85.08%. Unblocks P3-003, P3-004, B-014. |
 | 2026-02-01 | **P2-006a + P2-006b + B-037 complete.** Implemented agent tool infrastructure: IAgentTool interface, AgentLoopRunner (15 tool limit), 5 tools (check_risk_keywords, validate_schema, score_confidence, query_patient_history, lookup_diagnosis_code). Transformed ClinicalExtractorAgent from parallel batch to agent loop pattern. Added ToolCallCount to API response. 19 new tool tests. All 130 unit tests + 5 E2E tests pass. |
 | 2026-02-01 | **E2E TESTS PASS (5/5).** Final fix for concurrency: added UpdateDocumentStatusAsync and SaveExtractionResultAsync methods to avoid Session RowVersion conflicts during extraction pipeline. Updated ExtractionOrchestrator to use direct document/extraction updates. Increased HttpClient timeout to 120s for full extraction pipeline. Updated unit tests. All 192 unit tests + 5 functional tests pass. |
 | 2026-02-01 | **B-044, B-045 complete.** Fixed concurrency bug: added RowVersion timestamp column to Session entity with EF Core concurrency token, added retry logic in SessionRepository.UpdateAsync (max 3 attempts with ReloadAsync on conflict). Created scripts/run-e2e.sh for automated E2E testing with dynamic port discovery, process cleanup, and health polling. Created scripts/start-aspire.sh for manual Aspire startup. Updated LOCAL_DEV.md with script documentation. |
-| 2026-02-01 | **B-041, B-042, B-043 complete.** Added Bicep role assignments for AI Project managed identity on Doc Intel and OpenAI (Cognitive Services User role). Created aiProjectConnection.bicep for explicit project-level OpenAI connection. Created docs/LOCAL_DEV.md with comprehensive troubleshooting (Aspire ports, migrations, secrets, az PATH). Updated README to reference new docs. All 192 unit tests pass. Bicep validates. |
 
 ---
 

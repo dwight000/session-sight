@@ -26,6 +26,9 @@ public partial class SearchIndexService : ISearchIndexService
         _options = options.Value;
         _logger = logger;
 
+        // Log configuration values at startup for diagnostics
+        LogConfigurationValues(_logger, _options.Endpoint ?? "(null)", _options.IndexName);
+
         if (string.IsNullOrEmpty(_options.Endpoint))
         {
             LogNotConfigured(_logger);
@@ -58,6 +61,7 @@ public partial class SearchIndexService : ISearchIndexService
     {
         if (!_isConfigured || _searchClient is null)
         {
+            LogIndexingSkipped(_logger, document.Id);
             return;
         }
 
@@ -131,8 +135,14 @@ public partial class SearchIndexService : ISearchIndexService
         };
     }
 
+    [LoggerMessage(Level = LogLevel.Information, Message = "SearchIndexService configured with Endpoint={Endpoint}, IndexName={IndexName}")]
+    private static partial void LogConfigurationValues(ILogger logger, string endpoint, string indexName);
+
     [LoggerMessage(Level = LogLevel.Warning, Message = "Azure Search is not configured. Search functionality will be unavailable. Set AzureSearch:Endpoint to enable.")]
     private static partial void LogNotConfigured(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Indexing skipped for document {DocumentId} - search service not configured")]
+    private static partial void LogIndexingSkipped(ILogger logger, string documentId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Search index {IndexName} is ready")]
     private static partial void LogIndexReady(ILogger logger, string indexName);

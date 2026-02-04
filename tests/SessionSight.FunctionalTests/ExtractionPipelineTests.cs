@@ -11,6 +11,7 @@ namespace SessionSight.FunctionalTests;
 /// These tests require a running API instance (via Aspire or direct).
 /// </summary>
 [Trait("Category", "Functional")]
+[Collection("Sequential")] // Don't run in parallel - extraction is resource-intensive
 public class ExtractionPipelineTests : IClassFixture<ApiFixture>
 {
     private readonly HttpClient _client;
