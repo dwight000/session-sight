@@ -131,18 +131,19 @@ jobs:
           sleep 5
 
           # Query SonarCloud API for BLOCKER, CRITICAL, and MAJOR (High) issues
-          # Exclusions: S6975 (Bicep ordering), S125 (commented code), S7684 (.NET config env vars)
           RESPONSE=$(curl -s -u "${SONAR_TOKEN}:" \
-            "https://sonarcloud.io/api/issues/search?componentKeys=dwight000_session-sight&severities=BLOCKER,CRITICAL,MAJOR&statuses=OPEN,CONFIRMED,REOPENED&ps=100&rules=!shelldre:S7684")
+            "https://sonarcloud.io/api/issues/search?componentKeys=dwight000_session-sight&severities=BLOCKER,CRITICAL,MAJOR&statuses=OPEN,CONFIRMED,REOPENED&ps=100")
 
-          COUNT=$(echo "$RESPONSE" | jq '.total')
-          echo "Found $COUNT high severity issues (BLOCKER/CRITICAL/MAJOR)"
+          # Filter out excluded rules: S7684 (.NET config env vars in shell scripts)
+          FILTERED=$(echo "$RESPONSE" | jq '{total: ([.issues[] | select(.rule != "shelldre:S7684")] | length), issues: [.issues[] | select(.rule != "shelldre:S7684")]}')
+          COUNT=$(echo "$FILTERED" | jq '.total')
+          echo "Found $COUNT high severity issues (BLOCKER/CRITICAL/MAJOR, excluding S7684)"
 
           if [[ "$COUNT" -gt 0 ]]; then
             echo "::error::Found $COUNT high severity SonarCloud issues that must be fixed"
             echo ""
             echo "High severity issues:"
-            echo "$RESPONSE" | jq -r '.issues[] | "  \(.severity) [\(.type)]: \(.message)\n    File: \(.component | split(":")[1]):\(.line)\n    Rule: \(.rule)\n"'
+            echo "$FILTERED" | jq -r '.issues[] | "  \(.severity) [\(.type)]: \(.message)\n    File: \(.component | split(":")[1]):\(.line)\n    Rule: \(.rule)\n"'
             exit 1
           fi
 
