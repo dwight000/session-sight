@@ -98,6 +98,8 @@ cleanup() {
     pkill -9 -f "Aspire" 2>/dev/null || true
     pkill -9 -f "dcpctrl" 2>/dev/null || true
     pkill -9 -f "dcp" 2>/dev/null || true
+    # Prune orphaned Aspire Docker networks to prevent subnet exhaustion
+    docker network ls --filter "name=aspire" -q | xargs -r docker network rm 2>/dev/null || true
 }
 
 trap cleanup EXIT

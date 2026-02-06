@@ -58,6 +58,17 @@ dotnet test --filter "Category!=Functional"
 
 ## E2E Troubleshooting
 
+**Before running E2E:** Always run `dotnet test --filter "Category!=Functional"` first. Unit tests are fast and free — catch compilation/logic errors before spending money on LLM calls.
+
+**Diagnosing failures:** On the FIRST run, grep the output for errors instead of re-running:
+```bash
+./scripts/run-e2e.sh 2>&1 | tee /tmp/e2e-output.log
+# Then inspect:
+grep -E "FAIL\]|Error Message:" /tmp/e2e-output.log
+```
+
+**Docker network exhaustion:** If Aspire fails to start with "all predefined address pools have been fully subnetted", orphaned networks have accumulated. The cleanup function in run-e2e.sh prunes these automatically, but if needed: `docker network ls --filter "name=aspire" -q | xargs -r docker network rm`
+
 **Logs:** `/tmp/aspire-e2e.log` (view live: `tail -f /tmp/aspire-e2e.log`)
 
 **Common issues:**
