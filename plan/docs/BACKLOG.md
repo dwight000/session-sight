@@ -94,6 +94,8 @@
 | B-043 | Document local dev setup (docs/LOCAL_DEV.md) | M | 2 | Done | - |
 | B-044 | Fix SessionRepository.UpdateAsync concurrency bug in extraction | M | 2 | Done | B-042 |
 | B-045 | Create deterministic E2E test runner script | S | 1 | Done | - |
+| B-046 | Add file logging for local dev (Serilog) | S | 1 | Ready | - |
+| B-047 | Replace Aspire with Docker Compose ([plan](../../.claude/plans/replace_aspire_docker_compose_draft.md)) | M | 1 | Tabled | B-046 |
 | B-037 | Tool call limit graceful handling | M | 2 | Done | P2-006b |
 | B-040 | Stub IAIFoundryClientFactory in integration tests | S | 2 | Done | P2-002 |
 | P2-009 | Create glossary of domain terms | S | 2 | Ready | P2-004 |

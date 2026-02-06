@@ -15,12 +15,18 @@ If coverage fails, add more unit tests before pushing.
 
 ## Architecture Overview
 
-**Pipeline:** Document → IntakeAgent → ClinicalExtractorAgent → RiskAssessorAgent → Database
+**Pipeline:** Document → IntakeAgent → ClinicalExtractorAgent → RiskAssessorAgent → SummarizerAgent → EmbeddingService → SearchIndex → Database
 
 **Agents:**
 - `IntakeAgent` - Validates document is a therapy note
 - `ClinicalExtractorAgent` - Extracts 82 fields using agent loop + tools
 - `RiskAssessorAgent` - Safety validation of risk fields
+- `SummarizerAgent` - Generates session/patient/practice summaries
+
+**Summary API:**
+- `GET /api/summary/session/{id}` - Session summary (stored or regenerate)
+- `GET /api/summary/patient/{id}` - Patient longitudinal summary
+- `GET /api/summary/practice?startDate=&endDate=` - Practice metrics
 
 ## Testing
 
@@ -46,6 +52,17 @@ dotnet test --filter "Category!=Functional"
 - "No backend service" → Check Bicep deployment for AI Foundry connection
 - "401/credential" errors → Run `az login`, verify Cognitive Services User role
 - Port conflicts → `pkill -f SessionSight`
+- "403 Forbidden" on search → Deploy Bicep with `developerUserObjectId` parameter:
+  ```bash
+  USER_ID=$(az ad signed-in-user show --query id -o tsv)
+  az deployment sub create --location eastus2 --template-file infra/main.bicep \
+    --parameters environmentName=dev sqlAdminPassword=<pwd> developerUserObjectId=$USER_ID
+  ```
+- Search indexing not working → Set user secret:
+  ```bash
+  cd src/SessionSight.Api
+  dotnet user-secrets set "AzureSearch:Endpoint" "https://sessionsight-search-dev.search.windows.net"
+  ```
 
 ## Agent Tool Pattern
 
@@ -65,3 +82,82 @@ When creating new `IAgentTool` implementations:
 | `src/SessionSight.Agents/Prompts/` | LLM prompts |
 | `src/SessionSight.Api/Program.cs` | DI registration |
 | `tests/SessionSight.FunctionalTests/` | E2E tests |
+
+## Lessons Learned (Common Pitfalls)
+
+### Code Analysis Rules (Sonar/CA)
+- **CA1848**: Must use `[LoggerMessage]` delegates, NOT `_logger.LogWarning()` directly
+- **S6966**: Must use async file operations (`File.AppendAllTextAsync`), NOT sync versions
+- Always run `dotnet build` after adding debug code to verify it compiles
+
+### Infrastructure Changes
+- **All Azure changes go in Bicep** - don't run `az role assignment create` directly
+- After modifying `infra/*.bicep`, deploy with:
+  ```bash
+  USER_ID=$(az ad signed-in-user show --query id -o tsv)
+  SQL_PWD=$(dotnet user-secrets list --project src/SessionSight.AppHost | grep sql-password | cut -d'=' -f2 | tr -d ' ')
+  az deployment sub create --location eastus2 --template-file infra/main.bicep \
+    --parameters environmentName=dev sqlAdminPassword="$SQL_PWD" developerUserObjectId=$USER_ID
+  ```
+- Azure AI Search needs `aadOrApiKey` auth (not `apiKeyOnly`) for RBAC to work
+
+### Aspire Configuration
+- **User secrets alone aren't enough** for Aspire-hosted projects
+- Must add config to AppHost: `.WithEnvironment("Section__Key", "value")`
+- Use double underscore (`__`) for nested config in environment variables
+
+### E2E Tests
+- **Add `[Collection("Sequential")]`** to test classes that do extraction (resource-intensive)
+- Must also create `[CollectionDefinition("Sequential", DisableParallelization = true)]`
+- **API logs not visible during headless E2E** - Aspire sends child process logs to OTLP/Dashboard (browser-only)
+  - `/tmp/aspire-e2e.log` only captures AppHost output, NOT API project logs
+  - **Workaround:** Add temp file logging: `await File.AppendAllTextAsync("/tmp/api-diag.log", msg)`
+  - **Permanent fix:** B-046 (add Serilog file logging) or B-047 (replace Aspire with Docker Compose)
+
+### Debugging Silent Failures
+- SearchIndexService has graceful degradation - add logging when operations are skipped
+- Add startup logging for configuration values (especially endpoints)
+- Add timeouts to external API calls (embedding, search) to prevent indefinite hangs
+- The orchestrator's try-catch swallows exceptions - check Warning-level logs
+
+### DiagLog: File-Based Debug Logging
+
+**Problem:** Aspire sends API logs to OTLP/Dashboard (browser-only). During headless E2E tests, you can't see what's happening in the API.
+
+**Solution:** `ExtractionOrchestrator.DiagLogAsync()` writes to `/tmp/api-diag.log` when enabled.
+
+**How to enable:**
+```bash
+# In run-e2e.sh or before starting Aspire:
+export DIAG_LOG=1
+
+# Or in AppHost Program.cs:
+.WithEnvironment("DIAG_LOG", "1")
+```
+
+**How to use in code:**
+```csharp
+// Add diagnostic logging at key points:
+await ExtractionOrchestrator.DiagLogAsync($"Step 1: Downloading document from {uri}");
+await ExtractionOrchestrator.DiagLogAsync($"Step 2 complete: IsValid={result.IsValid}");
+await ExtractionOrchestrator.DiagLogAsync($"Error: {ex.Message}");
+```
+
+**How to view logs:**
+```bash
+# Watch live during E2E:
+tail -f /tmp/api-diag.log
+
+# Check after test:
+cat /tmp/api-diag.log
+
+# Clear before new run:
+rm /tmp/api-diag.log
+```
+
+**Note:** This is a debugging workaround. For permanent fix, see B-046 (Serilog file logging).
+
+### Before Pushing
+1. `dotnet build` - verify no Sonar/CA errors
+2. `./scripts/check-coverage.sh` - must pass 82%
+3. `./scripts/run-e2e.sh` - all functional tests must pass
