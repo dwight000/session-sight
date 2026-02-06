@@ -1,3 +1,5 @@
+using Azure.Search.Documents.Models;
+
 namespace SessionSight.Infrastructure.Search;
 
 /// <summary>
@@ -25,4 +27,20 @@ public interface ISearchIndexService
     /// Deletes a document from the search index.
     /// </summary>
     Task DeleteDocumentAsync(string documentId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Performs a hybrid (vector + keyword) search against the index.
+    /// </summary>
+    /// <param name="queryText">Text query for keyword search.</param>
+    /// <param name="queryVector">Vector embedding for semantic search.</param>
+    /// <param name="patientIdFilter">Optional patient ID to filter results.</param>
+    /// <param name="maxResults">Maximum number of results to return.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Search results with relevance scores.</returns>
+    Task<IReadOnlyList<SearchResult<SessionSearchDocument>>> SearchAsync(
+        string queryText,
+        float[] queryVector,
+        string? patientIdFilter,
+        int maxResults,
+        CancellationToken cancellationToken = default);
 }

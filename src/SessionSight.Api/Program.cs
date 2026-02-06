@@ -41,6 +41,7 @@ builder.Services.AddScoped<IIntakeAgent, IntakeAgent>();
 builder.Services.AddScoped<IClinicalExtractorAgent, ClinicalExtractorAgent>();
 builder.Services.AddScoped<IRiskAssessorAgent, RiskAssessorAgent>();
 builder.Services.AddScoped<ISummarizerAgent, SummarizerAgent>();
+builder.Services.AddScoped<IQAAgent, QAAgent>();
 builder.Services.AddScoped<ExtractionAgents>(sp => new ExtractionAgents(
     sp.GetRequiredService<IIntakeAgent>(),
     sp.GetRequiredService<IClinicalExtractorAgent>(),

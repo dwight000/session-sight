@@ -22,11 +22,15 @@ If coverage fails, add more unit tests before pushing.
 - `ClinicalExtractorAgent` - Extracts 82 fields using agent loop + tools
 - `RiskAssessorAgent` - Safety validation of risk fields
 - `SummarizerAgent` - Generates session/patient/practice summaries
+- `QAAgent` - RAG-powered Q&A over patient sessions (vector search + LLM)
 
 **Summary API:**
 - `GET /api/summary/session/{id}` - Session summary (stored or regenerate)
 - `GET /api/summary/patient/{id}` - Patient longitudinal summary
 - `GET /api/summary/practice?startDate=&endDate=` - Practice metrics
+
+**Q&A API:**
+- `POST /api/qa/patient/{patientId}` - Ask clinical question about a patient (body: `{"question": "..."}`)
 
 ## Testing
 
@@ -109,6 +113,8 @@ When creating new `IAgentTool` implementations:
 ### E2E Tests
 - **Add `[Collection("Sequential")]`** to test classes that do extraction (resource-intensive)
 - Must also create `[CollectionDefinition("Sequential", DisableParallelization = true)]`
+- **Extraction timeout**: Default ApiFixture HttpClient has 120s timeout. Extraction pipeline can take >120s — use a separate HttpClient with 5-min timeout for extraction calls in E2E tests
+- **Retry on infrastructure signals, not LLM signals**: Azure AI Search indexing is near-real-time, not instant. E2E tests should retry on `sources.length > 0` (search found data), NOT on `confidence > 0` (LLM's subjective self-assessment which can be 0 even when pipeline worked correctly)
 - **API logs not visible during headless E2E** - Aspire sends child process logs to OTLP/Dashboard (browser-only)
   - `/tmp/aspire-e2e.log` only captures AppHost output, NOT API project logs
   - **Workaround:** Add temp file logging: `await File.AppendAllTextAsync("/tmp/api-diag.log", msg)`
@@ -156,6 +162,12 @@ rm /tmp/api-diag.log
 ```
 
 **Note:** This is a debugging workaround. For permanent fix, see B-046 (Serilog file logging).
+
+### Validation Auto-Discovery
+- FluentValidation validators are auto-discovered by `AddValidatorsFromAssemblyContaining<CreatePatientValidator>()` in Program.cs — no DI registration needed for new validators in the Api project
+
+### Coverage Threshold
+- Coverage hovers near the 82% threshold. Always write tests in the same pass as source code — don't do code-first-tests-later with repeated coverage checks. One pass: source file + test file together, then one build+coverage check at the end.
 
 ### Before Pushing
 1. `dotnet build` - verify no Sonar/CA errors

@@ -14,6 +14,8 @@ public class ModelRouterTests
     [InlineData(ModelTask.RiskAssessment, ModelRouter.Gpt4o)]
     [InlineData(ModelTask.Summarization, ModelRouter.Gpt4oMini)]
     [InlineData(ModelTask.Embedding, ModelRouter.Embedding)]
+    [InlineData(ModelTask.QASimple, ModelRouter.Gpt4oMini)]
+    [InlineData(ModelTask.QAComplex, ModelRouter.Gpt4o)]
     public void SelectModel_ReturnsCorrectModel(ModelTask task, string expected)
     {
         var result = _router.SelectModel(task);

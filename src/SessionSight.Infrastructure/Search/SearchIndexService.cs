@@ -2,8 +2,10 @@ using Azure.Identity;
 using Azure.Search.Documents;
 using Azure.Search.Documents.Indexes;
 using Azure.Search.Documents.Indexes.Models;
+using Azure.Search.Documents.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using AzureSearchOptions = Azure.Search.Documents.SearchOptions;
 
 namespace SessionSight.Infrastructure.Search;
 
@@ -107,6 +109,62 @@ public partial class SearchIndexService : ISearchIndexService
         LogDocumentDeleted(_logger, documentId);
     }
 
+    public async Task<IReadOnlyList<SearchResult<SessionSearchDocument>>> SearchAsync(
+        string queryText,
+        float[] queryVector,
+        string? patientIdFilter,
+        int maxResults,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_isConfigured || _searchClient is null)
+        {
+            LogSearchSkipped(_logger);
+            return Array.Empty<SearchResult<SessionSearchDocument>>();
+        }
+
+        var searchOptions = new AzureSearchOptions
+        {
+            Size = maxResults,
+            Select = { "Id", "SessionId", "PatientId", "SessionDate", "SessionType", "Content", "Summary", "RiskLevel" }
+        };
+
+        if (!string.IsNullOrEmpty(patientIdFilter))
+        {
+            searchOptions.Filter = $"PatientId eq '{patientIdFilter}'";
+        }
+
+        if (queryVector.Length > 0)
+        {
+            searchOptions.VectorSearch = new VectorSearchOptions
+            {
+                Queries =
+                {
+                    new VectorizedQuery(queryVector)
+                    {
+                        KNearestNeighborsCount = maxResults,
+                        Fields = { "ContentVector" }
+                    }
+                }
+            };
+        }
+
+        LogSearchExecuting(_logger, queryText.Length, maxResults, patientIdFilter ?? "(all)");
+
+        var response = await _searchClient.SearchAsync<SessionSearchDocument>(
+            queryText,
+            searchOptions,
+            cancellationToken);
+
+        var results = new List<SearchResult<SessionSearchDocument>>();
+        await foreach (var result in response.Value.GetResultsAsync())
+        {
+            results.Add(result);
+        }
+
+        LogSearchCompleted(_logger, results.Count);
+        return results;
+    }
+
     private SearchIndex BuildIndexDefinition()
     {
         return new SearchIndex(_options.IndexName)
@@ -155,4 +213,13 @@ public partial class SearchIndexService : ISearchIndexService
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Deleted document {DocumentId}")]
     private static partial void LogDocumentDeleted(ILogger logger, string documentId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Search skipped - search service not configured")]
+    private static partial void LogSearchSkipped(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Executing search: queryLength={QueryLength}, maxResults={MaxResults}, patientFilter={PatientFilter}")]
+    private static partial void LogSearchExecuting(ILogger logger, int queryLength, int maxResults, string patientFilter);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Search returned {Count} results")]
+    private static partial void LogSearchCompleted(ILogger logger, int count);
 }

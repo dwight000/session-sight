@@ -12,5 +12,7 @@ public enum ModelTask
     ExtractionSimple,  // gpt-4o-mini (simple metadata extraction)
     Summarization,     // gpt-4o-mini
     Embedding,         // text-embedding-3-large
-    RiskAssessment     // gpt-4o
+    RiskAssessment,    // gpt-4o
+    QASimple,          // gpt-4o-mini (simple Q&A)
+    QAComplex          // gpt-4o (complex Q&A)
 }

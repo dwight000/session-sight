@@ -14,6 +14,8 @@ public class ModelRouter : IModelRouter
         ModelTask.RiskAssessment => Gpt4o,
         ModelTask.Summarization => Gpt4oMini,
         ModelTask.Embedding => Embedding,
+        ModelTask.QASimple => Gpt4oMini,
+        ModelTask.QAComplex => Gpt4o,
         _ => Gpt4o
     };
 }
