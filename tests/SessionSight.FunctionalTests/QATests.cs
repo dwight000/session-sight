@@ -21,18 +21,8 @@ public class QATests : IClassFixture<ApiFixture>
     public QATests(ApiFixture fixture)
     {
         _client = fixture.Client;
+        _longClient = fixture.LongClient;
         _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-        // Extraction pipeline (Doc Intelligence + 3 LLM agents + embedding + indexing) can take 3+ minutes
-        var handler = new HttpClientHandler
-        {
-            ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
-        };
-        _longClient = new HttpClient(handler)
-        {
-            BaseAddress = new Uri(fixture.BaseUrl),
-            Timeout = TimeSpan.FromMinutes(5)
-        };
     }
 
     [Fact]
