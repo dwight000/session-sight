@@ -125,7 +125,8 @@ When creating new `IAgentTool` implementations:
 ### E2E Tests
 - **Add `[Collection("Sequential")]`** to test classes that do extraction (resource-intensive)
 - Must also create `[CollectionDefinition("Sequential", DisableParallelization = true)]`
-- **Extraction timeout**: Default ApiFixture HttpClient has 120s timeout. Extraction pipeline can take >120s — use a separate HttpClient with 5-min timeout for extraction calls in E2E tests
+- **Extraction timeout**: `fixture.Client` has 120s timeout, `fixture.LongClient` has 5-min timeout — use `LongClient` for extraction calls
+- **Transient retry**: ApiFixture wraps both clients with `RetryHandler` (single retry, 1s delay) for socket resets, TLS failures, and 502/503/504. Don't create raw `HttpClient` in tests — use the fixture
 - **Retry on infrastructure signals, not LLM signals**: Azure AI Search indexing is near-real-time, not instant. E2E tests should retry on `sources.length > 0` (search found data), NOT on `confidence > 0` (LLM's subjective self-assessment which can be 0 even when pipeline worked correctly)
 - **API logs not visible during headless E2E** - Aspire sends child process logs to OTLP/Dashboard (browser-only)
   - `/tmp/aspire-e2e.log` only captures AppHost output, NOT API project logs
