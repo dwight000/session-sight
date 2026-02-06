@@ -150,6 +150,13 @@ When creating new `IAgentTool` implementations:
 - Add timeouts to external API calls (embedding, search) to prevent indefinite hangs
 - The orchestrator's try-catch swallows exceptions - check Warning-level logs
 
+### Debugging LLM Pipeline Failures
+- **Look at the actual LLM output FIRST.** Add diag logging before writing code fixes. Assumptions about what the LLM returns are usually wrong — one log line showing the real output saves hours of speculative coding.
+- **Aspire env vars don't propagate from the shell.** `DIAG_LOG=1 ./scripts/run-e2e.sh` sets the var in the test runner, NOT the API child process. Use `.WithEnvironment("DIAG_LOG", "1")` in AppHost, or use unconditional `File.AppendAllTextAsync` for quick debugging.
+- **E2E tests must assert data quality, not just success.** A test that checks `success == true` without verifying extracted fields is a false positive — the pipeline can "succeed" with all-empty data.
+- **Use `--filter TestName` when iterating** on a single E2E test to avoid running all 8 tests each loop ($$$).
+- **Generate schemas from source types, don't hardcode.** If a prompt needs the JSON schema, generate it via reflection (see `ExtractionSchemaGenerator`). Hardcoded schemas drift when fields are added.
+
 ### DiagLog: File-Based Debug Logging
 
 **Problem:** Aspire sends API logs to OTLP/Dashboard (browser-only). During headless E2E tests, you can't see what's happening in the API.
@@ -158,10 +165,7 @@ When creating new `IAgentTool` implementations:
 
 **How to enable:**
 ```bash
-# In run-e2e.sh or before starting Aspire:
-export DIAG_LOG=1
-
-# Or in AppHost Program.cs:
+# In AppHost Program.cs (REQUIRED — shell env vars don't reach Aspire child processes):
 .WithEnvironment("DIAG_LOG", "1")
 ```
 
