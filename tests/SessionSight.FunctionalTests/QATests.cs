@@ -92,6 +92,9 @@ public class QATests : IClassFixture<ApiFixture>
             throw new Exception($"Extraction failed: {errorMessage}");
         }
 
+        // 4b. Verify extracted fields contain actual clinical data
+        await ExtractionAssertions.AssertExtractionFields(_client, sessionId);
+
         // 5. Call Q&A with retry (search indexing is near-real-time, not instant)
         var qaRequest = new { question = "What was discussed in the therapy session?" };
         JsonElement qaJson = default;

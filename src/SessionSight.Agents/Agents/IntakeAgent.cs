@@ -1,6 +1,8 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
+using SessionSight.Agents.Helpers;
 using SessionSight.Agents.Models;
 using SessionSight.Agents.Prompts;
 using SessionSight.Agents.Routing;
@@ -30,7 +32,8 @@ public partial class IntakeAgent : IIntakeAgent
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        NumberHandling = JsonNumberHandling.AllowReadingFromString
     };
 
     private readonly IAIFoundryClientFactory _clientFactory;
@@ -123,32 +126,7 @@ public partial class IntakeAgent : IIntakeAgent
         };
     }
 
-    internal static string ExtractJson(string content)
-    {
-        // Try to extract JSON from markdown code block
-        var trimmed = content.Trim();
-
-        if (trimmed.StartsWith("```json", StringComparison.OrdinalIgnoreCase))
-        {
-            var endIndex = trimmed.LastIndexOf("```", StringComparison.Ordinal);
-            if (endIndex > 7)
-            {
-                return trimmed[7..endIndex].Trim();
-            }
-        }
-
-        if (trimmed.StartsWith("```", StringComparison.Ordinal))
-        {
-            var startIndex = trimmed.IndexOf('\n') + 1;
-            var endIndex = trimmed.LastIndexOf("```", StringComparison.Ordinal);
-            if (endIndex > startIndex)
-            {
-                return trimmed[startIndex..endIndex].Trim();
-            }
-        }
-
-        return trimmed;
-    }
+    internal static string ExtractJson(string content) => LlmJsonHelper.ExtractJson(content);
 
     private static DateOnly? TryParseDate(string? dateStr)
     {

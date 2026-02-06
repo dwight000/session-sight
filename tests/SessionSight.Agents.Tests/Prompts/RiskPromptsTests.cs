@@ -89,14 +89,22 @@ public class RiskPromptsTests
     }
 
     [Fact]
-    public void GetRiskReExtractionPrompt_ContainsJsonFormat()
+    public void SystemPrompt_ContainsGeneratedSchema()
+    {
+        // Schema moved from user prompt to system prompt via RiskSchemaGenerator
+        RiskPrompts.SystemPrompt.Should().Contain("\"value\":");
+        RiskPrompts.SystemPrompt.Should().Contain("\"confidence\":");
+        RiskPrompts.SystemPrompt.Should().Contain("\"source\":");
+        RiskPrompts.SystemPrompt.Should().Contain("\"suicidalIdeation\"");
+        RiskPrompts.SystemPrompt.Should().Contain("\"riskLevelOverall\"");
+    }
+
+    [Fact]
+    public void GetRiskReExtractionPrompt_ReferencesSystemSchema()
     {
         var prompt = RiskPrompts.GetRiskReExtractionPrompt("Test note");
 
-        prompt.Should().Contain("{");
-        prompt.Should().Contain("\"value\":");
-        prompt.Should().Contain("\"confidence\":");
-        prompt.Should().Contain("\"source\":");
+        prompt.Should().Contain("Return ONLY the JSON object matching the schema in the system prompt");
     }
 
     [Fact]

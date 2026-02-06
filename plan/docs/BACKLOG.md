@@ -90,13 +90,14 @@
 | B-035 | Synchronous AI Search indexing | M | 2 | Ready | P2-004 |
 | B-036 | Document Intelligence failure handling | M | 2 | Ready | P2-008 |
 | B-048 | Circuit breaker for Azure SDK clients (Polly or custom HttpPipelinePolicy) | M | 2 | Ready | B-010 |
-| B-049 | Extract shared LlmResponseParser from duplicated JSON parsing in 3 agents | M | 2 | Ready | P2-004 |
+| B-049 | ~~Extract shared LlmResponseParser from duplicated JSON parsing in 3 agents~~ (superseded by B-056) | M | 2 | Done | P2-004 |
 | B-050 | Fix fire-and-forget scoped service lifetime in IngestionController | S | 2 | Done | P2-008 |
 | B-051 | Add patient-scoping guard to Q&A tools (cross-patient data access) | S | 2 | Done | P3-005 |
 | B-052 | Fix OData filter injection in SearchIndexService | S | 2 | Done | P3-002 |
 | B-053 | Fail extraction pipeline on JSON parse failure (safety false-negative) | S | 2 | Done | P2-004 |
 | B-054 | Add wall-clock timeout to agent loop (5 min) | S | 2 | Done | B-037 |
 | B-055 | Fix E2E extraction JSON parse failures (resilient deserialization + prompt fix) | M | 2 | Done | B-053 |
+| B-056 | Harden LLM JSON parsing and error handling across all agents | M | 2 | Done | B-055 |
 | B-041 | Bicep: Add Cognitive Services User role to Doc Intel + OpenAI | M | 2 | Done | P2-008 |
 | B-042 | Fix AI Foundry → OpenAI: call Azure OpenAI directly (SDK workaround) | M | 2 | Done | B-041 |
 | B-043 | Document local dev setup (docs/LOCAL_DEV.md) | M | 2 | Done | - |
@@ -214,6 +215,8 @@
 | B-052 | Fix OData filter injection in SearchIndexService | 2026-02-06 |
 | B-053 | Fail extraction pipeline on JSON parse failure | 2026-02-06 |
 | B-054 | Add wall-clock timeout to agent loop (5 min) | 2026-02-06 |
+| B-055 | Fix E2E extraction JSON parse failures (resilient deserialization + prompt fix) | 2026-02-06 |
+| B-056 | Harden LLM JSON parsing and error handling across all agents | 2026-02-06 |
 
 ---
 
@@ -221,6 +224,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-06 | **B-055 + B-056 complete (LLM JSON hardening).** (B-055) Fixed ClinicalExtractorAgent JSON parsing: schema-embedded prompt via ExtractionSchemaGenerator, resilient deserialization with section-by-section fallback, robust ExtractJson with regex+brace extraction. (B-056) Applied B-055 patterns across all agents: (1) Created shared LlmJsonHelper with ExtractJson, TryParseConfidence, TryParseInt, TryParseDouble. (2) Created RiskSchemaGenerator — generates risk schema from C# types, replaces hardcoded JSON in RiskPrompts. (3) Fixed safety-critical error hiding: ClinicalExtractorAgent.ParseExtractionResponse returns null on empty content (was returning default ClinicalExtraction with all-Low risk); RiskAssessorAgent.ReExtractRiskAsync throws on parse failure (triggers RequiresReview). (4) Fixed deserialization: RiskAssessorAgent handles string-typed confidence and string source; IntakeAgent adds NumberHandling; QAAgent handles string confidence. (5) Added E2E ExtractionAssertions shared helper — all 3 extraction E2E tests now verify field-level clinical data. 15 new unit tests (616 total). Coverage 82.07%. |
 | 2026-02-06 | **B-050 to B-054 complete (architecture fixes).** (1) IngestionController fire-and-forget now uses IServiceScopeFactory for proper DI scope. (2) GetSessionDetailTool.AllowedPatientId + SearchSessionsTool.RequiredPatientId prevent cross-patient data access; QAAgent sets scope before each call. (3) SearchIndexService validates patientIdFilter as canonical GUID before OData interpolation. (4) ClinicalExtractorAgent.ParseExtractionResponse returns null on JsonException; orchestrator fails pipeline with DocumentStatus.Failed (safety: prevents false-negative risk assessment). (5) AgentLoopRunner has 5-min linked CancellationTokenSource timeout. 15 new unit tests (570 total). Coverage 82.19%. E2E: 3 extraction tests now correctly fail — pre-existing issue where LLM returns unparseable JSON was previously silently swallowed. Created B-055 to investigate. |
 | 2026-02-05 | **B-010 complete.** Added exponential backoff retry configuration for all Azure SDK clients. Created `AzureRetryDefaults` in Core with two overloads: `Configure<T>()` for Azure.Core clients (Search, Doc Intelligence) with 5 retries/1s base/60s max/exponential mode/120s network timeout, and `ConfigureRetryPolicy<T>()` for System.ClientModel clients (OpenAI) with `ClientRetryPolicy(5)`. Applied to AIFoundryClientFactory (+ startup logging), SearchIndexService, and DocumentIntelligenceClient. 8 new unit tests (555 total). Coverage 82.31%. Created B-048 follow-up for circuit breaker. |
 | 2026-02-05 | **P3-005 complete.** Agentic Q&A with 4 tools: SearchSessionsTool (hybrid vector+keyword search), GetSessionDetailTool (drill into individual sessions), GetPatientTimelineTool (chronological timeline with risk/mood change detection), AggregateMetricsTool (mood_trend, session_count, intervention_frequency, risk_distribution, diagnosis_history). Added AgentLoopRunner overload for explicit tool lists. QAAgent refactored to dual-path: simple questions → single-shot RAG, complex questions → agentic loop with tools. 43 new unit tests (547 total). Coverage 82.23%. All 8 E2E tests pass. Also added RetryHandler to E2E ApiFixture (single retry on socket/TLS/5xx errors), consolidated LongClient into fixture, removed duplicate HttpClient from QATests. |

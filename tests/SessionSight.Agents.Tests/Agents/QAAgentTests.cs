@@ -177,6 +177,42 @@ public class QAAgentTests
         result.Answer.Should().BeEmpty();
     }
 
+    [Fact]
+    public void ParseQAResponse_WithStringConfidence_Parses()
+    {
+        var json = """
+            {
+                "answer": "The patient showed improvement.",
+                "confidence": "0.75"
+            }
+            """;
+
+        var result = QAAgent.ParseQAResponse(json);
+
+        result.Answer.Should().Contain("improvement");
+        result.Confidence.Should().Be(0.75);
+    }
+
+    [Fact]
+    public void ParseQAResponse_ProseAroundCodeFence_Parses()
+    {
+        var input = """
+            Based on my analysis, here is the answer:
+            ```json
+            {
+                "answer": "Mood improved over sessions.",
+                "confidence": 0.8
+            }
+            ```
+            I hope this helps!
+            """;
+
+        var result = QAAgent.ParseQAResponse(input);
+
+        result.Answer.Should().Contain("Mood improved");
+        result.Confidence.Should().Be(0.8);
+    }
+
     #endregion
 
     #region MaxContextSessions Constant

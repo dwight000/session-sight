@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
+using SessionSight.Agents.Helpers;
 using SessionSight.Agents.Models;
 using SessionSight.Agents.Prompts;
 using SessionSight.Agents.Routing;
@@ -345,10 +346,11 @@ public partial class QAAgent : IQAAgent
             if (parsed.TryGetProperty("answer", out var answer))
                 response.Answer = answer.GetString() ?? string.Empty;
 
-            if (parsed.TryGetProperty("confidence", out var confidence) &&
-                confidence.TryGetDouble(out var confidenceValue))
+            if (parsed.TryGetProperty("confidence", out var confidence))
             {
-                response.Confidence = Math.Clamp(confidenceValue, 0, 1);
+                var confidenceValue = LlmJsonHelper.TryParseConfidence(confidence);
+                if (confidenceValue.HasValue)
+                    response.Confidence = Math.Clamp(confidenceValue.Value, 0, 1);
             }
 
             // Parse citedSessionIds — we don't use them to filter sources

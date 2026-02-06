@@ -1,9 +1,9 @@
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
 using SessionSight.Agents.Models;
 using SessionSight.Agents.Prompts;
+using SessionSight.Agents.Helpers;
 using SessionSight.Agents.Routing;
 using SessionSight.Agents.Services;
 using SessionSight.Agents.Tools;
@@ -172,7 +172,7 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
         if (string.IsNullOrWhiteSpace(content))
         {
             LogEmptyExtractionResponse(_logger);
-            return new ClinicalExtraction();
+            return null;
         }
 
         var json = ExtractJson(content);
@@ -218,7 +218,7 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
         }
     }
 
-    private static T TryParseSection<T>(JsonElement root, string sectionName) where T : new()
+    private T TryParseSection<T>(JsonElement root, string sectionName) where T : new()
     {
         if (!root.TryGetProperty(sectionName, out var sectionElement) ||
             sectionElement.ValueKind != JsonValueKind.Object)
@@ -232,8 +232,9 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
             var parsed = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(sectionJson, JsonOptions);
             return parsed is null ? new T() : MapToSection<T>(parsed);
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
+            LogSectionParseFailure(_logger, sectionName, ex);
             return new T();
         }
     }
@@ -275,49 +276,7 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
         }
     }
 
-    internal static string ExtractJson(string content)
-    {
-        var trimmed = content.Trim();
-
-        if (trimmed.StartsWith("```json", StringComparison.OrdinalIgnoreCase))
-        {
-            var endIndex = trimmed.LastIndexOf("```", StringComparison.Ordinal);
-            if (endIndex > 7)
-            {
-                return trimmed[7..endIndex].Trim();
-            }
-        }
-
-        if (trimmed.StartsWith("```", StringComparison.Ordinal))
-        {
-            var startIndex = trimmed.IndexOf('\n') + 1;
-            var endIndex = trimmed.LastIndexOf("```", StringComparison.Ordinal);
-            if (endIndex > startIndex)
-            {
-                return trimmed[startIndex..endIndex].Trim();
-            }
-        }
-
-        // Try to find JSON code fence anywhere in the content (prose before/after)
-        var fenceMatch = JsonFenceRegex().Match(trimmed);
-        if (fenceMatch.Success)
-        {
-            return fenceMatch.Groups[1].Value.Trim();
-        }
-
-        // Last resort: find outermost { ... } braces
-        var firstBrace = trimmed.IndexOf('{');
-        var lastBrace = trimmed.LastIndexOf('}');
-        if (firstBrace >= 0 && lastBrace > firstBrace)
-        {
-            return trimmed[firstBrace..(lastBrace + 1)];
-        }
-
-        return trimmed;
-    }
-
-    [GeneratedRegex(@"```(?:json)?\s*\n?([\s\S]*?)```", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
-    private static partial Regex JsonFenceRegex();
+    internal static string ExtractJson(string content) => LlmJsonHelper.ExtractJson(content);
 
     private static T MapToSection<T>(Dictionary<string, JsonElement> parsed) where T : new()
     {
@@ -551,4 +510,7 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Used lenient JSON parsing for extraction response")]
     private static partial void LogLenientParseUsed(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to parse section '{SectionName}' from extraction response")]
+    private static partial void LogSectionParseFailure(ILogger logger, string sectionName, Exception exception);
 }

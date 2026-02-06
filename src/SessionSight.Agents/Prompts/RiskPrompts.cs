@@ -10,7 +10,7 @@ public static class RiskPrompts
     /// <summary>
     /// System prompt for safety-critical risk re-extraction.
     /// </summary>
-    public const string SystemPrompt = """
+    public static string SystemPrompt { get; } = $"""
         You are a clinical safety specialist focused on risk assessment extraction.
         Your role is to carefully identify and extract risk indicators from therapy notes
         with the highest priority on patient safety.
@@ -25,12 +25,17 @@ public static class RiskPrompts
         7. Giving away possessions, saying goodbye, sudden calm after crisis are warning signs
 
         READ THE NOTE TWICE before extracting. Missing a risk indicator could be life-threatening.
+
+        CRITICAL: Your final message MUST be ONLY the JSON object. No explanatory text before or after.
+
+        JSON SCHEMA (exact field names and allowed enum values):
+        {RiskSchemaGenerator.Generate()}
         """;
 
     /// <summary>
     /// Gets the focused safety prompt for risk re-extraction.
     /// </summary>
-    public static string GetRiskReExtractionPrompt(string noteText) => """
+    public static string GetRiskReExtractionPrompt(string noteText) => $"""
         Carefully extract ALL risk assessment indicators from this therapy note.
 
         IMPORTANT: This is a SAFETY-CRITICAL extraction. Read the note TWICE before answering.
@@ -101,25 +106,11 @@ public static class RiskPrompts
         - Include the exact source text that supports each extraction
         - When indicators are ambiguous, choose the MORE SEVERE value
 
-        Return JSON in this format:
-        {
-          "suicidalIdeation": {"value": "None", "confidence": 0.95, "source": {"text": "exact quote", "section": "risk assessment"}},
-          "siFrequency": {"value": null, "confidence": 0.0, "source": null},
-          "siIntensity": {"value": null, "confidence": 0.0, "source": null},
-          "selfHarm": {"value": "None", "confidence": 0.95, "source": {"text": "exact quote", "section": "risk assessment"}},
-          "shRecency": {"value": null, "confidence": 0.0, "source": null},
-          "homicidalIdeation": {"value": "None", "confidence": 0.95, "source": {"text": "exact quote", "section": "risk assessment"}},
-          "hiTarget": {"value": null, "confidence": 0.0, "source": null},
-          "safetyPlanStatus": {"value": "NotNeeded", "confidence": 0.90, "source": {"text": "exact quote", "section": "risk assessment"}},
-          "protectiveFactors": {"value": [], "confidence": 0.85, "source": null},
-          "riskFactors": {"value": [], "confidence": 0.85, "source": null},
-          "meansRestrictionDiscussed": {"value": false, "confidence": 0.90, "source": null},
-          "riskLevelOverall": {"value": "Low", "confidence": 0.90, "source": {"text": "exact quote", "section": "risk assessment"}}
-        }
+        Return ONLY the JSON object matching the schema in the system prompt. No other text.
 
         Therapy Note:
         ---
-        """ + noteText + """
+        {noteText}
         ---
         """;
 }

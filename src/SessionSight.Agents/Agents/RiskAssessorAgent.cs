@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenAI.Chat;
+using SessionSight.Agents.Helpers;
 using SessionSight.Agents.Models;
 using SessionSight.Agents.Prompts;
 using SessionSight.Agents.Routing;
@@ -146,7 +147,7 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         var response = await chatClient.CompleteChatAsync(messages, options, ct);
         var content = response.Value.Content[0].Text;
 
-        return ParseRiskResponse(content) ?? new RiskAssessmentExtracted();
+        return ParseRiskResponse(content) ?? throw new InvalidOperationException("Failed to parse risk re-extraction response");
     }
 
     internal static RiskAssessmentExtracted? ParseRiskResponse(string content)
@@ -169,31 +170,7 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         }
     }
 
-    internal static string ExtractJson(string content)
-    {
-        var trimmed = content.Trim();
-
-        if (trimmed.StartsWith("```json", StringComparison.OrdinalIgnoreCase))
-        {
-            var endIndex = trimmed.LastIndexOf("```", StringComparison.Ordinal);
-            if (endIndex > 7)
-            {
-                return trimmed[7..endIndex].Trim();
-            }
-        }
-
-        if (trimmed.StartsWith("```", StringComparison.Ordinal))
-        {
-            var startIndex = trimmed.IndexOf('\n') + 1;
-            var endIndex = trimmed.LastIndexOf("```", StringComparison.Ordinal);
-            if (endIndex > startIndex)
-            {
-                return trimmed[startIndex..endIndex].Trim();
-            }
-        }
-
-        return trimmed;
-    }
+    internal static string ExtractJson(string content) => LlmJsonHelper.ExtractJson(content);
 
     private static RiskAssessmentExtracted MapToRiskAssessment(Dictionary<string, JsonElement> parsed)
     {
@@ -237,9 +214,11 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
             valueProperty?.SetValue(field, value);
         }
 
-        if (element.TryGetProperty("confidence", out var confElement) && confElement.TryGetDouble(out var conf))
+        if (element.TryGetProperty("confidence", out var confElement))
         {
-            confidenceProperty?.SetValue(field, conf);
+            var conf = LlmJsonHelper.TryParseConfidence(confElement);
+            if (conf.HasValue)
+                confidenceProperty?.SetValue(field, conf.Value);
         }
 
         if (element.TryGetProperty("source", out var sourceElement) && sourceElement.ValueKind != JsonValueKind.Null)
@@ -294,6 +273,9 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
 
     private static SourceMapping? DeserializeSourceMapping(JsonElement element)
     {
+        if (element.ValueKind == JsonValueKind.String)
+            return new SourceMapping { Text = element.GetString() ?? string.Empty };
+
         if (element.ValueKind != JsonValueKind.Object)
             return null;
 

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
+using SessionSight.Agents.Helpers;
 using SessionSight.Agents.Models;
 using SessionSight.Agents.Prompts;
 using SessionSight.Agents.Routing;
@@ -395,31 +396,7 @@ public partial class SummarizerAgent : ISummarizerAgent
         return risk;
     }
 
-    internal static string ExtractJson(string content)
-    {
-        var trimmed = content.Trim();
-
-        if (trimmed.StartsWith("```json", StringComparison.OrdinalIgnoreCase))
-        {
-            var endIndex = trimmed.LastIndexOf("```", StringComparison.Ordinal);
-            if (endIndex > 7)
-            {
-                return trimmed[7..endIndex].Trim();
-            }
-        }
-
-        if (trimmed.StartsWith("```", StringComparison.Ordinal))
-        {
-            var startIndex = trimmed.IndexOf('\n') + 1;
-            var endIndex = trimmed.LastIndexOf("```", StringComparison.Ordinal);
-            if (endIndex > startIndex)
-            {
-                return trimmed[startIndex..endIndex].Trim();
-            }
-        }
-
-        return trimmed;
-    }
+    internal static string ExtractJson(string content) => LlmJsonHelper.ExtractJson(content);
 
     private static RiskLevelBreakdown CalculateRiskDistribution(List<Session> sessions)
     {

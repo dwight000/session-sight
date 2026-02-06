@@ -202,46 +202,7 @@ public class ExtractionPipelineTests : IClassFixture<ApiFixture>
         }
 
         // 6. Verify extracted fields contain actual clinical data (not just empty defaults)
-        var getResponse = await _client.GetAsync($"/api/sessions/{sessionId}/extraction");
-        getResponse.StatusCode.Should().Be(HttpStatusCode.OK, "Should retrieve saved extraction");
-
-        var dto = await getResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
-        var data = dto.GetProperty("data");
-
-        // Risk assessment: note explicitly says "None" for all risk fields and "Low" overall
-        var risk = data.GetProperty("riskAssessment");
-        GetFieldValue(risk, "suicidalIdeation").Should().Be("None",
-            "Note says 'Suicidal ideation: None'");
-        GetFieldValue(risk, "homicidalIdeation").Should().Be("None",
-            "Note says 'Homicidal ideation: None'");
-        GetFieldValue(risk, "riskLevelOverall").Should().Be("Low",
-            "Note says 'Overall risk level: Low'");
-
-        // Presenting concerns: note discusses anxiety
-        var concerns = data.GetProperty("presentingConcerns");
-        var primaryConcern = GetFieldValue(concerns, "primaryConcern");
-        primaryConcern.Should().NotBeNull("Note has a clear presenting concern about anxiety");
-        primaryConcern!.ToLowerInvariant().Should().Contain("anxi",
-            "Note says 'ongoing anxiety related to work stress'");
-
-        // Mood: note says "Current mood: 5/10"
-        var mood = data.GetProperty("moodAssessment");
-        var selfReportedMood = GetFieldValue(mood, "selfReportedMood");
-        selfReportedMood.Should().NotBeNull("Note says 'Current mood: 5/10'");
-        selfReportedMood.Should().Be("5", "Note says 'Current mood: 5/10'");
-
-        // Overall confidence should be non-zero
-        var confidence = dto.GetProperty("overallConfidence").GetDouble();
-        confidence.Should().BeGreaterThan(0, "Extraction should have non-zero confidence");
-    }
-
-    private static string? GetFieldValue(JsonElement section, string fieldName)
-    {
-        if (!section.TryGetProperty(fieldName, out var field))
-            return null;
-        if (!field.TryGetProperty("value", out var value))
-            return null;
-        return value.ValueKind == JsonValueKind.Null ? null : value.ToString();
+        await ExtractionAssertions.AssertExtractionFields(_client, sessionId);
     }
 
     [Fact]

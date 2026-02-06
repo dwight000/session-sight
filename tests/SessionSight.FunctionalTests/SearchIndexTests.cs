@@ -172,6 +172,9 @@ public class SearchIndexTests : IClassFixture<ApiFixture>
             throw new Exception($"Extraction failed: {errorMessage}");
         }
 
+        // 4b. Verify extracted fields contain actual clinical data
+        await ExtractionAssertions.AssertExtractionFields(_client, sessionId);
+
         // 5. Query search index with retry (indexing is near-real-time, not instant)
         var searchClient = new SearchClient(
             new Uri(_searchEndpoint),

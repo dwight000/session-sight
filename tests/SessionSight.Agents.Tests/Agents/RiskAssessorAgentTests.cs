@@ -597,6 +597,71 @@ public class RiskAssessorAgentTests
     }
 
     [Fact]
+    public void ParseRiskResponse_WithStringConfidence_Parses()
+    {
+        var json = """
+            {
+                "suicidalIdeation": {"value": "Passive", "confidence": "0.92"},
+                "riskLevelOverall": {"value": "Moderate", "confidence": "0.88"}
+            }
+            """;
+
+        var result = RiskAssessorAgent.ParseRiskResponse(json);
+
+        result.Should().NotBeNull();
+        result!.SuicidalIdeation.Value.Should().Be(SuicidalIdeation.Passive);
+        result.SuicidalIdeation.Confidence.Should().Be(0.92);
+        result.RiskLevelOverall.Value.Should().Be(RiskLevelOverall.Moderate);
+        result.RiskLevelOverall.Confidence.Should().Be(0.88);
+    }
+
+    [Fact]
+    public void ParseRiskResponse_WithStringSource_Parses()
+    {
+        var json = """
+            {
+                "suicidalIdeation": {"value": "None", "confidence": 0.95, "source": "Patient denies suicidal ideation"}
+            }
+            """;
+
+        var result = RiskAssessorAgent.ParseRiskResponse(json);
+
+        result.Should().NotBeNull();
+        result!.SuicidalIdeation.Source.Should().NotBeNull();
+        result.SuicidalIdeation.Source!.Text.Should().Be("Patient denies suicidal ideation");
+    }
+
+    [Fact]
+    public void ParseRiskResponse_Null_ReturnsNull()
+    {
+        // Verify ParseRiskResponse returns null for truly malformed content
+        // The caller (ReExtractRiskAsync) now throws on null, which the AssessAsync catch block handles
+        var result = RiskAssessorAgent.ParseRiskResponse("completely invalid [[[ not json");
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void ExtractJson_ProseBeforeCodeFence_Extracts()
+    {
+        var input = """
+            Here is the risk assessment:
+            ```json
+            {"suicidalIdeation": {"value": "None"}}
+            ```
+            """;
+        var result = RiskAssessorAgent.ExtractJson(input);
+        result.Should().Contain("suicidalIdeation");
+    }
+
+    [Fact]
+    public void ExtractJson_JsonEmbeddedInProse_Extracts()
+    {
+        var input = """I found: {"riskLevelOverall": {"value": "Low"}} end.""";
+        var result = RiskAssessorAgent.ExtractJson(input);
+        result.Should().Contain("riskLevelOverall");
+    }
+
+    [Fact]
     public void ConservativeMerge_NullLists_HandlesGracefully()
     {
         var original = new RiskAssessmentExtracted
