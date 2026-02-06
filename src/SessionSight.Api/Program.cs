@@ -61,6 +61,12 @@ builder.Services.AddSingleton<IAgentTool, LookupDiagnosisCodeTool>();
 // Agent loop runner
 builder.Services.AddScoped<AgentLoopRunner>();
 
+// Q&A Agent tools (concrete types — NOT as IAgentTool to keep separate from extraction tools)
+builder.Services.AddScoped<SearchSessionsTool>();
+builder.Services.AddScoped<GetSessionDetailTool>();
+builder.Services.AddScoped<GetPatientTimelineTool>();
+builder.Services.AddScoped<AggregateMetricsTool>();
+
 // RiskAssessor configuration
 builder.Services.Configure<RiskAssessorOptions>(
     builder.Configuration.GetSection(RiskAssessorOptions.SectionName));

@@ -19,13 +19,32 @@ public partial class AgentLoopRunner
         _logger = logger;
     }
 
-    public async Task<AgentLoopResult> RunAsync(
+    public Task<AgentLoopResult> RunAsync(
         ChatClient chatClient,
         List<ChatMessage> messages,
         CancellationToken ct = default)
     {
+        return RunCoreAsync(chatClient, messages, _tools, ct);
+    }
+
+    public Task<AgentLoopResult> RunAsync(
+        ChatClient chatClient,
+        List<ChatMessage> messages,
+        IEnumerable<IAgentTool> tools,
+        CancellationToken ct = default)
+    {
+        return RunCoreAsync(chatClient, messages, tools, ct);
+    }
+
+    private async Task<AgentLoopResult> RunCoreAsync(
+        ChatClient chatClient,
+        List<ChatMessage> messages,
+        IEnumerable<IAgentTool> tools,
+        CancellationToken ct)
+    {
         var toolCallCount = 0;
-        var toolList = _tools.ToChatTools().ToList();
+        var toolArray = tools as IAgentTool[] ?? tools.ToArray();
+        var toolList = toolArray.ToChatTools().ToList();
 
         while (true)
         {
@@ -58,7 +77,7 @@ public partial class AgentLoopRunner
                 LogAgentToolCalls(_logger, completion.ToolCalls.Count, toolCallCount);
 
                 // Execute tools in parallel
-                var tasks = completion.ToolCalls.Select(tc => ExecuteToolCallAsync(tc, ct));
+                var tasks = completion.ToolCalls.Select(tc => ExecuteToolCallAsync(toolArray, tc, ct));
                 var results = await Task.WhenAll(tasks);
 
                 // Add tool results to conversation
@@ -86,10 +105,11 @@ public partial class AgentLoopRunner
     }
 
     private async Task<(string Id, ToolResult Result)> ExecuteToolCallAsync(
+        IEnumerable<IAgentTool> tools,
         ChatToolCall toolCall,
         CancellationToken ct)
     {
-        var tool = _tools.FirstOrDefault(t => t.Name == toolCall.FunctionName);
+        var tool = tools.FirstOrDefault(t => t.Name == toolCall.FunctionName);
         if (tool is null)
         {
             LogUnknownToolRequested(_logger, toolCall.FunctionName);

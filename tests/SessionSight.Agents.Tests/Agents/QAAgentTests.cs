@@ -2,12 +2,57 @@ using Azure.Search.Documents.Models;
 using FluentAssertions;
 using SessionSight.Agents.Agents;
 using SessionSight.Agents.Models;
+using SessionSight.Agents.Prompts;
 using SessionSight.Infrastructure.Search;
 
 namespace SessionSight.Agents.Tests.Agents;
 
 public class QAAgentTests
 {
+    #region QAPrompts Tests
+
+    [Fact]
+    public void SystemPrompt_ContainsExpectedContent()
+    {
+        QAPrompts.SystemPrompt.Should().Contain("clinical Q&A assistant");
+        QAPrompts.SystemPrompt.Should().Contain("confidence");
+    }
+
+    [Fact]
+    public void GetAnswerPrompt_IncludesQuestionAndContext()
+    {
+        var result = QAPrompts.GetAnswerPrompt("What is the diagnosis?", "Session context here");
+        result.Should().Contain("What is the diagnosis?");
+        result.Should().Contain("Session context here");
+    }
+
+    [Fact]
+    public void ComplexityPrompt_ContainsClassificationInstructions()
+    {
+        QAPrompts.ComplexityPrompt.Should().Contain("simple");
+        QAPrompts.ComplexityPrompt.Should().Contain("complex");
+    }
+
+    [Fact]
+    public void AgenticSystemPrompt_ContainsToolNames()
+    {
+        QAPrompts.AgenticSystemPrompt.Should().Contain("search_sessions");
+        QAPrompts.AgenticSystemPrompt.Should().Contain("get_session_detail");
+        QAPrompts.AgenticSystemPrompt.Should().Contain("get_patient_timeline");
+        QAPrompts.AgenticSystemPrompt.Should().Contain("aggregate_metrics");
+    }
+
+    [Fact]
+    public void GetAgenticUserPrompt_IncludesQuestionAndPatientId()
+    {
+        var patientId = Guid.NewGuid();
+        var result = QAPrompts.GetAgenticUserPrompt("How has mood changed?", patientId);
+        result.Should().Contain("How has mood changed?");
+        result.Should().Contain(patientId.ToString("D"));
+    }
+
+    #endregion
+
     #region ParseQAResponse Tests
 
     [Fact]
@@ -140,6 +185,24 @@ public class QAAgentTests
     public void MaxContextSessions_IsExpectedValue()
     {
         QAAgent.MaxContextSessions.Should().Be(10);
+    }
+
+    #endregion
+
+    #region QAResponse ToolCallCount
+
+    [Fact]
+    public void QAResponse_ToolCallCount_DefaultsToZero()
+    {
+        var response = new QAResponse();
+        response.ToolCallCount.Should().Be(0);
+    }
+
+    [Fact]
+    public void QAResponse_ToolCallCount_CanBeSet()
+    {
+        var response = new QAResponse { ToolCallCount = 5 };
+        response.ToolCallCount.Should().Be(5);
     }
 
     #endregion

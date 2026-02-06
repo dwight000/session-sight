@@ -22,6 +22,7 @@ public class QAResponse
     public double Confidence { get; set; }
     public string ModelUsed { get; set; } = string.Empty;
     public string? Warning { get; set; }
+    public int ToolCallCount { get; set; }
     public DateTime GeneratedAt { get; set; }
 }
 

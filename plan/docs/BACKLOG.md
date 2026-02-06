@@ -6,11 +6,11 @@
 
 ## Current Status
 
-**Phase**: Phase 3 (Summarization & RAG) - IN PROGRESS
-**Next Action**: P3-005 (Agentic Q&A with tools)
+**Phase**: Phase 3 (Summarization & RAG) - COMPLETE
+**Next Action**: Phase 4 or backlog items
 **Last Updated**: February 5, 2026
 
-**Milestone**: Phase 3 core complete — single-shot RAG Q&A working, agentic Q&A next
+**Milestone**: Phase 3 complete — agentic Q&A with 4 tools operational
 
 ---
 
@@ -105,7 +105,7 @@
 | P3-002 | Azure AI Search vector index | M | 3 | Done | P2-001 |
 | P3-003 | Embedding pipeline (text-embedding-3-large) | L | 3 | Done | P3-002 |
 | P3-004 | Q&A Agent with RAG (single-shot) | XL | 3 | Done | P3-003 |
-| P3-005 | Agentic Q&A with tools (search_sessions, get_session_detail, get_patient_timeline, aggregate_metrics) | XL | 3 | Ready | P3-004 |
+| P3-005 | Agentic Q&A with tools (search_sessions, get_session_detail, get_patient_timeline, aggregate_metrics) | L | 3 | Done | P3-004 |
 | B-003 | Synthetic data generator script | M | 3 | Ready | P2-004 |
 | B-014 | Reindex/backfill job for AI Search | M | 3 | Ready | P3-002 |
 | **Pre-Phase 3 Checkpoint (Tabled Items)** |||||
@@ -199,6 +199,7 @@
 | P3-002 | Azure AI Search vector index infrastructure | 2026-02-03 |
 | P3-003 | Embedding pipeline (text-embedding-3-large) | 2026-02-04 |
 | P3-004 | Q&A Agent with RAG (clinical Q&A via vector search + LLM) | 2026-02-05 |
+| P3-005 | Agentic Q&A with tools (4 tools + agent loop) | 2026-02-05 |
 
 ---
 
@@ -206,6 +207,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-05 | **P3-005 complete.** Agentic Q&A with 4 tools: SearchSessionsTool (hybrid vector+keyword search), GetSessionDetailTool (drill into individual sessions), GetPatientTimelineTool (chronological timeline with risk/mood change detection), AggregateMetricsTool (mood_trend, session_count, intervention_frequency, risk_distribution, diagnosis_history). Added AgentLoopRunner overload for explicit tool lists. QAAgent refactored to dual-path: simple questions → single-shot RAG, complex questions → agentic loop with tools. 43 new unit tests (542 total). Coverage 82.23%. All 8 E2E tests pass. |
 | 2026-02-05 | **P3-004 complete.** Q&A Agent with RAG: QAAgent (single-shot RAG, complexity routing gpt-4o-mini/gpt-4o), hybrid vector+keyword search via SearchAsync, QAPrompts, QAController (POST /api/qa/patient/{patientId}), QARequestValidator (FluentValidation, 2000 char limit). 14 new unit tests + 1 E2E test. Coverage 82.13%. Deferred agentic loop + 4 Q&A tools + practice-wide search + eval harness to P3-005 (per original spec in agent-tool-callbacks.md and phase-3-summarization-rag.md). |
 | 2026-02-04 | **P3-003 complete.** Embedding pipeline implementation: EmbeddingService (text-embedding-3-large, 3072-dim, 30s timeout), SessionIndexingService (composes embedding text, builds search document), integrated into ExtractionOrchestrator Step 5.6. Added Bicep RBAC for Search Index Data Contributor role. Fixed null Interventions field causing 400 error on Azure Search. Config via user secrets parameter instead of hardcoded. All 7 E2E tests pass. Coverage 85.47%. Unblocks P3-004. |
 | 2026-02-03 | **P3-002 complete.** Added Azure AI Search vector index infrastructure: SearchIndexService (graceful degradation), SessionSearchDocument (12 fields, 3072-dim vector), SearchIndexInitializer (IHostedService). HNSW algorithm with cosine similarity. High-performance logging via [LoggerMessage]. Coverage exclusions added. 2 unit tests + 1 E2E test. Coverage 85.08%. Unblocks P3-003, P3-004, B-014. |

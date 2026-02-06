@@ -22,7 +22,7 @@ If coverage fails, add more unit tests before pushing.
 - `ClinicalExtractorAgent` - Extracts 82 fields using agent loop + tools
 - `RiskAssessorAgent` - Safety validation of risk fields
 - `SummarizerAgent` - Generates session/patient/practice summaries
-- `QAAgent` - RAG-powered Q&A over patient sessions (vector search + LLM)
+- `QAAgent` - Dual-path Q&A: simple questions → single-shot RAG, complex → agentic loop with 4 tools
 
 **Summary API:**
 - `GET /api/summary/session/{id}` - Session summary (stored or regenerate)
@@ -31,6 +31,14 @@ If coverage fails, add more unit tests before pushing.
 
 **Q&A API:**
 - `POST /api/qa/patient/{patientId}` - Ask clinical question about a patient (body: `{"question": "..."}`)
+  - Simple questions → single-shot RAG (fast, gpt-4o-mini)
+  - Complex questions → agentic loop with tools (gpt-4o), response includes `toolCallCount`
+
+**Q&A Agent Tools** (registered as concrete types, NOT as `IAgentTool`):
+- `SearchSessionsTool` - Hybrid vector+keyword search over indexed sessions
+- `GetSessionDetailTool` - Retrieve full extraction data for a single session
+- `GetPatientTimelineTool` - Chronological timeline with risk/mood change detection
+- `AggregateMetricsTool` - Compute metrics: mood_trend, session_count, intervention_frequency, risk_distribution, diagnosis_history
 
 ## Testing
 
@@ -69,6 +77,10 @@ dotnet test --filter "Category!=Functional"
   ```
 
 ## Agent Tool Pattern
+
+**AgentLoopRunner** has two `RunAsync` overloads:
+- `RunAsync(chatClient, messages, ct)` → uses DI-injected `IAgentTool` collection (extraction tools)
+- `RunAsync(chatClient, messages, tools, ct)` → uses explicit tool list (Q&A tools)
 
 When creating new `IAgentTool` implementations:
 - Use `PropertyNameCaseInsensitive = true` for JSON deserialization
