@@ -79,7 +79,7 @@
 | P2-006b | Agent tools: ClinicalExtractor transformation + remaining tools | L | 2 | Done | P2-006a |
 | P2-007 | Confidence scoring | M | 2 | Done | P2-004 |
 | P2-008 | Blob trigger + ExtractionOrchestrator + Doc Intelligence | XL | 2 | Done | P2-004 |
-| B-010 | Exponential backoff for OpenAI/Search | M | 2 | Ready | P2-001 |
+| B-010 | Exponential backoff for Azure SDK clients (OpenAI/Search/DocIntel) | M | 2 | Done | P2-001 |
 | B-011 | Idempotent job IDs for blob trigger | M | 2 | Ready | P2-008 |
 | B-012 | Dead-letter handling for failed ingestion | M | 2 | Ready | P2-008 |
 | B-013 | Dedupe strategy blob->SQL->AI Search | M | 2 | Ready | P2-004 |
@@ -89,6 +89,7 @@
 | B-034 | Fix idempotency race condition (SQL MERGE with HOLDLOCK) | M | 2 | Ready | P2-008 |
 | B-035 | Synchronous AI Search indexing | M | 2 | Ready | P2-004 |
 | B-036 | Document Intelligence failure handling | M | 2 | Ready | P2-008 |
+| B-048 | Circuit breaker for Azure SDK clients (Polly or custom HttpPipelinePolicy) | M | 2 | Ready | B-010 |
 | B-041 | Bicep: Add Cognitive Services User role to Doc Intel + OpenAI | M | 2 | Done | P2-008 |
 | B-042 | Fix AI Foundry → OpenAI: call Azure OpenAI directly (SDK workaround) | M | 2 | Done | B-041 |
 | B-043 | Document local dev setup (docs/LOCAL_DEV.md) | M | 2 | Done | - |
@@ -200,6 +201,7 @@
 | P3-003 | Embedding pipeline (text-embedding-3-large) | 2026-02-04 |
 | P3-004 | Q&A Agent with RAG (clinical Q&A via vector search + LLM) | 2026-02-05 |
 | P3-005 | Agentic Q&A with tools (4 tools + agent loop) | 2026-02-05 |
+| B-010 | Exponential backoff for Azure SDK clients (OpenAI/Search/DocIntel) | 2026-02-05 |
 
 ---
 
@@ -207,6 +209,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-05 | **B-010 complete.** Added exponential backoff retry configuration for all Azure SDK clients. Created `AzureRetryDefaults` in Core with two overloads: `Configure<T>()` for Azure.Core clients (Search, Doc Intelligence) with 5 retries/1s base/60s max/exponential mode/120s network timeout, and `ConfigureRetryPolicy<T>()` for System.ClientModel clients (OpenAI) with `ClientRetryPolicy(5)`. Applied to AIFoundryClientFactory (+ startup logging), SearchIndexService, and DocumentIntelligenceClient. 8 new unit tests (555 total). Coverage 82.31%. Created B-048 follow-up for circuit breaker. |
 | 2026-02-05 | **P3-005 complete.** Agentic Q&A with 4 tools: SearchSessionsTool (hybrid vector+keyword search), GetSessionDetailTool (drill into individual sessions), GetPatientTimelineTool (chronological timeline with risk/mood change detection), AggregateMetricsTool (mood_trend, session_count, intervention_frequency, risk_distribution, diagnosis_history). Added AgentLoopRunner overload for explicit tool lists. QAAgent refactored to dual-path: simple questions → single-shot RAG, complex questions → agentic loop with tools. 43 new unit tests (547 total). Coverage 82.23%. All 8 E2E tests pass. Also added RetryHandler to E2E ApiFixture (single retry on socket/TLS/5xx errors), consolidated LongClient into fixture, removed duplicate HttpClient from QATests. |
 | 2026-02-05 | **P3-004 complete.** Q&A Agent with RAG: QAAgent (single-shot RAG, complexity routing gpt-4o-mini/gpt-4o), hybrid vector+keyword search via SearchAsync, QAPrompts, QAController (POST /api/qa/patient/{patientId}), QARequestValidator (FluentValidation, 2000 char limit). 14 new unit tests + 1 E2E test. Coverage 82.13%. Deferred agentic loop + 4 Q&A tools + practice-wide search + eval harness to P3-005 (per original spec in agent-tool-callbacks.md and phase-3-summarization-rag.md). |
 | 2026-02-04 | **P3-003 complete.** Embedding pipeline implementation: EmbeddingService (text-embedding-3-large, 3072-dim, 30s timeout), SessionIndexingService (composes embedding text, builds search document), integrated into ExtractionOrchestrator Step 5.6. Added Bicep RBAC for Search Index Data Contributor role. Fixed null Interventions field causing 400 error on Azure Search. Config via user secrets parameter instead of hardcoded. All 7 E2E tests pass. Coverage 85.47%. Unblocks P3-004. |

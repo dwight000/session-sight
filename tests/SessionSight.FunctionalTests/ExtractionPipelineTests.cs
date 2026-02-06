@@ -15,11 +15,13 @@ namespace SessionSight.FunctionalTests;
 public class ExtractionPipelineTests : IClassFixture<ApiFixture>
 {
     private readonly HttpClient _client;
+    private readonly HttpClient _longClient;
     private readonly JsonSerializerOptions _jsonOptions;
 
     public ExtractionPipelineTests(ApiFixture fixture)
     {
         _client = fixture.Client;
+        _longClient = fixture.LongClient;
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
@@ -145,8 +147,8 @@ public class ExtractionPipelineTests : IClassFixture<ApiFixture>
         var uploadResponse = await _client.PostAsync($"/api/sessions/{sessionId}/document", content);
         uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created, "Document upload should succeed");
 
-        // 4. Trigger extraction
-        var extractionResponse = await _client.PostAsync($"/api/extraction/{sessionId}", null);
+        // 4. Trigger extraction — uses long timeout (Doc Intelligence + 3 LLM agents + embedding + indexing)
+        var extractionResponse = await _longClient.PostAsync($"/api/extraction/{sessionId}", null);
         extractionResponse.StatusCode.Should().Be(HttpStatusCode.OK,
             "Extraction endpoint should return 200 OK");
 

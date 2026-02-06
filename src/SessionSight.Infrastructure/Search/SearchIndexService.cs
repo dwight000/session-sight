@@ -5,6 +5,8 @@ using Azure.Search.Documents.Indexes.Models;
 using Azure.Search.Documents.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using SessionSight.Core.Resilience;
+using AzureSearchClientOptions = Azure.Search.Documents.SearchClientOptions;
 using AzureSearchOptions = Azure.Search.Documents.SearchOptions;
 
 namespace SessionSight.Infrastructure.Search;
@@ -41,9 +43,10 @@ public partial class SearchIndexService : ISearchIndexService
         _isConfigured = true;
         var endpoint = new Uri(_options.Endpoint);
         var credential = new DefaultAzureCredential();
+        var clientOptions = AzureRetryDefaults.Configure(new AzureSearchClientOptions());
 
-        _indexClient = new SearchIndexClient(endpoint, credential);
-        _searchClient = new SearchClient(endpoint, _options.IndexName, credential);
+        _indexClient = new SearchIndexClient(endpoint, credential, clientOptions);
+        _searchClient = new SearchClient(endpoint, _options.IndexName, credential, clientOptions);
     }
 
     public async Task EnsureIndexExistsAsync(CancellationToken cancellationToken = default)

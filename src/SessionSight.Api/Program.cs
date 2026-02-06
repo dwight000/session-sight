@@ -15,6 +15,7 @@ using SessionSight.Agents.Tools;
 using SessionSight.Agents.Validation;
 using SessionSight.Api.Middleware;
 using SessionSight.Api.Validators;
+using SessionSight.Core.Resilience;
 using SessionSight.Infrastructure;
 using SessionSight.Infrastructure.Search;
 
@@ -86,7 +87,8 @@ builder.Services.AddSingleton(sp =>
     }
     return new DocumentIntelligenceClient(
         new Uri(options.Endpoint),
-        new DefaultAzureCredential());
+        new DefaultAzureCredential(),
+        AzureRetryDefaults.Configure(new DocumentIntelligenceClientOptions()));
 });
 
 builder.Services.AddScoped<IDocumentParser, DocumentIntelligenceParser>();

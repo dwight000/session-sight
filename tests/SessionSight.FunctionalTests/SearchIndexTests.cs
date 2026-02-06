@@ -34,11 +34,13 @@ public class SearchIndexTests : IClassFixture<ApiFixture>
     private readonly string _searchEndpoint;
     private readonly string _indexName;
     private readonly HttpClient _client;
+    private readonly HttpClient _longClient;
     private readonly JsonSerializerOptions _jsonOptions;
 
     public SearchIndexTests(ApiFixture fixture)
     {
         _client = fixture.Client;
+        _longClient = fixture.LongClient;
         _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
         var configuration = new ConfigurationBuilder()
@@ -155,8 +157,8 @@ public class SearchIndexTests : IClassFixture<ApiFixture>
         var uploadResponse = await _client.PostAsync($"/api/sessions/{sessionId}/document", content);
         uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created, "Document upload should succeed");
 
-        // 4. Trigger extraction (this generates embedding and indexes)
-        var extractionResponse = await _client.PostAsync($"/api/extraction/{sessionId}", null);
+        // 4. Trigger extraction (this generates embedding and indexes) — uses long timeout
+        var extractionResponse = await _longClient.PostAsync($"/api/extraction/{sessionId}", null);
         extractionResponse.StatusCode.Should().Be(HttpStatusCode.OK, "Extraction endpoint should return 200 OK");
 
         var extractionJson = await extractionResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);

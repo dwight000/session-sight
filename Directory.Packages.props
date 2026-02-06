@@ -9,6 +9,7 @@
     <PackageVersion Include="Azure.AI.Inference" Version="1.0.0-beta.5" />
     <PackageVersion Include="Azure.AI.OpenAI" Version="2.1.0" />
     <PackageVersion Include="Azure.AI.Projects" Version="1.2.0-beta.5" />
+    <PackageVersion Include="Azure.Core" Version="1.51.1" />
     <PackageVersion Include="Azure.Identity" Version="1.17.1" />
     <!-- Aspire Hosting -->
     <PackageVersion Include="Aspire.Hosting.AppHost" Version="9.2.1" />

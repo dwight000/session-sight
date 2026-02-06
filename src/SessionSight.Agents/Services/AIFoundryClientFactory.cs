@@ -1,8 +1,10 @@
 using Azure.AI.OpenAI;
 using Azure.Identity;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
 using OpenAI.Embeddings;
+using SessionSight.Core.Resilience;
 
 namespace SessionSight.Agents.Services;
 
@@ -12,19 +14,22 @@ public interface IAIFoundryClientFactory
     EmbeddingClient CreateEmbeddingClient(string deploymentName);
 }
 
-public class AIFoundryClientFactory : IAIFoundryClientFactory
+public partial class AIFoundryClientFactory : IAIFoundryClientFactory
 {
     private readonly AzureOpenAIClient _openAIClient;
 
-    public AIFoundryClientFactory(IConfiguration config)
+    public AIFoundryClientFactory(IConfiguration config, ILogger<AIFoundryClientFactory> logger)
     {
         var openAIEndpointStr = config["AzureOpenAI:Endpoint"]
             ?? throw new InvalidOperationException("AzureOpenAI:Endpoint not configured");
 
         var endpoint = new Uri(openAIEndpointStr);
         var credential = new DefaultAzureCredential();
+        var options = AzureRetryDefaults.ConfigureRetryPolicy(new AzureOpenAIClientOptions());
 
-        _openAIClient = new AzureOpenAIClient(endpoint, credential);
+        _openAIClient = new AzureOpenAIClient(endpoint, credential, options);
+
+        LogRetryConfiguration(logger, AzureRetryDefaults.MaxRetries, AzureRetryDefaults.Delay, AzureRetryDefaults.MaxDelay);
     }
 
     /// <summary>
@@ -44,4 +49,7 @@ public class AIFoundryClientFactory : IAIFoundryClientFactory
     {
         return _openAIClient.GetEmbeddingClient(deploymentName);
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "AIFoundryClientFactory configured with retry: MaxRetries={MaxRetries}, Delay={Delay}, MaxDelay={MaxDelay}")]
+    private static partial void LogRetryConfiguration(ILogger logger, int maxRetries, TimeSpan delay, TimeSpan maxDelay);
 }
