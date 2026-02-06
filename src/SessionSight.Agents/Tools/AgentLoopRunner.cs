@@ -9,6 +9,7 @@ namespace SessionSight.Agents.Tools;
 public partial class AgentLoopRunner
 {
     public const int MaxToolCalls = 15;
+    public static readonly TimeSpan LoopTimeout = TimeSpan.FromMinutes(5);
 
     private readonly IEnumerable<IAgentTool> _tools;
     private readonly ILogger<AgentLoopRunner> _logger;
@@ -46,60 +47,74 @@ public partial class AgentLoopRunner
         var toolArray = tools as IAgentTool[] ?? tools.ToArray();
         var toolList = toolArray.ToChatTools().ToList();
 
-        while (true)
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(LoopTimeout);
+        var linkedToken = timeoutCts.Token;
+
+        try
         {
-            // Check tool limit BEFORE making call
-            if (toolCallCount >= MaxToolCalls)
+            while (true)
             {
-                LogToolCallLimitHit(_logger, MaxToolCalls);
-                return AgentLoopResult.Partial(
-                    $"Tool limit ({MaxToolCalls}) exceeded - extraction incomplete",
-                    toolCallCount);
-            }
-
-            var options = new ChatCompletionOptions();
-            foreach (var tool in toolList)
-            {
-                options.Tools.Add(tool);
-            }
-
-            var response = await chatClient.CompleteChatAsync(messages, options, ct);
-            var completion = response.Value;
-
-            // Add assistant message to conversation
-            messages.Add(new AssistantChatMessage(completion));
-
-            // Check if model wants to call tools
-            if (completion.ToolCalls?.Count > 0)
-            {
-                toolCallCount += completion.ToolCalls.Count;
-
-                LogAgentToolCalls(_logger, completion.ToolCalls.Count, toolCallCount);
-
-                // Execute tools in parallel
-                var tasks = completion.ToolCalls.Select(tc => ExecuteToolCallAsync(toolArray, tc, ct));
-                var results = await Task.WhenAll(tasks);
-
-                // Add tool results to conversation
-                foreach (var (id, result) in results)
+                // Check tool limit BEFORE making call
+                if (toolCallCount >= MaxToolCalls)
                 {
-                    messages.Add(new ToolChatMessage(id, result.Data?.ToString() ?? string.Empty));
+                    LogToolCallLimitHit(_logger, MaxToolCalls);
+                    return AgentLoopResult.Partial(
+                        $"Tool limit ({MaxToolCalls}) exceeded - extraction incomplete",
+                        toolCallCount);
                 }
 
-                continue;
-            }
+                var options = new ChatCompletionOptions();
+                foreach (var tool in toolList)
+                {
+                    options.Tools.Add(tool);
+                }
 
-            // No tool calls = agent is done
-            if (completion.FinishReason == ChatFinishReason.Stop)
-            {
-                var content = completion.Content.Count > 0 ? completion.Content[0].Text : "";
-                return AgentLoopResult.Complete(content, toolCallCount);
-            }
+                var response = await chatClient.CompleteChatAsync(messages, options, linkedToken);
+                var completion = response.Value;
 
-            // Unexpected finish reason
-            LogUnexpectedFinishReason(_logger, completion.FinishReason);
+                // Add assistant message to conversation
+                messages.Add(new AssistantChatMessage(completion));
+
+                // Check if model wants to call tools
+                if (completion.ToolCalls?.Count > 0)
+                {
+                    toolCallCount += completion.ToolCalls.Count;
+
+                    LogAgentToolCalls(_logger, completion.ToolCalls.Count, toolCallCount);
+
+                    // Execute tools in parallel
+                    var tasks = completion.ToolCalls.Select(tc => ExecuteToolCallAsync(toolArray, tc, linkedToken));
+                    var results = await Task.WhenAll(tasks);
+
+                    // Add tool results to conversation
+                    foreach (var (id, result) in results)
+                    {
+                        messages.Add(new ToolChatMessage(id, result.Data?.ToString() ?? string.Empty));
+                    }
+
+                    continue;
+                }
+
+                // No tool calls = agent is done
+                if (completion.FinishReason == ChatFinishReason.Stop)
+                {
+                    var content = completion.Content.Count > 0 ? completion.Content[0].Text : "";
+                    return AgentLoopResult.Complete(content, toolCallCount);
+                }
+
+                // Unexpected finish reason
+                LogUnexpectedFinishReason(_logger, completion.FinishReason);
+                return AgentLoopResult.Partial(
+                    $"Unexpected completion: {completion.FinishReason}",
+                    toolCallCount);
+            }
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            LogLoopTimeout(_logger, LoopTimeout.TotalMinutes, toolCallCount);
             return AgentLoopResult.Partial(
-                $"Unexpected completion: {completion.FinishReason}",
+                $"Agent loop timed out after {LoopTimeout.TotalMinutes} minutes",
                 toolCallCount);
         }
     }
@@ -134,4 +149,7 @@ public partial class AgentLoopRunner
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Unexpected finish reason: {Reason}")]
     private static partial void LogUnexpectedFinishReason(ILogger logger, ChatFinishReason reason);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Agent loop timed out after {Minutes} minutes with {ToolCalls} tool calls completed")]
+    private static partial void LogLoopTimeout(ILogger logger, double minutes, int toolCalls);
 }

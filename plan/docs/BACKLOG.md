@@ -90,6 +90,13 @@
 | B-035 | Synchronous AI Search indexing | M | 2 | Ready | P2-004 |
 | B-036 | Document Intelligence failure handling | M | 2 | Ready | P2-008 |
 | B-048 | Circuit breaker for Azure SDK clients (Polly or custom HttpPipelinePolicy) | M | 2 | Ready | B-010 |
+| B-049 | Extract shared LlmResponseParser from duplicated JSON parsing in 3 agents | M | 2 | Ready | P2-004 |
+| B-050 | Fix fire-and-forget scoped service lifetime in IngestionController | S | 2 | Done | P2-008 |
+| B-051 | Add patient-scoping guard to Q&A tools (cross-patient data access) | S | 2 | Done | P3-005 |
+| B-052 | Fix OData filter injection in SearchIndexService | S | 2 | Done | P3-002 |
+| B-053 | Fail extraction pipeline on JSON parse failure (safety false-negative) | S | 2 | Done | P2-004 |
+| B-054 | Add wall-clock timeout to agent loop (5 min) | S | 2 | Done | B-037 |
+| B-055 | Investigate E2E extraction JSON parse failures (pre-existing, was silently swallowed) | M | 2 | Ready | B-053 |
 | B-041 | Bicep: Add Cognitive Services User role to Doc Intel + OpenAI | M | 2 | Done | P2-008 |
 | B-042 | Fix AI Foundry → OpenAI: call Azure OpenAI directly (SDK workaround) | M | 2 | Done | B-041 |
 | B-043 | Document local dev setup (docs/LOCAL_DEV.md) | M | 2 | Done | - |
@@ -202,6 +209,11 @@
 | P3-004 | Q&A Agent with RAG (clinical Q&A via vector search + LLM) | 2026-02-05 |
 | P3-005 | Agentic Q&A with tools (4 tools + agent loop) | 2026-02-05 |
 | B-010 | Exponential backoff for Azure SDK clients (OpenAI/Search/DocIntel) | 2026-02-05 |
+| B-050 | Fix fire-and-forget scoped service lifetime in IngestionController | 2026-02-06 |
+| B-051 | Add patient-scoping guard to Q&A tools | 2026-02-06 |
+| B-052 | Fix OData filter injection in SearchIndexService | 2026-02-06 |
+| B-053 | Fail extraction pipeline on JSON parse failure | 2026-02-06 |
+| B-054 | Add wall-clock timeout to agent loop (5 min) | 2026-02-06 |
 
 ---
 
@@ -209,6 +221,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-06 | **B-050 to B-054 complete (architecture fixes).** (1) IngestionController fire-and-forget now uses IServiceScopeFactory for proper DI scope. (2) GetSessionDetailTool.AllowedPatientId + SearchSessionsTool.RequiredPatientId prevent cross-patient data access; QAAgent sets scope before each call. (3) SearchIndexService validates patientIdFilter as canonical GUID before OData interpolation. (4) ClinicalExtractorAgent.ParseExtractionResponse returns null on JsonException; orchestrator fails pipeline with DocumentStatus.Failed (safety: prevents false-negative risk assessment). (5) AgentLoopRunner has 5-min linked CancellationTokenSource timeout. 15 new unit tests (570 total). Coverage 82.19%. E2E: 3 extraction tests now correctly fail — pre-existing issue where LLM returns unparseable JSON was previously silently swallowed. Created B-055 to investigate. |
 | 2026-02-05 | **B-010 complete.** Added exponential backoff retry configuration for all Azure SDK clients. Created `AzureRetryDefaults` in Core with two overloads: `Configure<T>()` for Azure.Core clients (Search, Doc Intelligence) with 5 retries/1s base/60s max/exponential mode/120s network timeout, and `ConfigureRetryPolicy<T>()` for System.ClientModel clients (OpenAI) with `ClientRetryPolicy(5)`. Applied to AIFoundryClientFactory (+ startup logging), SearchIndexService, and DocumentIntelligenceClient. 8 new unit tests (555 total). Coverage 82.31%. Created B-048 follow-up for circuit breaker. |
 | 2026-02-05 | **P3-005 complete.** Agentic Q&A with 4 tools: SearchSessionsTool (hybrid vector+keyword search), GetSessionDetailTool (drill into individual sessions), GetPatientTimelineTool (chronological timeline with risk/mood change detection), AggregateMetricsTool (mood_trend, session_count, intervention_frequency, risk_distribution, diagnosis_history). Added AgentLoopRunner overload for explicit tool lists. QAAgent refactored to dual-path: simple questions → single-shot RAG, complex questions → agentic loop with tools. 43 new unit tests (547 total). Coverage 82.23%. All 8 E2E tests pass. Also added RetryHandler to E2E ApiFixture (single retry on socket/TLS/5xx errors), consolidated LongClient into fixture, removed duplicate HttpClient from QATests. |
 | 2026-02-05 | **P3-004 complete.** Q&A Agent with RAG: QAAgent (single-shot RAG, complexity routing gpt-4o-mini/gpt-4o), hybrid vector+keyword search via SearchAsync, QAPrompts, QAController (POST /api/qa/patient/{patientId}), QARequestValidator (FluentValidation, 2000 char limit). 14 new unit tests + 1 E2E test. Coverage 82.13%. Deferred agentic loop + 4 Q&A tools + practice-wide search + eval harness to P3-005 (per original spec in agent-tool-callbacks.md and phase-3-summarization-rag.md). |

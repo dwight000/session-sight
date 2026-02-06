@@ -16,18 +16,18 @@ public partial class IngestionController : ControllerBase
 {
     private readonly IPatientRepository _patientRepository;
     private readonly ISessionRepository _sessionRepository;
-    private readonly IExtractionOrchestrator _orchestrator;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<IngestionController> _logger;
 
     public IngestionController(
         IPatientRepository patientRepository,
         ISessionRepository sessionRepository,
-        IExtractionOrchestrator orchestrator,
+        IServiceScopeFactory scopeFactory,
         ILogger<IngestionController> logger)
     {
         _patientRepository = patientRepository;
         _sessionRepository = sessionRepository;
-        _orchestrator = orchestrator;
+        _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
@@ -95,13 +95,15 @@ public partial class IngestionController : ControllerBase
         LogCreatedSession(_logger, session.Id, patient.Id);
 
         // 3. Trigger extraction asynchronously (fire-and-forget)
-        // Intentionally use CancellationToken.None - don't cancel when the HTTP request completes
+        // Use IServiceScopeFactory to create a fresh DI scope that outlives this HTTP request
         _ = Task.Run(async () =>
         {
             try
             {
+                using var scope = _scopeFactory.CreateScope();
+                var orchestrator = scope.ServiceProvider.GetRequiredService<IExtractionOrchestrator>();
                 LogStartingBackgroundExtraction(_logger, session.Id);
-                await _orchestrator.ProcessSessionAsync(session.Id, CancellationToken.None);
+                await orchestrator.ProcessSessionAsync(session.Id, CancellationToken.None);
                 LogBackgroundExtractionCompleted(_logger, session.Id);
             }
             catch (Exception ex)

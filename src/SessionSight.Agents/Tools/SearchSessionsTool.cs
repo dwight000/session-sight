@@ -25,6 +25,11 @@ public class SearchSessionsTool : IAgentTool
         _embeddingService = embeddingService;
     }
 
+    /// <summary>
+    /// When set, always filters search results to this patient regardless of LLM input.
+    /// </summary>
+    public Guid? RequiredPatientId { get; set; }
+
     public string Name => "search_sessions";
 
     public string Description => "Search indexed therapy sessions using semantic and keyword search. Returns matching sessions with relevance scores.";
@@ -62,7 +67,11 @@ public class SearchSessionsTool : IAgentTool
             }
 
             string? patientFilter = null;
-            if (!string.IsNullOrEmpty(request.PatientId))
+            if (RequiredPatientId.HasValue)
+            {
+                patientFilter = RequiredPatientId.Value.ToString("D", CultureInfo.InvariantCulture);
+            }
+            else if (!string.IsNullOrEmpty(request.PatientId))
             {
                 if (!Guid.TryParse(request.PatientId, out var patientGuid))
                 {

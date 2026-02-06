@@ -120,6 +120,22 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             extractionResult.SessionId = sessionId.ToString("D", System.Globalization.CultureInfo.InvariantCulture);
             modelsUsed.AddRange(extractionResult.ModelsUsed);
 
+            // Fail pipeline on JSON parse failure — empty extraction with defaulted risk fields
+            // is a safety false-negative (all risk = None/Low when data is actually unknown)
+            if (extractionResult.Errors.Any(e => e.Contains("Failed to parse extraction JSON", StringComparison.Ordinal)))
+            {
+                LogExtractionParseFailed(_logger, sessionId);
+                await _sessionRepository.UpdateDocumentStatusAsync(sessionId, DocumentStatus.Failed);
+                return new OrchestrationResult
+                {
+                    Success = false,
+                    SessionId = sessionId,
+                    ErrorMessage = string.Join("; ", extractionResult.Errors),
+                    ModelsUsed = modelsUsed,
+                    ElapsedMilliseconds = stopwatch.ElapsedMilliseconds
+                };
+            }
+
             // Step 4: Risk Assessor - safety validation
             LogRunningRiskAssessor(_logger);
             var riskResult = await _agents.RiskAssessor.AssessAsync(
@@ -279,6 +295,9 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Extraction completed for session {SessionId} in {Elapsed}ms. RequiresReview: {RequiresReview}")]
     private static partial void LogExtractionCompleted(ILogger logger, Guid sessionId, long elapsed, bool requiresReview);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Extraction parse failed for session {SessionId} - setting status to Failed")]
+    private static partial void LogExtractionParseFailed(ILogger logger, Guid sessionId);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Extraction failed for session {SessionId}")]
     private static partial void LogExtractionFailed(ILogger logger, Exception exception, Guid sessionId);

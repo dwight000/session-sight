@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SessionSight.Agents.Orchestration;
@@ -14,7 +15,7 @@ public class IngestionControllerTests
 {
     private readonly Mock<IPatientRepository> _mockPatientRepo;
     private readonly Mock<ISessionRepository> _mockSessionRepo;
-    private readonly Mock<IExtractionOrchestrator> _mockOrchestrator;
+    private readonly Mock<IServiceScopeFactory> _mockScopeFactory;
     private readonly Mock<ILogger<IngestionController>> _mockLogger;
     private readonly IngestionController _controller;
 
@@ -22,12 +23,22 @@ public class IngestionControllerTests
     {
         _mockPatientRepo = new Mock<IPatientRepository>();
         _mockSessionRepo = new Mock<ISessionRepository>();
-        _mockOrchestrator = new Mock<IExtractionOrchestrator>();
+        _mockScopeFactory = new Mock<IServiceScopeFactory>();
         _mockLogger = new Mock<ILogger<IngestionController>>();
+
+        // Wire up scope factory -> scope -> service provider -> orchestrator
+        var mockScope = new Mock<IServiceScope>();
+        var mockServiceProvider = new Mock<IServiceProvider>();
+        var mockOrchestrator = new Mock<IExtractionOrchestrator>();
+        mockServiceProvider.Setup(p => p.GetService(typeof(IExtractionOrchestrator)))
+            .Returns(mockOrchestrator.Object);
+        mockScope.Setup(s => s.ServiceProvider).Returns(mockServiceProvider.Object);
+        _mockScopeFactory.Setup(f => f.CreateScope()).Returns(mockScope.Object);
+
         _controller = new IngestionController(
             _mockPatientRepo.Object,
             _mockSessionRepo.Object,
-            _mockOrchestrator.Object,
+            _mockScopeFactory.Object,
             _mockLogger.Object);
     }
 

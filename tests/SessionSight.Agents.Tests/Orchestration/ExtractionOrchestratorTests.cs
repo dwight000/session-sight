@@ -259,6 +259,46 @@ public class ExtractionOrchestratorTests
         await _sessionRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Completed, Arg.Any<string>());
     }
 
+    [Fact]
+    public async Task ProcessSessionAsync_ExtractionParseFailure_FailsPipeline()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        var parsedDoc = CreateTestParsedDocument();
+        var intakeResult = CreateTestIntakeResult(parsedDoc);
+
+        // Simulate JSON parse failure from ClinicalExtractorAgent
+        var failedExtraction = new AgentExtractionResult
+        {
+            SessionId = Guid.NewGuid().ToString(),
+            Data = new ClinicalExtraction(),
+            RequiresReview = true,
+            Errors = new List<string> { "Failed to parse extraction JSON from agent response" },
+            ModelsUsed = new List<string> { "gpt-4o" }
+        };
+
+        _sessionRepository.GetByIdAsync(sessionId).Returns(session);
+        _documentStorage.DownloadAsync(Arg.Any<string>()).Returns(new MemoryStream());
+        _documentParser.ParseAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(parsedDoc);
+        _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
+            .Returns(intakeResult);
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+            .Returns(failedExtraction);
+
+        // Act
+        var result = await _orchestrator.ProcessSessionAsync(sessionId);
+
+        // Assert — pipeline fails, status set to Failed
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("Failed to parse extraction JSON");
+        await _sessionRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Failed, null);
+        // Risk assessor should NOT run — empty extraction with defaulted risk fields is a safety risk
+        await _riskAssessor.DidNotReceive().AssessAsync(
+            Arg.Any<ExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
     private static CoreEntities.Session CreateTestSession(Guid sessionId)
     {
         return new CoreEntities.Session

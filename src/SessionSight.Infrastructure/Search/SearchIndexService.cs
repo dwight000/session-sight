@@ -133,7 +133,9 @@ public partial class SearchIndexService : ISearchIndexService
 
         if (!string.IsNullOrEmpty(patientIdFilter))
         {
-            searchOptions.Filter = $"PatientId eq '{patientIdFilter}'";
+            if (!Guid.TryParse(patientIdFilter, out var sanitizedGuid))
+                throw new ArgumentException("patientIdFilter must be a valid GUID", nameof(patientIdFilter));
+            searchOptions.Filter = $"PatientId eq '{sanitizedGuid:D}'";
         }
 
         if (queryVector.Length > 0)

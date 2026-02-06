@@ -22,6 +22,12 @@ public class GetSessionDetailTool : IAgentTool
         _repository = repository;
     }
 
+    /// <summary>
+    /// When set, restricts results to sessions belonging to this patient.
+    /// Returns "not found" for sessions belonging to other patients.
+    /// </summary>
+    public Guid? AllowedPatientId { get; set; }
+
     public string Name => "get_session_detail";
 
     public string Description => "Get detailed information about a specific therapy session including extraction data, mood, risk, diagnoses, and interventions.";
@@ -57,6 +63,11 @@ public class GetSessionDetailTool : IAgentTool
 
             var session = await _repository.GetByIdAsync(sessionGuid);
             if (session is null)
+            {
+                return ToolResult.Error($"Session not found: {request.SessionId}");
+            }
+
+            if (AllowedPatientId.HasValue && session.PatientId != AllowedPatientId.Value)
             {
                 return ToolResult.Error($"Session not found: {request.SessionId}");
             }

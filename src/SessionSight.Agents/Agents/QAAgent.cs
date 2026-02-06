@@ -194,6 +194,10 @@ public partial class QAAgent : IQAAgent
                 new UserChatMessage(QAPrompts.GetAgenticUserPrompt(question, patientId))
             };
 
+            // Scope tools to the requested patient to prevent cross-patient data access
+            _searchSessionsTool.RequiredPatientId = patientId;
+            _getSessionDetailTool.AllowedPatientId = patientId;
+
             IAgentTool[] tools =
             [
                 _searchSessionsTool,

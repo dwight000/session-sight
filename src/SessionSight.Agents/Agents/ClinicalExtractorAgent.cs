@@ -116,6 +116,20 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
         // Parse the final extraction from agent response
         var extraction = ParseExtractionResponse(loopResult.Content);
 
+        if (extraction is null)
+        {
+            LogJsonParseReturnedNull(_logger);
+            return new ExtractionResult
+            {
+                SessionId = sessionId,
+                Data = new ClinicalExtraction(),
+                RequiresReview = true,
+                Errors = ["Failed to parse extraction JSON from agent response"],
+                ModelsUsed = [modelName],
+                ToolCallCount = loopResult.ToolCallCount
+            };
+        }
+
         // Final validation and confidence scoring
         var validationResult = _validator.Validate(extraction);
         var confidence = ConfidenceCalculator.Calculate(extraction);
@@ -148,7 +162,7 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
         };
     }
 
-    private ClinicalExtraction ParseExtractionResponse(string? content)
+    private ClinicalExtraction? ParseExtractionResponse(string? content)
     {
         if (string.IsNullOrWhiteSpace(content))
         {
@@ -165,7 +179,7 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
         catch (JsonException ex)
         {
             LogJsonParseFailure(_logger, ex);
-            return new ClinicalExtraction();
+            return null;
         }
     }
 
@@ -416,4 +430,7 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to parse extraction response as JSON")]
     private static partial void LogJsonParseFailure(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Extraction JSON parse returned null - malformed response")]
+    private static partial void LogJsonParseReturnedNull(ILogger logger);
 }

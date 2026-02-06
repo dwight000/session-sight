@@ -151,6 +151,57 @@ public class GetSessionDetailToolTests
         result.ErrorMessage.Should().Contain("Invalid JSON");
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WithAllowedPatientId_RejectsSessionFromDifferentPatient()
+    {
+        var sessionId = Guid.NewGuid();
+        var ownerPatientId = Guid.NewGuid();
+        var differentPatientId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        session.PatientId = ownerPatientId;
+        _repository.GetByIdAsync(sessionId).Returns(session);
+
+        _tool.AllowedPatientId = differentPatientId;
+
+        var input = BinaryData.FromObjectAsJson(new { sessionId = sessionId.ToString() });
+        var result = await _tool.ExecuteAsync(input);
+
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("not found");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithAllowedPatientId_AllowsMatchingPatientSession()
+    {
+        var sessionId = Guid.NewGuid();
+        var patientId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        session.PatientId = patientId;
+        _repository.GetByIdAsync(sessionId).Returns(session);
+
+        _tool.AllowedPatientId = patientId;
+
+        var input = BinaryData.FromObjectAsJson(new { sessionId = sessionId.ToString() });
+        var result = await _tool.ExecuteAsync(input);
+
+        result.Success.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithoutAllowedPatientId_AllowsAnySession()
+    {
+        var sessionId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        _repository.GetByIdAsync(sessionId).Returns(session);
+
+        _tool.AllowedPatientId = null;
+
+        var input = BinaryData.FromObjectAsJson(new { sessionId = sessionId.ToString() });
+        var result = await _tool.ExecuteAsync(input);
+
+        result.Success.Should().BeTrue();
+    }
+
     private static Session CreateTestSession(Guid sessionId)
     {
         return new Session

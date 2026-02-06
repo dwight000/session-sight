@@ -143,6 +143,65 @@ public class SearchSessionsToolTests
         result.ErrorMessage.Should().Contain("GUID");
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WithRequiredPatientId_OverridesLlmInput()
+    {
+        var requiredPatientId = Guid.NewGuid();
+        var llmPatientId = Guid.NewGuid();
+        SetupSearchResults();
+
+        _tool.RequiredPatientId = requiredPatientId;
+
+        var input = BinaryData.FromObjectAsJson(new { query = "test", patientId = llmPatientId.ToString() });
+        await _tool.ExecuteAsync(input);
+
+        // Verify that the required patient ID was used, not the LLM-provided one
+        await _searchIndexService.Received(1).SearchAsync(
+            "test",
+            Arg.Any<float[]>(),
+            requiredPatientId.ToString("D"),
+            5,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithRequiredPatientId_IgnoresLlmNull()
+    {
+        var requiredPatientId = Guid.NewGuid();
+        SetupSearchResults();
+
+        _tool.RequiredPatientId = requiredPatientId;
+
+        var input = BinaryData.FromObjectAsJson(new { query = "test" });
+        await _tool.ExecuteAsync(input);
+
+        await _searchIndexService.Received(1).SearchAsync(
+            "test",
+            Arg.Any<float[]>(),
+            requiredPatientId.ToString("D"),
+            5,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithoutRequiredPatientId_UsesLlmPatientId()
+    {
+        var llmPatientId = Guid.NewGuid();
+        SetupSearchResults();
+
+        _tool.RequiredPatientId = null;
+
+        var input = BinaryData.FromObjectAsJson(new { query = "test", patientId = llmPatientId.ToString() });
+        await _tool.ExecuteAsync(input);
+
+        await _searchIndexService.Received(1).SearchAsync(
+            "test",
+            Arg.Any<float[]>(),
+            llmPatientId.ToString("D"),
+            5,
+            Arg.Any<CancellationToken>());
+    }
+
     private void SetupSearchResults(params (SessionSearchDocument Doc, double Score)[] items)
     {
         // Use the SearchModelFactory to create proper SearchResult instances
