@@ -43,7 +43,8 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString
     };
 
     public ClinicalExtractorAgent(
@@ -119,6 +120,10 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
         if (extraction is null)
         {
             LogJsonParseReturnedNull(_logger);
+        }
+
+        if (extraction is null)
+        {
             return new ExtractionResult
             {
                 SessionId = sessionId,
@@ -170,16 +175,66 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
             return new ClinicalExtraction();
         }
 
+        var json = ExtractJson(content);
+
+        // Try strict deserialization first
         try
         {
-            // Extract JSON from response (may be wrapped in markdown code block)
-            var json = ExtractJson(content);
             return JsonSerializer.Deserialize<ClinicalExtraction>(json, JsonOptions) ?? new ClinicalExtraction();
+        }
+        catch (JsonException)
+        {
+            // Fall through to lenient parsing
+        }
+
+        // Lenient: parse as JsonDocument and map sections individually
+        // This handles LLM responses with type mismatches (e.g., float for int, string for object)
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var extraction = new ClinicalExtraction();
+
+            if (root.ValueKind != JsonValueKind.Object)
+                return null;
+
+            extraction.SessionInfo = TryParseSection<SessionInfoExtracted>(root, "sessionInfo");
+            extraction.PresentingConcerns = TryParseSection<PresentingConcernsExtracted>(root, "presentingConcerns");
+            extraction.MoodAssessment = TryParseSection<MoodAssessmentExtracted>(root, "moodAssessment");
+            extraction.RiskAssessment = TryParseSection<RiskAssessmentExtracted>(root, "riskAssessment");
+            extraction.MentalStatusExam = TryParseSection<MentalStatusExamExtracted>(root, "mentalStatusExam");
+            extraction.Interventions = TryParseSection<InterventionsExtracted>(root, "interventions");
+            extraction.Diagnoses = TryParseSection<DiagnosesExtracted>(root, "diagnoses");
+            extraction.TreatmentProgress = TryParseSection<TreatmentProgressExtracted>(root, "treatmentProgress");
+            extraction.NextSteps = TryParseSection<NextStepsExtracted>(root, "nextSteps");
+
+            LogLenientParseUsed(_logger);
+            return extraction;
         }
         catch (JsonException ex)
         {
             LogJsonParseFailure(_logger, ex);
             return null;
+        }
+    }
+
+    private static T TryParseSection<T>(JsonElement root, string sectionName) where T : new()
+    {
+        if (!root.TryGetProperty(sectionName, out var sectionElement) ||
+            sectionElement.ValueKind != JsonValueKind.Object)
+        {
+            return new T();
+        }
+
+        try
+        {
+            var sectionJson = sectionElement.GetRawText();
+            var parsed = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(sectionJson, JsonOptions);
+            return parsed is null ? new T() : MapToSection<T>(parsed);
+        }
+        catch (JsonException)
+        {
+            return new T();
         }
     }
 
@@ -243,8 +298,26 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
             }
         }
 
+        // Try to find JSON code fence anywhere in the content (prose before/after)
+        var fenceMatch = JsonFenceRegex().Match(trimmed);
+        if (fenceMatch.Success)
+        {
+            return fenceMatch.Groups[1].Value.Trim();
+        }
+
+        // Last resort: find outermost { ... } braces
+        var firstBrace = trimmed.IndexOf('{');
+        var lastBrace = trimmed.LastIndexOf('}');
+        if (firstBrace >= 0 && lastBrace > firstBrace)
+        {
+            return trimmed[firstBrace..(lastBrace + 1)];
+        }
+
         return trimmed;
     }
+
+    [GeneratedRegex(@"```(?:json)?\s*\n?([\s\S]*?)```", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex JsonFenceRegex();
 
     private static T MapToSection<T>(Dictionary<string, JsonElement> parsed) where T : new()
     {
@@ -289,9 +362,18 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
             valueProperty?.SetValue(field, value);
         }
 
-        if (element.TryGetProperty("confidence", out var confElement) && confElement.TryGetDouble(out var conf))
+        if (element.TryGetProperty("confidence", out var confElement))
         {
-            confidenceProperty?.SetValue(field, conf);
+            double? conf = confElement.ValueKind switch
+            {
+                JsonValueKind.Number => confElement.GetDouble(),
+                JsonValueKind.String when double.TryParse(confElement.GetString(),
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var d) => d,
+                _ => null
+            };
+            if (conf.HasValue)
+                confidenceProperty?.SetValue(field, conf.Value);
         }
 
         if (element.TryGetProperty("source", out var sourceElement) && sourceElement.ValueKind != JsonValueKind.Null)
@@ -315,9 +397,9 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
         {
             _ when underlyingType.IsEnum => DeserializeEnum(element, underlyingType),
             _ when underlyingType == typeof(string) => element.GetString(),
-            _ when underlyingType == typeof(int) => element.TryGetInt32(out var i) ? i : null,
+            _ when underlyingType == typeof(int) => TryGetInt(element),
             _ when underlyingType == typeof(bool) => element.ValueKind == JsonValueKind.True,
-            _ when underlyingType == typeof(double) => element.TryGetDouble(out var d) ? d : null,
+            _ when underlyingType == typeof(double) => TryGetDouble(element),
             _ when underlyingType == typeof(DateOnly) => DeserializeDateOnly(element),
             _ when underlyingType == typeof(TimeOnly) => DeserializeTimeOnly(element),
             _ when underlyingType == typeof(List<string>) => DeserializeStringList(element),
@@ -325,6 +407,36 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
             _ when IsEnumList(underlyingType) => DeserializeEnumList(element, underlyingType),
             _ => null
         };
+    }
+
+    private static int? TryGetInt(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Number)
+        {
+            if (element.TryGetInt32(out var i)) return i;
+            if (element.TryGetDouble(out var d)) return (int)d;
+            return null;
+        }
+
+        if (element.ValueKind == JsonValueKind.String &&
+            int.TryParse(element.GetString(), System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+            return parsed;
+
+        return null;
+    }
+
+    private static double? TryGetDouble(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Number)
+            return element.TryGetDouble(out var d) ? d : null;
+
+        if (element.ValueKind == JsonValueKind.String &&
+            double.TryParse(element.GetString(), System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+            return parsed;
+
+        return null;
     }
 
     private static object? DeserializeEnum(JsonElement element, Type enumType)
@@ -393,6 +505,9 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
 
     private static SourceMapping? DeserializeSourceMapping(JsonElement element)
     {
+        if (element.ValueKind == JsonValueKind.String)
+            return new SourceMapping { Text = element.GetString() ?? string.Empty };
+
         if (element.ValueKind != JsonValueKind.Object)
             return null;
 
@@ -433,4 +548,7 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Extraction JSON parse returned null - malformed response")]
     private static partial void LogJsonParseReturnedNull(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Used lenient JSON parsing for extraction response")]
+    private static partial void LogLenientParseUsed(ILogger logger);
 }

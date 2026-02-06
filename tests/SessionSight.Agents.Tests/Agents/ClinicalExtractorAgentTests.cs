@@ -41,6 +41,45 @@ public class ClinicalExtractorAgentTests
     }
 
     [Fact]
+    public void ExtractJson_ProseBeforeCodeFence_ExtractsJson()
+    {
+        var input = """
+            Here is the extraction result:
+            ```json
+            {"patientId": {"value": "P12345", "confidence": 0.95}}
+            ```
+            """;
+        var result = ClinicalExtractorAgent.ExtractJson(input);
+        result.Should().Be("""{"patientId": {"value": "P12345", "confidence": 0.95}}""");
+    }
+
+    [Fact]
+    public void ExtractJson_JsonEmbeddedInProse_ExtractsJson()
+    {
+        var input = """
+            I have completed the extraction. The result is:
+            {"patientId": {"value": "P12345", "confidence": 0.95}}
+            I hope this helps!
+            """;
+        var result = ClinicalExtractorAgent.ExtractJson(input);
+        result.Should().Be("""{"patientId": {"value": "P12345", "confidence": 0.95}}""");
+    }
+
+    [Fact]
+    public void ExtractJson_CodeFenceMiddleOfText_ExtractsJson()
+    {
+        var input = """
+            Extraction complete with confidence 0.87.
+            ```
+            {"sessionType": {"value": "Individual", "confidence": 0.90}}
+            ```
+            All fields validated successfully.
+            """;
+        var result = ClinicalExtractorAgent.ExtractJson(input);
+        result.Should().Be("""{"sessionType": {"value": "Individual", "confidence": 0.90}}""");
+    }
+
+    [Fact]
     public void ParseSectionResponse_ValidSessionInfo_ReturnsSection()
     {
         var json = """
@@ -161,6 +200,29 @@ public class ClinicalExtractorAgentTests
     {
         var action = () => ClinicalExtractorAgent.GetPromptForSection("UnknownSection", "note text");
         action.Should().Throw<ArgumentException>().WithMessage("*Unknown section*");
+    }
+
+    [Fact]
+    public void SystemPrompt_ContainsGeneratedSchemaFieldNames()
+    {
+        var prompt = ExtractionPrompts.SystemPrompt;
+
+        // Verify sections are present
+        prompt.Should().Contain("\"sessionInfo\":");
+        prompt.Should().Contain("\"riskAssessment\":");
+        prompt.Should().Contain("\"presentingConcerns\":");
+
+        // Verify exact field names are in the schema (not vague descriptions)
+        prompt.Should().Contain("\"sessionDate\":");
+        prompt.Should().Contain("\"primaryConcern\":");
+        prompt.Should().Contain("\"suicidalIdeation\":");
+        prompt.Should().Contain("\"selfReportedMood\":");
+        prompt.Should().Contain("\"riskLevelOverall\":");
+        prompt.Should().Contain("\"techniquesUsed\":");
+
+        // Verify enum values are included
+        prompt.Should().Contain("None|Passive|ActiveNoPlan");
+        prompt.Should().Contain("Low|Moderate|High|Imminent");
     }
 
     [Fact]
@@ -422,5 +484,83 @@ public class ClinicalExtractorAgentTests
 
         result.Should().NotBeNull();
         result.SessionModality.Value.Should().Be(SessionModality.TelehealthVideo);
+    }
+
+    [Fact]
+    public void ParseSectionResponse_ConfidenceAsString_ParsesCorrectly()
+    {
+        var json = """
+            {
+                "patientId": {"value": "P123", "confidence": "0.95", "source": null}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<SessionInfoExtracted>("SessionInfo", json);
+
+        result.Should().NotBeNull();
+        result.PatientId.Value.Should().Be("P123");
+        result.PatientId.Confidence.Should().Be(0.95);
+    }
+
+    [Fact]
+    public void ParseSectionResponse_IntAsString_ParsesCorrectly()
+    {
+        var json = """
+            {
+                "selfReportedMood": {"value": "7", "confidence": 0.85, "source": null}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<MoodAssessmentExtracted>("MoodAssessment", json);
+
+        result.Should().NotBeNull();
+        result.SelfReportedMood.Value.Should().Be(7);
+    }
+
+    [Fact]
+    public void ParseSectionResponse_IntAsFloat_ParsesCorrectly()
+    {
+        var json = """
+            {
+                "selfReportedMood": {"value": 7.0, "confidence": 0.85, "source": null}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<MoodAssessmentExtracted>("MoodAssessment", json);
+
+        result.Should().NotBeNull();
+        result.SelfReportedMood.Value.Should().Be(7);
+    }
+
+    [Fact]
+    public void ParseSectionResponse_SourceAsString_ParsesCorrectly()
+    {
+        var json = """
+            {
+                "patientId": {"value": "P123", "confidence": 0.95, "source": "Session Note header"}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<SessionInfoExtracted>("SessionInfo", json);
+
+        result.Should().NotBeNull();
+        result.PatientId.Value.Should().Be("P123");
+        result.PatientId.Source.Should().NotBeNull();
+        result.PatientId.Source!.Text.Should().Be("Session Note header");
+    }
+
+    [Fact]
+    public void ParseSectionResponse_DoubleAsString_ParsesCorrectly()
+    {
+        var json = """
+            {
+                "patientId": {"value": "P123", "confidence": "0.80", "source": null}
+            }
+            """;
+
+        var result = ClinicalExtractorAgent.ParseSectionResponse<SessionInfoExtracted>("SessionInfo", json);
+
+        result.Should().NotBeNull();
+        result.PatientId.Confidence.Should().Be(0.80);
     }
 }

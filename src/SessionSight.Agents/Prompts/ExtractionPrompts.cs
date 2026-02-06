@@ -8,8 +8,11 @@ public static class ExtractionPrompts
 {
     /// <summary>
     /// System prompt for the Clinical Extractor Agent.
+    /// Includes the generated JSON schema so the LLM uses exact field names.
     /// </summary>
-    public const string SystemPrompt = """
+    public static string SystemPrompt { get; } = BuildSystemPrompt();
+
+    private static string BuildSystemPrompt() => $"""
         You are a clinical extraction assistant specializing in extracting structured data from therapy session notes.
         Your task is to extract clinical information accurately and comprehensively.
 
@@ -24,20 +27,14 @@ public static class ExtractionPrompts
         - Use confidence scores: 0.90-1.00 for explicit, 0.70-0.89 for implied, below 0.70 for uncertain
         - For risk assessment fields, be thorough and conservative - when in doubt, report concerns
         - After completing your extraction, return a complete JSON object with all sections
-        - The JSON should follow the ClinicalExtraction schema structure
 
-        The extraction should include these sections:
-        - sessionInfo: Session metadata (date, time, duration, type, modality)
-        - presentingConcerns: Primary and secondary concerns, severity, triggers
-        - moodAssessment: Self-reported mood, observed affect, energy level
-        - riskAssessment: Suicidal/homicidal ideation, self-harm, protective factors, overall risk level
-        - mentalStatusExam: Appearance, behavior, speech, thought process, cognition, insight, judgment
-        - interventions: Techniques used, skills taught/practiced, homework, medications
-        - diagnoses: Primary and secondary diagnoses with ICD-10 codes
-        - treatmentProgress: Goals, progress ratings, barriers, strengths
-        - nextSteps: Next session planning, referrals, coordination needs
+        You MUST use exactly these field names. Here is the complete JSON schema:
+        {ExtractionSchemaGenerator.Generate()}
 
-        Each extracted field should have: value, confidence (0-1), and optionally source (text excerpt).
+        Each field is an object with: "value" (the extracted data or null), "confidence" (number 0-1), "source" (null or a string with the source text).
+        For enum fields, the allowed values are shown separated by |. Use null if not found.
+
+        CRITICAL: Your final message MUST be ONLY the JSON object — no explanatory text, no markdown fences, no commentary before or after. Just raw JSON.
         """;
 
     /// <summary>

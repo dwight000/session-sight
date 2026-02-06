@@ -96,7 +96,7 @@
 | B-052 | Fix OData filter injection in SearchIndexService | S | 2 | Done | P3-002 |
 | B-053 | Fail extraction pipeline on JSON parse failure (safety false-negative) | S | 2 | Done | P2-004 |
 | B-054 | Add wall-clock timeout to agent loop (5 min) | S | 2 | Done | B-037 |
-| B-055 | Investigate E2E extraction JSON parse failures (pre-existing, was silently swallowed) | M | 2 | Ready | B-053 |
+| B-055 | Fix E2E extraction JSON parse failures (resilient deserialization + prompt fix) | M | 2 | Done | B-053 |
 | B-041 | Bicep: Add Cognitive Services User role to Doc Intel + OpenAI | M | 2 | Done | P2-008 |
 | B-042 | Fix AI Foundry → OpenAI: call Azure OpenAI directly (SDK workaround) | M | 2 | Done | B-041 |
 | B-043 | Document local dev setup (docs/LOCAL_DEV.md) | M | 2 | Done | - |
