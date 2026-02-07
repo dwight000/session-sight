@@ -8,7 +8,8 @@ import { Button } from '../components/ui/Button'
 import { RiskBadge } from '../components/ui/RiskBadge'
 import { ConfidenceBar } from '../components/ui/ConfidenceBar'
 import { Spinner } from '../components/ui/Spinner'
-import type { ReviewStatus, SessionSummary, ExtractedField } from '../types'
+import type { ReviewStatus, SessionSummary } from '../types'
+import { formatFieldValue, formatFieldName, isExtractedField } from '../utils/format'
 
 const statusVariant: Record<ReviewStatus, string> = {
   NotFlagged: 'default',
@@ -35,29 +36,6 @@ function formatDate(iso: string) {
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString()
-}
-
-function formatFieldValue(val: unknown): string {
-  if (val === null || val === undefined) return '\u2014'
-  if (Array.isArray(val)) return val.length > 0 ? val.join(', ') : '\u2014'
-  if (typeof val === 'object') return JSON.stringify(val)
-  return String(val)
-}
-
-function formatFieldName(key: string): string {
-  return key
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/^./, (s) => s.toUpperCase())
-    .trim()
-}
-
-function isExtractedField(obj: unknown): obj is ExtractedField {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    'value' in obj &&
-    'confidence' in obj
-  )
 }
 
 function ExtractionSection({

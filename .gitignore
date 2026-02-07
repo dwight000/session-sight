@@ -47,3 +47,7 @@ TestResults/
 coverage/
 *.trx
 .azure
+
+# Playwright
+test-results/
+playwright-report/
