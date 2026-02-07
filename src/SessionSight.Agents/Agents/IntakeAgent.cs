@@ -68,7 +68,8 @@ public partial class IntakeAgent : IIntakeAgent
         var options = new ChatCompletionOptions
         {
             Temperature = 0.1f,
-            MaxOutputTokenCount = 1024
+            MaxOutputTokenCount = 1024,
+            ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
         };
 
         var response = await chatClient.CompleteChatAsync(messages, options, cancellationToken);

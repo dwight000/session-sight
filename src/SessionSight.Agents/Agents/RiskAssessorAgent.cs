@@ -138,10 +138,12 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
             new UserChatMessage(prompt)
         };
 
+        // JSON response format guarantees valid JSON from the API (see also: RiskPrompts.SystemPrompt CRITICAL instruction)
         var options = new ChatCompletionOptions
         {
             Temperature = 0.1f,
-            MaxOutputTokenCount = 2048
+            MaxOutputTokenCount = 2048,
+            ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
         };
 
         var response = await chatClient.CompleteChatAsync(messages, options, ct);

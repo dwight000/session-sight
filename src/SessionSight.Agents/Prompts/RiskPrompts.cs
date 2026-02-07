@@ -31,6 +31,8 @@ public static class RiskPrompts
         JSON SCHEMA (exact field names and allowed enum values):
         {RiskSchemaGenerator.Generate()}
         """;
+    // NOTE: JSON output is also enforced via ChatResponseFormat.CreateJsonObjectFormat() in RiskAssessorAgent.
+    // This prompt instruction is kept as defense-in-depth for edge cases (token limits, content filters).
 
     /// <summary>
     /// Gets the focused safety prompt for risk re-extraction.

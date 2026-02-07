@@ -70,7 +70,8 @@ public partial class SummarizerAgent : ISummarizerAgent
             var options = new ChatCompletionOptions
             {
                 Temperature = 0.3f,
-                MaxOutputTokenCount = 1024
+                MaxOutputTokenCount = 1024,
+                ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
             };
 
             var response = await chatClient.CompleteChatAsync(messages, options, ct);
@@ -158,7 +159,8 @@ public partial class SummarizerAgent : ISummarizerAgent
             var options = new ChatCompletionOptions
             {
                 Temperature = 0.3f,
-                MaxOutputTokenCount = 2048
+                MaxOutputTokenCount = 2048,
+                ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
             };
 
             var response = await chatClient.CompleteChatAsync(messages, options, ct);

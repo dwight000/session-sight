@@ -57,7 +57,20 @@
       "Bash(gh run watch:*)",
       "Bash(gh run rerun:*)",
       "Bash(./scripts/check-coverage.sh:*)",
-      "Bash(bash scripts/check-coverage.sh:*)"
+      "Bash(bash scripts/check-coverage.sh:*)",
+      "Bash(export API_BASE_URL=\"https://localhost:7039\")",
+      "Bash(export AzureSearch__Endpoint=\"https://sessionsight-search-dev.search.windows.net\")",
+      "Bash(API_BASE_URL=\"https://localhost:7039\" AzureSearch__Endpoint=\"https://sessionsight-search-dev.search.windows.net\" dotnet test:*)",
+      "Bash(az search service:*)",
+      "Bash(az rest:*)",
+      "Bash(/home/dwight/virtualenvs/my_venv/bin/az search service show:*)",
+      "Bash(/home/dwight/virtualenvs/my_venv/bin/az rest:*)",
+      "WebFetch(domain:www.anthropic.com)",
+      "Bash(find:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(docker network:*)",
+      "Bash(DIAG_LOG=1 ./scripts/run-e2e.sh:*)",
+      "Bash(xargs:*)"
     ]
   }
 }
