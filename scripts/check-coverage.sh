@@ -37,7 +37,7 @@ dotnet reportgenerator \
     -reports:"coverage/**/coverage.cobertura.xml" \
     -targetdir:coverage/report \
     -reporttypes:Cobertura,Html \
-    -filefilters:"-**/Migrations/**;-**/AIFoundryClientFactory.cs;-**/DocumentIntelligenceParser.cs;-**/AzureBlobDocumentStorage.cs;-**/AgentLoopRunner.cs;-**/DependencyInjection.cs;-**/SessionSightDbContext.cs;-**/SessionRepository.cs;-**/PatientRepository.cs;-**/ProcessIncomingNoteFunction.cs;-**/SearchIndexService.cs;-**/SearchIndexInitializer.cs;-**/EmbeddingService.cs;-**/obj/**"
+    -filefilters:"-**/Migrations/**;-**/AIFoundryClientFactory.cs;-**/DocumentIntelligenceParser.cs;-**/AzureBlobDocumentStorage.cs;-**/AgentLoopRunner.cs;-**/DependencyInjection.cs;-**/SessionSightDbContext.cs;-**/SessionRepository.cs;-**/PatientRepository.cs;-**/ReviewRepository.cs;-**/ProcessIncomingNoteFunction.cs;-**/SearchIndexService.cs;-**/SearchIndexInitializer.cs;-**/EmbeddingService.cs;-**/obj/**"
 
 # Check threshold
 COVERAGE=$(grep -oP 'line-rate="\K[^"]+' coverage/report/Cobertura.xml | head -1)

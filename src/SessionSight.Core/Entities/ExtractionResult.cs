@@ -1,3 +1,4 @@
+using SessionSight.Core.Enums;
 using SessionSight.Core.Schema;
 
 namespace SessionSight.Core.Entities;
@@ -11,6 +12,8 @@ public class ExtractionResult
     public string ModelUsed { get; set; } = string.Empty;
     public double OverallConfidence { get; set; }
     public bool RequiresReview { get; set; }
+    public ReviewStatus ReviewStatus { get; set; } = ReviewStatus.NotFlagged;
+    public List<string> ReviewReasons { get; set; } = new();
     public DateTime ExtractedAt { get; set; }
     public ClinicalExtraction Data { get; set; } = new();
 
@@ -18,4 +21,6 @@ public class ExtractionResult
     /// Session summary stored as JSON string.
     /// </summary>
     public string? SummaryJson { get; set; }
+
+    public ICollection<SupervisorReview> Reviews { get; set; } = new List<SupervisorReview>();
 }

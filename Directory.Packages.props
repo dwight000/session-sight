@@ -18,6 +18,7 @@
     <PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="9.2.1" />
     <PackageVersion Include="Aspire.Hosting.Azure.ApplicationInsights" Version="9.2.1" />
     <PackageVersion Include="Aspire.Hosting.Azure.KeyVault" Version="9.2.1" />
+    <PackageVersion Include="Aspire.Hosting.NodeJs" Version="9.2.1" />
     <!-- Aspire Components (client-side) -->
     <PackageVersion Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" Version="9.2.1" />
     <PackageVersion Include="Aspire.Azure.Storage.Blobs" Version="9.2.1" />

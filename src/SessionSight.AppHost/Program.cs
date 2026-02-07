@@ -27,9 +27,15 @@ _ = storage.AddBlobs("failed");
 var searchEndpoint = builder.AddParameter("search-endpoint");
 
 // API project
-builder.AddProject<Projects.SessionSight_Api>("api")
+var api = builder.AddProject<Projects.SessionSight_Api>("api")
     .WithReference(db).WaitFor(db)
     .WithReference(blobs)
     .WithEnvironment("AzureSearch__Endpoint", searchEndpoint);
+
+// Web frontend
+builder.AddNpmApp("web", "../SessionSight.Web", "dev")
+    .WithReference(api)
+    .WithHttpEndpoint(env: "PORT")
+    .WithExternalHttpEndpoints();
 
 await builder.Build().RunAsync();

@@ -236,6 +236,10 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         SessionSummary? sessionSummary)
     {
         // Convert agent result to entity
+        var reviewReasons = agentResult.LowConfidenceFields
+            .Where(f => f.StartsWith("Risk:", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
         var entity = new SessionSight.Core.Entities.ExtractionResult
         {
             Id = Guid.NewGuid(),
@@ -244,6 +248,10 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             ModelUsed = string.Join(", ", modelsUsed.Distinct()),
             OverallConfidence = agentResult.OverallConfidence,
             RequiresReview = agentResult.RequiresReview,
+            ReviewStatus = agentResult.RequiresReview
+                ? Core.Enums.ReviewStatus.Pending
+                : Core.Enums.ReviewStatus.NotFlagged,
+            ReviewReasons = reviewReasons,
             ExtractedAt = DateTime.UtcNow,
             Data = agentResult.Data,
             SummaryJson = sessionSummary != null

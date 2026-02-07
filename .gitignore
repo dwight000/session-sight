@@ -39,6 +39,9 @@ Thumbs.db
 # Azure
 .azure/
 
+# Node
+src/SessionSight.Web/node_modules/
+
 # Test results and coverage
 TestResults/
 coverage/

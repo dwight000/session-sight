@@ -15,6 +15,7 @@ public class SessionSightDbContext : DbContext
     public DbSet<SessionDocument> Documents => Set<SessionDocument>();
     public DbSet<ExtractionResult> Extractions => Set<ExtractionResult>();
     public DbSet<ProcessingJob> ProcessingJobs => Set<ProcessingJob>();
+    public DbSet<SupervisorReview> SupervisorReviews => Set<SupervisorReview>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

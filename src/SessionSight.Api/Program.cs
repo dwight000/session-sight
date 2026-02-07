@@ -34,6 +34,7 @@ builder.AddAzureBlobClient("documents");
 builder.Services.AddScoped<SessionSight.Core.Interfaces.IPatientRepository, SessionSight.Infrastructure.Repositories.PatientRepository>();
 builder.Services.AddScoped<SessionSight.Core.Interfaces.ISessionRepository, SessionSight.Infrastructure.Repositories.SessionRepository>();
 builder.Services.AddScoped<SessionSight.Core.Interfaces.IDocumentStorage, SessionSight.Infrastructure.Storage.AzureBlobDocumentStorage>();
+builder.Services.AddScoped<SessionSight.Core.Interfaces.IReviewRepository, SessionSight.Infrastructure.Repositories.ReviewRepository>();
 
 // AI Foundry + Model Router + Agents
 builder.Services.AddSingleton<IAIFoundryClientFactory, AIFoundryClientFactory>();
@@ -118,6 +119,15 @@ builder.Services.AddControllers()
 builder.Services.AddValidatorsFromAssemblyContaining<CreatePatientValidator>();
 builder.Services.AddFluentValidationAutoValidation();
 
+// CORS for React dev server
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("DevCors", policy =>
+        policy.WithOrigins("http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod());
+});
+
 // ProblemDetails + global exception handler
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -133,6 +143,7 @@ app.UseMiddleware<CorrelationIdMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
+    app.UseCors("DevCors");
     app.MapOpenApi();
     app.MapScalarApiReference();
 }
