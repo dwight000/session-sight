@@ -11,7 +11,6 @@ namespace SessionSight.FunctionalTests;
 /// Requires a running API with Azure OpenAI and Azure AI Search configured.
 /// </summary>
 [Trait("Category", "Functional")]
-[Collection("Sequential")]
 public class QATests : IClassFixture<ApiFixture>
 {
     private readonly HttpClient _client;

@@ -1,3 +1,5 @@
+using SessionSight.Core.Enums;
+
 namespace SessionSight.Core.Schema;
 
 public class DiagnosesExtracted
@@ -7,5 +9,5 @@ public class DiagnosesExtracted
     public ExtractedField<List<string>> SecondaryDiagnoses { get; set; } = new();
     public ExtractedField<List<string>> SecondaryDiagnosisCodes { get; set; } = new();
     public ExtractedField<List<string>> RuleOuts { get; set; } = new();
-    public ExtractedField<string> DiagnosisChanges { get; set; } = new();
+    public ExtractedField<DiagnosisChangeType> DiagnosisChanges { get; set; } = new();
 }

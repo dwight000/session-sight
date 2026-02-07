@@ -67,7 +67,12 @@ dotnet test --filter "Category!=Functional"
 grep -E "FAIL\]|Error Message:" /tmp/e2e-output.log
 ```
 
-**Docker network exhaustion:** If Aspire fails to start with "all predefined address pools have been fully subnetted", orphaned networks have accumulated. The cleanup function in run-e2e.sh prunes these automatically, but if needed: `docker network ls --filter "name=aspire" -q | xargs -r docker network rm`
+**Docker network exhaustion:** If Aspire fails to start with "all predefined address pools have been fully subnetted", orphaned networks have accumulated. The cleanup function in run-e2e.sh removes orphaned `sql-*` and `storage-*` containers first, then prunes networks. If it still fails, run manually:
+```bash
+docker ps -a --format '{{.Names}}' | grep -E 'sql-|storage-' | xargs -r docker rm -f
+docker network ls --filter "name=aspire" -q | xargs -r docker network rm
+```
+**Key:** Networks can't be removed while containers are attached. Remove containers FIRST (both `sql-*` AND `storage-*` names), then networks.
 
 **Logs:** `/tmp/aspire-e2e.log` (view live: `tail -f /tmp/aspire-e2e.log`)
 
@@ -134,8 +139,7 @@ When creating new `IAgentTool` implementations:
 - Use double underscore (`__`) for nested config in environment variables
 
 ### E2E Tests
-- **Add `[Collection("Sequential")]`** to test classes that do extraction (resource-intensive)
-- Must also create `[CollectionDefinition("Sequential", DisableParallelization = true)]`
+- **E2E test classes run in parallel** — Azure SDK retry/backoff (B-010) handles rate limits from concurrent extractions
 - **Extraction timeout**: `fixture.Client` has 120s timeout, `fixture.LongClient` has 5-min timeout — use `LongClient` for extraction calls
 - **Transient retry**: ApiFixture wraps both clients with `RetryHandler` (single retry, 1s delay) for socket resets, TLS failures, and 502/503/504. Don't create raw `HttpClient` in tests — use the fixture
 - **Retry on infrastructure signals, not LLM signals**: Azure AI Search indexing is near-real-time, not instant. E2E tests should retry on `sources.length > 0` (search found data), NOT on `confidence > 0` (LLM's subjective self-assessment which can be 0 even when pipeline worked correctly)
@@ -156,6 +160,13 @@ When creating new `IAgentTool` implementations:
 - **E2E tests must assert data quality, not just success.** A test that checks `success == true` without verifying extracted fields is a false positive — the pipeline can "succeed" with all-empty data.
 - **Use `--filter TestName` when iterating** on a single E2E test to avoid running all 8 tests each loop ($$$).
 - **Generate schemas from source types, don't hardcode.** If a prompt needs the JSON schema, generate it via reflection (see `ExtractionSchemaGenerator`). Hardcoded schemas drift when fields are added.
+- **Always set `ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()`** on ChatCompletionOptions for any agent that returns JSON. This guarantees valid JSON at the API level. Without it, the LLM can return prose, markdown fences, or broken JSON — especially after long agent loops. Keep the "CRITICAL: JSON only" prompt instruction as defense-in-depth.
+
+### E2E Assertion Patterns for LLM-Extracted Fields
+- **Deterministic fields** (explicitly stated in note: dates, scores, "None"): Assert exact values, but guard with `if (value != null && value != default)` for occasional LLM extraction failures.
+- **Interpretive enum fields** (LLM chooses from enum): Validate against the FULL enum set (`BeOneOf(all valid values)`), NOT a subset. The LLM picks different values each run.
+- **Free-text array fields** (keywords, themes, barriers): Use broad keyword stems (`"consist"` not `"consistent"`, `"appl"` not `"application"`), and use `ContainAny` with 6-8 stems.
+- **FluentAssertions `ContainMatch` gotcha:** `|` is treated LITERALLY, not as OR. `ContainMatch("*a*|*b*")` looks for a literal pipe character. Use `Contain(sk => sk.Contains("a") || sk.Contains("b"))` instead.
 
 ### DiagLog: File-Based Debug Logging
 
@@ -201,3 +212,6 @@ rm /tmp/api-diag.log
 1. `dotnet build` - verify no Sonar/CA errors
 2. `./scripts/check-coverage.sh` - must pass 82%
 3. `./scripts/run-e2e.sh` - all functional tests must pass
+
+### Memory vs Plan Files
+- If you would write to auto memory but we are actively working with a BACKLOG.md or plan file, write the note there instead. Lessons learned go in CLAUDE.md, process reminders go in BACKLOG.md.

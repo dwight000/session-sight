@@ -11,5 +11,5 @@ public class NextStepsExtracted
     public ExtractedField<List<ReferralType>> ReferralTypes { get; set; } = new();
     public ExtractedField<List<string>> CoordinationNeeded { get; set; } = new();
     public ExtractedField<LevelOfCareRecommendation> LevelOfCareRecommendation { get; set; } = new();
-    public ExtractedField<string> DischargePlanning { get; set; } = new();
+    public ExtractedField<DischargePlanningStatus> DischargePlanning { get; set; } = new();
 }

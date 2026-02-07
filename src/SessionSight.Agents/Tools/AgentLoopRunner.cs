@@ -25,22 +25,35 @@ public partial class AgentLoopRunner
         List<ChatMessage> messages,
         CancellationToken ct = default)
     {
-        return RunCoreAsync(chatClient, messages, _tools, ct);
+        return RunCoreAsync(chatClient, messages, _tools, null, null, ct);
+    }
+
+    public Task<AgentLoopResult> RunAsync(
+        ChatClient chatClient,
+        List<ChatMessage> messages,
+        ChatResponseFormat? responseFormat,
+        float? temperature = null,
+        CancellationToken ct = default)
+    {
+        return RunCoreAsync(chatClient, messages, _tools, responseFormat, temperature, ct);
     }
 
     public Task<AgentLoopResult> RunAsync(
         ChatClient chatClient,
         List<ChatMessage> messages,
         IEnumerable<IAgentTool> tools,
+        float? temperature = null,
         CancellationToken ct = default)
     {
-        return RunCoreAsync(chatClient, messages, tools, ct);
+        return RunCoreAsync(chatClient, messages, tools, null, temperature, ct);
     }
 
     private async Task<AgentLoopResult> RunCoreAsync(
         ChatClient chatClient,
         List<ChatMessage> messages,
         IEnumerable<IAgentTool> tools,
+        ChatResponseFormat? responseFormat,
+        float? temperature,
         CancellationToken ct)
     {
         var toolCallCount = 0;
@@ -65,6 +78,14 @@ public partial class AgentLoopRunner
                 }
 
                 var options = new ChatCompletionOptions();
+                if (responseFormat is not null)
+                {
+                    options.ResponseFormat = responseFormat;
+                }
+                if (temperature.HasValue)
+                {
+                    options.Temperature = temperature.Value;
+                }
                 foreach (var tool in toolList)
                 {
                     options.Tools.Add(tool);

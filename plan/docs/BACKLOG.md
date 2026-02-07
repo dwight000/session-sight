@@ -8,7 +8,7 @@
 
 **Phase**: Phase 3 (Summarization & RAG) - COMPLETE
 **Next Action**: Phase 4 or backlog items
-**Last Updated**: February 5, 2026
+**Last Updated**: February 6, 2026
 
 **Milestone**: Phase 3 complete — agentic Q&A with 4 tools operational
 
@@ -98,6 +98,8 @@
 | B-054 | Add wall-clock timeout to agent loop (5 min) | S | 2 | Done | B-037 |
 | B-055 | Fix E2E extraction JSON parse failures (resilient deserialization + prompt fix) | M | 2 | Done | B-053 |
 | B-056 | Harden LLM JSON parsing and error handling across all agents | M | 2 | Done | B-055 |
+| B-057 | Add response_format json_object + harden E2E field assertions | M | 2 | Done | B-056 |
+| B-058 | Full 74-field assertion coverage + 4 string→enum conversions | M | 2 | Done | B-057 |
 | B-041 | Bicep: Add Cognitive Services User role to Doc Intel + OpenAI | M | 2 | Done | P2-008 |
 | B-042 | Fix AI Foundry → OpenAI: call Azure OpenAI directly (SDK workaround) | M | 2 | Done | B-041 |
 | B-043 | Document local dev setup (docs/LOCAL_DEV.md) | M | 2 | Done | - |
@@ -217,6 +219,8 @@
 | B-054 | Add wall-clock timeout to agent loop (5 min) | 2026-02-06 |
 | B-055 | Fix E2E extraction JSON parse failures (resilient deserialization + prompt fix) | 2026-02-06 |
 | B-056 | Harden LLM JSON parsing and error handling across all agents | 2026-02-06 |
+| B-057 | Add response_format json_object + harden E2E field assertions | 2026-02-06 |
+| B-058 | Full 74-field assertion coverage + 4 string→enum conversions | 2026-02-06 |
 
 ---
 
@@ -224,6 +228,8 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-06 | **B-058 complete (74-field assertions + 4 string→enum + temperature fix).** Converted 4 free-text string fields to enums: Appearance (MSE), BehaviorType (MSE), DiagnosisChangeType (Diagnoses), DischargePlanningStatus (NextSteps). Updated 3 schema files, ExtractionSchemaGenerator auto-discovers new enums. ExtractionAssertions.cs: removed 3 unused helpers, added AssertFieldPresent helper, added/fixed assertions for all 74 extracted fields (was ~50). Updated stale per-section prompts in ExtractionPrompts.cs. Fixed missing temperature on ClinicalExtractorAgent (spec said 0.1f, lost during AgentLoopRunner refactor) — added temperature parameter to AgentLoopRunner, set 0.1f for extraction, 0.2f for Q&A. Updated clinical-schema.md spec. Removed Sequential collection from E2E tests — classes now run in parallel (Azure SDK backoff handles rate limits). Deleted TestCollections.cs. 616 unit tests. Coverage 82.15%. 8/8 E2E. |
+| 2026-02-06 | **B-057 complete (response_format + E2E assertions).** Added `ChatResponseFormat.CreateJsonObjectFormat()` to all JSON-returning agents (ClinicalExtractor, RiskAssessor, Summarizer, Intake) — eliminates "Failed to parse extraction JSON" transient errors. Added `responseFormat` parameter to AgentLoopRunner. Expanded ExtractionAssertions from 5 to ~82 fields across all 9 sections. All interpretive enum fields validate against full enum sets; free-text fields use broad keyword stems; deterministic fields guard against LLM extraction failures. Fixed FluentAssertions `ContainMatch` bug (`\|` treated literally). Fixed Docker cleanup in run-e2e.sh to remove `storage-*` containers before pruning networks. Updated CLAUDE.md with response_format best practice, E2E assertion patterns, and Docker cleanup docs. 616 unit tests. Coverage 82.15%. 8/8 E2E. |
 | 2026-02-06 | **B-055 + B-056 complete (LLM JSON hardening).** (B-055) Fixed ClinicalExtractorAgent JSON parsing: schema-embedded prompt via ExtractionSchemaGenerator, resilient deserialization with section-by-section fallback, robust ExtractJson with regex+brace extraction. (B-056) Applied B-055 patterns across all agents: (1) Created shared LlmJsonHelper with ExtractJson, TryParseConfidence, TryParseInt, TryParseDouble. (2) Created RiskSchemaGenerator — generates risk schema from C# types, replaces hardcoded JSON in RiskPrompts. (3) Fixed safety-critical error hiding: ClinicalExtractorAgent.ParseExtractionResponse returns null on empty content (was returning default ClinicalExtraction with all-Low risk); RiskAssessorAgent.ReExtractRiskAsync throws on parse failure (triggers RequiresReview). (4) Fixed deserialization: RiskAssessorAgent handles string-typed confidence and string source; IntakeAgent adds NumberHandling; QAAgent handles string confidence. (5) Added E2E ExtractionAssertions shared helper — all 3 extraction E2E tests now verify field-level clinical data. 15 new unit tests (616 total). Coverage 82.07%. |
 | 2026-02-06 | **B-050 to B-054 complete (architecture fixes).** (1) IngestionController fire-and-forget now uses IServiceScopeFactory for proper DI scope. (2) GetSessionDetailTool.AllowedPatientId + SearchSessionsTool.RequiredPatientId prevent cross-patient data access; QAAgent sets scope before each call. (3) SearchIndexService validates patientIdFilter as canonical GUID before OData interpolation. (4) ClinicalExtractorAgent.ParseExtractionResponse returns null on JsonException; orchestrator fails pipeline with DocumentStatus.Failed (safety: prevents false-negative risk assessment). (5) AgentLoopRunner has 5-min linked CancellationTokenSource timeout. 15 new unit tests (570 total). Coverage 82.19%. E2E: 3 extraction tests now correctly fail — pre-existing issue where LLM returns unparseable JSON was previously silently swallowed. Created B-055 to investigate. |
 | 2026-02-05 | **B-010 complete.** Added exponential backoff retry configuration for all Azure SDK clients. Created `AzureRetryDefaults` in Core with two overloads: `Configure<T>()` for Azure.Core clients (Search, Doc Intelligence) with 5 retries/1s base/60s max/exponential mode/120s network timeout, and `ConfigureRetryPolicy<T>()` for System.ClientModel clients (OpenAI) with `ClientRetryPolicy(5)`. Applied to AIFoundryClientFactory (+ startup logging), SearchIndexService, and DocumentIntelligenceClient. 8 new unit tests (555 total). Coverage 82.31%. Created B-048 follow-up for circuit breaker. |

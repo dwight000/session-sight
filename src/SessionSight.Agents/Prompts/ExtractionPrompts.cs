@@ -36,6 +36,8 @@ public static class ExtractionPrompts
 
         CRITICAL: Your final message MUST be ONLY the JSON object — no explanatory text, no markdown fences, no commentary before or after. Just raw JSON.
         """;
+    // NOTE: JSON output is also enforced via ChatResponseFormat.CreateJsonObjectFormat() in ClinicalExtractorAgent.
+    // This prompt instruction is kept as defense-in-depth for edge cases (token limits, content filters).
 
     /// <summary>
     /// Common instructions for all extraction prompts.
@@ -222,8 +224,8 @@ public static class ExtractionPrompts
         Extract mental status examination information from this therapy note.
 
         Fields to extract:
-        - appearance (string): Description of client's appearance
-        - behavior (string): Description of client's behavior
+        - appearance (enum): WellGroomed|Appropriate|Disheveled|Unkempt|Bizarre|Unremarkable
+        - behavior (enum): Cooperative|Guarded|Agitated|Withdrawn|Restless|Calm|Hyperactive
         - speech (enum): Normal|Pressured|Slowed|Soft|Loud|Monotone
         - thoughtProcess (enum): Linear|Circumstantial|Tangential|Loose|FlightOfIdeas|Blocking
         - thoughtContent (list of strings): Notable thought content (delusions, obsessions, preoccupations)
@@ -236,8 +238,8 @@ public static class ExtractionPrompts
 
         Return JSON in this format:
         {
-          "appearance": {"value": "well-groomed, casually dressed", "confidence": 0.90, "source": {"text": "exact quote", "section": "mental status"}},
-          "behavior": {"value": "cooperative, good eye contact", "confidence": 0.90, "source": {"text": "exact quote", "section": "mental status"}},
+          "appearance": {"value": "WellGroomed", "confidence": 0.90, "source": {"text": "exact quote", "section": "mental status"}},
+          "behavior": {"value": "Cooperative", "confidence": 0.90, "source": {"text": "exact quote", "section": "mental status"}},
           "speech": {"value": "Normal", "confidence": 0.85, "source": {"text": "exact quote", "section": "mental status"}},
           "thoughtProcess": {"value": "Linear", "confidence": 0.90, "source": {"text": "exact quote", "section": "mental status"}},
           "thoughtContent": {"value": [], "confidence": 0.85, "source": {"text": "exact quote", "section": "mental status"}},
@@ -305,7 +307,7 @@ public static class ExtractionPrompts
         - secondaryDiagnoses (list of strings): Secondary diagnosis names
         - secondaryDiagnosisCodes (list of strings): Codes for secondary diagnoses
         - ruleOuts (list of strings): Diagnoses being ruled out
-        - diagnosisChanges (string): Any changes to diagnoses this session
+        - diagnosisChanges (enum): New|Updated|Removed|NoChange|Deferred
 
         """ + CommonInstructions + """
 
@@ -316,7 +318,7 @@ public static class ExtractionPrompts
           "secondaryDiagnoses": {"value": ["Generalized Anxiety Disorder"], "confidence": 0.90, "source": {"text": "exact quote", "section": "diagnosis"}},
           "secondaryDiagnosisCodes": {"value": ["F41.1"], "confidence": 0.90, "source": {"text": "exact quote", "section": "diagnosis"}},
           "ruleOuts": {"value": ["Bipolar II"], "confidence": 0.80, "source": {"text": "exact quote", "section": "diagnosis"}},
-          "diagnosisChanges": {"value": null, "confidence": 0.0, "source": null}
+          "diagnosisChanges": {"value": "NoChange", "confidence": 0.0, "source": null}
         }
 
         Therapy Note:
@@ -375,7 +377,7 @@ public static class ExtractionPrompts
         - referralTypes (list of enums): Psychiatry|Medical|GroupTherapy|IntensiveOutpatient|PartialHospitalization|Inpatient|Specialist|SupportGroup|CommunityResources
         - coordinationNeeded (list of strings): Care coordination tasks needed
         - levelOfCareRecommendation (enum): Outpatient|IntensiveOutpatient|PartialHospitalization|Inpatient|Residential
-        - dischargePlanning (string): Discharge planning notes if applicable
+        - dischargePlanning (enum): NotPlanned|InProgress|ReadyForDischarge|Discharged|NotApplicable
 
         """ + CommonInstructions + """
 
@@ -388,7 +390,7 @@ public static class ExtractionPrompts
           "referralTypes": {"value": [], "confidence": 0.90, "source": null},
           "coordinationNeeded": {"value": [], "confidence": 0.85, "source": null},
           "levelOfCareRecommendation": {"value": "Outpatient", "confidence": 0.90, "source": {"text": "exact quote", "section": "assessment"}},
-          "dischargePlanning": {"value": null, "confidence": 0.0, "source": null}
+          "dischargePlanning": {"value": "NotApplicable", "confidence": 0.0, "source": null}
         }
 
         Therapy Note:

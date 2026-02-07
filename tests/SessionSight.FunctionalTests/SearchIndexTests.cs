@@ -28,7 +28,6 @@ public class SearchDocument
 /// extractions are properly indexed with embeddings.
 /// </summary>
 [Trait("Category", "Functional")]
-[Collection("Sequential")] // Don't run in parallel with other tests - extraction is resource-intensive
 public class SearchIndexTests : IClassFixture<ApiFixture>
 {
     private readonly string _searchEndpoint;

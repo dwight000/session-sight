@@ -207,7 +207,7 @@ public partial class QAAgent : IQAAgent
                 _aggregateMetricsTool
             ];
 
-            var loopResult = await _agentLoopRunner.RunAsync(chatClient, messages, tools, ct);
+            var loopResult = await _agentLoopRunner.RunAsync(chatClient, messages, tools, temperature: 0.2f, ct: ct);
 
             var qaResponse = loopResult.IsPartial
                 ? new QAResponse

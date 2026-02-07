@@ -93,8 +93,9 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
                 """)
         };
 
-        // Run agent loop
-        var loopResult = await _agentLoopRunner.RunAsync(chatClient, messages, cancellationToken);
+        // JSON response format guarantees valid JSON from the API (see also: ExtractionPrompts.SystemPrompt CRITICAL instruction)
+        var loopResult = await _agentLoopRunner.RunAsync(
+            chatClient, messages, ChatResponseFormat.CreateJsonObjectFormat(), temperature: 0.1f, ct: cancellationToken);
 
         LogAgentLoopCompleted(_logger, loopResult.ToolCallCount, loopResult.IsComplete);
 

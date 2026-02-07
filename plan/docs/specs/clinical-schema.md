@@ -119,8 +119,8 @@ Clinical observations from the session.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `appearance` | string | No | General appearance description |
-| `behavior` | string | No | Behavioral observations |
+| `appearance` | enum | No | General appearance description |
+| `behavior` | enum | No | Behavioral observations |
 | `speech` | enum | No | Speech characteristics |
 | `thought_process` | enum | No | Organization of thinking |
 | `thought_content` | array[string] | No | Notable thought content |
@@ -130,6 +130,8 @@ Clinical observations from the session.
 | `judgment` | enum | No | Patient judgment assessment |
 
 **Enums:**
+- `appearance`: `well_groomed`, `appropriate`, `disheveled`, `unkempt`, `bizarre`, `unremarkable`
+- `behavior`: `cooperative`, `guarded`, `agitated`, `withdrawn`, `restless`, `calm`, `hyperactive`
 - `speech`: `normal`, `pressured`, `slowed`, `soft`, `loud`, `monotone`
 - `thought_process`: `linear`, `circumstantial`, `tangential`, `loose`, `flight_of_ideas`, `blocking`
 - `cognition`: `intact`, `impaired`, `fluctuating`
@@ -173,7 +175,10 @@ Clinical diagnostic information.
 | `secondary_diagnoses` | array[string] | No | Additional diagnoses |
 | `secondary_diagnosis_codes` | array[string] | No | ICD-10 codes |
 | `rule_outs` | array[string] | No | Diagnoses being considered |
-| `diagnosis_changes` | string | No | Any diagnostic changes this session |
+| `diagnosis_changes` | enum | No | Any diagnostic changes this session |
+
+**Enums:**
+- `diagnosis_changes`: `new`, `updated`, `removed`, `no_change`, `deferred`
 
 ---
 
@@ -210,12 +215,13 @@ Planning for continued care.
 | `referral_types` | array[enum] | No | Types of referrals |
 | `coordination_needed` | array[string] | No | Care coordination needs |
 | `level_of_care_recommendation` | enum | No | Recommended level of care |
-| `discharge_planning` | string | No | Discharge considerations |
+| `discharge_planning` | enum | No | Discharge considerations |
 
 **Enums:**
 - `next_session_frequency`: `twice_weekly`, `weekly`, `biweekly`, `monthly`, `as_needed`, `discharge`
 - `referral_types`: `psychiatry`, `medical`, `group_therapy`, `intensive_outpatient`, `partial_hospitalization`, `inpatient`, `specialist`, `support_group`, `community_resources`
 - `level_of_care_recommendation`: `outpatient`, `intensive_outpatient`, `partial_hospitalization`, `inpatient`, `residential`
+- `discharge_planning`: `not_planned`, `in_progress`, `ready_for_discharge`, `discharged`, `not_applicable`
 
 ---
 
