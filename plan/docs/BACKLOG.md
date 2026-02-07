@@ -7,7 +7,7 @@
 ## Current Status
 
 **Phase**: Phase 4 (Risk Dashboard & UI) - IN PROGRESS
-**Next Action**: B-061 (reorganize frontend tests + Tier 1-2 coverage), then P4-002/P4-003
+**Next Action**: P4-002/P4-003 (risk trend visualization / patient history timeline)
 **Last Updated**: February 7, 2026
 
 **Milestone**: P4-001 complete — React supervisor dashboard with Vitest + Playwright test coverage
@@ -129,8 +129,8 @@
 | P4-001 | Supervisor review dashboard (React frontend + API) | XL | 4 | Done | P3-001 |
 | B-059 | Frontend testing infrastructure (Vitest + RTL + MSW + 44 unit tests + CI job) | M | 4 | Done | P4-001 |
 | B-060 | Playwright smoke tests for frontend routes (4 tests) | S | 4 | Done | B-059 |
-| B-061 | Reorganize frontend tests to `__tests__/` + add Tier 1-2 coverage (~28 new tests) | M | 4 | Ready | B-060 |
-| B-062 | Frontend Tier 3-4 test coverage (~17 tests across 8 files) | S | 4 | Ready | B-061 |
+| B-061 | Reorganize frontend tests to `__tests__/` + add Tier 1-2 coverage (~38 new tests) | M | 4 | Done | B-060 |
+| B-062 | Frontend Tier 3 test coverage (hooks, Button, summary API — 15 tests) | S | 4 | Done | B-061 |
 | P4-002 | Risk trend visualization | L | 4 | Ready | P4-001 |
 | P4-003 | Patient history timeline view | L | 4 | Ready | P4-001 |
 | P4-004 | Flagged session approve/dismiss workflow | M | 4 | Ready | P4-001 |
@@ -228,6 +228,8 @@
 | P4-001 | Supervisor review dashboard (React frontend + API) | 2026-02-07 |
 | B-059 | Frontend testing infrastructure (Vitest + RTL + MSW + 44 unit tests + CI job) | 2026-02-07 |
 | B-060 | Playwright smoke tests for frontend routes (4 tests) | 2026-02-07 |
+| B-061 | Reorganize frontend tests to `__tests__/` + Tier 1-2 coverage | 2026-02-07 |
+| B-062 | Frontend Tier 3 test coverage (hooks, Button, summary API) | 2026-02-07 |
 
 ---
 
