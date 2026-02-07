@@ -16,6 +16,18 @@
 
 If coverage fails, add more unit tests before pushing.
 
+## Quick Start Commands
+
+**"Run the real deal" (full stack for manual testing):**
+1. `./scripts/start-aspire.sh` — starts backend (find API port with `ss -tlnp | grep SessionSight`)
+2. `cd src/SessionSight.Web && services__api__https__0=https://localhost:<PORT> npx vite --host` — frontend at http://localhost:5173
+
+**Playwright test modes (user):** `./scripts/watch-frontend-tests.sh` (UI mode) or `--headed` (visible browser)
+
+**Playwright MCP (Claude):** Use `mcp__playwright__browser_*` tools — `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_take_screenshot`, `browser_console_messages` for debugging
+
+**After E2E tests:** Data is populated — refresh frontend to see real extractions in Review Queue
+
 ## Architecture Overview
 
 **Pipeline:** Document → IntakeAgent → ClinicalExtractorAgent → RiskAssessorAgent → SummarizerAgent → EmbeddingService → SearchIndex → Database
@@ -218,4 +230,6 @@ rm /tmp/api-diag.log
 4. `./scripts/run-e2e.sh` - all functional tests must pass
 
 ### Memory vs Plan Files
-- If you would write to auto memory but we are actively working with a BACKLOG.md or plan file, write the note there instead. Lessons learned go in CLAUDE.md, process reminders go in BACKLOG.md.
+- All memories go in this CLAUDE.md, NOT in the auto memory file
+- Before marking backlog items Done, check spec docs: `plan/docs/specs/agent-tool-callbacks.md`, `phase-3-summarization-rag.md`, `PROJECT_PLAN.md`
+- When simplifying scope, update backlog item name and create follow-up for deferred work

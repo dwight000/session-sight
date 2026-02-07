@@ -134,6 +134,8 @@
 | P4-002 | Risk trend visualization | L | 4 | Ready | P4-001 |
 | P4-003 | Patient history timeline view | L | 4 | Ready | P4-001 |
 | P4-004 | Flagged session approve/dismiss workflow | M | 4 | Ready | P4-001 |
+| P4-005 | Document upload UI (therapist uploads note → extraction pipeline) | L | 4 | Ready | P4-001 |
+| B-063 | Full-stack Playwright E2E tests (browser + real Aspire backend) | L | 4 | Ready | P4-001 |
 | **Phase 5: Polish & Testing** |||||
 | P5-001 | Integration tests (golden files) | L | 5 | Ready | P2-005 |
 | P5-002 | Data flow diagrams (document->agent->DB) | M | 5 | Blocked | B-004 |

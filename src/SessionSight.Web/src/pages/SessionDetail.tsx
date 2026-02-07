@@ -71,8 +71,8 @@ function ExtractionSection({
                     <p className="mt-1 text-sm text-gray-900">{formatFieldValue(val.value)}</p>
                     <ConfidenceBar value={val.confidence} className="mt-1" />
                     {val.source && (
-                      <p className="mt-1 text-xs text-gray-400 italic truncate" title={val.source}>
-                        Source: {val.source}
+                      <p className="mt-1 text-xs text-gray-400 italic truncate" title={typeof val.source === 'string' ? val.source : val.source.text}>
+                        Source: {typeof val.source === 'string' ? val.source : val.source.text}
                       </p>
                     )}
                   </div>
