@@ -70,7 +70,9 @@
       "WebFetch(domain:github.com)",
       "Bash(docker network:*)",
       "Bash(DIAG_LOG=1 ./scripts/run-e2e.sh:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(npx:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

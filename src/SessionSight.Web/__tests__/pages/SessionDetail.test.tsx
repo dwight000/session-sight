@@ -3,10 +3,10 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { Routes, Route } from 'react-router-dom'
-import { server } from '../../test/mocks/server'
-import { renderWithProviders } from '../../test/render'
-import { SessionDetail } from '../SessionDetail'
-import { mockReviewDetail, mockApprovedDetail } from '../../test/fixtures/review'
+import { server } from '../../src/test/mocks/server'
+import { renderWithProviders } from '../../src/test/render'
+import { SessionDetail } from '../../src/pages/SessionDetail'
+import { mockReviewDetail, mockApprovedDetail } from '../../src/test/fixtures/review'
 
 function renderSessionDetail(sessionId = 'sess-001') {
   return renderWithProviders(

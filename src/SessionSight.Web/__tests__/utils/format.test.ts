@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatFieldValue, formatFieldName, isExtractedField } from '../../utils/format'
+import { formatFieldValue, formatFieldName, isExtractedField } from '../../src/utils/format'
 
 describe('formatFieldValue', () => {
   it('returns em-dash for null', () => {

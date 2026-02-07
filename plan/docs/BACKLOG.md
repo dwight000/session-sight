@@ -6,11 +6,11 @@
 
 ## Current Status
 
-**Phase**: Phase 3 (Summarization & RAG) - COMPLETE
-**Next Action**: Phase 4 or backlog items
-**Last Updated**: February 6, 2026
+**Phase**: Phase 4 (Risk Dashboard & UI) - IN PROGRESS
+**Next Action**: B-061 (reorganize frontend tests + Tier 1-2 coverage), then P4-002/P4-003
+**Last Updated**: February 7, 2026
 
-**Milestone**: Phase 3 complete — agentic Q&A with 4 tools operational
+**Milestone**: P4-001 complete — React supervisor dashboard with Vitest + Playwright test coverage
 
 ---
 
@@ -126,10 +126,14 @@
 | B-023 | Data lifecycle (SQL + Blob) | M | 3+ | Tabled | - |
 | B-024 | Private networking baseline | L | 3+ | Tabled | - |
 | **Phase 4: Risk Dashboard & UI** |||||
-| P4-001 | Supervisor review queue/dashboard | XL | 4 | Blocked | P3-001 |
-| P4-002 | Risk trend visualization | L | 4 | Blocked | P4-001 |
-| P4-003 | Patient history timeline view | L | 4 | Blocked | P4-001 |
-| P4-004 | Flagged session approve/dismiss workflow | M | 4 | Blocked | P4-001 |
+| P4-001 | Supervisor review dashboard (React frontend + API) | XL | 4 | Done | P3-001 |
+| B-059 | Frontend testing infrastructure (Vitest + RTL + MSW + 44 unit tests + CI job) | M | 4 | Done | P4-001 |
+| B-060 | Playwright smoke tests for frontend routes (4 tests) | S | 4 | Done | B-059 |
+| B-061 | Reorganize frontend tests to `__tests__/` + add Tier 1-2 coverage (~28 new tests) | M | 4 | Ready | B-060 |
+| B-062 | Frontend Tier 3-4 test coverage (~17 tests across 8 files) | S | 4 | Ready | B-061 |
+| P4-002 | Risk trend visualization | L | 4 | Ready | P4-001 |
+| P4-003 | Patient history timeline view | L | 4 | Ready | P4-001 |
+| P4-004 | Flagged session approve/dismiss workflow | M | 4 | Ready | P4-001 |
 | **Phase 5: Polish & Testing** |||||
 | P5-001 | Integration tests (golden files) | L | 5 | Ready | P2-005 |
 | P5-002 | Data flow diagrams (document->agent->DB) | M | 5 | Blocked | B-004 |
@@ -221,6 +225,9 @@
 | B-056 | Harden LLM JSON parsing and error handling across all agents | 2026-02-06 |
 | B-057 | Add response_format json_object + harden E2E field assertions | 2026-02-06 |
 | B-058 | Full 74-field assertion coverage + 4 string→enum conversions | 2026-02-06 |
+| P4-001 | Supervisor review dashboard (React frontend + API) | 2026-02-07 |
+| B-059 | Frontend testing infrastructure (Vitest + RTL + MSW + 44 unit tests + CI job) | 2026-02-07 |
+| B-060 | Playwright smoke tests for frontend routes (4 tests) | 2026-02-07 |
 
 ---
 
@@ -228,6 +235,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-07 | **P4-001, B-059, B-060 complete.** (P4-001) React supervisor review dashboard: 3 pages (Dashboard, ReviewQueue, SessionDetail), AppShell layout with Sidebar, 6 UI components (Badge, Button, Card, ConfidenceBar, RiskBadge, Spinner), 5 React Query hooks, API client layer, TypeScript types. Routes: `/` (dashboard with practice summary + flagged patients), `/review` (filterable/sortable queue), `/review/session/:id` (extraction detail + review action panel). (B-059) Frontend testing infrastructure: Vitest + happy-dom + RTL + MSW, 44 unit/component tests across 4 files, `renderWithProviders` helper, MSW handlers + fixtures, `scripts/check-frontend.sh`, `frontend-tests` CI job in ci.yml. (B-060) Playwright smoke tests: 4 browser tests (Dashboard stats, Review Queue names, Session Detail + risk section, Sidebar navigation) using `page.route()` with shared fixtures. Added to CI and check-frontend.sh. Created B-061 for test reorganization + Tier 1-2 coverage (planned, ready to implement). |
 | 2026-02-06 | **B-058 complete (74-field assertions + 4 string→enum + temperature fix).** Converted 4 free-text string fields to enums: Appearance (MSE), BehaviorType (MSE), DiagnosisChangeType (Diagnoses), DischargePlanningStatus (NextSteps). Updated 3 schema files, ExtractionSchemaGenerator auto-discovers new enums. ExtractionAssertions.cs: removed 3 unused helpers, added AssertFieldPresent helper, added/fixed assertions for all 74 extracted fields (was ~50). Updated stale per-section prompts in ExtractionPrompts.cs. Fixed missing temperature on ClinicalExtractorAgent (spec said 0.1f, lost during AgentLoopRunner refactor) — added temperature parameter to AgentLoopRunner, set 0.1f for extraction, 0.2f for Q&A. Updated clinical-schema.md spec. Removed Sequential collection from E2E tests — classes now run in parallel (Azure SDK backoff handles rate limits). Deleted TestCollections.cs. 616 unit tests. Coverage 82.15%. 8/8 E2E. |
 | 2026-02-06 | **B-057 complete (response_format + E2E assertions).** Added `ChatResponseFormat.CreateJsonObjectFormat()` to all JSON-returning agents (ClinicalExtractor, RiskAssessor, Summarizer, Intake) — eliminates "Failed to parse extraction JSON" transient errors. Added `responseFormat` parameter to AgentLoopRunner. Expanded ExtractionAssertions from 5 to ~82 fields across all 9 sections. All interpretive enum fields validate against full enum sets; free-text fields use broad keyword stems; deterministic fields guard against LLM extraction failures. Fixed FluentAssertions `ContainMatch` bug (`\|` treated literally). Fixed Docker cleanup in run-e2e.sh to remove `storage-*` containers before pruning networks. Updated CLAUDE.md with response_format best practice, E2E assertion patterns, and Docker cleanup docs. 616 unit tests. Coverage 82.15%. 8/8 E2E. |
 | 2026-02-06 | **B-055 + B-056 complete (LLM JSON hardening).** (B-055) Fixed ClinicalExtractorAgent JSON parsing: schema-embedded prompt via ExtractionSchemaGenerator, resilient deserialization with section-by-section fallback, robust ExtractJson with regex+brace extraction. (B-056) Applied B-055 patterns across all agents: (1) Created shared LlmJsonHelper with ExtractJson, TryParseConfidence, TryParseInt, TryParseDouble. (2) Created RiskSchemaGenerator — generates risk schema from C# types, replaces hardcoded JSON in RiskPrompts. (3) Fixed safety-critical error hiding: ClinicalExtractorAgent.ParseExtractionResponse returns null on empty content (was returning default ClinicalExtraction with all-Low risk); RiskAssessorAgent.ReExtractRiskAsync throws on parse failure (triggers RequiresReview). (4) Fixed deserialization: RiskAssessorAgent handles string-typed confidence and string source; IntakeAgent adds NumberHandling; QAAgent handles string confidence. (5) Added E2E ExtractionAssertions shared helper — all 3 extraction E2E tests now verify field-level clinical data. 15 new unit tests (616 total). Coverage 82.07%. |

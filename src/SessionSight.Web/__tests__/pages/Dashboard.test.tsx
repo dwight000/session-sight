@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import { server } from '../../test/mocks/server'
-import { renderWithProviders } from '../../test/render'
-import { Dashboard } from '../Dashboard'
-import { mockPracticeSummary, mockEmptyPracticeSummary } from '../../test/fixtures/summary'
-import { mockReviewStats } from '../../test/fixtures/review'
+import { server } from '../../src/test/mocks/server'
+import { renderWithProviders } from '../../src/test/render'
+import { Dashboard } from '../../src/pages/Dashboard'
+import { mockPracticeSummary, mockEmptyPracticeSummary } from '../../src/test/fixtures/summary'
+import { mockReviewStats } from '../../src/test/fixtures/review'
 
 describe('Dashboard', () => {
   it('renders stats cards with correct values', async () => {

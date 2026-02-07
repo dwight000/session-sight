@@ -179,5 +179,11 @@ jobs:
       - name: Run Vitest tests
         run: npx vitest run
 
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright smoke tests
+        run: npx playwright test
+
       - name: Build
         run: npx vite build

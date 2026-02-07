@@ -7,7 +7,7 @@
 # 1. Check coverage threshold (82% local, 81% CI, 80% SonarCloud) - MUST PASS
 ./scripts/check-coverage.sh
 
-# 2. Run frontend tests (TypeScript + Vitest + build) - MUST PASS
+# 2. Run frontend tests (TypeScript + Vitest + Playwright + build) - MUST PASS
 ./scripts/check-frontend.sh
 
 # 3. Run E2E tests - MUST PASS
@@ -214,7 +214,7 @@ rm /tmp/api-diag.log
 ### Before Pushing
 1. `dotnet build` - verify no Sonar/CA errors
 2. `./scripts/check-coverage.sh` - must pass 82%
-3. `./scripts/check-frontend.sh` - TypeScript + Vitest + build must pass
+3. `./scripts/check-frontend.sh` - TypeScript + Vitest + Playwright + build must pass
 4. `./scripts/run-e2e.sh` - all functional tests must pass
 
 ### Memory vs Plan Files

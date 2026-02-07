@@ -2,8 +2,8 @@
 # =============================================================================
 # Frontend Check Script
 # =============================================================================
-# Runs TypeScript checking, Vitest tests, and build verification for the
-# React frontend. Equivalent to check-coverage.sh for the backend.
+# Runs TypeScript checking, Vitest tests, Playwright smoke tests, and build
+# verification for the React frontend. Equivalent to check-coverage.sh for the backend.
 #
 # Usage: ./scripts/check-frontend.sh
 # =============================================================================
@@ -21,8 +21,8 @@ cd "$FRONTEND_DIR"
 echo -e "${YELLOW}=== Frontend Checks ===${NC}"
 echo ""
 
-# 1. TypeScript
-echo -e "${YELLOW}[1/3] TypeScript type check...${NC}"
+# 1. TypeScript (production)
+echo -e "${YELLOW}[1/5] TypeScript type check...${NC}"
 if npx tsc --noEmit; then
   echo -e "${GREEN}  ✓ No type errors${NC}"
 else
@@ -31,8 +31,18 @@ else
 fi
 echo ""
 
-# 2. Vitest
-echo -e "${YELLOW}[2/3] Vitest unit tests...${NC}"
+# 2. TypeScript (test files)
+echo -e "${YELLOW}[2/5] Type-check test files...${NC}"
+if npx tsc --noEmit --project tsconfig.test.json; then
+  echo -e "${GREEN}  ✓ No test type errors${NC}"
+else
+  echo -e "${RED}  ✗ Test type errors found${NC}"
+  exit 1
+fi
+echo ""
+
+# 3. Vitest
+echo -e "${YELLOW}[3/5] Vitest unit tests...${NC}"
 if npx vitest run; then
   echo -e "${GREEN}  ✓ All tests passed${NC}"
 else
@@ -41,8 +51,18 @@ else
 fi
 echo ""
 
-# 3. Build
-echo -e "${YELLOW}[3/3] Production build...${NC}"
+# 4. Playwright
+echo -e "${YELLOW}[4/5] Playwright smoke tests...${NC}"
+if npx playwright test; then
+  echo -e "${GREEN}  ✓ All smoke tests passed${NC}"
+else
+  echo -e "${RED}  ✗ Smoke tests failed${NC}"
+  exit 1
+fi
+echo ""
+
+# 5. Build
+echo -e "${YELLOW}[5/5] Production build...${NC}"
 if npx vite build; then
   echo -e "${GREEN}  ✓ Build succeeded${NC}"
 else

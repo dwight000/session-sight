@@ -1,0 +1,72 @@
+import { test, expect } from '@playwright/test'
+import { mockPracticeSummary } from '../src/test/fixtures/summary'
+import { mockReviewStats, mockReviewQueue, mockReviewDetail } from '../src/test/fixtures/review'
+
+function mockDashboardRoutes(page: import('@playwright/test').Page) {
+  return Promise.all([
+    page.route('**/api/summary/practice**', (route) =>
+      route.fulfill({ json: mockPracticeSummary }),
+    ),
+    page.route('**/api/review/stats', (route) =>
+      route.fulfill({ json: mockReviewStats }),
+    ),
+  ])
+}
+
+function mockReviewQueueRoutes(page: import('@playwright/test').Page) {
+  return page.route('**/api/review/queue**', (route) =>
+    route.fulfill({ json: mockReviewQueue }),
+  )
+}
+
+function mockSessionDetailRoutes(page: import('@playwright/test').Page) {
+  return page.route('**/api/review/session/**', (route) =>
+    route.fulfill({ json: mockReviewDetail }),
+  )
+}
+
+test('Dashboard shows stats', async ({ page }) => {
+  await mockDashboardRoutes(page)
+  await page.goto('/')
+
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+  await expect(page.getByText('87')).toBeVisible()
+  await expect(page.getByText('24')).toBeVisible()
+})
+
+test('Review Queue shows patient names', async ({ page }) => {
+  await mockReviewQueueRoutes(page)
+  await page.goto('/review')
+
+  await expect(page.getByRole('heading', { name: 'Review Queue' })).toBeVisible()
+  await expect(page.getByText('Alice Johnson')).toBeVisible()
+  await expect(page.getByText('Bob Smith')).toBeVisible()
+})
+
+test('Session Detail shows patient and risk section', async ({ page }) => {
+  await mockSessionDetailRoutes(page)
+  await page.goto('/review/session/sess-001')
+
+  await expect(page.getByText('Alice Johnson')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Risk Assessment/ })).toBeVisible()
+})
+
+test('Sidebar navigation works', async ({ page }) => {
+  await mockDashboardRoutes(page)
+  await mockReviewQueueRoutes(page)
+  await mockSessionDetailRoutes(page)
+
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+
+  await page.getByRole('link', { name: 'Review Queue' }).click()
+  await expect(page).toHaveURL(/\/review$/)
+  await expect(page.getByRole('heading', { name: 'Review Queue' })).toBeVisible()
+
+  // Navigate to a session detail via the Review button and back
+  await page.getByRole('link', { name: 'Review →' }).first().click()
+  await expect(page).toHaveURL(/\/review\/session\/sess-/)
+
+  await page.getByRole('link', { name: /Back to Queue/ }).click()
+  await expect(page).toHaveURL(/\/review$/)
+})

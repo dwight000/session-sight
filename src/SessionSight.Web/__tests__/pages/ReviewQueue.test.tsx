@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { server } from '../../test/mocks/server'
-import { renderWithProviders } from '../../test/render'
-import { ReviewQueue } from '../ReviewQueue'
-import { mockReviewQueue } from '../../test/fixtures/review'
+import { server } from '../../src/test/mocks/server'
+import { renderWithProviders } from '../../src/test/render'
+import { ReviewQueue } from '../../src/pages/ReviewQueue'
+import { mockReviewQueue } from '../../src/test/fixtures/review'
 
 describe('ReviewQueue', () => {
   it('renders table rows from mock queue data', async () => {

@@ -268,7 +268,7 @@ export function SessionDetail() {
         <h3 className="text-sm font-medium text-gray-700">Clinical Extraction Data</h3>
         {data.data ? (
           extractionSections.map((section) => {
-            const sectionData = (data.data as Record<string, Record<string, unknown>>)[section]
+            const sectionData = (data.data as unknown as Record<string, Record<string, unknown>>)[section]
             if (!sectionData) return null
             return <ExtractionSection key={section} name={section} data={sectionData} />
           })
