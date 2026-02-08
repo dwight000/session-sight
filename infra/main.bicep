@@ -186,8 +186,8 @@ module openaiRoleAssignment 'modules/openai.bicep' = {
     location: location
     tags: tags
     // Skip model deployments - they already exist
-    deployGpt4o: false
-    deployGpt4oMini: false
+    deployGpt41Mini: false
+    deployGpt41Nano: false
     deployEmbeddings: false
     cognitiveServicesUserPrincipalId: aiProject.outputs.principalId
   }

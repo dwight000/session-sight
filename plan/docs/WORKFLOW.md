@@ -57,7 +57,7 @@ When no active work exists:
 - Follow patterns in existing code
 - 80% test coverage target
 - No PII/PHI in logs (redact sensitive data)
-- Use model routing: GPT-4o for extraction/risk, GPT-4o-mini for intake/simple
+- Use model routing: GPT-4.1-mini for extraction/risk, GPT-4.1-nano for intake/simple
 
 ---
 

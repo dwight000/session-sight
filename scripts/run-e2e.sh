@@ -31,7 +31,7 @@
 #
 # Troubleshooting:
 #   - If tests fail, check /tmp/aspire-e2e.log for Aspire output
-#   - If port discovery fails, try: ss -tlnp | grep SessionSight
+#   - API is on fixed port: https://localhost:7039
 #   - If migrations fail, ensure SQL container is running: docker ps | grep sql
 #   - Aspire dashboard: https://localhost:17055 (shows traces)
 #
@@ -187,29 +187,22 @@ else
     log "Aspire started with PID $ASPIRE_PID (log: $LOG_FILE)"
 fi
 
-# Step 5: Wait for API to be ready by polling /health
+# Step 5: Wait for API to be ready by polling /health (fixed port 7039)
 log "Waiting for API to be ready..."
 SECONDS_WAITED=0
-API_PORT=""
+API_PORT=7039
 
 while [[ $SECONDS_WAITED -lt $MAX_WAIT_SECONDS ]]; do
-    HTTP_PORTS=$(ss -tlnp 2>/dev/null | grep "SessionSight.Ap" | grep -oP '127\.0\.0\.1:\K[0-9]+' | sort -u)
-
-    for PORT in $HTTP_PORTS; do
-        REDIRECT=$(curl -sI "http://localhost:$PORT/health" 2>/dev/null | grep -i "Location:" | grep -oP 'https://localhost:\K[0-9]+' || true)
-        if [[ -n "$REDIRECT" ]] && curl -sk "https://localhost:$REDIRECT/health" 2>/dev/null | grep -q "Healthy"; then
-            API_PORT=$REDIRECT
-            break 2
-        fi
-    done
-
+    if curl -sk "https://localhost:$API_PORT/health" 2>/dev/null | grep -q "Healthy"; then
+        break
+    fi
     sleep $POLL_INTERVAL
     SECONDS_WAITED=$((SECONDS_WAITED + POLL_INTERVAL))
     echo -n "."
 done
 echo ""
 
-if [[ -z "$API_PORT" ]]; then
+if ! curl -sk "https://localhost:$API_PORT/health" 2>/dev/null | grep -q "Healthy"; then
     error "API did not become ready within $MAX_WAIT_SECONDS seconds"
     error "Last log entries:"
     tail -20 "$LOG_FILE"

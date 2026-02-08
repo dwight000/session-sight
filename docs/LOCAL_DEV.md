@@ -77,29 +77,19 @@ dotnet run
 
 The Aspire dashboard opens in your browser showing all services.
 
-## Finding API Ports
+## API Endpoints
 
-Aspire assigns dynamic ports to services. To find them:
-
-```bash
-# List all listening ports for SessionSight
-ss -tlnp | grep SessionSight
-# or
-netstat -tlnp 2>/dev/null | grep SessionSight
-```
-
-You'll see two ports for the API:
-- **HTTP** (lower port): e.g., 5215
-- **HTTPS** (higher port): e.g., 7128
-
-For local development, use the HTTPS port with `-k` to skip certificate verification:
+The API runs on a fixed port:
+- **API**: https://localhost:7039
+- **Dashboard**: https://localhost:17055
 
 ```bash
-# Example: Get all patients
-curl -sk https://localhost:7128/api/patients
-```
+# Test API health
+curl -sk https://localhost:7039/health
 
-Alternatively, check the Aspire dashboard for the exact endpoints.
+# Get all patients
+curl -sk https://localhost:7039/api/patients
+```
 
 ## Running Database Migrations
 
@@ -144,7 +134,7 @@ dotnet ef database update \
 # Or start Aspire manually for interactive testing
 ./scripts/start-aspire.sh
 # Then in another terminal:
-API_BASE_URL="https://localhost:<PORT>" dotnet test tests/SessionSight.FunctionalTests
+API_BASE_URL="https://localhost:7039" dotnet test tests/SessionSight.FunctionalTests
 ```
 
 ### Unit Tests Only (No Azure/Docker Required)
@@ -156,11 +146,10 @@ dotnet test --filter "Category!=Functional"
 ### Functional Tests (Requires Running Aspire)
 
 1. Start Aspire (see above)
-2. Find the API HTTPS port
-3. Run tests with the API URL:
+2. Run tests:
 
 ```bash
-API_BASE_URL="https://localhost:<PORT>" dotnet test tests/SessionSight.FunctionalTests
+API_BASE_URL="https://localhost:7039" dotnet test tests/SessionSight.FunctionalTests
 ```
 
 ### Verify AI Foundry Extraction (E2E Test)
@@ -175,11 +164,7 @@ The `Pipeline_FullExtraction_ReturnsSuccess` test verifies the complete extracti
 **Run the extraction test:**
 
 ```bash
-# Find API port first
-ss -tlnp | grep SessionSight
-
-# Run only the extraction test
-API_BASE_URL="https://localhost:<PORT>" dotnet test tests/SessionSight.FunctionalTests \
+API_BASE_URL="https://localhost:7039" dotnet test tests/SessionSight.FunctionalTests \
   --filter "FullyQualifiedName~Pipeline_FullExtraction"
 ```
 
@@ -247,7 +232,7 @@ dotnet run --project src/SessionSight.AppHost
 **Solution**: Use `-k` flag with curl, or access the Aspire dashboard first to accept the dev certificate:
 
 ```bash
-curl -sk https://localhost:<PORT>/api/patients
+curl -sk https://localhost:7039/api/patients
 ```
 
 ### Problem: Migrations not applied
@@ -288,9 +273,9 @@ dotnet run --project src/SessionSight.AppHost
 |------|---------|
 | Build | `dotnet build session-sight.sln` |
 | Test (unit only) | `dotnet test --filter "Category!=Functional"` |
-| Test (all) | `API_BASE_URL=https://localhost:<PORT> dotnet test` |
+| Test (all) | `API_BASE_URL=https://localhost:7039 dotnet test` |
 | Run Aspire | `dotnet run --project src/SessionSight.AppHost` |
-| Check ports | `ss -tlnp \| grep SessionSight` |
+| API endpoint | `https://localhost:7039` (fixed port) |
 | SQL password | `dotnet user-secrets list --project src/SessionSight.AppHost` |
 | API secrets | `dotnet user-secrets list --project src/SessionSight.Api` |
 

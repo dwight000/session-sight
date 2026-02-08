@@ -8,14 +8,14 @@ public class ModelRouterTests
     private readonly ModelRouter _router = new();
 
     [Theory]
-    [InlineData(ModelTask.DocumentIntake, ModelRouter.Gpt4oMini)]
-    [InlineData(ModelTask.Extraction, ModelRouter.Gpt4o)]
-    [InlineData(ModelTask.ExtractionSimple, ModelRouter.Gpt4oMini)]
-    [InlineData(ModelTask.RiskAssessment, ModelRouter.Gpt4o)]
-    [InlineData(ModelTask.Summarization, ModelRouter.Gpt4oMini)]
+    [InlineData(ModelTask.DocumentIntake, ModelRouter.Gpt41Nano)]
+    [InlineData(ModelTask.Extraction, ModelRouter.Gpt41Mini)]
+    [InlineData(ModelTask.ExtractionSimple, ModelRouter.Gpt41Nano)]
+    [InlineData(ModelTask.RiskAssessment, ModelRouter.Gpt41Mini)]
+    [InlineData(ModelTask.Summarization, ModelRouter.Gpt41Nano)]
     [InlineData(ModelTask.Embedding, ModelRouter.Embedding)]
-    [InlineData(ModelTask.QASimple, ModelRouter.Gpt4oMini)]
-    [InlineData(ModelTask.QAComplex, ModelRouter.Gpt4o)]
+    [InlineData(ModelTask.QASimple, ModelRouter.Gpt41Nano)]
+    [InlineData(ModelTask.QAComplex, ModelRouter.Gpt41Mini)]
     public void SelectModel_ReturnsCorrectModel(ModelTask task, string expected)
     {
         var result = _router.SelectModel(task);
@@ -23,17 +23,17 @@ public class ModelRouterTests
     }
 
     [Fact]
-    public void SelectModel_UnknownTask_DefaultsToGpt4o()
+    public void SelectModel_UnknownTask_DefaultsToGpt41Mini()
     {
         var result = _router.SelectModel((ModelTask)999);
-        result.Should().Be(ModelRouter.Gpt4o);
+        result.Should().Be(ModelRouter.Gpt41Mini);
     }
 
     [Fact]
     public void ModelConstants_HaveCorrectValues()
     {
-        ModelRouter.Gpt4o.Should().Be("gpt-4o");
-        ModelRouter.Gpt4oMini.Should().Be("gpt-4o-mini");
+        ModelRouter.Gpt41Mini.Should().Be("gpt-4.1-mini");
+        ModelRouter.Gpt41Nano.Should().Be("gpt-4.1-nano");
         ModelRouter.Embedding.Should().Be("text-embedding-3-large");
     }
 }

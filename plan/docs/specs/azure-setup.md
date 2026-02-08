@@ -190,8 +190,8 @@ az cognitiveservices account deployment create \
 > **Note:** Model versions change frequently. If deployment fails with "model version not found", run the `list-models` command above and use the latest available version.
 
 **Deployments created:**
-- `gpt-4o` - For extraction, risk assessment, summarization
-- `gpt-4o-mini` - For simple Q&A (cost-effective)
+- `gpt-4.1-mini` - For extraction, risk assessment, complex Q&A (~85% cheaper than GPT-4o)
+- `gpt-4.1-nano` - For intake, summarization, simple Q&A (ultra-low cost)
 - `text-embedding-3-large` - For RAG embeddings
 
 ### 3.6 Create Azure AI Document Intelligence
@@ -272,8 +272,8 @@ Create `appsettings.Development.json`:
   "AzureOpenAI": {
     "Endpoint": "https://{openai-name}.openai.azure.com/",
     "ApiKey": "{api-key}",
-    "DeploymentGpt4o": "gpt-4o",
-    "DeploymentGpt4oMini": "gpt-4o-mini",
+    "DeploymentGpt41Mini": "gpt-4.1-mini",
+    "DeploymentGpt41Nano": "gpt-4.1-nano",
     "DeploymentEmbedding": "text-embedding-3-large"
   },
   "AzureAISearch": {
@@ -335,15 +335,15 @@ az resource list \
 | Component | Usage | Unit Cost | Cost |
 |-----------|-------|-----------|------|
 | Document Intelligence | 1-3 pages | $0.01/page | ~$0.02 |
-| GPT-4o (extraction) | ~5K input, ~2K output | $0.0025/1K in, $0.01/1K out | ~$0.03 |
-| GPT-4o-mini (intake) | ~1K in/out | $0.00015/1K in, $0.0006/1K out | ~$0.001 |
+| GPT-4.1-mini (extraction) | ~5K input, ~2K output | $0.0004/1K in, $0.0016/1K out | ~$0.005 |
+| GPT-4.1-nano (intake) | ~1K in/out | $0.0001/1K in, $0.0004/1K out | ~$0.0005 |
 | Embeddings | ~500 tokens | $0.00013/1K | ~$0.0001 |
-| **Total per extraction** | | | **~$0.05** |
+| **Total per extraction** | | | **~$0.03** |
 
 **Monthly estimates:**
-- 100 notes/month = ~$5
-- 500 notes/month = ~$25
-- 1000 notes/month = ~$50
+- 100 notes/month = ~$3
+- 500 notes/month = ~$15
+- 1000 notes/month = ~$30
 
 Well under the $0.50/note SLO target.
 
@@ -360,7 +360,7 @@ az consumption budget create \
 ```
 
 **Tips:**
-- Use GPT-4o-mini for development/testing
+- Use GPT-4.1-nano for development/testing (ultra-low cost)
 - Free tiers are sufficient for portfolio demo
 - Monitor OpenAI usage in Azure Portal → Cost Analysis
 

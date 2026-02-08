@@ -14,7 +14,7 @@ SessionSight is a portfolio project demonstrating enterprise AI architecture for
 - **Multi-agent AI orchestration** using Microsoft Agent Framework
 - **Structured data extraction** with an 82-field Clinical Schema
 - **RAG-powered Q&A** using Azure AI Search + Azure OpenAI embeddings
-- **Model routing** between GPT-4o / GPT-4o-mini for cost optimization
+- **Model routing** between GPT-4.1-mini / GPT-4.1-nano for cost optimization
 - **.NET Aspire** for cloud-native orchestration
 
 ### Why This Exists
@@ -61,7 +61,7 @@ This project parallels enterprise AI systems like document summarization pipelin
 | Backend | .NET 9, ASP.NET Core |
 | AI Framework | Microsoft Agent Framework |
 | Document Processing | Azure AI Document Intelligence (OCR, PDF parsing) |
-| LLM | Azure OpenAI (GPT-4o, GPT-4o-mini) |
+| LLM | Azure OpenAI (GPT-4.1-mini, GPT-4.1-nano) |
 | Embeddings | Azure OpenAI (text-embedding-3-large) |
 | Vector Search | Azure AI Search |
 | Database | Azure SQL (free tier) |

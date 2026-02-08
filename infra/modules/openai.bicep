@@ -1,5 +1,6 @@
 // Azure OpenAI module
 // Creates Azure OpenAI service with model deployments
+// Updated Feb 2026: Migrated from deprecated gpt-4o/gpt-4o-mini to gpt-4.1-mini/gpt-4.1-nano
 
 @description('Name of the Azure OpenAI resource')
 param name string
@@ -13,20 +14,20 @@ param tags object = {}
 @description('SKU name for the Azure OpenAI resource')
 param skuName string = 'S0'
 
-@description('Deploy GPT-4o model')
-param deployGpt4o bool = true
+@description('Deploy GPT-4.1-mini model (replaces gpt-4o)')
+param deployGpt41Mini bool = true
 
-@description('Deploy GPT-4o-mini model')
-param deployGpt4oMini bool = true
+@description('Deploy GPT-4.1-nano model (replaces gpt-4o-mini)')
+param deployGpt41Nano bool = true
 
 @description('Deploy text-embedding-3-large model')
 param deployEmbeddings bool = true
 
-@description('GPT-4o deployment capacity (TPM in thousands)')
-param gpt4oCapacity int = 10
+@description('GPT-4.1-mini deployment capacity (TPM in thousands)')
+param gpt41MiniCapacity int = 10
 
-@description('GPT-4o-mini deployment capacity (TPM in thousands)')
-param gpt4oMiniCapacity int = 10
+@description('GPT-4.1-nano deployment capacity (TPM in thousands)')
+param gpt41NanoCapacity int = 10
 
 @description('Embeddings deployment capacity (TPM in thousands)')
 param embeddingsCapacity int = 10
@@ -51,39 +52,39 @@ resource openai 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
   }
 }
 
-resource gpt4oDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = if (deployGpt4o) {
+resource gpt41MiniDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = if (deployGpt41Mini) {
   parent: openai
-  name: 'gpt-4o'
+  name: 'gpt-4.1-mini'
   sku: {
     name: 'Standard'
-    capacity: gpt4oCapacity
+    capacity: gpt41MiniCapacity
   }
   properties: {
     model: {
       format: 'OpenAI'
-      name: 'gpt-4o'
-      version: '2024-11-20'
+      name: 'gpt-4.1-mini'
+      version: '2025-04-14'
     }
     raiPolicyName: 'Microsoft.DefaultV2'
   }
 }
 
-resource gpt4oMiniDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = if (deployGpt4oMini) {
+resource gpt41NanoDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = if (deployGpt41Nano) {
   parent: openai
-  name: 'gpt-4o-mini'
+  name: 'gpt-4.1-nano'
   sku: {
-    name: 'Standard'
-    capacity: gpt4oMiniCapacity
+    name: 'GlobalStandard'  // nano only supports GlobalStandard, not Standard
+    capacity: gpt41NanoCapacity
   }
   properties: {
     model: {
       format: 'OpenAI'
-      name: 'gpt-4o-mini'
-      version: '2024-07-18'
+      name: 'gpt-4.1-nano'
+      version: '2025-04-14'
     }
     raiPolicyName: 'Microsoft.DefaultV2'
   }
-  dependsOn: [gpt4oDeployment] // Sequential deployment to avoid conflicts
+  dependsOn: [gpt41MiniDeployment] // Sequential deployment to avoid conflicts
 }
 
 resource embeddingsDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = if (deployEmbeddings) {
@@ -100,7 +101,7 @@ resource embeddingsDeployment 'Microsoft.CognitiveServices/accounts/deployments@
       version: '1'
     }
   }
-  dependsOn: [gpt4oMiniDeployment] // Sequential deployment to avoid conflicts
+  dependsOn: [gpt41NanoDeployment] // Sequential deployment to avoid conflicts
 }
 
 // Grant Cognitive Services User role if principal provided

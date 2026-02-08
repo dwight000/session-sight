@@ -8,7 +8,7 @@ AI-powered clinical session analysis tool. Extracts structured data from therapy
 - .NET Aspire 9.x (orchestration, service defaults, local dev)
 - Azure SQL (EF Core 9)
 - Azure Blob Storage (document upload)
-- Azure OpenAI GPT-4o / GPT-4o-mini (AI extraction — Phase 2+)
+- Azure OpenAI GPT-4.1-mini / GPT-4.1-nano (AI extraction — Phase 2+)
 - Azure AI Search (RAG — Phase 3+)
 - FluentValidation, OpenTelemetry, xunit
 
@@ -50,7 +50,7 @@ Opens the Aspire dashboard with the API, SQL Server, and Blob Storage emulator.
 
 See [docs/LOCAL_DEV.md](docs/LOCAL_DEV.md) for comprehensive local development documentation including:
 - First-time setup (secrets, Azure CLI, endpoints)
-- Finding Aspire ports
+- API endpoint: https://localhost:7039 (fixed port)
 - Running migrations manually
 - Troubleshooting common issues
 

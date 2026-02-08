@@ -155,12 +155,12 @@ See `plan/docs/decisions/` for full Architecture Decision Records.
 
 | Task | Model | Rationale |
 |------|-------|-----------|
-| Document Intake | GPT-4o-mini | Simple parsing, high volume, cost-effective |
-| Clinical Extraction | GPT-4o | Highest accuracy needed |
-| Risk Assessment | GPT-4o | Safety-critical |
-| Summarization | GPT-4o | Quality summaries |
-| Simple Q&A | GPT-4o-mini | Fast responses, lower cost |
-| Complex Q&A | GPT-4o | Multi-document reasoning |
+| Document Intake | GPT-4.1-nano | Simple parsing, high volume, ultra-low cost |
+| Clinical Extraction | GPT-4.1-mini | Good accuracy, 85% cheaper than GPT-4o |
+| Risk Assessment | GPT-4.1-mini | Safety-critical (stepped down from GPT-4o) |
+| Summarization | GPT-4.1-nano | Simple summaries, ultra-low cost |
+| Simple Q&A | GPT-4.1-nano | Fast responses, lowest cost |
+| Complex Q&A | GPT-4.1-mini | Multi-document reasoning |
 | Embeddings | text-embedding-3-large | Vector search for RAG |
 
 ---

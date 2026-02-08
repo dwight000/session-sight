@@ -9,14 +9,14 @@
 #   ./scripts/start-aspire.sh
 #
 # After starting:
+#   - API: https://localhost:7039 (fixed port)
 #   - Dashboard: https://localhost:17055
-#   - Find API port: ss -tlnp | grep SessionSight
-#   - Run tests manually: API_BASE_URL="https://localhost:<PORT>" dotnet test tests/SessionSight.FunctionalTests
+#   - Frontend: cd src/SessionSight.Web && services__api__https__0=https://localhost:7039 npx vite --host
 #
 # Common commands while running:
-#   - Check ports: ss -tlnp | grep SessionSight
 #   - Test health: curl -sk https://localhost:7039/health
 #   - View logs: tail -f /tmp/aspire-e2e.log
+#   - Run tests: API_BASE_URL="https://localhost:7039" dotnet test tests/SessionSight.FunctionalTests
 #   - Stop: Ctrl+C or pkill -9 -f "SessionSight|Aspire|dcp"
 # =============================================================================
 
@@ -37,7 +37,10 @@ sleep 2
 cd "$PROJECT_ROOT/src/SessionSight.AppHost"
 echo ""
 echo "Starting Aspire..."
-echo "Dashboard will open at https://localhost:17055"
-echo "Use 'ss -tlnp | grep SessionSight' to find API ports"
+echo "  API: https://localhost:7039"
+echo "  Dashboard: https://localhost:17055"
+echo ""
+echo "To start frontend:"
+echo "  cd src/SessionSight.Web && services__api__https__0=https://localhost:7039 npx vite --host"
 echo ""
 dotnet run
