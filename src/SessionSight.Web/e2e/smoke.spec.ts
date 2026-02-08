@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test'
 import { mockPracticeSummary } from '../src/test/fixtures/summary'
 import { mockReviewStats, mockReviewQueue, mockReviewDetail } from '../src/test/fixtures/review'
 import { mockPatientRiskTrend } from '../src/test/fixtures/riskTrend'
+import { mockPatients } from '../src/test/fixtures/patients'
+import { mockPatientTimeline } from '../src/test/fixtures/timeline'
 
 function mockDashboardRoutes(page: import('@playwright/test').Page) {
   return Promise.all([
@@ -27,6 +29,20 @@ function mockSessionDetailRoutes(page: import('@playwright/test').Page) {
   return page.route('**/api/review/session/**', (route) =>
     route.fulfill({ json: mockReviewDetail }),
   )
+}
+
+function mockPatientTimelineRoutes(page: import('@playwright/test').Page) {
+  return Promise.all([
+    page.route('**/api/patients', (route) =>
+      route.fulfill({ json: mockPatients }),
+    ),
+    page.route('**/api/patients/p1', (route) =>
+      route.fulfill({ json: mockPatients[0] }),
+    ),
+    page.route('**/api/summary/patient/**/timeline**', (route) =>
+      route.fulfill({ json: mockPatientTimeline }),
+    ),
+  ])
 }
 
 test('Dashboard shows stats', async ({ page }) => {
@@ -73,4 +89,16 @@ test('Sidebar navigation works', async ({ page }) => {
 
   await page.getByRole('link', { name: /Back to Queue/ }).click()
   await expect(page).toHaveURL(/\/review$/)
+})
+
+test('Patients page navigates to patient timeline', async ({ page }) => {
+  await mockPatientTimelineRoutes(page)
+
+  await page.goto('/patients')
+  await expect(page.getByRole('heading', { name: 'Patients' })).toBeVisible()
+
+  await page.getByRole('link', { name: 'Timeline →' }).first().click()
+  await expect(page).toHaveURL(/\/patients\/p1\/timeline/)
+  await expect(page.getByRole('heading', { name: 'Patient Timeline' })).toBeVisible()
+  await expect(page.getByText('Session Timeline')).toBeVisible()
 })

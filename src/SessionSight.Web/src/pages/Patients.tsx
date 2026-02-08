@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { usePatients } from '../hooks/usePatients'
 import { useCreatePatient } from '../hooks/useCreatePatient'
 import { Button } from '../components/ui/Button'
@@ -126,6 +127,7 @@ export function Patients() {
                 <th className="px-4 py-3">Date of Birth</th>
                 <th className="px-4 py-3">External ID</th>
                 <th className="px-4 py-3">Created</th>
+                <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -142,6 +144,13 @@ export function Patients() {
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-gray-500">
                     {formatDate(patient.createdAt)}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right">
+                    <Link to={`/patients/${patient.id}/timeline`}>
+                      <Button variant="secondary" className="text-xs">
+                        Timeline &rarr;
+                      </Button>
+                    </Link>
                   </td>
                 </tr>
               ))}

@@ -4,6 +4,7 @@ import { mockPracticeSummary } from '../fixtures/summary'
 import { mockPatients } from '../fixtures/patients'
 import { mockSessions } from '../fixtures/sessions'
 import { mockPatientRiskTrend } from '../fixtures/riskTrend'
+import { mockPatientTimeline } from '../fixtures/timeline'
 
 export const handlers = [
   http.get('/api/review/queue', () => {
@@ -29,6 +30,13 @@ export const handlers = [
   http.get('/api/summary/patient/:patientId/risk-trend', ({ params }) => {
     return HttpResponse.json({
       ...mockPatientRiskTrend,
+      patientId: params.patientId,
+    })
+  }),
+
+  http.get('/api/summary/patient/:patientId/timeline', ({ params }) => {
+    return HttpResponse.json({
+      ...mockPatientTimeline,
       patientId: params.patientId,
     })
   }),

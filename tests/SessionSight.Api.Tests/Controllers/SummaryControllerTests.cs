@@ -269,6 +269,162 @@ public class SummaryControllerTests
 
     #endregion
 
+    #region GetPatientTimeline Tests
+
+    [Fact]
+    public async Task GetPatientTimeline_PatientNotFound_ReturnsNotFound()
+    {
+        var patientId = Guid.NewGuid();
+        _mockPatientRepo.Setup(r => r.GetByIdAsync(patientId)).ReturnsAsync((Patient?)null);
+
+        var result = await _controller.GetPatientTimeline(patientId, null, null);
+
+        result.Result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task GetPatientTimeline_InvalidDateRange_ReturnsBadRequest()
+    {
+        var patientId = Guid.NewGuid();
+
+        var result = await _controller.GetPatientTimeline(
+            patientId,
+            new DateOnly(2024, 2, 1),
+            new DateOnly(2024, 1, 1));
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task GetPatientTimeline_WithoutDateRange_UsesPatientSessionsAndComputesDeterministicFields()
+    {
+        var patientId = Guid.NewGuid();
+        var patient = new Patient { Id = patientId, ExternalId = "P001" };
+
+        var first = CreateTimelineSession(
+            patientId,
+            new DateOnly(2024, 1, 5),
+            1,
+            SessionType.Individual,
+            SessionModality.InPerson,
+            RiskLevelOverall.Low,
+            4,
+            requiresReview: false,
+            reviewStatus: ReviewStatus.NotFlagged,
+            hasDocument: true,
+            documentStatus: DocumentStatus.Completed);
+
+        var second = CreateTimelineSession(
+            patientId,
+            new DateOnly(2024, 1, 12),
+            2,
+            SessionType.Individual,
+            SessionModality.TelehealthVideo,
+            RiskLevelOverall.High,
+            2,
+            requiresReview: true,
+            reviewStatus: ReviewStatus.Pending,
+            hasDocument: true,
+            documentStatus: DocumentStatus.Completed);
+
+        var third = CreateTimelineSession(
+            patientId,
+            new DateOnly(2024, 1, 20),
+            3,
+            SessionType.Crisis,
+            SessionModality.TelehealthPhone,
+            riskLevel: null,
+            moodScore: null,
+            requiresReview: false,
+            reviewStatus: ReviewStatus.NotFlagged,
+            hasDocument: false,
+            documentStatus: null);
+
+        _mockPatientRepo.Setup(r => r.GetByIdAsync(patientId)).ReturnsAsync(patient);
+        _mockSessionRepo
+            .Setup(r => r.GetByPatientIdAsync(patientId))
+            .ReturnsAsync(new[] { second, third, first });
+
+        var result = await _controller.GetPatientTimeline(patientId, null, null);
+
+        _mockSessionRepo.Verify(r => r.GetByPatientIdAsync(patientId), Times.Once);
+        _mockSessionRepo.Verify(r => r.GetByPatientIdInDateRangeAsync(It.IsAny<Guid>(), It.IsAny<DateOnly?>(), It.IsAny<DateOnly?>()), Times.Never);
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var timeline = okResult.Value.Should().BeOfType<PatientTimelineDto>().Subject;
+
+        timeline.PatientId.Should().Be(patientId);
+        timeline.StartDate.Should().BeNull();
+        timeline.EndDate.Should().BeNull();
+        timeline.TotalSessions.Should().Be(3);
+        timeline.HasEscalation.Should().BeTrue();
+        timeline.LatestRiskLevel.Should().Be("High");
+
+        timeline.Entries.Should().HaveCount(3);
+        timeline.Entries[0].SessionId.Should().Be(first.Id);
+        timeline.Entries[0].SessionType.Should().Be("Individual");
+        timeline.Entries[0].Modality.Should().Be("InPerson");
+        timeline.Entries[0].HasDocument.Should().BeTrue();
+        timeline.Entries[0].DocumentStatus.Should().Be(DocumentStatus.Completed);
+        timeline.Entries[0].RiskLevel.Should().Be("Low");
+        timeline.Entries[0].RiskScore.Should().Be(0);
+        timeline.Entries[0].MoodScore.Should().Be(4);
+        timeline.Entries[0].DaysSincePreviousSession.Should().BeNull();
+        timeline.Entries[0].RiskChange.Should().BeNull();
+        timeline.Entries[0].MoodDelta.Should().BeNull();
+        timeline.Entries[0].MoodChange.Should().BeNull();
+
+        timeline.Entries[1].SessionId.Should().Be(second.Id);
+        timeline.Entries[1].SessionType.Should().Be("Individual");
+        timeline.Entries[1].Modality.Should().Be("TelehealthVideo");
+        timeline.Entries[1].DaysSincePreviousSession.Should().Be(7);
+        timeline.Entries[1].RiskChange.Should().Be("Low -> High");
+        timeline.Entries[1].MoodDelta.Should().Be(-2);
+        timeline.Entries[1].MoodChange.Should().Be("declined");
+        timeline.Entries[1].RequiresReview.Should().BeTrue();
+        timeline.Entries[1].ReviewStatus.Should().Be(ReviewStatus.Pending);
+
+        timeline.Entries[2].SessionId.Should().Be(third.Id);
+        timeline.Entries[2].SessionType.Should().Be("Crisis");
+        timeline.Entries[2].Modality.Should().Be("TelehealthPhone");
+        timeline.Entries[2].HasDocument.Should().BeFalse();
+        timeline.Entries[2].DocumentStatus.Should().BeNull();
+        timeline.Entries[2].RiskLevel.Should().BeNull();
+        timeline.Entries[2].RiskScore.Should().BeNull();
+        timeline.Entries[2].MoodScore.Should().BeNull();
+        timeline.Entries[2].RiskChange.Should().BeNull();
+        timeline.Entries[2].MoodDelta.Should().BeNull();
+        timeline.Entries[2].MoodChange.Should().BeNull();
+        timeline.Entries[2].DaysSincePreviousSession.Should().Be(8);
+    }
+
+    [Fact]
+    public async Task GetPatientTimeline_WithDateRange_UsesDateRangeRepositoryMethod()
+    {
+        var patientId = Guid.NewGuid();
+        var patient = new Patient { Id = patientId, ExternalId = "P001" };
+        var startDate = new DateOnly(2024, 1, 1);
+        var endDate = new DateOnly(2024, 1, 31);
+
+        _mockPatientRepo.Setup(r => r.GetByIdAsync(patientId)).ReturnsAsync(patient);
+        _mockSessionRepo
+            .Setup(r => r.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate))
+            .ReturnsAsync(Array.Empty<Session>());
+
+        var result = await _controller.GetPatientTimeline(patientId, startDate, endDate);
+
+        _mockSessionRepo.Verify(r => r.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate), Times.Once);
+        _mockSessionRepo.Verify(r => r.GetByPatientIdAsync(patientId), Times.Never);
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var timeline = okResult.Value.Should().BeOfType<PatientTimelineDto>().Subject;
+        timeline.StartDate.Should().Be(startDate);
+        timeline.EndDate.Should().Be(endDate);
+        timeline.TotalSessions.Should().Be(0);
+    }
+
+    #endregion
+
     #region GetPracticeSummary Tests
 
     [Fact]
@@ -335,6 +491,8 @@ public class SummaryControllerTests
             PatientId = patientId,
             SessionDate = sessionDate,
             SessionNumber = sessionNumber,
+            SessionType = SessionType.Individual,
+            Modality = SessionModality.InPerson,
             Extraction = new CoreExtractionResult
             {
                 Id = Guid.NewGuid(),
@@ -352,5 +510,69 @@ public class SummaryControllerTests
                 }
             }
         };
+    }
+
+    private static Session CreateTimelineSession(
+        Guid patientId,
+        DateOnly sessionDate,
+        int sessionNumber,
+        SessionType sessionType,
+        SessionModality modality,
+        RiskLevelOverall? riskLevel,
+        int? moodScore,
+        bool requiresReview,
+        ReviewStatus reviewStatus,
+        bool hasDocument,
+        DocumentStatus? documentStatus)
+    {
+        var session = new Session
+        {
+            Id = Guid.NewGuid(),
+            PatientId = patientId,
+            SessionDate = sessionDate,
+            SessionNumber = sessionNumber,
+            SessionType = sessionType,
+            Modality = modality
+        };
+
+        if (hasDocument)
+        {
+            session.Document = new SessionDocument
+            {
+                Id = Guid.NewGuid(),
+                SessionId = session.Id,
+                OriginalFileName = $"session-{sessionNumber}.pdf",
+                BlobUri = $"https://blob/session-{sessionNumber}.pdf",
+                Status = documentStatus ?? DocumentStatus.Pending
+            };
+        }
+
+        if (riskLevel.HasValue || moodScore.HasValue)
+        {
+            session.Extraction = new CoreExtractionResult
+            {
+                Id = Guid.NewGuid(),
+                SessionId = session.Id,
+                RequiresReview = requiresReview,
+                ReviewStatus = reviewStatus,
+                Data = new ClinicalExtraction
+                {
+                    RiskAssessment = new RiskAssessmentExtracted
+                    {
+                        RiskLevelOverall = riskLevel.HasValue
+                            ? new ExtractedField<RiskLevelOverall> { Value = riskLevel.Value }
+                            : new ExtractedField<RiskLevelOverall>()
+                    },
+                    MoodAssessment = new MoodAssessmentExtracted
+                    {
+                        SelfReportedMood = moodScore.HasValue
+                            ? new ExtractedField<int> { Value = moodScore.Value }
+                            : new ExtractedField<int>()
+                    }
+                }
+            };
+        }
+
+        return session;
     }
 }

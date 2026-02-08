@@ -171,6 +171,108 @@ public class SummaryController : ControllerBase
     }
 
     /// <summary>
+    /// Gets a chronological patient timeline for UI rendering.
+    /// </summary>
+    [HttpGet("patient/{patientId:guid}/timeline")]
+    public async Task<ActionResult<PatientTimelineDto>> GetPatientTimeline(
+        Guid patientId,
+        [FromQuery] DateOnly? startDate,
+        [FromQuery] DateOnly? endDate,
+        CancellationToken ct = default)
+    {
+        if (startDate.HasValue && endDate.HasValue && startDate.Value > endDate.Value)
+        {
+            return BadRequest("startDate must be before or equal to endDate");
+        }
+
+        var patient = await _patientRepository.GetByIdAsync(patientId);
+        if (patient is null)
+        {
+            return NotFound($"Patient {patientId} not found");
+        }
+
+        var sessions = (startDate.HasValue || endDate.HasValue
+                ? await _sessionRepository.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate)
+                : await _sessionRepository.GetByPatientIdAsync(patientId))
+            .OrderBy(s => s.SessionDate)
+            .ThenBy(s => s.SessionNumber)
+            .ToList();
+
+        var entries = new List<PatientTimelineEntryDto>(sessions.Count);
+        DateOnly? previousSessionDate = null;
+        string? previousRiskLevel = null;
+        int? previousMoodScore = null;
+
+        foreach (var session in sessions)
+        {
+            var extraction = session.Extraction;
+            var riskLevelEnum = extraction?.Data?.RiskAssessment?.RiskLevelOverall?.Value;
+            var riskLevel = riskLevelEnum?.ToString();
+            var moodScore = extraction?.Data?.MoodAssessment?.SelfReportedMood?.Value;
+
+            int? daysSincePrevious = previousSessionDate.HasValue
+                ? session.SessionDate.DayNumber - previousSessionDate.Value.DayNumber
+                : null;
+
+            var riskChange = previousRiskLevel is not null && riskLevel is not null && previousRiskLevel != riskLevel
+                ? $"{previousRiskLevel} -> {riskLevel}"
+                : null;
+
+            int? moodDelta = previousMoodScore.HasValue && moodScore.HasValue
+                ? moodScore.Value - previousMoodScore.Value
+                : null;
+
+            var entry = new PatientTimelineEntryDto(
+                session.Id,
+                session.SessionDate,
+                session.SessionNumber,
+                session.SessionType.ToString(),
+                session.Modality.ToString(),
+                session.Document is not null,
+                session.Document?.Status,
+                session.Document?.OriginalFileName,
+                session.Document?.BlobUri,
+                riskLevel,
+                MapRiskLevelToScore(riskLevelEnum),
+                moodScore,
+                extraction?.RequiresReview ?? false,
+                extraction?.ReviewStatus ?? ReviewStatus.NotFlagged,
+                daysSincePrevious,
+                riskChange,
+                moodDelta,
+                MapMoodChange(moodDelta));
+
+            entries.Add(entry);
+
+            previousSessionDate = session.SessionDate;
+            previousRiskLevel = riskLevel ?? previousRiskLevel;
+            previousMoodScore = moodScore ?? previousMoodScore;
+        }
+
+        var riskScores = entries
+            .Where(e => e.RiskScore.HasValue)
+            .Select(e => e.RiskScore!.Value)
+            .ToList();
+
+        var hasEscalation = riskScores
+            .Zip(riskScores.Skip(1), (previous, current) => current > previous)
+            .Any(escalated => escalated);
+
+        var latestRiskLevel = entries
+            .LastOrDefault(e => e.RiskScore.HasValue)?
+            .RiskLevel;
+
+        return Ok(new PatientTimelineDto(
+            patientId,
+            startDate,
+            endDate,
+            entries.Count,
+            entries,
+            latestRiskLevel,
+            hasEscalation));
+    }
+
+    /// <summary>
     /// Gets a practice-level summary aggregating metrics across all patients and sessions.
     /// </summary>
     [HttpGet("practice")]
@@ -195,6 +297,14 @@ public class SummaryController : ControllerBase
         RiskLevelOverall.Moderate => 1,
         RiskLevelOverall.High => 2,
         RiskLevelOverall.Imminent => 3,
+        _ => null
+    };
+
+    private static string? MapMoodChange(int? moodDelta) => moodDelta switch
+    {
+        > 0 => "improved",
+        < 0 => "declined",
+        0 => "unchanged",
         _ => null
     };
 }

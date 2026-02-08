@@ -150,6 +150,20 @@ test.describe('Upload Flow', () => {
       const row = table.locator('tr', { has: page.getByText(fullName) })
       await expect(row.getByText('Uploaded')).toBeVisible()
     })
+
+    // 6. Verify timeline page renders for the created patient
+    await test.step('View patient timeline', async () => {
+      await page.goto('/patients')
+      await expect(page.getByRole('heading', { name: 'Patients' })).toBeVisible()
+
+      const row = page.locator('tr', { has: page.getByText(fullName) })
+      await expect(row).toBeVisible()
+
+      await row.getByRole('link', { name: 'Timeline →' }).click()
+      await expect(page).toHaveURL(/\/patients\/.*\/timeline/)
+      await expect(page.getByRole('heading', { name: 'Patient Timeline' })).toBeVisible()
+      await expect(page.getByText('Session Timeline')).toBeVisible()
+    })
   })
 
   test('upload shows error for invalid file', async ({ page }) => {

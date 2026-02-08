@@ -92,6 +92,13 @@ dotnet test --filter "Category!=Functional"
 
 **Before running expensive E2E:** Always run `dotnet test --filter "Category!=Functional"` and `./scripts/check-frontend.sh` first. These are fast and free, and catch issues before spending money on LLM calls.
 
+**E2E runtime tips:**
+- `[Codex Only]` Run `./scripts/run-e2e.sh ...` with elevated permissions in this environment. Non-elevated runs can fail on process/network/runtime capabilities and cause false startup timeouts.
+- `--hot` is reuse-only today: it keeps services running only if Aspire is already running before script start. If Aspire is not running, the script falls back to normal mode and cleans up on exit.
+- Add fail-fast preflight checks in `run-e2e.sh` for missing prerequisites (permissions, Docker, AppHost startup) so failures stop immediately instead of timing out after 120s.
+- `./scripts/start-aspire.sh` starts the stack without seeding test data.
+- For seeded demo data with a running stack: start Aspire first, then run a targeted hot flow, e.g. `./scripts/run-e2e.sh --frontend --hot --filter "complete patient -> session -> upload -> review flow"`.
+
 **Diagnosing failures:** On the FIRST run, grep the output for errors instead of re-running:
 ```bash
 ./scripts/run-e2e.sh 2>&1 | tee /tmp/e2e-output.log

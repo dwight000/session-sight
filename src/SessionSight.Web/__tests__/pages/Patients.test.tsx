@@ -32,6 +32,19 @@ describe('Patients page', () => {
     })
   })
 
+  it('renders timeline links for each patient row', async () => {
+    renderPatients()
+
+    await waitFor(() => {
+      expect(screen.getByText('John Doe')).toBeInTheDocument()
+    })
+
+    const timelineLinks = screen.getAllByRole('link', { name: /timeline/i })
+    expect(timelineLinks.length).toBe(2)
+    expect(timelineLinks[0]).toHaveAttribute('href', '/patients/p1/timeline')
+    expect(timelineLinks[1]).toHaveAttribute('href', '/patients/p2/timeline')
+  })
+
   it('shows add patient form when clicking Add Patient', async () => {
     renderPatients()
     await waitFor(() => expect(screen.getByText('John Doe')).toBeInTheDocument())
