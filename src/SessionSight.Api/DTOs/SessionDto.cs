@@ -12,6 +12,7 @@ public record SessionDto(
     SessionModality Modality,
     int? DurationMinutes,
     int SessionNumber,
+    bool HasDocument,
     DateTime CreatedAt,
     DateTime UpdatedAt);
 

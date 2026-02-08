@@ -1,3 +1,59 @@
+// Patient types
+export interface Patient {
+  id: string
+  externalId: string
+  firstName: string
+  lastName: string
+  dateOfBirth: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreatePatientRequest {
+  externalId: string
+  firstName: string
+  lastName: string
+  dateOfBirth: string
+}
+
+// Session types
+export type SessionType = 'Intake' | 'Individual' | 'Group' | 'Family' | 'Couples' | 'Crisis' | 'Assessment' | 'Termination'
+export type SessionModality = 'InPerson' | 'TelehealthVideo' | 'TelehealthPhone' | 'Hybrid'
+
+export interface Session {
+  id: string
+  patientId: string
+  therapistId: string
+  sessionDate: string
+  sessionType: SessionType
+  modality: SessionModality
+  durationMinutes: number | null
+  sessionNumber: number
+  hasDocument: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateSessionRequest {
+  patientId: string
+  therapistId: string
+  sessionDate: string
+  sessionType: SessionType
+  modality: SessionModality
+  durationMinutes?: number | null
+  sessionNumber: number
+}
+
+// Upload types
+export interface UploadDocumentResponse {
+  documentId: string
+  sessionId: string
+  fileName: string
+  blobUri: string
+  status: string
+}
+
+// Review types
 export type ReviewStatus = 'NotFlagged' | 'Pending' | 'Approved' | 'Dismissed'
 
 export interface ReviewQueueItem {

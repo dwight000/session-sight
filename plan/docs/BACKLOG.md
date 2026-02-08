@@ -7,10 +7,10 @@
 ## Current Status
 
 **Phase**: Phase 4 (Risk Dashboard & UI) - IN PROGRESS
-**Next Action**: P4-002/P4-003 (risk trend visualization / patient history timeline)
+**Next Action**: B-063 (Full-stack Playwright E2E) or P4-002/P4-003 (risk trend / patient timeline)
 **Last Updated**: February 7, 2026
 
-**Milestone**: P4-001 complete — React supervisor dashboard with Vitest + Playwright test coverage
+**Milestone**: P4-005 complete — Patient/Session/Upload screens with 128 frontend + 132 backend tests
 
 ---
 
@@ -134,8 +134,10 @@
 | P4-002 | Risk trend visualization | L | 4 | Ready | P4-001 |
 | P4-003 | Patient history timeline view | L | 4 | Ready | P4-001 |
 | P4-004 | Flagged session approve/dismiss workflow | M | 4 | Ready | P4-001 |
-| P4-005 | Document upload UI (therapist uploads note → extraction pipeline) | L | 4 | Ready | P4-001 |
-| B-063 | Full-stack Playwright E2E tests (browser + real Aspire backend) | L | 4 | Ready | P4-001 |
+| P4-005 | Patient/Session/Upload screens (3 pages: /patients, /sessions, /upload) | L | 4 | Done | P4-001 |
+| B-063 | Full-stack Playwright E2E tests (browser + real Aspire backend) | M | 4 | Ready | P4-005 |
+| B-064 | Extraction trigger race condition fix (HOLDLOCK or optimistic concurrency) | S | 2 | Ready | - |
+| B-065 | Frontend code coverage: Add Vitest coverage (v8), set 80% threshold, add to check-frontend.sh + CI | S | 4 | Ready | B-059 |
 | **Phase 5: Polish & Testing** |||||
 | P5-001 | Integration tests (golden files) | L | 5 | Ready | P2-005 |
 | P5-002 | Data flow diagrams (document->agent->DB) | M | 5 | Blocked | B-004 |
@@ -232,6 +234,7 @@
 | B-060 | Playwright smoke tests for frontend routes (4 tests) | 2026-02-07 |
 | B-061 | Reorganize frontend tests to `__tests__/` + Tier 1-2 coverage | 2026-02-07 |
 | B-062 | Frontend Tier 3 test coverage (hooks, Button, summary API) | 2026-02-07 |
+| P4-005 | Patient/Session/Upload screens (3 pages + API + tests) | 2026-02-07 |
 
 ---
 
@@ -239,6 +242,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-07 | **P4-005 complete.** Patient/Session/Upload screens: 3 new pages (`/patients`, `/sessions`, `/upload`), 5 API functions (patients.ts, sessions.ts, upload.ts), 5 React Query hooks (usePatients, useCreatePatient, useSessions, useCreateSession, useUploadDocument), updated navigation (Sidebar, MobileNav, App routes). Backend: added `ISessionRepository.GetAllAsync(patientId?, hasDocument?)`, `GET /api/sessions` endpoint with filters, `HasDocument` property on SessionDto. Tests: 31 new frontend tests (api/patients, api/sessions, api/upload, hooks/usePatients, hooks/useSessions, pages/Patients, pages/Sessions, pages/Upload), 3 new backend tests (SessionsController.GetAll). Fixed pre-existing type error in SessionDetail.tsx (source.text on string type). Added MSW fixtures (patients.ts, sessions.ts) and handlers. Updated CLAUDE.md with Test Structure section documenting all test types and paths. 128 frontend tests, 132 backend tests. Coverage 82.32%. Created B-065 for frontend coverage enforcement (80%). |
 | 2026-02-07 | **B-061, B-062 complete.** (B-061) Reorganized frontend tests from `src/pages/__tests__/` to top-level `__tests__/` directory with proper tier structure. Added Tier 1-2 coverage: 38 new tests across 7 files (api/client, api/review, components/ui/Badge, ConfidenceBar, RiskBadge, hooks/useSubmitReview, utils/format). Total: 82 tests. (B-062) Added Tier 3 coverage: 15 new tests across 4 files — usePracticeSummary enabled-guard tests (3), useReviewDetail enabled-guard tests (2), Button variant/passthrough/disabled tests (8), summary API URL encoding tests (2). Total: 97 frontend tests. Tier 4 skipped (Card, Spinner, useReviewQueue, useReviewStats — trivial passthrough, no logic). |
 | 2026-02-07 | **P4-001, B-059, B-060 complete.** (P4-001) React supervisor review dashboard: 3 pages (Dashboard, ReviewQueue, SessionDetail), AppShell layout with Sidebar, 6 UI components (Badge, Button, Card, ConfidenceBar, RiskBadge, Spinner), 5 React Query hooks, API client layer, TypeScript types. Routes: `/` (dashboard with practice summary + flagged patients), `/review` (filterable/sortable queue), `/review/session/:id` (extraction detail + review action panel). (B-059) Frontend testing infrastructure: Vitest + happy-dom + RTL + MSW, 44 unit/component tests across 4 files, `renderWithProviders` helper, MSW handlers + fixtures, `scripts/check-frontend.sh`, `frontend-tests` CI job in ci.yml. (B-060) Playwright smoke tests: 4 browser tests (Dashboard stats, Review Queue names, Session Detail + risk section, Sidebar navigation) using `page.route()` with shared fixtures. Added to CI and check-frontend.sh. Created B-061 for test reorganization + Tier 1-2 coverage (planned, ready to implement). |
 | 2026-02-06 | **B-058 complete (74-field assertions + 4 string→enum + temperature fix).** Converted 4 free-text string fields to enums: Appearance (MSE), BehaviorType (MSE), DiagnosisChangeType (Diagnoses), DischargePlanningStatus (NextSteps). Updated 3 schema files, ExtractionSchemaGenerator auto-discovers new enums. ExtractionAssertions.cs: removed 3 unused helpers, added AssertFieldPresent helper, added/fixed assertions for all 74 extracted fields (was ~50). Updated stale per-section prompts in ExtractionPrompts.cs. Fixed missing temperature on ClinicalExtractorAgent (spec said 0.1f, lost during AgentLoopRunner refactor) — added temperature parameter to AgentLoopRunner, set 0.1f for extraction, 0.2f for Q&A. Updated clinical-schema.md spec. Removed Sequential collection from E2E tests — classes now run in parallel (Azure SDK backoff handles rate limits). Deleted TestCollections.cs. 616 unit tests. Coverage 82.15%. 8/8 E2E. |

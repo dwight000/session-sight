@@ -21,6 +21,57 @@ public class SessionsControllerTests
     }
 
     [Fact]
+    public async Task GetAll_NoFilters_ReturnsAllSessions()
+    {
+        var sessions = new List<Session>
+        {
+            new() { Id = Guid.NewGuid(), PatientId = Guid.NewGuid(), TherapistId = Guid.NewGuid(), SessionDate = new DateOnly(2026, 1, 15), SessionType = SessionType.Individual, Modality = SessionModality.InPerson, SessionNumber = 1 },
+            new() { Id = Guid.NewGuid(), PatientId = Guid.NewGuid(), TherapistId = Guid.NewGuid(), SessionDate = new DateOnly(2026, 1, 16), SessionType = SessionType.Individual, Modality = SessionModality.TelehealthVideo, SessionNumber = 2 }
+        };
+        _mockRepo.Setup(r => r.GetAllAsync(null, null)).ReturnsAsync(sessions);
+
+        var result = await _controller.GetAll();
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var returnedSessions = okResult.Value.Should().BeAssignableTo<IEnumerable<SessionDto>>().Subject;
+        returnedSessions.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task GetAll_WithPatientFilter_ReturnsFilteredSessions()
+    {
+        var patientId = Guid.NewGuid();
+        var sessions = new List<Session>
+        {
+            new() { Id = Guid.NewGuid(), PatientId = patientId, TherapistId = Guid.NewGuid(), SessionDate = new DateOnly(2026, 1, 15), SessionType = SessionType.Individual, Modality = SessionModality.InPerson, SessionNumber = 1 }
+        };
+        _mockRepo.Setup(r => r.GetAllAsync(patientId, null)).ReturnsAsync(sessions);
+
+        var result = await _controller.GetAll(patientId);
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var returnedSessions = okResult.Value.Should().BeAssignableTo<IEnumerable<SessionDto>>().Subject;
+        returnedSessions.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task GetAll_WithHasDocumentFalse_ReturnsSessionsWithoutDocuments()
+    {
+        var sessions = new List<Session>
+        {
+            new() { Id = Guid.NewGuid(), PatientId = Guid.NewGuid(), TherapistId = Guid.NewGuid(), SessionDate = new DateOnly(2026, 1, 15), SessionType = SessionType.Individual, Modality = SessionModality.InPerson, SessionNumber = 1, Document = null }
+        };
+        _mockRepo.Setup(r => r.GetAllAsync(null, false)).ReturnsAsync(sessions);
+
+        var result = await _controller.GetAll(hasDocument: false);
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var returnedSessions = okResult.Value.Should().BeAssignableTo<IEnumerable<SessionDto>>().Subject;
+        returnedSessions.Should().HaveCount(1);
+        returnedSessions.First().HasDocument.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task GetById_SessionExists_ReturnsOk()
     {
         var id = Guid.NewGuid();

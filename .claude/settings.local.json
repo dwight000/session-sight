@@ -72,7 +72,17 @@
       "Bash(DIAG_LOG=1 ./scripts/run-e2e.sh:*)",
       "Bash(xargs:*)",
       "Bash(npx:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "WebFetch(domain:til.simonwillison.net)",
+      "WebFetch(domain:executeautomation.github.io)",
+      "WebFetch(domain:bug0.com)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_wait_for",
+      "Bash(./scripts/check-frontend.sh:*)"
     ]
   }
 }

@@ -130,6 +130,32 @@ When creating new `IAgentTool` implementations:
 | `src/SessionSight.Api/Program.cs` | DI registration |
 | `tests/SessionSight.FunctionalTests/` | E2E tests |
 
+## Test Structure
+
+| # | Type | Path | Framework | Coverage | Run Command |
+|---|------|------|-----------|----------|-------------|
+| 1 | Backend Core Unit | `tests/SessionSight.Core.Tests/` | xUnit | 82% | `dotnet test --filter "Category!=Functional"` |
+| 2 | Backend Agents Unit | `tests/SessionSight.Agents.Tests/` | xUnit | 82% | (same) |
+| 3 | Backend API Unit | `tests/SessionSight.Api.Tests/` | xUnit | 82% | (same) |
+| 4 | Backend Functional | `tests/SessionSight.FunctionalTests/` | xUnit | n/a | `./scripts/run-e2e.sh` |
+| 5 | Frontend API Unit | `src/SessionSight.Web/__tests__/api/` | Vitest+MSW | n/a | `npx vitest run` |
+| 6 | Frontend Hooks Unit | `src/SessionSight.Web/__tests__/hooks/` | Vitest+MSW | n/a | (same) |
+| 7 | Frontend Pages Unit | `src/SessionSight.Web/__tests__/pages/` | Vitest+MSW | n/a | (same) |
+| 8 | Frontend Components | `src/SessionSight.Web/__tests__/components/` | Vitest | n/a | (same) |
+| 9 | Frontend Smoke E2E | `src/SessionSight.Web/e2e/smoke.spec.ts` | Playwright | n/a | `npx playwright test` |
+
+**Frontend test conventions:**
+- Tests live in `__tests__/` (NOT `src/__tests__/`) — vitest.config.ts pattern is `__tests__/**/*.test.{ts,tsx}`
+- Imports use `../../src/` prefix (e.g., `import { X } from '../../src/api/x'`)
+- Use shared MSW server from `../../src/test/mocks/server` — don't create standalone servers
+- Add fixtures to `src/test/fixtures/` and handlers to `src/test/mocks/handlers.ts`
+- Labels need `htmlFor` + `id` for accessibility tests (`screen.getByLabelText()`)
+
+**Backend test conventions:**
+- Controller tests mock repositories
+- Integration tests use `WebApplicationFactory<Program>`
+- Functional tests require Azure services (run with `./scripts/run-e2e.sh`)
+
 ## Lessons Learned (Common Pitfalls)
 
 ### Code Analysis Rules (Sonar/CA)

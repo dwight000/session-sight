@@ -16,6 +16,15 @@ public class SessionsController : ControllerBase
         _sessionRepository = sessionRepository;
     }
 
+    [HttpGet("sessions")]
+    public async Task<ActionResult<IEnumerable<SessionDto>>> GetAll(
+        [FromQuery] Guid? patientId = null,
+        [FromQuery] bool? hasDocument = null)
+    {
+        var sessions = await _sessionRepository.GetAllAsync(patientId, hasDocument);
+        return Ok(sessions.Select(s => s.ToDto()));
+    }
+
     [HttpGet("sessions/{id:guid}")]
     public async Task<ActionResult<SessionDto>> GetById(Guid id)
     {

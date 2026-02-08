@@ -9,6 +9,7 @@ public static class SessionMappings
         new(session.Id, session.PatientId, session.TherapistId,
             session.SessionDate, session.SessionType, session.Modality,
             session.DurationMinutes, session.SessionNumber,
+            session.Document is not null,
             session.CreatedAt, session.UpdatedAt);
 
     public static Session ToEntity(this CreateSessionRequest request) =>

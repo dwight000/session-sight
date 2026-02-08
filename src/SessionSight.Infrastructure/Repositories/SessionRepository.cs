@@ -21,6 +21,31 @@ public class SessionRepository : ISessionRepository
             .Include(s => s.Extraction)
             .FirstOrDefaultAsync(s => s.Id == id);
 
+    public async Task<IEnumerable<Session>> GetAllAsync(Guid? patientId = null, bool? hasDocument = null)
+    {
+        var query = _context.Sessions
+            .Include(s => s.Document)
+            .Include(s => s.Patient)
+            .AsQueryable();
+
+        if (patientId.HasValue)
+        {
+            query = query.Where(s => s.PatientId == patientId.Value);
+        }
+
+        if (hasDocument.HasValue)
+        {
+            query = hasDocument.Value
+                ? query.Where(s => s.Document != null)
+                : query.Where(s => s.Document == null);
+        }
+
+        return await query
+            .OrderByDescending(s => s.SessionDate)
+            .AsNoTracking()
+            .ToListAsync();
+    }
+
     public async Task<IEnumerable<Session>> GetByPatientIdAsync(Guid patientId)
         => await _context.Sessions
             .Include(s => s.Document)
