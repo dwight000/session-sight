@@ -192,7 +192,7 @@ export function Sessions() {
         </form>
       )}
 
-      {sessions && sessions.length === 0 ? (
+      {sessions?.length === 0 ? (
         <div className="rounded-md bg-gray-50 p-8 text-center text-sm text-gray-500">
           No sessions found. Click "Add Session" to create one.
         </div>

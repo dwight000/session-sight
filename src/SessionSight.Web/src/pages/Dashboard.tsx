@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usePracticeSummary } from '../hooks/usePracticeSummary'
 import { useReviewStats } from '../hooks/useReviewStats'
@@ -28,24 +28,19 @@ export function Dashboard() {
 
   const { data: summary, isLoading: summaryLoading, error: summaryError } = usePracticeSummary(dateRange.start, dateRange.end)
   const { data: stats, isLoading: statsLoading, error: statsError } = useReviewStats()
-  const flaggedPatients = summary?.flaggedPatients ?? []
+  const flaggedPatients = useMemo(() => summary?.flaggedPatients ?? [], [summary?.flaggedPatients])
 
-  useEffect(() => {
-    if (flaggedPatients.length === 0) {
-      setSelectedPatientId('')
-      return
+  // Derive the effective patient ID - if user hasn't selected or their selection is invalid, use first flagged patient
+  const effectivePatientId = useMemo(() => {
+    if (flaggedPatients.length === 0) return ''
+    if (selectedPatientId && flaggedPatients.some((patient) => patient.patientId === selectedPatientId)) {
+      return selectedPatientId
     }
-
-    setSelectedPatientId((current) => {
-      if (current && flaggedPatients.some((patient) => patient.patientId === current)) {
-        return current
-      }
-      return flaggedPatients[0].patientId
-    })
-  }, [flaggedPatients])
+    return flaggedPatients[0].patientId
+  }, [flaggedPatients, selectedPatientId])
 
   const { data: riskTrend, isLoading: riskTrendLoading, error: riskTrendError } = usePatientRiskTrend(
-    selectedPatientId,
+    effectivePatientId,
     dateRange.start,
     dateRange.end,
   )
@@ -63,6 +58,41 @@ export function Dashboard() {
 
   const risk = summary?.riskDistribution
   const riskTotal = risk ? risk.low + risk.moderate + risk.high + risk.imminent : 0
+
+  function renderRiskTrendContent() {
+    if (flaggedPatients.length === 0) {
+      return <p className="text-sm text-gray-400">No flagged patients available for trend analysis.</p>
+    }
+    if (riskTrendLoading) {
+      return <Spinner />
+    }
+    if (riskTrendError) {
+      return (
+        <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+          Failed to load risk trend: {(riskTrendError as Error).message}
+        </div>
+      )
+    }
+    if (riskTrend) {
+      return (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+            <span className="rounded-full bg-gray-100 px-2 py-1">
+              Sessions: {riskTrend.totalSessions}
+            </span>
+            {riskTrend.latestRiskLevel && (
+              <span className="inline-flex items-center gap-1">
+                Latest: <RiskBadge level={riskTrend.latestRiskLevel} />
+              </span>
+            )}
+            {riskTrend.hasEscalation && <Badge variant="warning">Escalation detected</Badge>}
+          </div>
+          <RiskTrendChart points={riskTrend.points} />
+        </div>
+      )
+    }
+    return <p className="text-sm text-gray-500">No trend data available.</p>
+  }
 
   return (
     <div className="space-y-6">
@@ -163,7 +193,7 @@ export function Dashboard() {
           <h3 className="text-sm font-medium text-gray-700">Patient Risk Trend</h3>
           {flaggedPatients.length > 0 && (
             <select
-              value={selectedPatientId}
+              value={effectivePatientId}
               onChange={(e) => setSelectedPatientId(e.target.value)}
               className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               aria-label="Select patient risk trend"
@@ -177,32 +207,7 @@ export function Dashboard() {
           )}
         </div>
 
-        {flaggedPatients.length === 0 ? (
-          <p className="text-sm text-gray-400">No flagged patients available for trend analysis.</p>
-        ) : riskTrendLoading ? (
-          <Spinner />
-        ) : riskTrendError ? (
-          <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
-            Failed to load risk trend: {(riskTrendError as Error).message}
-          </div>
-        ) : riskTrend ? (
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
-              <span className="rounded-full bg-gray-100 px-2 py-1">
-                Sessions: {riskTrend.totalSessions}
-              </span>
-              {riskTrend.latestRiskLevel && (
-                <span className="inline-flex items-center gap-1">
-                  Latest: <RiskBadge level={riskTrend.latestRiskLevel} />
-                </span>
-              )}
-              {riskTrend.hasEscalation && <Badge variant="warning">Escalation detected</Badge>}
-            </div>
-            <RiskTrendChart points={riskTrend.points} />
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500">No trend data available.</p>
-        )}
+        {renderRiskTrendContent()}
       </Card>
     </div>
   )

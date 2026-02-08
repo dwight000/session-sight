@@ -11,7 +11,8 @@ export function getSessions(params?: GetSessionsParams): Promise<Session[]> {
   if (params?.patientId) qs.set('patientId', params.patientId)
   if (params?.hasDocument !== undefined) qs.set('hasDocument', String(params.hasDocument))
   const query = qs.toString()
-  return fetchApi<Session[]>(`/api/sessions${query ? `?${query}` : ''}`)
+  const url = query ? `/api/sessions?${query}` : '/api/sessions'
+  return fetchApi<Session[]>(url)
 }
 
 export function getSession(id: string): Promise<Session> {

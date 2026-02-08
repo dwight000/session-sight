@@ -114,7 +114,7 @@ export function Patients() {
         </form>
       )}
 
-      {patients && patients.length === 0 ? (
+      {patients?.length === 0 ? (
         <div className="rounded-md bg-gray-50 p-8 text-center text-sm text-gray-500">
           No patients yet. Click "Add Patient" to create one.
         </div>

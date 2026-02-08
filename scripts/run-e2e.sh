@@ -116,6 +116,7 @@ cleanup_vite() {
         kill "$VITE_PID" 2>/dev/null || true
     fi
     pkill -f "vite.*SessionSight.Web" 2>/dev/null || true
+    return 0
 }
 
 cleanup() {

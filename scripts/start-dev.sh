@@ -21,8 +21,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 API_PORT=7039
 
-log() { echo -e "\033[0;32m[DEV]\033[0m $1"; }
-error() { echo -e "\033[0;31m[DEV]\033[0m $1" >&2; }
+# shellcheck disable=SC2317 # Functions are called dynamically
+log() { local msg="$1"; echo -e "\033[0;32m[DEV]\033[0m $msg"; return 0; }
+error() { local msg="$1"; echo -e "\033[0;31m[DEV]\033[0m $msg" >&2; return 0; }
 
 cd "$PROJECT_ROOT"
 
@@ -83,12 +84,14 @@ log "Seeding sample data..."
 API="https://localhost:$API_PORT"
 
 # Create sample patients
+# shellcheck disable=SC2034 # S4830: --insecure is intentional for localhost self-signed certs
 P1=$(curl -s -X POST "$API/api/patients" \
     -H "Content-Type: application/json" \
     -d '{"externalId":"P001","firstName":"Sarah","lastName":"Johnson","dateOfBirth":"1985-03-22"}' \
     --insecure 2>/dev/null)
 P1_ID=$(echo "$P1" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
 
+# shellcheck disable=SC2034 # S4830: --insecure is intentional for localhost self-signed certs
 P2=$(curl -s -X POST "$API/api/patients" \
     -H "Content-Type: application/json" \
     -d '{"externalId":"P002","firstName":"Michael","lastName":"Chen","dateOfBirth":"1992-07-15"}' \

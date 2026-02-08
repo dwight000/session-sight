@@ -3,9 +3,15 @@ interface ConfidenceBarProps {
   className?: string
 }
 
+function getConfidenceColor(value: number): string {
+  if (value < 0.7) return 'bg-red-500'
+  if (value < 0.9) return 'bg-yellow-500'
+  return 'bg-green-500'
+}
+
 export function ConfidenceBar({ value, className = '' }: ConfidenceBarProps) {
   const pct = Math.round(value * 100)
-  const color = value < 0.7 ? 'bg-red-500' : value < 0.9 ? 'bg-yellow-500' : 'bg-green-500'
+  const color = getConfidenceColor(value)
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>

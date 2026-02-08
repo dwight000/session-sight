@@ -304,7 +304,9 @@ public class SummaryController : ControllerBase
     {
         > 0 => "improved",
         < 0 => "declined",
+#pragma warning disable S2583 // S2583: False positive - switch expression correctly handles 0 as a distinct case
         0 => "unchanged",
+#pragma warning restore S2583
         _ => null
     };
 }

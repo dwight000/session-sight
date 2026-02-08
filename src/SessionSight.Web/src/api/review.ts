@@ -11,7 +11,8 @@ export function getReviewQueue(params?: {
   if (params?.startDate) qs.set('startDate', params.startDate)
   if (params?.endDate) qs.set('endDate', params.endDate)
   const query = qs.toString()
-  return fetchApi<ReviewQueueItem[]>(`/api/review/queue${query ? `?${query}` : ''}`)
+  const url = query ? `/api/review/queue?${query}` : '/api/review/queue'
+  return fetchApi<ReviewQueueItem[]>(url)
 }
 
 export function getReviewDetail(sessionId: string): Promise<ReviewDetail> {

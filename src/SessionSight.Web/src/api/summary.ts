@@ -21,7 +21,7 @@ export function getPatientTimeline(patientId: string, startDate?: string, endDat
   if (endDate) qs.set('endDate', endDate)
   const query = qs.toString()
 
-  return fetchApi<PatientTimeline>(
-    `/api/summary/patient/${encodeURIComponent(patientId)}/timeline${query ? `?${query}` : ''}`,
-  )
+  const baseUrl = `/api/summary/patient/${encodeURIComponent(patientId)}/timeline`
+  const url = query ? `${baseUrl}?${query}` : baseUrl
+  return fetchApi<PatientTimeline>(url)
 }
