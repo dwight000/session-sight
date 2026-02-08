@@ -64,37 +64,37 @@ export const mockReviewDetail: ReviewDetail = {
   }),
   data: {
     sessionInfo: {
-      sessionDate: { value: '2025-01-15', confidence: 0.98, source: 'Header of note' },
-      sessionType: { value: 'Individual therapy', confidence: 0.95, source: 'Note body' },
-      duration: { value: '50 minutes', confidence: 0.9, source: 'Note body' },
+      sessionDate: { value: '2025-01-15', confidence: 0.98, source: { text: 'Header of note', startChar: 0, endChar: 50, section: 'header' } },
+      sessionType: { value: 'Individual therapy', confidence: 0.95, source: { text: 'Note body', startChar: 100, endChar: 150, section: 'body' } },
+      duration: { value: '50 minutes', confidence: 0.9, source: { text: 'Note body', startChar: 200, endChar: 250, section: 'body' } },
     },
     presentingConcerns: {
-      primaryConcern: { value: 'Anxiety with panic attacks', confidence: 0.92, source: 'Presenting problem section' },
-      symptoms: { value: ['Panic attacks', 'Insomnia', 'Racing thoughts'], confidence: 0.88, source: 'Symptom checklist' },
+      primaryConcern: { value: 'Anxiety with panic attacks', confidence: 0.92, source: { text: 'Presenting problem section', startChar: 300, endChar: 400, section: 'presenting' } },
+      symptoms: { value: ['Panic attacks', 'Insomnia', 'Racing thoughts'], confidence: 0.88, source: { text: 'Symptom checklist', startChar: 400, endChar: 500, section: 'symptoms' } },
     },
     moodAssessment: {
-      currentMood: { value: 'Anxious', confidence: 0.95, source: 'Mood assessment' },
-      phq9Score: { value: 12, confidence: 0.85, source: 'PHQ-9 section' },
+      currentMood: { value: 'Anxious', confidence: 0.95, source: { text: 'Mood assessment', startChar: 500, endChar: 600, section: 'mood' } },
+      phq9Score: { value: 12, confidence: 0.85, source: { text: 'PHQ-9 section', startChar: 600, endChar: 700, section: 'assessment' } },
     },
     riskAssessment: {
-      suicidalIdeation: { value: 'Passive', confidence: 0.65, source: 'Risk section' },
-      overallRiskLevel: { value: 'Moderate', confidence: 0.7, source: 'Risk section' },
+      suicidalIdeation: { value: 'Passive', confidence: 0.65, source: { text: 'Risk section', startChar: 700, endChar: 800, section: 'risk' } },
+      overallRiskLevel: { value: 'Moderate', confidence: 0.7, source: { text: 'Risk section', startChar: 800, endChar: 900, section: 'risk' } },
     },
     mentalStatusExam: {
-      appearance: { value: 'Well-groomed, appropriate dress', confidence: 0.9, source: 'MSE section' },
-      affect: { value: 'Anxious, congruent with mood', confidence: 0.88, source: 'MSE section' },
+      appearance: { value: 'Well-groomed, appropriate dress', confidence: 0.9, source: { text: 'MSE section', startChar: 900, endChar: 1000, section: 'mse' } },
+      affect: { value: 'Anxious, congruent with mood', confidence: 0.88, source: { text: 'MSE section', startChar: 1000, endChar: 1100, section: 'mse' } },
     },
     interventions: {
-      techniquesUsed: { value: ['CBT', 'Breathing exercises'], confidence: 0.92, source: 'Interventions section' },
+      techniquesUsed: { value: ['CBT', 'Breathing exercises'], confidence: 0.92, source: { text: 'Interventions section', startChar: 1100, endChar: 1200, section: 'interventions' } },
     },
     diagnoses: {
-      primaryDiagnosis: { value: 'Generalized Anxiety Disorder', confidence: 0.9, source: 'Diagnosis section' },
+      primaryDiagnosis: { value: 'Generalized Anxiety Disorder', confidence: 0.9, source: { text: 'Diagnosis section', startChar: 1200, endChar: 1300, section: 'diagnosis' } },
     },
     treatmentProgress: {
-      progressRating: { value: 'Moderate improvement', confidence: 0.8, source: 'Progress section' },
+      progressRating: { value: 'Moderate improvement', confidence: 0.8, source: { text: 'Progress section', startChar: 1300, endChar: 1400, section: 'progress' } },
     },
     nextSteps: {
-      followUpPlan: { value: 'Weekly sessions, expand coping skills', confidence: 0.85, source: 'Plan section' },
+      followUpPlan: { value: 'Weekly sessions, expand coping skills', confidence: 0.85, source: { text: 'Plan section', startChar: 1400, endChar: 1500, section: 'plan' } },
     },
   },
   reviews: [

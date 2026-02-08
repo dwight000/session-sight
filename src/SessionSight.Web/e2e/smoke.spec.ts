@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { mockPracticeSummary } from '../src/test/fixtures/summary'
 import { mockReviewStats, mockReviewQueue, mockReviewDetail } from '../src/test/fixtures/review'
+import { mockPatientRiskTrend } from '../src/test/fixtures/riskTrend'
 
 function mockDashboardRoutes(page: import('@playwright/test').Page) {
   return Promise.all([
@@ -9,6 +10,9 @@ function mockDashboardRoutes(page: import('@playwright/test').Page) {
     ),
     page.route('**/api/review/stats', (route) =>
       route.fulfill({ json: mockReviewStats }),
+    ),
+    page.route('**/api/summary/patient/**/risk-trend**', (route) =>
+      route.fulfill({ json: mockPatientRiskTrend }),
     ),
   ])
 }
@@ -31,7 +35,7 @@ test('Dashboard shows stats', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
   await expect(page.getByText('87')).toBeVisible()
-  await expect(page.getByText('24')).toBeVisible()
+  await expect(page.getByText('24', { exact: true })).toBeVisible()
 })
 
 test('Review Queue shows patient names', async ({ page }) => {

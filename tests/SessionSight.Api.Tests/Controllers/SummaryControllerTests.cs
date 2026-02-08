@@ -4,7 +4,9 @@ using Moq;
 using SessionSight.Agents.Agents;
 using SessionSight.Agents.Models;
 using SessionSight.Api.Controllers;
+using SessionSight.Api.DTOs;
 using SessionSight.Core.Entities;
+using SessionSight.Core.Enums;
 using SessionSight.Core.Interfaces;
 using SessionSight.Core.Schema;
 using CoreExtractionResult = SessionSight.Core.Entities.ExtractionResult;
@@ -193,6 +195,80 @@ public class SummaryControllerTests
 
     #endregion
 
+    #region GetPatientRiskTrend Tests
+
+    [Fact]
+    public async Task GetPatientRiskTrend_PatientNotFound_ReturnsNotFound()
+    {
+        var patientId = Guid.NewGuid();
+        _mockPatientRepo.Setup(r => r.GetByIdAsync(patientId)).ReturnsAsync((Patient?)null);
+
+        var result = await _controller.GetPatientRiskTrend(patientId, new DateOnly(2024, 1, 1), new DateOnly(2024, 1, 31));
+
+        result.Result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task GetPatientRiskTrend_InvalidDateRange_ReturnsBadRequest()
+    {
+        var patientId = Guid.NewGuid();
+
+        var result = await _controller.GetPatientRiskTrend(patientId, new DateOnly(2024, 2, 1), new DateOnly(2024, 1, 1));
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task GetPatientRiskTrend_ValidData_ReturnsOrderedPointsAndEscalation()
+    {
+        var patientId = Guid.NewGuid();
+        var patient = new Patient { Id = patientId, ExternalId = "P001" };
+        var startDate = new DateOnly(2024, 1, 1);
+        var endDate = new DateOnly(2024, 1, 31);
+
+        var session1 = CreateSessionWithRisk(patientId, new DateOnly(2024, 1, 5), 1, RiskLevelOverall.Low, 4, false);
+        var session2 = CreateSessionWithRisk(patientId, new DateOnly(2024, 1, 12), 2, RiskLevelOverall.High, 3, true);
+        var session3 = new Session
+        {
+            Id = Guid.NewGuid(),
+            PatientId = patientId,
+            SessionDate = new DateOnly(2024, 1, 20),
+            SessionNumber = 3
+        };
+
+        _mockPatientRepo.Setup(r => r.GetByIdAsync(patientId)).ReturnsAsync(patient);
+        _mockSessionRepo
+            .Setup(r => r.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate))
+            .ReturnsAsync(new[] { session2, session3, session1 });
+
+        var result = await _controller.GetPatientRiskTrend(patientId, startDate, endDate);
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var trend = okResult.Value.Should().BeOfType<PatientRiskTrendDto>().Subject;
+
+        trend.PatientId.Should().Be(patientId);
+        trend.TotalSessions.Should().Be(3);
+        trend.Period.Start.Should().Be(startDate);
+        trend.Period.End.Should().Be(endDate);
+
+        trend.Points.Should().HaveCount(3);
+        trend.Points[0].SessionId.Should().Be(session1.Id);
+        trend.Points[0].RiskLevel.Should().Be("Low");
+        trend.Points[0].RiskScore.Should().Be(0);
+        trend.Points[1].SessionId.Should().Be(session2.Id);
+        trend.Points[1].RiskLevel.Should().Be("High");
+        trend.Points[1].RiskScore.Should().Be(2);
+        trend.Points[1].RequiresReview.Should().BeTrue();
+        trend.Points[2].SessionId.Should().Be(session3.Id);
+        trend.Points[2].RiskLevel.Should().BeNull();
+        trend.Points[2].RiskScore.Should().BeNull();
+
+        trend.LatestRiskLevel.Should().Be("High");
+        trend.HasEscalation.Should().BeTrue();
+    }
+
+    #endregion
+
     #region GetPracticeSummary Tests
 
     [Fact]
@@ -244,4 +320,37 @@ public class SummaryControllerTests
     }
 
     #endregion
+
+    private static Session CreateSessionWithRisk(
+        Guid patientId,
+        DateOnly sessionDate,
+        int sessionNumber,
+        RiskLevelOverall riskLevel,
+        int moodScore,
+        bool requiresReview)
+    {
+        return new Session
+        {
+            Id = Guid.NewGuid(),
+            PatientId = patientId,
+            SessionDate = sessionDate,
+            SessionNumber = sessionNumber,
+            Extraction = new CoreExtractionResult
+            {
+                Id = Guid.NewGuid(),
+                RequiresReview = requiresReview,
+                Data = new ClinicalExtraction
+                {
+                    RiskAssessment = new RiskAssessmentExtracted
+                    {
+                        RiskLevelOverall = new ExtractedField<RiskLevelOverall> { Value = riskLevel }
+                    },
+                    MoodAssessment = new MoodAssessmentExtracted
+                    {
+                        SelfReportedMood = new ExtractedField<int> { Value = moodScore }
+                    }
+                }
+            }
+        };
+    }
 }

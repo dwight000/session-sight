@@ -1,17 +1,21 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usePracticeSummary } from '../hooks/usePracticeSummary'
 import { useReviewStats } from '../hooks/useReviewStats'
+import { usePatientRiskTrend } from '../hooks/usePatientRiskTrend'
 import { Card } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { RiskBadge } from '../components/ui/RiskBadge'
 import { Spinner } from '../components/ui/Spinner'
+import { RiskTrendChart } from '../components/charts/RiskTrendChart'
 
 function formatDate(iso: string) {
   return new Date(iso + 'T00:00:00').toLocaleDateString()
 }
 
 export function Dashboard() {
+  const [selectedPatientId, setSelectedPatientId] = useState('')
+
   const dateRange = useMemo(() => {
     const end = new Date()
     const start = new Date()
@@ -24,6 +28,27 @@ export function Dashboard() {
 
   const { data: summary, isLoading: summaryLoading, error: summaryError } = usePracticeSummary(dateRange.start, dateRange.end)
   const { data: stats, isLoading: statsLoading, error: statsError } = useReviewStats()
+  const flaggedPatients = summary?.flaggedPatients ?? []
+
+  useEffect(() => {
+    if (flaggedPatients.length === 0) {
+      setSelectedPatientId('')
+      return
+    }
+
+    setSelectedPatientId((current) => {
+      if (current && flaggedPatients.some((patient) => patient.patientId === current)) {
+        return current
+      }
+      return flaggedPatients[0].patientId
+    })
+  }, [flaggedPatients])
+
+  const { data: riskTrend, isLoading: riskTrendLoading, error: riskTrendError } = usePatientRiskTrend(
+    selectedPatientId,
+    dateRange.start,
+    dateRange.end,
+  )
 
   if (summaryLoading || statsLoading) return <Spinner />
 
@@ -98,7 +123,7 @@ export function Dashboard() {
       {/* Flagged patients */}
       <Card>
         <h3 className="mb-4 text-sm font-medium text-gray-700">Flagged Patients</h3>
-        {(!summary?.flaggedPatients || summary.flaggedPatients.length === 0) ? (
+        {(flaggedPatients.length === 0) ? (
           <p className="text-sm text-gray-400">No flagged patients in this period.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -113,7 +138,7 @@ export function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {summary.flaggedPatients.map((fp) => (
+                {flaggedPatients.map((fp) => (
                   <tr key={fp.patientId}>
                     <td className="py-2 pr-4">
                       <Link to={`/review?patient=${fp.patientId}`} className="text-blue-600 hover:underline">
@@ -129,6 +154,54 @@ export function Dashboard() {
               </tbody>
             </table>
           </div>
+        )}
+      </Card>
+
+      {/* Per-patient risk trend */}
+      <Card>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-medium text-gray-700">Patient Risk Trend</h3>
+          {flaggedPatients.length > 0 && (
+            <select
+              value={selectedPatientId}
+              onChange={(e) => setSelectedPatientId(e.target.value)}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              aria-label="Select patient risk trend"
+            >
+              {flaggedPatients.map((patient) => (
+                <option key={patient.patientId} value={patient.patientId}>
+                  {patient.patientIdentifier}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {flaggedPatients.length === 0 ? (
+          <p className="text-sm text-gray-400">No flagged patients available for trend analysis.</p>
+        ) : riskTrendLoading ? (
+          <Spinner />
+        ) : riskTrendError ? (
+          <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+            Failed to load risk trend: {(riskTrendError as Error).message}
+          </div>
+        ) : riskTrend ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+              <span className="rounded-full bg-gray-100 px-2 py-1">
+                Sessions: {riskTrend.totalSessions}
+              </span>
+              {riskTrend.latestRiskLevel && (
+                <span className="inline-flex items-center gap-1">
+                  Latest: <RiskBadge level={riskTrend.latestRiskLevel} />
+                </span>
+              )}
+              {riskTrend.hasEscalation && <Badge variant="warning">Escalation detected</Badge>}
+            </div>
+            <RiskTrendChart points={riskTrend.points} />
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">No trend data available.</p>
         )}
       </Card>
     </div>

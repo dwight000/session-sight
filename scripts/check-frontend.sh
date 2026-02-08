@@ -51,9 +51,9 @@ else
 fi
 echo ""
 
-# 4. Playwright
+# 4. Playwright smoke tests (chromium project only - fullStack requires real backend)
 echo -e "${YELLOW}[4/5] Playwright smoke tests...${NC}"
-if npx playwright test; then
+if npx playwright test --project=chromium; then
   echo -e "${GREEN}  ✓ All smoke tests passed${NC}"
 else
   echo -e "${RED}  ✗ Smoke tests failed${NC}"

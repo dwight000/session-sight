@@ -1,20 +1,20 @@
 # SessionSight Project Guide
 
-## Before Pushing Code
+## Validation Order (Default)
 
-**REQUIRED before `git push`:**
-```bash
-# 1. Check coverage threshold (82% local, 81% CI, 80% SonarCloud) - MUST PASS
-./scripts/check-coverage.sh
+Run in this order to minimize wasted E2E runs:
 
-# 2. Run frontend tests (TypeScript + Vitest + Playwright + build) - MUST PASS
-./scripts/check-frontend.sh
+1. `dotnet test --filter "Category!=Functional"`
+2. `./scripts/check-frontend.sh`
+3. Choose E2E scope:
+   - Backend only: `./scripts/run-e2e.sh`
+   - Frontend full-stack (browser -> API -> DB): `./scripts/run-e2e.sh --frontend`
+   - Both backend + frontend: `./scripts/run-e2e.sh --all`
 
-# 3. Run E2E tests - MUST PASS
-./scripts/run-e2e.sh
-```
-
-If coverage fails, add more unit tests before pushing.
+Before `git push`:
+1. `dotnet build`
+2. `./scripts/check-coverage.sh`
+3. Re-run required E2E scope if code changed after checks
 
 ## Quick Start Commands
 
@@ -61,7 +61,7 @@ If coverage fails, add more unit tests before pushing.
 # Unit tests (fast, no external dependencies)
 dotnet test --filter "Category!=Functional"
 
-# E2E tests (requires Azure services)
+# Backend E2E tests (requires Azure services)
 ./scripts/run-e2e.sh
 
 # E2E hot mode (keeps Aspire running between runs)
@@ -69,11 +69,28 @@ dotnet test --filter "Category!=Functional"
 
 # E2E with test filter
 ./scripts/run-e2e.sh --filter TestName
+
+# Frontend E2E (browser + real backend, costs LLM tokens)
+./scripts/run-e2e.sh --frontend                     # Full-stack Playwright tests
+./scripts/run-e2e.sh --frontend --headed            # Watch tests in visible browser
+./scripts/run-e2e.sh --frontend --hot               # Reuse running Aspire (faster iteration)
+./scripts/run-e2e.sh --frontend --hot --headed      # Combine flags
+./scripts/run-e2e.sh --frontend --filter "upload"   # Run specific test by name
+
+# Run both backend and frontend E2E
+./scripts/run-e2e.sh --all                          # Backend C# + Playwright tests
 ```
+
+**Frontend E2E notes (`--frontend`):**
+- **Cost:** ~$0.05-0.10 per run (LLM extraction uses GPT-4o). Run sparingly.
+- **Duration:** ~2 minutes (extraction takes ~1.5 min)
+- **What it tests:** Create patient → Create session → Upload PDF → Wait for extraction → Verify extraction results → Verify session status
+- **Debug failures:** Screenshots saved to `src/SessionSight.Web/test-results/`
+- **Test PDF:** Uses `tests/SessionSight.FunctionalTests/TestData/sample-note.pdf`
 
 ## E2E Troubleshooting
 
-**Before running E2E:** Always run `dotnet test --filter "Category!=Functional"` first. Unit tests are fast and free — catch compilation/logic errors before spending money on LLM calls.
+**Before running expensive E2E:** Always run `dotnet test --filter "Category!=Functional"` and `./scripts/check-frontend.sh` first. These are fast and free, and catch issues before spending money on LLM calls.
 
 **Diagnosing failures:** On the FIRST run, grep the output for errors instead of re-running:
 ```bash
@@ -132,17 +149,18 @@ When creating new `IAgentTool` implementations:
 
 ## Test Structure
 
-| # | Type | Path | Framework | Coverage | Run Command |
-|---|------|------|-----------|----------|-------------|
-| 1 | Backend Core Unit | `tests/SessionSight.Core.Tests/` | xUnit | 82% | `dotnet test --filter "Category!=Functional"` |
-| 2 | Backend Agents Unit | `tests/SessionSight.Agents.Tests/` | xUnit | 82% | (same) |
-| 3 | Backend API Unit | `tests/SessionSight.Api.Tests/` | xUnit | 82% | (same) |
-| 4 | Backend Functional | `tests/SessionSight.FunctionalTests/` | xUnit | n/a | `./scripts/run-e2e.sh` |
-| 5 | Frontend API Unit | `src/SessionSight.Web/__tests__/api/` | Vitest+MSW | n/a | `npx vitest run` |
-| 6 | Frontend Hooks Unit | `src/SessionSight.Web/__tests__/hooks/` | Vitest+MSW | n/a | (same) |
-| 7 | Frontend Pages Unit | `src/SessionSight.Web/__tests__/pages/` | Vitest+MSW | n/a | (same) |
-| 8 | Frontend Components | `src/SessionSight.Web/__tests__/components/` | Vitest | n/a | (same) |
-| 9 | Frontend Smoke E2E | `src/SessionSight.Web/e2e/smoke.spec.ts` | Playwright | n/a | `npx playwright test` |
+| # | Type | Path | Framework | Coverage | Run Command | When To Run |
+|---|------|------|-----------|----------|-------------|-------------|
+| 1 | Backend Core Unit | `tests/SessionSight.Core.Tests/` | xUnit | 82% | `dotnet test --filter "Category!=Functional"` | Always |
+| 2 | Backend Agents Unit | `tests/SessionSight.Agents.Tests/` | xUnit | 82% | (same) | Always |
+| 3 | Backend API Unit | `tests/SessionSight.Api.Tests/` | xUnit | 82% | (same) | Always |
+| 4 | Backend Functional | `tests/SessionSight.FunctionalTests/` | xUnit | n/a | `./scripts/run-e2e.sh` | Backend/agent pipeline changes |
+| 5 | Frontend API Unit | `src/SessionSight.Web/__tests__/api/` | Vitest+MSW | n/a | `npx vitest run` | Frontend API contract changes |
+| 6 | Frontend Hooks Unit | `src/SessionSight.Web/__tests__/hooks/` | Vitest+MSW | n/a | (same) | Frontend data-flow changes |
+| 7 | Frontend Pages Unit | `src/SessionSight.Web/__tests__/pages/` | Vitest+MSW | n/a | (same) | UI/page behavior changes |
+| 8 | Frontend Components | `src/SessionSight.Web/__tests__/components/` | Vitest | n/a | (same) | Component logic/props changes |
+| 9 | Frontend Smoke E2E | `src/SessionSight.Web/e2e/smoke.spec.ts` | Playwright | n/a | `npx playwright test --project=chromium` | Frontend route and rendering sanity |
+| 10 | Full-Stack E2E | `src/SessionSight.Web/e2e/full-stack/` | Playwright | n/a | `./scripts/run-e2e.sh --frontend` | Real browser -> API -> DB validation |
 
 **Frontend test conventions:**
 - Tests live in `__tests__/` (NOT `src/__tests__/`) — vitest.config.ts pattern is `__tests__/**/*.test.{ts,tsx}`
@@ -180,6 +198,7 @@ When creating new `IAgentTool` implementations:
 - Use double underscore (`__`) for nested config in environment variables
 
 ### E2E Tests
+- **Full-stack Playwright E2E catches type mismatches** — Unit tests with mocked data won't catch frontend/backend type drift. Example: `ExtractedField.source` was typed as `string` in frontend but backend returns `{text, startChar, endChar, section}`. Only full-stack E2E with real LLM data revealed this (React crashed with "Objects are not valid as React child").
 - **E2E test classes run in parallel** — Azure SDK retry/backoff (B-010) handles rate limits from concurrent extractions
 - **Extraction timeout**: `fixture.Client` has 120s timeout, `fixture.LongClient` has 5-min timeout — use `LongClient` for extraction calls
 - **Transient retry**: ApiFixture wraps both clients with `RetryHandler` (single retry, 1s delay) for socket resets, TLS failures, and 502/503/504. Don't create raw `HttpClient` in tests — use the fixture
@@ -249,13 +268,8 @@ rm /tmp/api-diag.log
 ### Coverage Threshold
 - Coverage hovers near the 82% threshold. Always write tests in the same pass as source code — don't do code-first-tests-later with repeated coverage checks. One pass: source file + test file together, then one build+coverage check at the end.
 
-### Before Pushing
-1. `dotnet build` - verify no Sonar/CA errors
-2. `./scripts/check-coverage.sh` - must pass 82%
-3. `./scripts/check-frontend.sh` - TypeScript + Vitest + Playwright + build must pass
-4. `./scripts/run-e2e.sh` - all functional tests must pass
-
 ### Memory vs Plan Files
 - All memories go in this CLAUDE.md, NOT in the auto memory file
+- Backlog/session update procedure is canonical in `plan/docs/WORKFLOW.md` (Session End Checklist)
 - Before marking backlog items Done, check spec docs: `plan/docs/specs/agent-tool-callbacks.md`, `phase-3-summarization-rag.md`, `PROJECT_PLAN.md`
 - When simplifying scope, update backlog item name and create follow-up for deferred work

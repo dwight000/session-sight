@@ -134,10 +134,17 @@ export interface SessionSummary {
   generatedAt: string
 }
 
+export interface SourceMapping {
+  text: string
+  startChar: number
+  endChar: number
+  section?: string
+}
+
 export interface ExtractedField<T = unknown> {
   value: T
   confidence: number
-  source: string
+  source: SourceMapping | null
 }
 
 export interface ClinicalExtraction {

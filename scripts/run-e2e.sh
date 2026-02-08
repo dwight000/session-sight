@@ -2,13 +2,16 @@
 # =============================================================================
 # SessionSight E2E Test Runner
 # =============================================================================
-# Runs functional tests against a fresh Aspire instance with clean database.
+# Runs E2E tests against a fresh Aspire instance with clean database.
 #
 # Usage:
-#   ./scripts/run-e2e.sh           # Fresh start (kills processes, fresh DB)
-#   ./scripts/run-e2e.sh --keep-db # Keep existing database
-#   ./scripts/run-e2e.sh --hot     # Reuse running Aspire (fast iteration)
-#   ./scripts/run-e2e.sh --filter "FullExtraction"  # Run specific test
+#   ./scripts/run-e2e.sh                      # Backend C# functional tests (default)
+#   ./scripts/run-e2e.sh --frontend           # Full-stack Playwright tests (browser + backend)
+#   ./scripts/run-e2e.sh --frontend --headed  # Playwright with visible browser
+#   ./scripts/run-e2e.sh --all                # Run both backend and frontend tests
+#   ./scripts/run-e2e.sh --hot                # Reuse running Aspire (fast iteration)
+#   ./scripts/run-e2e.sh --keep-db            # Keep existing database
+#   ./scripts/run-e2e.sh --filter "TestName"  # Run specific test(s)
 #
 # What it does:
 #   1. Kills existing SessionSight/Aspire/dcp processes (unless --hot)
@@ -17,20 +20,19 @@
 #   4. Polls /health endpoint until API is ready
 #   5. Discovers HTTPS port via HTTP->HTTPS redirect
 #   6. Runs EF migrations and inserts test therapist
-#   7. Runs functional tests with API_BASE_URL set
+#   7. Runs tests:
+#      - Default: C# functional tests (dotnet test)
+#      - --frontend: Starts Vite + runs Playwright fullStack project
+#      - --all: Runs both
 #
-# What extraction tests verify:
-#   1. Document Intelligence (Azure) parses PDF to text
-#   2. Intake Agent (GPT-4o-mini) validates therapy note
-#   3. Clinical Extractor (GPT-4o-mini) extracts 9 sections in parallel
-#   4. Risk Assessor (GPT-4o) validates safety-critical risk data
-#   5. Results saved to database
+# Cost note (--frontend):
+#   Each frontend test run costs ~$0.05-0.10 in LLM tokens (extraction uses GPT-4o).
+#   Run sparingly - use mocked smoke tests for rapid iteration.
 #
 # Troubleshooting:
 #   - If tests fail, check /tmp/aspire-e2e.log for Aspire output
 #   - If port discovery fails, try: ss -tlnp | grep SessionSight
 #   - If migrations fail, ensure SQL container is running: docker ps | grep sql
-#   - The Pipeline_FullExtraction test requires Azure AI services configured
 #   - Aspire dashboard: https://localhost:17055 (shows traces)
 #
 # Environment:
@@ -43,13 +45,19 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 APPHOST_DIR="$PROJECT_ROOT/src/SessionSight.AppHost"
+WEB_DIR="$PROJECT_ROOT/src/SessionSight.Web"
 LOG_FILE="/tmp/aspire-e2e.log"
+VITE_LOG="/tmp/vite-e2e.log"
 MAX_WAIT_SECONDS=120
 POLL_INTERVAL=2
+VITE_PORT=5173
 
 # Parse arguments
 HOT_MODE=false
 KEEP_DB=false
+RUN_BACKEND=false
+RUN_FRONTEND=false
+HEADED=""
 TEST_FILTER=""
 
 for arg in "$@"; do
@@ -60,6 +68,16 @@ for arg in "$@"; do
             ;;
         --keep-db)
             KEEP_DB=true
+            ;;
+        --frontend)
+            RUN_FRONTEND=true
+            ;;
+        --all)
+            RUN_BACKEND=true
+            RUN_FRONTEND=true
+            ;;
+        --headed)
+            HEADED="--headed"
             ;;
         --filter)
             shift
@@ -74,6 +92,11 @@ for arg in "$@"; do
     esac
 done
 
+# Default to backend tests if neither --frontend nor --all specified
+if [[ "$RUN_FRONTEND" = false && "$RUN_BACKEND" = false ]]; then
+    RUN_BACKEND=true
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -84,13 +107,24 @@ log() { local msg="$1"; echo -e "${GREEN}[E2E]${NC} $msg"; return 0; }
 warn() { local msg="$1"; echo -e "${YELLOW}[E2E]${NC} $msg"; return 0; }
 error() { local msg="$1"; echo -e "${RED}[E2E]${NC} $msg"; return 0; }
 
+# Track PIDs for cleanup
+VITE_PID=""
+
+cleanup_vite() {
+    if [[ -n "$VITE_PID" ]]; then
+        log "Stopping Vite server (PID $VITE_PID)..."
+        kill "$VITE_PID" 2>/dev/null || true
+    fi
+    pkill -f "vite.*SessionSight.Web" 2>/dev/null || true
+}
+
 cleanup() {
+    cleanup_vite
     if [[ "$HOT_MODE" = true ]]; then
         log "Hot mode: keeping Aspire running for next iteration"
         return
     fi
     log "Cleaning up..."
-    # Kill all related processes - order matters (children before parents)
     pkill -9 -f "SessionSight.Api" 2>/dev/null || true
     pkill -9 -f "SessionSight.AppHost" 2>/dev/null || true
     pkill -9 -f "SessionSight" 2>/dev/null || true
@@ -98,9 +132,7 @@ cleanup() {
     pkill -9 -f "Aspire" 2>/dev/null || true
     pkill -9 -f "dcpctrl" 2>/dev/null || true
     pkill -9 -f "dcp" 2>/dev/null || true
-    # Remove orphaned containers (sql-* AND storage-*) that block network removal
     docker ps -a --format '{{.Names}}' | grep -E 'sql-|storage-' | xargs -r docker rm -f 2>/dev/null || true
-    # Prune orphaned Aspire Docker networks to prevent subnet exhaustion
     docker network ls --filter "name=aspire" -q | xargs -r docker network rm 2>/dev/null || true
 }
 
@@ -117,7 +149,6 @@ if [[ "$HOT_MODE" = true ]]; then
     fi
 else
     log "Stopping any existing Aspire/SessionSight processes..."
-    # Inline cleanup to avoid trap issues
     pkill -9 -f "SessionSight.Api" 2>/dev/null || true
     pkill -9 -f "SessionSight.AppHost" 2>/dev/null || true
     pkill -9 -f "SessionSight" 2>/dev/null || true
@@ -162,13 +193,10 @@ SECONDS_WAITED=0
 API_PORT=""
 
 while [[ $SECONDS_WAITED -lt $MAX_WAIT_SECONDS ]]; do
-    # Find HTTP port by checking SessionSight.Api process
     HTTP_PORTS=$(ss -tlnp 2>/dev/null | grep "SessionSight.Ap" | grep -oP '127\.0\.0\.1:\K[0-9]+' | sort -u)
 
     for PORT in $HTTP_PORTS; do
-        # Check if this port redirects to HTTPS (API behavior)
         REDIRECT=$(curl -sI "http://localhost:$PORT/health" 2>/dev/null | grep -i "Location:" | grep -oP 'https://localhost:\K[0-9]+' || true)
-        # Found the redirect - now check if HTTPS is healthy
         if [[ -n "$REDIRECT" ]] && curl -sk "https://localhost:$REDIRECT/health" 2>/dev/null | grep -q "Healthy"; then
             API_PORT=$REDIRECT
             break 2
@@ -208,24 +236,81 @@ docker exec "$SQL_CONTAINER" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P
         INSERT INTO Therapists (Id, Name, LicenseNumber, Credentials, IsActive, CreatedAt)
         VALUES ('00000000-0000-0000-0000-000000000001', 'Test Therapist', 'LIC-001', 'PhD', 1, GETUTCDATE())" 2>/dev/null || true
 
-# Step 7: Run functional tests
-log "Running functional tests..."
-cd "$PROJECT_ROOT"
-export API_BASE_URL="https://localhost:$API_PORT"
+# Step 7: Run backend tests (C# functional tests)
+if [[ "$RUN_BACKEND" = true ]]; then
+    log "Running backend functional tests..."
+    cd "$PROJECT_ROOT"
+    export API_BASE_URL="https://localhost:$API_PORT"
 
-# Read search endpoint from user secrets (same source as AppHost)
-# Uses .NET config format (AzureSearch__Endpoint) for test process to match API config
-SEARCH_ENDPOINT=$(dotnet user-secrets list --project "$APPHOST_DIR" 2>/dev/null | grep "search-endpoint" | cut -d'=' -f2 | tr -d ' ')
-if [[ -n "$SEARCH_ENDPOINT" ]]; then
-    export AzureSearch__Endpoint="$SEARCH_ENDPOINT"
-    log "Using search endpoint from user secrets"
+    SEARCH_ENDPOINT=$(dotnet user-secrets list --project "$APPHOST_DIR" 2>/dev/null | grep "search-endpoint" | cut -d'=' -f2 | tr -d ' ')
+    if [[ -n "$SEARCH_ENDPOINT" ]]; then
+        export AzureSearch__Endpoint="$SEARCH_ENDPOINT"
+        log "Using search endpoint from user secrets"
+    fi
+
+    if [[ -n "$TEST_FILTER" ]]; then
+        log "Filter: $TEST_FILTER"
+        dotnet test tests/SessionSight.FunctionalTests --verbosity normal --filter "FullyQualifiedName~$TEST_FILTER"
+    else
+        dotnet test tests/SessionSight.FunctionalTests --verbosity normal
+    fi
+    log "Backend tests completed!"
 fi
 
-if [[ -n "$TEST_FILTER" ]]; then
-    log "Filter: $TEST_FILTER"
-    dotnet test tests/SessionSight.FunctionalTests --verbosity normal --filter "FullyQualifiedName~$TEST_FILTER"
-else
-    dotnet test tests/SessionSight.FunctionalTests --verbosity normal
+# Step 8: Run frontend tests (Playwright full-stack)
+if [[ "$RUN_FRONTEND" = true ]]; then
+    log "Running frontend full-stack tests..."
+
+    # Kill any existing Vite process on port 5173
+    if lsof -ti:$VITE_PORT > /dev/null 2>&1; then
+        log "Stopping existing process on port $VITE_PORT..."
+        lsof -ti:$VITE_PORT | xargs kill 2>/dev/null || true
+        sleep 1
+    fi
+
+    # Start Vite with API URL configured
+    log "Starting Vite dev server..."
+    cd "$WEB_DIR"
+    export services__api__https__0="https://localhost:$API_PORT"
+    npm run dev > "$VITE_LOG" 2>&1 &
+    VITE_PID=$!
+    log "Vite started with PID $VITE_PID (log: $VITE_LOG)"
+
+    # Wait for Vite to be ready
+    log "Waiting for Vite to be ready..."
+    SECONDS_WAITED=0
+    VITE_MAX_WAIT=30
+
+    while [[ $SECONDS_WAITED -lt $VITE_MAX_WAIT ]]; do
+        if curl -s "http://localhost:$VITE_PORT" > /dev/null 2>&1; then
+            break
+        fi
+        sleep 1
+        SECONDS_WAITED=$((SECONDS_WAITED + 1))
+        echo -n "."
+    done
+    echo ""
+
+    if ! curl -s "http://localhost:$VITE_PORT" > /dev/null 2>&1; then
+        error "Vite did not start within $VITE_MAX_WAIT seconds"
+        tail -20 "$VITE_LOG"
+        exit 1
+    fi
+
+    log "Vite is ready on port $VITE_PORT"
+
+    # Run Playwright tests
+    log "Running Playwright full-stack tests..."
+    PLAYWRIGHT_ARGS="--project=fullStack $HEADED"
+    if [[ -n "$TEST_FILTER" ]]; then
+        PLAYWRIGHT_ARGS="$PLAYWRIGHT_ARGS --grep \"$TEST_FILTER\""
+    fi
+
+    npx playwright test $PLAYWRIGHT_ARGS
+
+    # Stop Vite
+    cleanup_vite
+    log "Frontend tests completed!"
 fi
 
 log "E2E tests completed successfully!"

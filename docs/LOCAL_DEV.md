@@ -125,8 +125,21 @@ dotnet ef database update \
 ### Quick E2E Test Run
 
 ```bash
-# Run all E2E tests with automatic Aspire startup/cleanup
+# Run backend E2E tests (C# functional tests)
 ./scripts/run-e2e.sh
+
+# Run frontend E2E tests (Playwright, browser + real backend)
+./scripts/run-e2e.sh --frontend
+
+# Run frontend tests with visible browser
+./scripts/run-e2e.sh --frontend --headed
+
+# Run both backend and frontend tests
+./scripts/run-e2e.sh --all
+
+# Reuse running Aspire for faster iteration
+./scripts/run-e2e.sh --hot
+./scripts/run-e2e.sh --frontend --hot
 
 # Or start Aspire manually for interactive testing
 ./scripts/start-aspire.sh
@@ -137,7 +150,7 @@ API_BASE_URL="https://localhost:<PORT>" dotnet test tests/SessionSight.Functiona
 ### Unit Tests Only (No Azure/Docker Required)
 
 ```bash
-dotnet test --filter "FullyQualifiedName!~FunctionalTests"
+dotnet test --filter "Category!=Functional"
 ```
 
 ### Functional Tests (Requires Running Aspire)
@@ -274,7 +287,7 @@ dotnet run --project src/SessionSight.AppHost
 | Task | Command |
 |------|---------|
 | Build | `dotnet build session-sight.sln` |
-| Test (unit only) | `dotnet test --filter "FullyQualifiedName!~FunctionalTests"` |
+| Test (unit only) | `dotnet test --filter "Category!=Functional"` |
 | Test (all) | `API_BASE_URL=https://localhost:<PORT> dotnet test` |
 | Run Aspire | `dotnet run --project src/SessionSight.AppHost` |
 | Check ports | `ss -tlnp \| grep SessionSight` |

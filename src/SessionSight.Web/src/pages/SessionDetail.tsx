@@ -70,9 +70,9 @@ function ExtractionSection({
                     <p className="text-xs font-medium text-gray-500">{formatFieldName(key)}</p>
                     <p className="mt-1 text-sm text-gray-900">{formatFieldValue(val.value)}</p>
                     <ConfidenceBar value={val.confidence} className="mt-1" />
-                    {val.source && (
-                      <p className="mt-1 text-xs text-gray-400 italic truncate" title={val.source}>
-                        Source: {val.source}
+                    {val.source?.text && (
+                      <p className="mt-1 text-xs text-gray-400 italic truncate" title={val.source.text}>
+                        Source: {val.source.text}
                       </p>
                     )}
                   </div>

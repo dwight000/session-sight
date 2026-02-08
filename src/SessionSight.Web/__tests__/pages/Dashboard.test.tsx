@@ -6,6 +6,7 @@ import { renderWithProviders } from '../../src/test/render'
 import { Dashboard } from '../../src/pages/Dashboard'
 import { mockPracticeSummary, mockEmptyPracticeSummary } from '../../src/test/fixtures/summary'
 import { mockReviewStats } from '../../src/test/fixtures/review'
+import { mockPatientRiskTrend } from '../../src/test/fixtures/riskTrend'
 
 describe('Dashboard', () => {
   it('renders stats cards with correct values', async () => {
@@ -55,9 +56,20 @@ describe('Dashboard', () => {
     })
 
     for (const fp of mockPracticeSummary.flaggedPatients) {
-      expect(screen.getByText(fp.patientIdentifier)).toBeInTheDocument()
+      expect(screen.getAllByText(fp.patientIdentifier).length).toBeGreaterThan(0)
       expect(screen.getByText(fp.flagReason)).toBeInTheDocument()
     }
+  })
+
+  it('renders patient risk trend chart and metadata', async () => {
+    renderWithProviders(<Dashboard />)
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Patient risk trend chart')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText(`Sessions: ${mockPatientRiskTrend.totalSessions}`)).toBeInTheDocument()
+    expect(screen.getByText('Escalation detected')).toBeInTheDocument()
   })
 
   it('shows empty state when no flagged patients', async () => {

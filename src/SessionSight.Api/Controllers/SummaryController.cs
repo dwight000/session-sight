@@ -2,6 +2,8 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using SessionSight.Agents.Agents;
 using SessionSight.Agents.Models;
+using SessionSight.Api.DTOs;
+using SessionSight.Core.Enums;
 using SessionSight.Core.Interfaces;
 
 namespace SessionSight.Api.Controllers;
@@ -104,6 +106,71 @@ public class SummaryController : ControllerBase
     }
 
     /// <summary>
+    /// Gets chart-ready risk trend points for a patient across a date range.
+    /// </summary>
+    [HttpGet("patient/{patientId:guid}/risk-trend")]
+    public async Task<ActionResult<PatientRiskTrendDto>> GetPatientRiskTrend(
+        Guid patientId,
+        [FromQuery] DateOnly startDate,
+        [FromQuery] DateOnly endDate,
+        CancellationToken ct = default)
+    {
+        if (startDate > endDate)
+        {
+            return BadRequest("startDate must be before or equal to endDate");
+        }
+
+        var patient = await _patientRepository.GetByIdAsync(patientId);
+        if (patient is null)
+        {
+            return NotFound($"Patient {patientId} not found");
+        }
+
+        var sessions = (await _sessionRepository.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate))
+            .OrderBy(s => s.SessionDate)
+            .ThenBy(s => s.SessionNumber)
+            .ToList();
+
+        var points = sessions
+            .Select(s =>
+            {
+                var riskLevel = s.Extraction?.Data?.RiskAssessment?.RiskLevelOverall?.Value;
+                return new PatientRiskTrendPointDto(
+                    s.Id,
+                    s.SessionDate,
+                    s.SessionNumber,
+                    riskLevel?.ToString(),
+                    MapRiskLevelToScore(riskLevel),
+                    s.Extraction?.Data?.MoodAssessment?.SelfReportedMood?.Value,
+                    s.Extraction?.RequiresReview ?? false);
+            })
+            .ToList();
+
+        var latestRiskLevel = points
+            .LastOrDefault(p => p.RiskScore.HasValue)?
+            .RiskLevel;
+
+        var orderedRiskScores = points
+            .Where(point => point.RiskScore.HasValue)
+            .Select(point => point.RiskScore!.Value)
+            .ToList();
+
+        var hasEscalation = orderedRiskScores
+            .Zip(orderedRiskScores.Skip(1), (previous, current) => current > previous)
+            .Any(escalated => escalated);
+
+        var trend = new PatientRiskTrendDto(
+            patientId,
+            new RiskTrendPeriodDto(startDate, endDate),
+            sessions.Count,
+            points,
+            latestRiskLevel,
+            hasEscalation);
+
+        return Ok(trend);
+    }
+
+    /// <summary>
     /// Gets a practice-level summary aggregating metrics across all patients and sessions.
     /// </summary>
     [HttpGet("practice")]
@@ -121,4 +188,13 @@ public class SummaryController : ControllerBase
 
         return Ok(summary);
     }
+
+    private static int? MapRiskLevelToScore(RiskLevelOverall? riskLevel) => riskLevel switch
+    {
+        RiskLevelOverall.Low => 0,
+        RiskLevelOverall.Moderate => 1,
+        RiskLevelOverall.High => 2,
+        RiskLevelOverall.Imminent => 3,
+        _ => null
+    };
 }
