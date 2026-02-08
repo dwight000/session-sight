@@ -47,6 +47,7 @@ export function RiskTrendChart({ points }: RiskTrendChartProps) {
 
   return (
     <div className="space-y-3">
+      {/* NOSONAR: SVG chart cannot use <img>, role="img" with aria-label is the accessible pattern */}
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Patient risk trend chart" className="w-full">
         {LEVELS.map((level) => (
           <g key={level.label}>

@@ -18,7 +18,9 @@ public class SourceMapping
 /// </summary>
 internal sealed class SourceMappingConverter : JsonConverter<SourceMapping>
 {
+#pragma warning disable S3776 // Cognitive complexity - JSON parsing requires branching for token types
     public override SourceMapping? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+#pragma warning restore S3776
     {
         if (reader.TokenType == JsonTokenType.Null)
             return null;

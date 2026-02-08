@@ -38,6 +38,7 @@ public partial class QAAgent : IQAAgent
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
+#pragma warning disable S107 // Constructor parameters - DI requires explicit dependencies for testability
     public QAAgent(
         IAIFoundryClientFactory clientFactory,
         IModelRouter modelRouter,
@@ -49,6 +50,7 @@ public partial class QAAgent : IQAAgent
         GetPatientTimelineTool getPatientTimelineTool,
         AggregateMetricsTool aggregateMetricsTool,
         ILogger<QAAgent> logger)
+#pragma warning restore S107
     {
         _clientFactory = clientFactory;
         _modelRouter = modelRouter;

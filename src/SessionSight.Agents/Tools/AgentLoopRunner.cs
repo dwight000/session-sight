@@ -48,6 +48,7 @@ public partial class AgentLoopRunner
         return RunCoreAsync(chatClient, messages, tools, null, temperature, ct);
     }
 
+#pragma warning disable S3776 // Cognitive complexity - agent loop requires sequential control flow
     private async Task<AgentLoopResult> RunCoreAsync(
         ChatClient chatClient,
         List<ChatMessage> messages,
@@ -56,6 +57,7 @@ public partial class AgentLoopRunner
         float? temperature,
         CancellationToken ct)
     {
+#pragma warning restore S3776
         var toolCallCount = 0;
         var toolArray = tools as IAgentTool[] ?? tools.ToArray();
         var toolList = toolArray.ToChatTools().ToList();

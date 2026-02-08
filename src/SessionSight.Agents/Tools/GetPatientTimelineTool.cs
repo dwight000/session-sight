@@ -47,7 +47,9 @@ public class GetPatientTimelineTool : IAgentTool
         }
         """);
 
+#pragma warning disable S3776 // Cognitive complexity - timeline building requires validation and state tracking
     public async Task<ToolResult> ExecuteAsync(BinaryData input, CancellationToken ct = default)
+#pragma warning restore S3776
     {
         try
         {

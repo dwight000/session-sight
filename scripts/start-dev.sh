@@ -84,18 +84,16 @@ log "Seeding sample data..."
 API="https://localhost:$API_PORT"
 
 # Create sample patients
-# shellcheck disable=SC2034 # S4830: --insecure is intentional for localhost self-signed certs
 P1=$(curl -s -X POST "$API/api/patients" \
     -H "Content-Type: application/json" \
     -d '{"externalId":"P001","firstName":"Sarah","lastName":"Johnson","dateOfBirth":"1985-03-22"}' \
-    --insecure 2>/dev/null)
+    --insecure 2>/dev/null) # NOSONAR - intentional for localhost self-signed certs
 P1_ID=$(echo "$P1" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
 
-# shellcheck disable=SC2034 # S4830: --insecure is intentional for localhost self-signed certs
 P2=$(curl -s -X POST "$API/api/patients" \
     -H "Content-Type: application/json" \
     -d '{"externalId":"P002","firstName":"Michael","lastName":"Chen","dateOfBirth":"1992-07-15"}' \
-    --insecure 2>/dev/null)
+    --insecure 2>/dev/null) # NOSONAR - intentional for localhost self-signed certs
 P2_ID=$(echo "$P2" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
 
 # Create sample sessions

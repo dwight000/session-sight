@@ -121,8 +121,9 @@ function ReviewActionPanel({ sessionId, currentStatus }: { sessionId: string; cu
       )}
       <div className="space-y-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Reviewer Name</label>
+          <label htmlFor="reviewerName" className="block text-sm font-medium text-gray-700">Reviewer Name</label>
           <input
+            id="reviewerName"
             type="text"
             value={reviewerName}
             onChange={(e) => setReviewerName(e.target.value)}
@@ -131,8 +132,9 @@ function ReviewActionPanel({ sessionId, currentStatus }: { sessionId: string; cu
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Notes (optional)</label>
+          <label htmlFor="reviewNotes" className="block text-sm font-medium text-gray-700">Notes (optional)</label>
           <textarea
+            id="reviewNotes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
@@ -256,8 +258,8 @@ export function SessionDetail() {
         <Card>
           <h3 className="mb-2 text-sm font-medium text-gray-700">Review Reasons</h3>
           <ul className="list-disc space-y-1 pl-5 text-sm text-gray-700">
-            {data.reviewReasons.map((r, i) => (
-              <li key={i}>{r}</li>
+            {data.reviewReasons.map((r) => (
+              <li key={r}>{r}</li>
             ))}
           </ul>
         </Card>
