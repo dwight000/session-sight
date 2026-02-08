@@ -176,8 +176,8 @@ jobs:
       - name: TypeScript type check
         run: npx tsc --noEmit
 
-      - name: Run Vitest tests
-        run: npx vitest run
+      - name: Run Vitest tests with coverage
+        run: npx vitest run --coverage
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium

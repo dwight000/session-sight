@@ -274,6 +274,8 @@ dotnet run --project src/SessionSight.AppHost
 | Build | `dotnet build session-sight.sln` |
 | Test (unit only) | `dotnet test --filter "Category!=Functional"` |
 | Test (all) | `API_BASE_URL=https://localhost:7039 dotnet test` |
+| Backend coverage (82%) | `./scripts/check-coverage.sh` |
+| Frontend coverage (82%) | `./scripts/check-frontend.sh` |
 | Run Aspire | `dotnet run --project src/SessionSight.AppHost` |
 | API endpoint | `https://localhost:7039` (fixed port) |
 | SQL password | `dotnet user-secrets list --project src/SessionSight.AppHost` |

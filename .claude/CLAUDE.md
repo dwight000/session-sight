@@ -7,7 +7,7 @@
 | `start-dev.sh` | Full stack + migrations + sample data + frontend | (none) |
 | `start-aspire.sh` | Backend only (no data, no frontend) | (none) |
 | `run-e2e.sh` | Run E2E tests | `--frontend`, `--all`, `--hot`, `--headed`, `--filter "name"`, `--keep-db` |
-| `check-frontend.sh` | Frontend validation (TS + Vitest + Playwright smoke + build) | (none) |
+| `check-frontend.sh` | Frontend validation (TS + Vitest + 82% coverage + Playwright smoke + build) | (none) |
 | `check-coverage.sh` | Backend tests with 82% coverage check | `--report` |
 | `watch-frontend-tests.sh` | Interactive Playwright UI | `--headed` |
 
@@ -45,7 +45,8 @@ cd src/SessionSight.Web && services__api__https__0=https://localhost:7039 npx vi
 
 **Before `git push`:**
 1. `dotnet build`
-2. `./scripts/check-coverage.sh`
+2. `./scripts/check-coverage.sh` — backend 82% coverage
+3. `./scripts/check-frontend.sh` — frontend 82% coverage
 
 **Frontend E2E notes (`--frontend`):**
 - **Cost:** ~$0.02-0.04 per run (LLM extraction uses gpt-4.1-mini/nano)
@@ -100,7 +101,7 @@ cd src/SessionSight.Web && services__api__https__0=https://localhost:7039 npx vi
 |------|------|-------------|
 | Backend Unit | `tests/SessionSight.*.Tests/` | `dotnet test --filter "Category!=Functional"` |
 | Backend E2E | `tests/SessionSight.FunctionalTests/` | `./scripts/run-e2e.sh` |
-| Frontend Unit | `src/SessionSight.Web/__tests__/` | `npx vitest run` |
+| Frontend Unit | `src/SessionSight.Web/__tests__/` | `npx vitest run --coverage` |
 | Frontend Smoke | `src/SessionSight.Web/e2e/smoke.spec.ts` | `npx playwright test --project=chromium` |
 | Full-Stack E2E | `src/SessionSight.Web/e2e/full-stack/` | `./scripts/run-e2e.sh --frontend` |
 
@@ -190,7 +191,9 @@ await ExtractionOrchestrator.DiagLogAsync($"Step: {message}");
 ```
 
 ### Coverage
-- 82% threshold — write tests with source code in same pass, not code-first-tests-later
+- **82% threshold** for both backend and frontend — write tests with source code in same pass
+- **E2E tests don't count** — Playwright runs in browser, can't measure code coverage
+- Coverage reports: `coverage/` (frontend HTML), `coverage/report/` (backend)
 
 ### Memory
 - All memories go in this CLAUDE.md, NOT auto memory file
