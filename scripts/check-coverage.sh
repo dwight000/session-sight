@@ -18,6 +18,10 @@ THRESHOLD_PERCENT=82
 
 cd "$PROJECT_ROOT"
 
+echo "Cleaning previous coverage artifacts..."
+rm -rf coverage
+mkdir -p coverage
+
 echo "Running tests with coverage..."
 dotnet test session-sight.sln \
     --configuration Release \
