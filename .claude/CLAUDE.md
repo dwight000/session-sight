@@ -172,6 +172,13 @@ az deployment sub create --location eastus2 --template-file infra/main.bicep \
 - **CA1848**: Use `[LoggerMessage]` delegates, NOT `_logger.LogWarning()` directly
 - **S6966**: Use async file operations, NOT sync versions
 
+### SonarCloud
+- **Local parity (.NET)**: `SonarAnalyzer.CSharp` in Directory.Build.props with `TreatWarningsAsErrors=true`
+- **Local parity (Frontend)**: `eslint-plugin-sonarjs` catches ~30 rules (SonarCloud has 200+, no full parity exists)
+- **NOSONAR comments don't work** for shell scripts or JSX — use CI exclusion filter instead
+- **CI exclusions**: Edit `.github/workflows/ci.yml` EXCLUDED_RULES array for legitimate false positives
+- **Suppress C# rules**: Use `#pragma warning disable SXXXX` with comment explaining why
+
 ### E2E Tests
 - **Full-stack E2E catches type mismatches** — mocked unit tests won't catch frontend/backend type drift
 - **Extraction timeout**: Use `fixture.LongClient` (5-min timeout) for extraction calls
