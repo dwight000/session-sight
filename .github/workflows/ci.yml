@@ -89,26 +89,9 @@ jobs:
             exit 1
           fi
 
-      - name: Test with coverage
-        run: dotnet test session-sight.sln --no-build --configuration Release --collect:"XPlat Code Coverage" --results-directory ./coverage --filter "Category!=Functional" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover,cobertura
-
-      # Exclude: Migrations, Azure infrastructure code (requires Azure services), DI registration, EF Core infrastructure
-      - name: Generate coverage report
-        run: dotnet reportgenerator -reports:"coverage/**/coverage.cobertura.xml" -targetdir:coverage/report -reporttypes:Cobertura -filefilters:"-**/Migrations/**;-**/AIFoundryClientFactory.cs;-**/DocumentIntelligenceParser.cs;-**/AzureBlobDocumentStorage.cs;-**/AgentLoopRunner.cs;-**/DependencyInjection.cs;-**/SessionSightDbContext.cs;-**/SessionRepository.cs;-**/PatientRepository.cs;-**/ReviewRepository.cs;-**/ProcessIncomingNoteFunction.cs;-**/SearchIndexService.cs;-**/SearchIndexInitializer.cs;-**/EmbeddingService.cs;-**/obj/**"
-
-      # LOCAL COVERAGE CHECK: Set 1% above SonarCloud's 80% requirement.
-      # This catches coverage drops early, before SonarCloud analysis.
-      # Note: This checks OVERALL coverage, while SonarCloud checks NEW CODE coverage.
-      # Can't move earlier - needs test results and coverage report to exist first.
-      - name: Check coverage threshold (81%)
-        run: |
-          COVERAGE=$(grep -oP 'line-rate="\K[^"]+' coverage/report/Cobertura.xml | head -1)
-          PERCENT=$(echo "$COVERAGE * 100" | bc)
-          echo "Coverage: $PERCENT%"
-          if (( $(echo "$COVERAGE < 0.81" | bc -l) )); then
-            echo "::error::Coverage $PERCENT% is below 81% threshold (SonarCloud requires 80%)"
-            exit 1
-          fi
+      # Single source of truth: run the same script used locally, with CI-specific settings.
+      - name: Test + coverage gate (81%)
+        run: COVERAGE_THRESHOLD=0.81 COVERAGE_THRESHOLD_PERCENT=81 COVERAGE_FORMATS=opencover,cobertura ./scripts/check-coverage.sh
 
       - name: End SonarCloud analysis
         if: env.SONAR_TOKEN != ''

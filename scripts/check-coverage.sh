@@ -7,14 +7,20 @@
 # Usage:
 #   ./scripts/check-coverage.sh           # Run tests and check coverage
 #   ./scripts/check-coverage.sh --report  # Also open coverage report
+#
+# Environment overrides:
+#   COVERAGE_THRESHOLD=0.81
+#   COVERAGE_THRESHOLD_PERCENT=81
+#   COVERAGE_FORMATS=opencover,cobertura
 # =============================================================================
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-# Coverage threshold: 82% (2% above SonarCloud's 80% requirement, 1% above CI)
-THRESHOLD=0.82
-THRESHOLD_PERCENT=82
+# Default coverage threshold: 82% (2% above SonarCloud's 80% requirement, 1% above CI)
+THRESHOLD="${COVERAGE_THRESHOLD:-0.82}"
+THRESHOLD_PERCENT="${COVERAGE_THRESHOLD_PERCENT:-82}"
+COVERAGE_FORMATS="${COVERAGE_FORMATS:-cobertura}"
 
 cd "$PROJECT_ROOT"
 
@@ -28,7 +34,7 @@ dotnet test session-sight.sln \
     --collect:"XPlat Code Coverage" \
     --results-directory ./coverage \
     --filter "Category!=Functional" \
-    -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+    -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format="$COVERAGE_FORMATS"
 
 echo "Generating coverage report..."
 # Exclude infrastructure code that requires external services (Azure, EF Core) to test:
