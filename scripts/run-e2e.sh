@@ -30,7 +30,8 @@
 #   Run sparingly - use mocked smoke tests for rapid iteration.
 #
 # Troubleshooting:
-#   - If tests fail, check /tmp/aspire-e2e.log for Aspire output
+#   - If tests fail, check /tmp/sessionsight/aspire/aspire-e2e.log for Aspire output
+#   - API structured logs: /tmp/sessionsight/api/ (rolling files)
 #   - API is on fixed port: https://localhost:7039
 #   - If migrations fail, ensure SQL container is running: docker ps | grep sql
 #   - Aspire dashboard: https://localhost:17055 (shows traces)
@@ -46,8 +47,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 APPHOST_DIR="$PROJECT_ROOT/src/SessionSight.AppHost"
 WEB_DIR="$PROJECT_ROOT/src/SessionSight.Web"
-LOG_FILE="/tmp/aspire-e2e.log"
-VITE_LOG="/tmp/vite-e2e.log"
+LOG_ROOT="/tmp/sessionsight"
+LOG_FILE="$LOG_ROOT/aspire/aspire-e2e.log"
+VITE_LOG="$LOG_ROOT/vite/vite-e2e.log"
+API_LOG_DIR="$LOG_ROOT/api"
 MAX_WAIT_SECONDS=120
 POLL_INTERVAL=2
 VITE_PORT=5173
@@ -106,6 +109,18 @@ NC='\033[0m' # No Color
 log() { local msg="$1"; echo -e "${GREEN}[E2E]${NC} $msg"; return 0; }
 warn() { local msg="$1"; echo -e "${YELLOW}[E2E]${NC} $msg"; return 0; }
 error() { local msg="$1"; echo -e "${RED}[E2E]${NC} $msg"; return 0; }
+print_log_hints() {
+    log "Troubleshooting logs:"
+    log "  Aspire: $LOG_FILE"
+    log "  Vite: $VITE_LOG"
+    log "  API: $API_LOG_DIR/"
+    log "First triage commands:"
+    log "  tail -n 200 $LOG_FILE"
+    log "  tail -n 200 $VITE_LOG"
+    log "  ls -lah $LOG_ROOT/"
+    log "  ls -lah $API_LOG_DIR/"
+    log "  tail -n 200 \$(ls -1t $API_LOG_DIR/api-*.log 2>/dev/null | head -1)"
+}
 
 # Track PIDs for cleanup
 VITE_PID=""
@@ -140,6 +155,8 @@ cleanup() {
 trap cleanup EXIT
 
 # Step 1: Kill existing processes (skip in hot mode)
+mkdir -p "$LOG_ROOT/aspire" "$LOG_ROOT/vite" "$API_LOG_DIR"
+
 if [[ "$HOT_MODE" = true ]]; then
     log "Hot mode: checking if Aspire is already running..."
     if pgrep -f "SessionSight" > /dev/null; then
@@ -207,10 +224,12 @@ if ! curl -sk "https://localhost:$API_PORT/health" 2>/dev/null | grep -q "Health
     error "API did not become ready within $MAX_WAIT_SECONDS seconds"
     error "Last log entries:"
     tail -20 "$LOG_FILE"
+    print_log_hints
     exit 1
 fi
 
 log "API is ready on HTTPS port $API_PORT"
+print_log_hints
 
 # Step 6: Run migrations and insert test data
 log "Running database migrations..."
@@ -309,3 +328,4 @@ fi
 
 log "E2E tests completed successfully!"
 log "Aspire dashboard: https://localhost:17055 (view traces)"
+print_log_hints

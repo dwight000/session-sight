@@ -20,12 +20,26 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 API_PORT=7039
+LOG_ROOT="/tmp/sessionsight"
+ASPIRE_LOG="$LOG_ROOT/aspire/aspire-e2e.log"
+API_LOG_DIR="$LOG_ROOT/api"
 
 # shellcheck disable=SC2317 # Functions are called dynamically
 log() { local msg="$1"; echo -e "\033[0;32m[DEV]\033[0m $msg"; return 0; }
 error() { local msg="$1"; echo -e "\033[0;31m[DEV]\033[0m $msg" >&2; return 0; }
+print_log_hints() {
+    echo "  Troubleshooting logs:"
+    echo "    Aspire: $ASPIRE_LOG"
+    echo "    API:    $API_LOG_DIR/"
+    echo "  First triage commands:"
+    echo "    tail -n 200 $ASPIRE_LOG"
+    echo "    ls -lah $LOG_ROOT/"
+    echo "    ls -lah $API_LOG_DIR/"
+    echo "    tail -n 200 \$(ls -1t $API_LOG_DIR/api-*.log 2>/dev/null | head -1)"
+}
 
 cd "$PROJECT_ROOT"
+mkdir -p "$LOG_ROOT/aspire" "$LOG_ROOT/vite" "$API_LOG_DIR"
 
 # Step 1: Stop existing processes
 log "Stopping existing processes..."
@@ -37,7 +51,7 @@ sleep 2
 
 # Step 2: Start Aspire
 log "Starting Aspire..."
-nohup dotnet run --project src/SessionSight.AppHost > /tmp/aspire-e2e.log 2>&1 &
+nohup dotnet run --project src/SessionSight.AppHost > "$ASPIRE_LOG" 2>&1 &
 ASPIRE_PID=$!
 
 # Step 3: Wait for API
@@ -55,10 +69,12 @@ done
 echo ""
 
 if ! curl -sk "https://localhost:$API_PORT/health" 2>/dev/null | grep -q "Healthy"; then
-    error "API did not start within $MAX_WAIT seconds. Check /tmp/aspire-e2e.log"
+    error "API did not start within $MAX_WAIT seconds."
+    print_log_hints
     exit 1
 fi
 log "API is ready on https://localhost:$API_PORT"
+print_log_hints
 
 # Step 4: Run migrations
 log "Running database migrations..."
@@ -117,6 +133,8 @@ echo ""
 echo "  Frontend: http://localhost:5173"
 echo "  API:      https://localhost:7039"
 echo "  Dashboard: https://localhost:17055"
+echo ""
+print_log_hints
 echo ""
 echo "  Sample data:"
 echo "    - 2 patients (Sarah Johnson, Michael Chen)"

@@ -7,10 +7,10 @@
 ## Current Status
 
 **Phase**: Phase 4 (Risk Dashboard & UI) - IN PROGRESS
-**Next Action**: B-064 (extraction trigger race condition fix)
+**Next Action**: B-047 decision gate discussion (Aspire -> Docker Compose)
 **Last Updated**: February 9, 2026
 
-**Milestone**: P4-004 and B-065 complete — review workflow validated end-to-end, fixed-port endpoint config clarified, full regression passed
+**Milestone**: B-046 and B-066 complete — local logging baseline standardized and DIAG_LOG hack removed
 
 ---
 
@@ -105,8 +105,9 @@
 | B-043 | Document local dev setup (docs/LOCAL_DEV.md) | M | 2 | Done | - |
 | B-044 | Fix SessionRepository.UpdateAsync concurrency bug in extraction | M | 2 | Done | B-042 |
 | B-045 | Create deterministic E2E test runner script | S | 1 | Done | - |
-| B-046 | Add file logging for local dev (Serilog) | S | 1 | Ready | - |
+| B-046 | Add local API file logging (Serilog) to `/tmp/sessionsight/` + update debug docs/scripts | S | 1 | Done | - |
 | B-047 | Replace Aspire with Docker Compose ([plan](../../.claude/plans/replace_aspire_docker_compose_draft.md)) | M | 1 | Tabled | B-046 |
+| B-066 | Remove temporary DIAG_LOG hack (`/tmp/api-diag.log`) and legacy docs/scripts after Serilog validation | S | 1 | Done | B-046 |
 | B-037 | Tool call limit graceful handling | M | 2 | Done | P2-006b |
 | B-040 | Stub IAIFoundryClientFactory in integration tests | S | 2 | Done | P2-002 |
 | P2-009 | Create glossary of domain terms | S | 2 | Ready | P2-004 |
@@ -153,12 +154,36 @@
 | P6-002 | Configure prod environment (production Azure resources) | M | 6 | Blocked | P6-001 |
 | P6-003 | GitHub Actions deploy.yml (app deployment) | M | 6 | Blocked | P6-001 |
 | B-029 | Infra drift checks: bicep what-if + validate | M | 6 | Ready | P1-015 |
+| B-067 | Validate hosted cloud log ingestion (App Insights) + troubleshooting playbook and query pack | M | 6 | Blocked | P6-003 |
 | B-030 | Promotion model: dev->prod approval rules | M | 6 | Blocked | P6-003 |
 | B-031 | Rollback strategy: keep last good artifact | M | 6 | Blocked | P6-003 |
 | P6-004 | Environment-specific configuration | M | 6 | Blocked | P6-002 |
 | P6-005 | Create GitHub Release with SemVer tag (v1.0.0) | S | 6 | Blocked | P6-003 |
 | P6-006 | Enable Dependabot for dependency updates | S | 6 | Blocked | P6-005 |
 | P6-007 | Demo data and walkthrough | M | 6 | Blocked | P6-002 |
+
+---
+
+## Task Detail Notes
+
+### B-046 Details (Local Logging Baseline)
+- Scope: Configure API host logging so local debugging does not depend on temporary DIAG_LOG hacks.
+- Logging destination: `/tmp/sessionsight/` (rolling API log files, 7-day retention).
+- Behavior: Plain-text readable logs for local use, plus request/response logging toggle via config setting.
+- Documentation: Update `.claude/CLAUDE.md`, `docs/LOCAL_DEV.md`, and relevant scripts to show standard triage commands and log file locations.
+- Acceptance: During local runs (`start-dev`, `start-aspire`, `run-e2e`), log hints are visible and actionable; failures can be debugged from documented log paths without ad-hoc instructions.
+
+### B-066 Details (Hack Removal)
+- Scope: Remove `DIAG_LOG`/`api-diag.log` temporary debug path after B-046 is validated.
+- Code cleanup: Remove `DiagLogAsync` helper and any call sites.
+- Docs cleanup: Remove legacy references to DIAG_LOG from agent docs/scripts once B-046 guidance is in place.
+- Acceptance: Repository no longer relies on DIAG_LOG for normal troubleshooting; grep for `DIAG_LOG`/`api-diag.log` only finds historical backlog text.
+
+### B-067 Details (Cloud Logging Validation)
+- Scope: After hosted deployment exists (depends on P6-003), validate that application logs are queryable in Application Insights.
+- Validation: Confirm end-to-end log ingestion, useful correlation fields, and practical query snippets for common production issues.
+- Playbook: Add cloud troubleshooting steps (where to look, sample queries, expected signals, and failure signatures).
+- Acceptance: Hosted app troubleshooting can be performed without local `/tmp` files; cloud playbook is documented for both Codex and Claude sessions.
 
 ---
 
@@ -240,6 +265,8 @@
 | B-063 | Full-stack Playwright E2E tests (browser + real Aspire backend) | 2026-02-07 |
 | P4-004 | Flagged session approve/dismiss workflow | 2026-02-09 |
 | B-065 | Frontend code coverage: Add Vitest coverage (v8), set 80% threshold, add to check-frontend.sh + CI | 2026-02-09 |
+| B-046 | Add local API file logging (Serilog) to `/tmp/sessionsight/` + update debug docs/scripts | 2026-02-09 |
+| B-066 | Remove temporary DIAG_LOG hack (`/tmp/api-diag.log`) and legacy docs/scripts after Serilog validation | 2026-02-09 |
 
 ---
 
@@ -247,10 +274,10 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-09 | **B-046 and B-066 complete.** Implemented backend Serilog logging baseline in `SessionSight.Api` (console + rolling file sink, 7-day retention) with local log hierarchy under `/tmp/sessionsight/{aspire,vite,api}` and standardized script hints/triage commands. Added request/response logging config (`RequestResponseLogging:Enabled`, `LogBodies`, `MaxBodyLogBytes`) with body logging disabled by default and user-secrets override guidance in both `docs/LOCAL_DEV.md` and `.claude/CLAUDE.md`. Removed temporary DIAG hack by deleting `ExtractionOrchestrator.DiagLogAsync` and all runtime/doc/script references to `DIAG_LOG` and `/tmp/api-diag.log` (`rg -n "DIAG_LOG|api-diag.log|DiagLogAsync" src docs .claude scripts` clean). Validation: `dotnet test --filter "Category!=Functional"` pass, `./scripts/check-frontend.sh` pass, `./scripts/run-e2e.sh --frontend` pass; `./scripts/run-e2e.sh --all` had one transient QA extraction assertion failure (`patientId null`), and targeted rerun `./scripts/run-e2e.sh --filter "QATests.QA_AnswersQuestionAboutExtractedSession"` passed. |
 | 2026-02-09 | **P4-004 and B-065 complete.** Closed remaining gaps by adding smoke Playwright coverage for approve and dismiss actions on `/review/session/:sessionId` with request payload assertions and success-state verification, and by fixing a stale full-stack empty-state assertion to match current Review Queue UI copy. Clarified fixed-port endpoint ownership to avoid Aspire duplicate-endpoint startup failure: AppHost `.WithHttpsEndpoint(7039, name: "https")` left as commented reference while `src/SessionSight.Api/Properties/launchSettings.json` remains source of truth for `https://localhost:7039`. Validation path passed: `./scripts/check-frontend.sh`, `dotnet test --filter "FullyQualifiedName~ReviewControllerTests"` (12/12), `./scripts/run-e2e.sh --frontend` (3 passed, 1 skipped), and `./scripts/run-e2e.sh --all` (backend functional 8/8 + frontend full-stack 3 passed, 1 skipped). Frontend coverage currently reports 88.64% lines, 84.41% branches, 88.04% statements, 85.71% functions (threshold remains 82%, exceeding B-065 target of 80%). |
 | 2026-02-08 | **P4-003 complete.** Implemented patient timeline end-to-end with deterministic API data only (no new LLM dependency for rendering). Backend: added `GET /api/summary/patient/{patientId}/timeline` in `SummaryController` with date-range validation, chronological ordering, deterministic risk/mood change computation, document/review metadata, and new `TimelineDtos`. Frontend: added timeline types, `getPatientTimeline` API function, `usePatientTimeline` + `usePatient` hooks, new `/patients/:patientId/timeline` route + `PatientTimeline` page, and patient-table timeline links. Tests: added backend controller tests for not-found/invalid-range/repository path/field computation; added frontend API/hook/page tests plus patients-page link test; updated smoke Playwright with timeline navigation test; extended full-stack Playwright flow to assert timeline page. Validation sequence run in order: `dotnet test --filter "Category!=Functional"` (pass), `./scripts/check-frontend.sh` (pass), `./scripts/run-e2e.sh --frontend` (pass: 3 passed, 1 skipped), `./scripts/run-e2e.sh --all` (pass: backend functional 8/8 + frontend full-stack 3 passed, 1 skipped). |
 | 2026-02-08 | **P4-002 complete.** Implemented risk trend visualization end-to-end. Backend: added `GET /api/summary/patient/{patientId}/risk-trend` in `SummaryController` with deterministic risk scoring (Low=0, Moderate=1, High=2, Imminent=3), latest-risk + escalation metadata, and new DTOs. Frontend: added risk trend types, summary API function, `usePatientRiskTrend` hook, `RiskTrendChart` SVG component, and dashboard integration with flagged-patient selector, loading/error/empty states, and trend metadata badges. Tests: added backend API tests for not-found/invalid-range/order/scoring/escalation; added frontend API/hook/dashboard tests; updated smoke Playwright; added full-stack Playwright dashboard risk-trend assertion. Validation sequence run in order: `dotnet test --filter "Category!=Functional"` (pass), `./scripts/check-frontend.sh` (pass), `./scripts/run-e2e.sh --frontend` (pass), then `./scripts/run-e2e.sh --all` (pass: backend functional 8/8 and frontend full-stack 3 passed, 1 skipped). |
-| 2026-02-07 | **B-063 complete.** Full-stack Playwright E2E tests: Created `e2e/full-stack/upload-flow.spec.ts` with 3 tests (complete upload flow, error handling, review queue). Tests hit real Aspire backend with LLM extraction (~2 min, ~$0.05-0.10 per run). Combined `run-fullstack-e2e.sh` into `run-e2e.sh` with `--frontend` flag. Added `fullStack` Playwright project with 180s action timeout, 5 min test timeout. Fixed React crash bug: `ExtractedField.source` was typed as `string` but backend returns `SourceMapping` object `{text, startChar, endChar, section}` — added `SourceMapping` interface, updated `SessionDetail.tsx` to render `source?.text`, updated fixtures. Updated CLAUDE.md, LOCAL_DEV.md with new E2E commands. 128 frontend tests, 631 backend tests. |
 | 2026-02-07 | **P4-005 complete.** Patient/Session/Upload screens: 3 new pages (`/patients`, `/sessions`, `/upload`), 5 API functions (patients.ts, sessions.ts, upload.ts), 5 React Query hooks (usePatients, useCreatePatient, useSessions, useCreateSession, useUploadDocument), updated navigation (Sidebar, MobileNav, App routes). Backend: added `ISessionRepository.GetAllAsync(patientId?, hasDocument?)`, `GET /api/sessions` endpoint with filters, `HasDocument` property on SessionDto. Tests: 31 new frontend tests (api/patients, api/sessions, api/upload, hooks/usePatients, hooks/useSessions, pages/Patients, pages/Sessions, pages/Upload), 3 new backend tests (SessionsController.GetAll). Fixed pre-existing type error in SessionDetail.tsx (source.text on string type). Added MSW fixtures (patients.ts, sessions.ts) and handlers. Updated CLAUDE.md with Test Structure section documenting all test types and paths. 128 frontend tests, 132 backend tests. Coverage 82.32%. Created B-065 for frontend coverage enforcement (80%). |
 
 ---

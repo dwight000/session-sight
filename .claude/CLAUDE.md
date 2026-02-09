@@ -135,7 +135,26 @@ grep -E "FAIL\]|Error Message:" /tmp/e2e-output.log
 | "403 Forbidden" on search | Deploy Bicep with `developerUserObjectId` parameter |
 | Docker network exhaustion | Remove containers first: `docker ps -a --format '{{.Names}}' \| grep -E 'sql-\|storage-' \| xargs -r docker rm -f` |
 
-**Logs:** `/tmp/aspire-e2e.log` (view live: `tail -f /tmp/aspire-e2e.log`)
+**Log triage (first pass):**
+```bash
+curl -sk https://localhost:7039/health
+tail -n 200 /tmp/sessionsight/aspire/aspire-e2e.log
+tail -n 200 /tmp/sessionsight/vite/vite-e2e.log
+ls -lah /tmp/sessionsight/
+ls -lah /tmp/sessionsight/api/
+tail -n 200 $(ls -1t /tmp/sessionsight/api/api-*.log 2>/dev/null | head -1)
+```
+
+**Extraction trace quick check:**
+`LATEST=$(ls -1t /tmp/sessionsight/api/api-*.log | head -1); rg -n "HTTP POST /api/extraction|HTTP GET /api/sessions/.*/extraction|Extraction completed for session" "$LATEST" | tail -n 40`
+
+**Request/response logging toggle (local):**
+- Config section: `RequestResponseLogging` in `src/SessionSight.Api/appsettings.Development.json`
+- Defaults: `Enabled=true`, `LogBodies=false`, `MaxBodyLogBytes=null`
+- Temporary override:
+  - `dotnet user-secrets set --project src/SessionSight.Api "RequestResponseLogging:LogBodies" "true"`
+  - `dotnet user-secrets set --project src/SessionSight.Api "RequestResponseLogging:MaxBodyLogBytes" "4096"`
+  - `dotnet user-secrets set --project src/SessionSight.Api "RequestResponseLogging:LogBodies" "false"`
 
 **Deploy Bicep:**
 ```bash
@@ -183,19 +202,19 @@ az deployment sub create --location eastus2 --template-file infra/main.bicep \
 - **Full-stack E2E catches type mismatches** — mocked unit tests won't catch frontend/backend type drift
 - **Extraction timeout**: Use `fixture.LongClient` (5-min timeout) for extraction calls
 - **Retry on infrastructure signals, not LLM signals**: Retry on `sources.length > 0`, NOT on `confidence > 0`
+- **Cost control for flaky extraction assertions**: If `--all` fails one extraction-field assertion but logs show `POST /api/extraction/{id}` and `GET /api/sessions/{id}/extraction` both `200`, rerun only that test via `./scripts/run-e2e.sh --filter "TestName"` before rerunning full suite
 
 ### LLM Pipeline
 - **Look at actual LLM output FIRST** — one log line saves hours of speculative coding
 - **Aspire env vars don't propagate from shell** — use `.WithEnvironment()` in AppHost
 - **Always set `ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()`** for JSON responses
 - **Use `--filter TestName`** when iterating to avoid running all tests ($$$)
+- **Determinism knobs (current defaults):** no `Seed`/`TopP`/penalties set; temperatures are Intake/Extractor/Risk `0.1`, QA answer `0.2`, QA complexity classifier `0.0`, Summarizer `0.3`
 
-### DiagLog (Debug Logging)
-```csharp
-// Enable in AppHost: .WithEnvironment("DIAG_LOG", "1")
-await ExtractionOrchestrator.DiagLogAsync($"Step: {message}");
-// View: tail -f /tmp/api-diag.log
-```
+### Local API Logs
+- Standard API log path: `/tmp/sessionsight/api/api-*.log`
+- Keep body logging disabled unless actively debugging payload shape (`RequestResponseLogging:LogBodies=true`)
+- If body logging is enabled, disable it again after targeted triage
 
 ### Coverage
 - **82% threshold** for both backend and frontend — write tests with source code in same pass

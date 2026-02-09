@@ -91,6 +91,57 @@ curl -sk https://localhost:7039/health
 curl -sk https://localhost:7039/api/patients
 ```
 
+## Standard Log Triage (First 60 Seconds)
+
+Use this sequence before deeper debugging:
+
+```bash
+# 1) API health
+curl -sk https://localhost:7039/health
+
+# 2) Aspire host log
+tail -n 200 /tmp/sessionsight/aspire/aspire-e2e.log
+
+# 3) Vite log (frontend runs only)
+tail -n 200 /tmp/sessionsight/vite/vite-e2e.log
+
+# 4) API structured local logs
+ls -lah /tmp/sessionsight/
+ls -lah /tmp/sessionsight/api/
+tail -n 200 $(ls -1t /tmp/sessionsight/api/api-*.log 2>/dev/null | head -1)
+```
+
+## Request/Response Logging Toggle
+
+Request metadata logging is enabled in local development, and body logging is disabled by default.
+
+Config keys (`src/SessionSight.Api/appsettings.Development.json`):
+
+```json
+"RequestResponseLogging": {
+  "Enabled": true,
+  "LogBodies": false,
+  "MaxBodyLogBytes": null
+}
+```
+
+- `Enabled`: turns request/response logging middleware on/off.
+- `LogBodies`: includes full request/response bodies when `true`.
+- `MaxBodyLogBytes`: optional cap when body logging is on (`null` means no truncation).
+
+Temporary local override via user-secrets:
+
+```bash
+# Enable full request/response body logging
+dotnet user-secrets set --project src/SessionSight.Api "RequestResponseLogging:LogBodies" "true"
+
+# Optional: cap logged body size
+dotnet user-secrets set --project src/SessionSight.Api "RequestResponseLogging:MaxBodyLogBytes" "4096"
+
+# Disable body logging again
+dotnet user-secrets set --project src/SessionSight.Api "RequestResponseLogging:LogBodies" "false"
+```
+
 ## Running Database Migrations
 
 Migrations run automatically when the API starts. To run manually:
@@ -195,6 +246,8 @@ docker exec $SQL_CONTAINER /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "
 ```
 
 ## Troubleshooting
+
+Start with the **Standard Log Triage** section above before issue-specific troubleshooting.
 
 ### Problem: Azure CLI not in PATH
 

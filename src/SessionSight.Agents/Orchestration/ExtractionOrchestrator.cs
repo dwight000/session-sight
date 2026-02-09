@@ -312,24 +312,4 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to update document status to Failed for session {SessionId}")]
     private static partial void LogStatusUpdateFailed(ILogger logger, Exception exception, Guid sessionId);
-
-    /// <summary>
-    /// Debug helper: Writes to /tmp/api-diag.log for visibility during headless E2E tests.
-    /// Aspire captures child process logs via OTLP (browser dashboard only), so this provides
-    /// CLI-accessible logging. Enable by setting DIAG_LOG=1 environment variable.
-    /// See CLAUDE.md "Debugging Silent Failures" section for usage.
-    /// </summary>
-    internal static async Task DiagLogAsync(string message)
-    {
-        if (Environment.GetEnvironmentVariable("DIAG_LOG") != "1") return;
-        try
-        {
-            var line = $"[{DateTime.UtcNow:HH:mm:ss.fff}] {message}{Environment.NewLine}";
-            await File.AppendAllTextAsync("/tmp/api-diag.log", line);
-        }
-        catch
-        {
-            // Ignore diagnostic logging failures
-        }
-    }
 }

@@ -18,8 +18,41 @@ using SessionSight.Api.Validators;
 using SessionSight.Core.Resilience;
 using SessionSight.Infrastructure;
 using SessionSight.Infrastructure.Search;
+using Serilog;
+using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var writeToSinks = builder.Configuration.GetSection("Serilog:WriteTo").GetChildren();
+foreach (var sink in writeToSinks)
+{
+    if (!string.Equals(sink["Name"], "File", StringComparison.OrdinalIgnoreCase))
+    {
+        continue;
+    }
+
+    var sinkPath = sink.GetSection("Args")["path"];
+    if (string.IsNullOrWhiteSpace(sinkPath))
+    {
+        continue;
+    }
+
+    var localApiLogDirectory = Path.GetDirectoryName(sinkPath);
+    if (string.IsNullOrWhiteSpace(localApiLogDirectory))
+    {
+        continue;
+    }
+
+    Directory.CreateDirectory(localApiLogDirectory);
+}
+
+builder.Host.UseSerilog((context, services, loggerConfiguration) =>
+{
+    loggerConfiguration
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext();
+});
 
 // Aspire ServiceDefaults (OpenTelemetry, health checks, resilience)
 builder.AddServiceDefaults();
@@ -76,6 +109,9 @@ builder.Services.Configure<RiskAssessorOptions>(
 // Document Intelligence configuration
 builder.Services.Configure<DocumentIntelligenceOptions>(
     builder.Configuration.GetSection(DocumentIntelligenceOptions.SectionName));
+
+builder.Services.Configure<RequestResponseLoggingOptions>(
+    builder.Configuration.GetSection(RequestResponseLoggingOptions.SectionName));
 
 builder.Services.AddSingleton(sp =>
 {
@@ -136,10 +172,47 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+var requestResponseLoggingOptions = app.Services
+    .GetRequiredService<IOptions<RequestResponseLoggingOptions>>()
+    .Value;
 
 // Middleware pipeline
 app.UseExceptionHandler();
 app.UseMiddleware<CorrelationIdMiddleware>();
+
+if (requestResponseLoggingOptions.Enabled)
+{
+    app.UseSerilogRequestLogging(options =>
+    {
+        options.GetLevel = (httpContext, _, ex) =>
+        {
+            if (ex is not null || httpContext.Response.StatusCode >= 500)
+            {
+                return LogEventLevel.Error;
+            }
+
+            if (httpContext.Response.StatusCode >= 400)
+            {
+                return LogEventLevel.Warning;
+            }
+
+            return LogEventLevel.Information;
+        };
+
+        options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+        {
+            diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
+            diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
+            diagnosticContext.Set("CorrelationId",
+                httpContext.Items["CorrelationId"]?.ToString() ?? httpContext.TraceIdentifier);
+        };
+    });
+
+    if (requestResponseLoggingOptions.LogBodies)
+    {
+        app.UseMiddleware<RequestResponseBodyLoggingMiddleware>();
+    }
+}
 
 if (app.Environment.IsDevelopment())
 {
