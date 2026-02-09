@@ -44,6 +44,10 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
     private readonly ILogger<RiskAssessorAgent> _logger;
 
     private const double RiskConfidenceThreshold = 0.9;
+    private const string FieldSuicidalIdeation = "SuicidalIdeation";
+    private const string FieldSelfHarm = "SelfHarm";
+    private const string FieldHomicidalIdeation = "HomicidalIdeation";
+    private const string FieldRiskLevelOverall = "RiskLevelOverall";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -304,25 +308,25 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
     {
         var discrepancies = new List<RiskDiscrepancy>();
 
-        CheckDiscrepancy(discrepancies, "SuicidalIdeation",
+        CheckDiscrepancy(discrepancies, FieldSuicidalIdeation,
             GetEnumString(original.SuicidalIdeation.Value),
             original.SuicidalIdeation.Confidence,
             GetEnumString(reExtracted.SuicidalIdeation.Value),
             reExtracted.SuicidalIdeation.Confidence);
 
-        CheckDiscrepancy(discrepancies, "SelfHarm",
+        CheckDiscrepancy(discrepancies, FieldSelfHarm,
             GetEnumString(original.SelfHarm.Value),
             original.SelfHarm.Confidence,
             GetEnumString(reExtracted.SelfHarm.Value),
             reExtracted.SelfHarm.Confidence);
 
-        CheckDiscrepancy(discrepancies, "HomicidalIdeation",
+        CheckDiscrepancy(discrepancies, FieldHomicidalIdeation,
             GetEnumString(original.HomicidalIdeation.Value),
             original.HomicidalIdeation.Confidence,
             GetEnumString(reExtracted.HomicidalIdeation.Value),
             reExtracted.HomicidalIdeation.Confidence);
 
-        CheckDiscrepancy(discrepancies, "RiskLevelOverall",
+        CheckDiscrepancy(discrepancies, FieldRiskLevelOverall,
             GetEnumString(original.RiskLevelOverall.Value, "Low"),
             original.RiskLevelOverall.Confidence,
             GetEnumString(reExtracted.RiskLevelOverall.Value, "Low"),
@@ -380,7 +384,7 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
     {
         return fieldName switch
         {
-            "SuicidalIdeation" => value switch
+            FieldSuicidalIdeation => value switch
             {
                 "None" => 0,
                 "Passive" => 1,
@@ -389,7 +393,7 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
                 "ActiveWithIntent" => 4,
                 _ => 0
             },
-            "SelfHarm" => value switch
+            FieldSelfHarm => value switch
             {
                 "None" => 0,
                 "Historical" => 1,
@@ -398,7 +402,7 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
                 "Imminent" => 4,
                 _ => 0
             },
-            "HomicidalIdeation" => value switch
+            FieldHomicidalIdeation => value switch
             {
                 "None" => 0,
                 "Passive" => 1,
@@ -406,7 +410,7 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
                 "ActiveWithPlan" => 3,
                 _ => 0
             },
-            "RiskLevelOverall" => value switch
+            FieldRiskLevelOverall => value switch
             {
                 "Low" => 0,
                 "Moderate" => 1,

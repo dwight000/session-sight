@@ -10,6 +10,8 @@ namespace SessionSight.Agents.Tools;
 /// </summary>
 public class AggregateMetricsTool : IAgentTool
 {
+    private const string IsoDateFormat = "yyyy-MM-dd";
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -99,7 +101,7 @@ public class AggregateMetricsTool : IAgentTool
             .Where(s => s.Extraction?.Data?.MoodAssessment?.SelfReportedMood?.Value is > 0)
             .Select(s => new
             {
-                Date = s.SessionDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                Date = s.SessionDate.ToString(IsoDateFormat, CultureInfo.InvariantCulture),
                 Score = s.Extraction!.Data!.MoodAssessment!.SelfReportedMood!.Value
             })
             .ToList();
@@ -135,8 +137,8 @@ public class AggregateMetricsTool : IAgentTool
         string? dateRange = null;
         if (sessions.Count > 0)
         {
-            var first = sessions[0].SessionDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-            var last = sessions[^1].SessionDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            var first = sessions[0].SessionDate.ToString(IsoDateFormat, CultureInfo.InvariantCulture);
+            var last = sessions[^1].SessionDate.ToString(IsoDateFormat, CultureInfo.InvariantCulture);
             dateRange = $"{first} to {last}";
         }
 
