@@ -106,8 +106,8 @@
 | B-044 | Fix SessionRepository.UpdateAsync concurrency bug in extraction | M | 2 | Done | B-042 |
 | B-045 | Create deterministic E2E test runner script | S | 1 | Done | - |
 | B-046 | Add local API file logging (Serilog) to `/tmp/sessionsight/` + update debug docs/scripts | S | 1 | Done | - |
-| B-047 | Replace Aspire with Docker Compose ([plan](../../.claude/plans/replace_aspire_docker_compose_draft.md)) | M | 1 | Tabled | B-046 |
-| B-066 | Remove temporary DIAG_LOG hack (`/tmp/api-diag.log`) and legacy docs/scripts after Serilog validation | S | 1 | Done | B-046 |
+| B-047 | Replace Aspire with Docker Compose ([plan](../../.claude/plans/replace_aspire_docker_compose_draft.md)) | M | 1 | Tabled | - |
+| B-066 | Remove temporary DIAG_LOG hack (`/tmp/api-diag.log`) and legacy docs/scripts after Serilog validation | S | 1 | Done | - |
 | B-037 | Tool call limit graceful handling | M | 2 | Done | P2-006b |
 | B-040 | Stub IAIFoundryClientFactory in integration tests | S | 2 | Done | P2-002 |
 | P2-009 | Create glossary of domain terms | S | 2 | Ready | P2-004 |
@@ -168,7 +168,7 @@
 
 ### B-046 Details (Local Logging Baseline)
 - Scope: Configure API host logging so local debugging does not depend on temporary DIAG_LOG hacks.
-- Logging destination: `/tmp/sessionsight/` (rolling API log files, 7-day retention).
+- Logging destination: `/tmp/sessionsight/` parent with subfolders (`api/`, `aspire/`, `vite/`); rolling API log files in `api/` with 7-day retention.
 - Behavior: Plain-text readable logs for local use, plus request/response logging toggle via config setting.
 - Documentation: Update `.claude/CLAUDE.md`, `docs/LOCAL_DEV.md`, and relevant scripts to show standard triage commands and log file locations.
 - Acceptance: During local runs (`start-dev`, `start-aspire`, `run-e2e`), log hints are visible and actionable; failures can be debugged from documented log paths without ad-hoc instructions.
@@ -182,7 +182,7 @@
 ### B-067 Details (Cloud Logging Validation)
 - Scope: After hosted deployment exists (depends on P6-003), validate that application logs are queryable in Application Insights.
 - Validation: Confirm end-to-end log ingestion, useful correlation fields, and practical query snippets for common production issues.
-- Playbook: Add cloud troubleshooting steps (where to look, sample queries, expected signals, and failure signatures).
+- Playbook: Add cloud troubleshooting steps (where to look, sample queries, expected signals, and failure signatures), including a local-to-cloud triage mapping from `/tmp/sessionsight/{aspire,vite,api}` to App Insights queries.
 - Acceptance: Hosted app troubleshooting can be performed without local `/tmp` files; cloud playbook is documented for both Codex and Claude sessions.
 
 ---

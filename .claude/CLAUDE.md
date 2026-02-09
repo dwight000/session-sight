@@ -7,8 +7,8 @@
 | `start-dev.sh` | Full stack + migrations + sample data + frontend | (none) |
 | `start-aspire.sh` | Backend only (no data, no frontend) | (none) |
 | `run-e2e.sh` | Run E2E tests | `--frontend`, `--all`, `--hot`, `--headed`, `--filter "name"`, `--keep-db` |
-| `check-frontend.sh` | Frontend validation (TS + Vitest + 82% coverage + Playwright smoke + build) | (none) |
-| `check-coverage.sh` | Backend tests with 82% coverage check | `--report` |
+| `check-frontend.sh` | Frontend validation (TS + Vitest + 83% coverage + Playwright smoke + build) | (none) |
+| `check-coverage.sh` | Backend tests with 83% coverage check | `--report` |
 | `watch-frontend-tests.sh` | Interactive Playwright UI | `--headed` |
 
 **Endpoints (fixed ports):**
@@ -45,8 +45,9 @@ cd src/SessionSight.Web && services__api__https__0=https://localhost:7039 npx vi
 
 **Before `git push`:**
 1. `dotnet build`
-2. `./scripts/check-coverage.sh` — backend 82% coverage
-3. `./scripts/check-frontend.sh` — frontend 82% coverage
+2. `./scripts/check-coverage.sh` — backend 83% coverage
+3. `./scripts/check-frontend.sh` — frontend 83% coverage
+4. `COVERAGE_THRESHOLD=0.80 COVERAGE_THRESHOLD_PERCENT=80 COVERAGE_FORMATS=opencover,cobertura ./scripts/check-coverage.sh` — mirror CI backend gate exactly
 
 **Frontend E2E notes (`--frontend`):**
 - **Cost:** ~$0.02-0.04 per run (LLM extraction uses gpt-4.1-mini/nano)
@@ -125,6 +126,13 @@ cd src/SessionSight.Web && services__api__https__0=https://localhost:7039 npx vi
 ```bash
 ./scripts/run-e2e.sh 2>&1 | tee /tmp/e2e-output.log
 grep -E "FAIL\]|Error Message:" /tmp/e2e-output.log
+```
+
+**Monitor GitHub Actions from terminal:**
+```bash
+gh run list --limit 5
+gh run watch <run-id> --exit-status
+gh run view <run-id> --log-failed
 ```
 
 **Common issues:**
@@ -217,7 +225,10 @@ az deployment sub create --location eastus2 --template-file infra/main.bicep \
 - If body logging is enabled, disable it again after targeted triage
 
 ### Coverage
-- **82% threshold** for both backend and frontend — write tests with source code in same pass
+- **83% local threshold** for both backend and frontend — write tests with source code in same pass
+- **CI threshold is 80%** for both backend and frontend (by design)
+- **CI/local parity**: CI now calls `./scripts/check-coverage.sh` with env overrides (`80%`, `opencover,cobertura`)
+- **Avoid stale coverage inflation**: backend script clears `coverage/` before running tests
 - **E2E tests don't count** — Playwright runs in browser, can't measure code coverage
 - Coverage reports: `coverage/` (frontend HTML), `coverage/report/` (backend)
 

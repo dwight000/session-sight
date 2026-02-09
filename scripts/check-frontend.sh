@@ -2,7 +2,7 @@
 # =============================================================================
 # Frontend Check Script
 # =============================================================================
-# Runs TypeScript checking, Vitest tests with 82% coverage threshold, Playwright
+# Runs TypeScript checking, Vitest tests with 83% coverage threshold, Playwright
 # smoke tests, and build verification. Equivalent to check-coverage.sh for backend.
 #
 # Usage: ./scripts/check-frontend.sh
@@ -46,7 +46,7 @@ echo -e "${YELLOW}[3/5] Vitest unit tests with coverage...${NC}"
 if npx vitest run --coverage; then
   echo -e "${GREEN}  ✓ All tests passed, coverage threshold met${NC}"
 else
-  echo -e "${RED}  ✗ Tests failed or coverage below 50%${NC}"
+  echo -e "${RED}  ✗ Tests failed or coverage below configured threshold${NC}"
   exit 1
 fi
 echo ""

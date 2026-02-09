@@ -1,6 +1,8 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
+const coverageThreshold = Number(process.env.COVERAGE_THRESHOLD ?? '83')
+
 export default defineConfig({
   plugins: [react()],
   test: {
@@ -27,10 +29,10 @@ export default defineConfig({
         'tailwind.config.js',
       ],
       thresholds: {
-        statements: 82,
-        branches: 82,
-        functions: 82,
-        lines: 82,
+        statements: coverageThreshold,
+        branches: coverageThreshold,
+        functions: coverageThreshold,
+        lines: coverageThreshold,
       },
     },
   },

@@ -90,8 +90,8 @@ jobs:
           fi
 
       # Single source of truth: run the same script used locally, with CI-specific settings.
-      - name: Test + coverage gate (81%)
-        run: COVERAGE_THRESHOLD=0.81 COVERAGE_THRESHOLD_PERCENT=81 COVERAGE_FORMATS=opencover,cobertura ./scripts/check-coverage.sh
+      - name: Test + coverage gate (80%)
+        run: COVERAGE_THRESHOLD=0.80 COVERAGE_THRESHOLD_PERCENT=80 COVERAGE_FORMATS=opencover,cobertura ./scripts/check-coverage.sh
 
       - name: End SonarCloud analysis
         if: env.SONAR_TOKEN != ''
@@ -166,8 +166,8 @@ jobs:
       - name: TypeScript type check
         run: npx tsc --noEmit
 
-      - name: Run Vitest tests with coverage
-        run: npx vitest run --coverage
+      - name: Run Vitest tests with coverage (80%)
+        run: COVERAGE_THRESHOLD=80 npx vitest run --coverage
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium

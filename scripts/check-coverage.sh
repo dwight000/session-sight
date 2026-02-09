@@ -2,24 +2,24 @@
 # =============================================================================
 # Coverage Check Script
 # =============================================================================
-# Runs tests with coverage and validates against threshold (82%, 2% above SonarCloud)
+# Runs tests with coverage and validates against threshold (83% local default)
 #
 # Usage:
 #   ./scripts/check-coverage.sh           # Run tests and check coverage
 #   ./scripts/check-coverage.sh --report  # Also open coverage report
 #
 # Environment overrides:
-#   COVERAGE_THRESHOLD=0.81
-#   COVERAGE_THRESHOLD_PERCENT=81
+#   COVERAGE_THRESHOLD=0.80
+#   COVERAGE_THRESHOLD_PERCENT=80
 #   COVERAGE_FORMATS=opencover,cobertura
 # =============================================================================
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-# Default coverage threshold: 82% (2% above SonarCloud's 80% requirement, 1% above CI)
-THRESHOLD="${COVERAGE_THRESHOLD:-0.82}"
-THRESHOLD_PERCENT="${COVERAGE_THRESHOLD_PERCENT:-82}"
+# Default coverage threshold: 83% (3% above SonarCloud's 80% requirement)
+THRESHOLD="${COVERAGE_THRESHOLD:-0.83}"
+THRESHOLD_PERCENT="${COVERAGE_THRESHOLD_PERCENT:-83}"
 COVERAGE_FORMATS="${COVERAGE_FORMATS:-cobertura}"
 
 cd "$PROJECT_ROOT"
@@ -56,7 +56,7 @@ PERCENT=$(echo "$COVERAGE * 100" | bc)
 echo ""
 echo "=========================================="
 echo "Coverage: $PERCENT%"
-echo "Threshold: $THRESHOLD_PERCENT% (CI: 81%, SonarCloud: 80%)"
+echo "Threshold: $THRESHOLD_PERCENT% (CI: 80%, SonarCloud: 80%)"
 echo "=========================================="
 
 if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
