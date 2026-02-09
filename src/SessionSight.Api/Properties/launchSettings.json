@@ -14,6 +14,7 @@
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": false,
+      "_comment_fixed_port_source": "Source of truth for HTTPS 7039. AppHost previously duplicated this with .WithHttpsEndpoint(7039, name: \"https\") and that line is now intentionally commented out.",
       "applicationUrl": "https://localhost:7039;http://localhost:5272",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"

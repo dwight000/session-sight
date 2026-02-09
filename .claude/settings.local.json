@@ -72,7 +72,6 @@
       "Bash(DIAG_LOG=1 ./scripts/run-e2e.sh:*)",
       "Bash(xargs:*)",
       "Bash(npx:*)",
-      "Bash(npm install:*)",
       "WebFetch(domain:til.simonwillison.net)",
       "WebFetch(domain:executeautomation.github.io)",
       "WebFetch(domain:bug0.com)",

@@ -206,7 +206,7 @@ test.describe('Review Queue', () => {
     await expect(page.getByRole('heading', { name: 'Review Queue' })).toBeVisible()
 
     // The queue might be empty if no extractions have been done
-    const emptyMessage = page.getByText('No sessions pending review')
+    const emptyMessage = page.getByText('No sessions match the current filters.')
     const hasItems = await page.getByRole('link', { name: /Review/ }).count()
 
     if (await emptyMessage.isVisible()) {

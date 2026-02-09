@@ -7,10 +7,10 @@
 ## Current Status
 
 **Phase**: Phase 4 (Risk Dashboard & UI) - IN PROGRESS
-**Next Action**: P4-004 (approve/dismiss workflow)
-**Last Updated**: February 8, 2026
+**Next Action**: B-064 (extraction trigger race condition fix)
+**Last Updated**: February 9, 2026
 
-**Milestone**: P4-003 complete — Patient timeline API + timeline page + deterministic rendering + full validation sequence
+**Milestone**: P4-004 and B-065 complete — review workflow validated end-to-end, fixed-port endpoint config clarified, full regression passed
 
 ---
 
@@ -133,11 +133,11 @@
 | B-062 | Frontend Tier 3 test coverage (hooks, Button, summary API — 15 tests) | S | 4 | Done | B-061 |
 | P4-002 | Risk trend visualization | L | 4 | Done | P4-001 |
 | P4-003 | Patient history timeline view | L | 4 | Done | P4-001 |
-| P4-004 | Flagged session approve/dismiss workflow | M | 4 | Ready | P4-001 |
+| P4-004 | Flagged session approve/dismiss workflow | M | 4 | Done | P4-001 |
 | P4-005 | Patient/Session/Upload screens (3 pages: /patients, /sessions, /upload) | L | 4 | Done | P4-001 |
 | B-063 | Full-stack Playwright E2E tests (browser + real Aspire backend) | M | 4 | Done | P4-005 |
 | B-064 | Extraction trigger race condition fix (HOLDLOCK or optimistic concurrency) | S | 2 | Ready | - |
-| B-065 | Frontend code coverage: Add Vitest coverage (v8), set 80% threshold, add to check-frontend.sh + CI | S | 4 | Ready | B-059 |
+| B-065 | Frontend code coverage: Add Vitest coverage (v8), set 80% threshold, add to check-frontend.sh + CI | S | 4 | Done | B-059 |
 | **Phase 5: Polish & Testing** |||||
 | P5-001 | Integration tests (golden files) | L | 5 | Ready | P2-005 |
 | P5-002 | Data flow diagrams (document->agent->DB) | M | 5 | Blocked | B-004 |
@@ -238,6 +238,8 @@
 | P4-003 | Patient history timeline view (deterministic timeline API + UI + tests) | 2026-02-08 |
 | P4-005 | Patient/Session/Upload screens (3 pages + API + tests) | 2026-02-07 |
 | B-063 | Full-stack Playwright E2E tests (browser + real Aspire backend) | 2026-02-07 |
+| P4-004 | Flagged session approve/dismiss workflow | 2026-02-09 |
+| B-065 | Frontend code coverage: Add Vitest coverage (v8), set 80% threshold, add to check-frontend.sh + CI | 2026-02-09 |
 
 ---
 
@@ -245,11 +247,11 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-09 | **P4-004 and B-065 complete.** Closed remaining gaps by adding smoke Playwright coverage for approve and dismiss actions on `/review/session/:sessionId` with request payload assertions and success-state verification, and by fixing a stale full-stack empty-state assertion to match current Review Queue UI copy. Clarified fixed-port endpoint ownership to avoid Aspire duplicate-endpoint startup failure: AppHost `.WithHttpsEndpoint(7039, name: "https")` left as commented reference while `src/SessionSight.Api/Properties/launchSettings.json` remains source of truth for `https://localhost:7039`. Validation path passed: `./scripts/check-frontend.sh`, `dotnet test --filter "FullyQualifiedName~ReviewControllerTests"` (12/12), `./scripts/run-e2e.sh --frontend` (3 passed, 1 skipped), and `./scripts/run-e2e.sh --all` (backend functional 8/8 + frontend full-stack 3 passed, 1 skipped). Frontend coverage currently reports 88.64% lines, 84.41% branches, 88.04% statements, 85.71% functions (threshold remains 82%, exceeding B-065 target of 80%). |
 | 2026-02-08 | **P4-003 complete.** Implemented patient timeline end-to-end with deterministic API data only (no new LLM dependency for rendering). Backend: added `GET /api/summary/patient/{patientId}/timeline` in `SummaryController` with date-range validation, chronological ordering, deterministic risk/mood change computation, document/review metadata, and new `TimelineDtos`. Frontend: added timeline types, `getPatientTimeline` API function, `usePatientTimeline` + `usePatient` hooks, new `/patients/:patientId/timeline` route + `PatientTimeline` page, and patient-table timeline links. Tests: added backend controller tests for not-found/invalid-range/repository path/field computation; added frontend API/hook/page tests plus patients-page link test; updated smoke Playwright with timeline navigation test; extended full-stack Playwright flow to assert timeline page. Validation sequence run in order: `dotnet test --filter "Category!=Functional"` (pass), `./scripts/check-frontend.sh` (pass), `./scripts/run-e2e.sh --frontend` (pass: 3 passed, 1 skipped), `./scripts/run-e2e.sh --all` (pass: backend functional 8/8 + frontend full-stack 3 passed, 1 skipped). |
 | 2026-02-08 | **P4-002 complete.** Implemented risk trend visualization end-to-end. Backend: added `GET /api/summary/patient/{patientId}/risk-trend` in `SummaryController` with deterministic risk scoring (Low=0, Moderate=1, High=2, Imminent=3), latest-risk + escalation metadata, and new DTOs. Frontend: added risk trend types, summary API function, `usePatientRiskTrend` hook, `RiskTrendChart` SVG component, and dashboard integration with flagged-patient selector, loading/error/empty states, and trend metadata badges. Tests: added backend API tests for not-found/invalid-range/order/scoring/escalation; added frontend API/hook/dashboard tests; updated smoke Playwright; added full-stack Playwright dashboard risk-trend assertion. Validation sequence run in order: `dotnet test --filter "Category!=Functional"` (pass), `./scripts/check-frontend.sh` (pass), `./scripts/run-e2e.sh --frontend` (pass), then `./scripts/run-e2e.sh --all` (pass: backend functional 8/8 and frontend full-stack 3 passed, 1 skipped). |
 | 2026-02-07 | **B-063 complete.** Full-stack Playwright E2E tests: Created `e2e/full-stack/upload-flow.spec.ts` with 3 tests (complete upload flow, error handling, review queue). Tests hit real Aspire backend with LLM extraction (~2 min, ~$0.05-0.10 per run). Combined `run-fullstack-e2e.sh` into `run-e2e.sh` with `--frontend` flag. Added `fullStack` Playwright project with 180s action timeout, 5 min test timeout. Fixed React crash bug: `ExtractedField.source` was typed as `string` but backend returns `SourceMapping` object `{text, startChar, endChar, section}` — added `SourceMapping` interface, updated `SessionDetail.tsx` to render `source?.text`, updated fixtures. Updated CLAUDE.md, LOCAL_DEV.md with new E2E commands. 128 frontend tests, 631 backend tests. |
 | 2026-02-07 | **P4-005 complete.** Patient/Session/Upload screens: 3 new pages (`/patients`, `/sessions`, `/upload`), 5 API functions (patients.ts, sessions.ts, upload.ts), 5 React Query hooks (usePatients, useCreatePatient, useSessions, useCreateSession, useUploadDocument), updated navigation (Sidebar, MobileNav, App routes). Backend: added `ISessionRepository.GetAllAsync(patientId?, hasDocument?)`, `GET /api/sessions` endpoint with filters, `HasDocument` property on SessionDto. Tests: 31 new frontend tests (api/patients, api/sessions, api/upload, hooks/usePatients, hooks/useSessions, pages/Patients, pages/Sessions, pages/Upload), 3 new backend tests (SessionsController.GetAll). Fixed pre-existing type error in SessionDetail.tsx (source.text on string type). Added MSW fixtures (patients.ts, sessions.ts) and handlers. Updated CLAUDE.md with Test Structure section documenting all test types and paths. 128 frontend tests, 132 backend tests. Coverage 82.32%. Created B-065 for frontend coverage enforcement (80%). |
-| 2026-02-07 | **B-061, B-062 complete.** (B-061) Reorganized frontend tests from `src/pages/__tests__/` to top-level `__tests__/` directory with proper tier structure. Added Tier 1-2 coverage: 38 new tests across 7 files (api/client, api/review, components/ui/Badge, ConfidenceBar, RiskBadge, hooks/useSubmitReview, utils/format). Total: 82 tests. (B-062) Added Tier 3 coverage: 15 new tests across 4 files — usePracticeSummary enabled-guard tests (3), useReviewDetail enabled-guard tests (2), Button variant/passthrough/disabled tests (8), summary API URL encoding tests (2). Total: 97 frontend tests. Tier 4 skipped (Card, Spinner, useReviewQueue, useReviewStats — trivial passthrough, no logic). |
 
 ---
 

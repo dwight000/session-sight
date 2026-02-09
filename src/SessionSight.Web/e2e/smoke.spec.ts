@@ -71,6 +71,60 @@ test('Session Detail shows patient and risk section', async ({ page }) => {
   await expect(page.getByRole('button', { name: /Risk Assessment/ })).toBeVisible()
 })
 
+test('Session Detail approve action submits approved review payload', async ({ page }) => {
+  let capturedBody: Record<string, unknown> | null = null
+  await page.route('**/api/review/session/**', async (route) => {
+    const request = route.request()
+    if (request.method() === 'POST') {
+      capturedBody = request.postDataJSON() as Record<string, unknown>
+      await route.fulfill({ status: 200, contentType: 'application/json', body: 'null' })
+      return
+    }
+
+    await route.fulfill({ json: mockReviewDetail })
+  })
+
+  await page.goto('/review/session/sess-001')
+
+  await expect(page.getByText('Submit Review')).toBeVisible()
+  await page.getByLabel('Reviewer Name').fill('Dr. Smoke')
+  await page.getByRole('button', { name: 'Approve' }).click()
+
+  await expect(page.getByText('Review submitted.')).toBeVisible()
+  expect(capturedBody).toEqual({
+    action: 'Approved',
+    reviewerName: 'Dr. Smoke',
+  })
+})
+
+test('Session Detail dismiss action submits dismissed review payload', async ({ page }) => {
+  let capturedBody: Record<string, unknown> | null = null
+  await page.route('**/api/review/session/**', async (route) => {
+    const request = route.request()
+    if (request.method() === 'POST') {
+      capturedBody = request.postDataJSON() as Record<string, unknown>
+      await route.fulfill({ status: 200, contentType: 'application/json', body: 'null' })
+      return
+    }
+
+    await route.fulfill({ json: mockReviewDetail })
+  })
+
+  await page.goto('/review/session/sess-001')
+
+  await expect(page.getByText('Submit Review')).toBeVisible()
+  await page.getByLabel('Reviewer Name').fill('Dr. Smoke')
+  await page.getByLabel('Notes (optional)').fill('False positive')
+  await page.getByRole('button', { name: 'Dismiss' }).click()
+
+  await expect(page.getByText('Review submitted.')).toBeVisible()
+  expect(capturedBody).toEqual({
+    action: 'Dismissed',
+    reviewerName: 'Dr. Smoke',
+    notes: 'False positive',
+  })
+})
+
 test('Sidebar navigation works', async ({ page }) => {
   await mockDashboardRoutes(page)
   await mockReviewQueueRoutes(page)

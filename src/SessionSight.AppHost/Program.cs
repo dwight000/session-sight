@@ -28,7 +28,7 @@ var searchEndpoint = builder.AddParameter("search-endpoint");
 
 // API project - fixed port for predictable local dev
 var api = builder.AddProject<Projects.SessionSight_Api>("api")
-    .WithHttpsEndpoint(7039, name: "https")
+    // .WithHttpsEndpoint(7039, name: "https") // Intentionally disabled: port 7039 is already set in src/SessionSight.Api/Properties/launchSettings.json ("https" profile applicationUrl).
     .WithReference(db).WaitFor(db)
     .WithReference(blobs)
     .WithEnvironment("AzureSearch__Endpoint", searchEndpoint);
