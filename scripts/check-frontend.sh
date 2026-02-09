@@ -3,7 +3,7 @@
 # Frontend Check Script
 # =============================================================================
 # Runs TypeScript checking, Vitest tests with 83% coverage threshold, Playwright
-# smoke tests, and build verification. Equivalent to check-coverage.sh for backend.
+# smoke tests, and build verification. Equivalent to check-backend.sh for backend.
 #
 # Usage: ./scripts/check-frontend.sh
 # =============================================================================

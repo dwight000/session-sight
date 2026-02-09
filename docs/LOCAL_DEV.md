@@ -327,7 +327,7 @@ dotnet run --project src/SessionSight.AppHost
 | Build | `dotnet build session-sight.sln` |
 | Test (unit only) | `dotnet test --filter "Category!=Functional"` |
 | Test (all) | `API_BASE_URL=https://localhost:7039 dotnet test` |
-| Backend coverage (83%) | `./scripts/check-coverage.sh` |
+| Backend coverage (83%) | `./scripts/check-backend.sh` |
 | Frontend coverage (83%) | `./scripts/check-frontend.sh` |
 | Run Aspire | `dotnet run --project src/SessionSight.AppHost` |
 | API endpoint | `https://localhost:7039` (fixed port) |

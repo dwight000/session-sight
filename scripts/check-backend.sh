@@ -5,8 +5,8 @@
 # Runs tests with coverage and validates against threshold (83% local default)
 #
 # Usage:
-#   ./scripts/check-coverage.sh           # Run tests and check coverage
-#   ./scripts/check-coverage.sh --report  # Also open coverage report
+#   ./scripts/check-backend.sh           # Run tests and check coverage
+#   ./scripts/check-backend.sh --report  # Also open coverage report
 #
 # Environment overrides:
 #   COVERAGE_THRESHOLD=0.80

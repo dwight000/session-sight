@@ -91,7 +91,7 @@ jobs:
 
       # Single source of truth: run the same script used locally, with CI-specific settings.
       - name: Test + coverage gate (80%)
-        run: COVERAGE_THRESHOLD=0.80 COVERAGE_THRESHOLD_PERCENT=80 COVERAGE_FORMATS=opencover,cobertura ./scripts/check-coverage.sh
+        run: COVERAGE_THRESHOLD=0.80 COVERAGE_THRESHOLD_PERCENT=80 COVERAGE_FORMATS=opencover,cobertura ./scripts/check-backend.sh
 
       - name: End SonarCloud analysis
         if: env.SONAR_TOKEN != ''
