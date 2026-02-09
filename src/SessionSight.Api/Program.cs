@@ -14,37 +14,16 @@ using SessionSight.Agents.Services;
 using SessionSight.Agents.Tools;
 using SessionSight.Agents.Validation;
 using SessionSight.Api.Middleware;
+using SessionSight.Api.Startup;
 using SessionSight.Api.Validators;
 using SessionSight.Core.Resilience;
 using SessionSight.Infrastructure;
 using SessionSight.Infrastructure.Search;
 using Serilog;
-using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var writeToSinks = builder.Configuration.GetSection("Serilog:WriteTo").GetChildren();
-foreach (var sink in writeToSinks)
-{
-    if (!string.Equals(sink["Name"], "File", StringComparison.OrdinalIgnoreCase))
-    {
-        continue;
-    }
-
-    var sinkPath = sink.GetSection("Args")["path"];
-    if (string.IsNullOrWhiteSpace(sinkPath))
-    {
-        continue;
-    }
-
-    var localApiLogDirectory = Path.GetDirectoryName(sinkPath);
-    if (string.IsNullOrWhiteSpace(localApiLogDirectory))
-    {
-        continue;
-    }
-
-    Directory.CreateDirectory(localApiLogDirectory);
-}
+builder.EnsureConfiguredSerilogDirectories();
 
 builder.Host.UseSerilog((context, services, loggerConfiguration) =>
 {
@@ -180,46 +159,8 @@ var requestResponseLoggingOptions = app.Services
 app.UseExceptionHandler();
 app.UseMiddleware<CorrelationIdMiddleware>();
 
-if (requestResponseLoggingOptions.Enabled)
-{
-    app.UseSerilogRequestLogging(options =>
-    {
-        options.GetLevel = (httpContext, _, ex) =>
-        {
-            if (ex is not null || httpContext.Response.StatusCode >= 500)
-            {
-                return LogEventLevel.Error;
-            }
-
-            if (httpContext.Response.StatusCode >= 400)
-            {
-                return LogEventLevel.Warning;
-            }
-
-            return LogEventLevel.Information;
-        };
-
-        options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
-        {
-            diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
-            diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
-            diagnosticContext.Set("CorrelationId",
-                httpContext.Items["CorrelationId"]?.ToString() ?? httpContext.TraceIdentifier);
-        };
-    });
-
-    if (requestResponseLoggingOptions.LogBodies)
-    {
-        app.UseMiddleware<RequestResponseBodyLoggingMiddleware>();
-    }
-}
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseCors("DevCors");
-    app.MapOpenApi();
-    app.MapScalarApiReference();
-}
+app.ConfigureRequestResponseLogging(requestResponseLoggingOptions);
+app.ConfigureDevelopmentEndpoints();
 
 app.UseHttpsRedirection();
 app.MapControllers();

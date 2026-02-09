@@ -120,6 +120,7 @@ print_log_hints() {
     log "  ls -lah $LOG_ROOT/"
     log "  ls -lah $API_LOG_DIR/"
     log "  tail -n 200 \$(ls -1t $API_LOG_DIR/api-*.log 2>/dev/null | head -1)"
+    return 0
 }
 
 # Track PIDs for cleanup

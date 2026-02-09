@@ -36,6 +36,7 @@ print_log_hints() {
     echo "    ls -lah $LOG_ROOT/"
     echo "    ls -lah $API_LOG_DIR/"
     echo "    tail -n 200 \$(ls -1t $API_LOG_DIR/api-*.log 2>/dev/null | head -1)"
+    return 0
 }
 
 cd "$PROJECT_ROOT"
