@@ -13,7 +13,8 @@
         },
         "self_harm": {
           "accept": [
-            "current"
+            "current",
+            "none"
           ]
         },
         "homicidal_ideation": {
@@ -24,7 +25,8 @@
         "risk_level_overall": {
           "accept": [
             "moderate",
-            "high"
+            "high",
+            "low"
           ]
         }
       }
@@ -34,7 +36,8 @@
       "fields": {
         "suicidal_ideation": {
           "accept": [
-            "none"
+            "none",
+            "passive"
           ]
         },
         "self_harm": {
@@ -60,7 +63,8 @@
       "fields": {
         "suicidal_ideation": {
           "accept": [
-            "none"
+            "none",
+            "passive"
           ]
         },
         "self_harm": {

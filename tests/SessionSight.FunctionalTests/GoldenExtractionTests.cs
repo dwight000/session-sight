@@ -46,7 +46,7 @@ public class GoldenExtractionTests : IClassFixture<ApiFixture>
 
     public static IEnumerable<object[]> GoldenCases() => GoldenRiskCaseProvider.GetSelectedCases();
 
-    [Theory(Skip = "Temporarily disabled while tuning golden risk expectations and prompt alignment.")]
+    [Theory]
     [MemberData(nameof(GoldenCases))]
     public async Task GoldenRiskCases_ExtractionMatchesExpectedRiskFields(GoldenRiskCase goldenCase)
     {

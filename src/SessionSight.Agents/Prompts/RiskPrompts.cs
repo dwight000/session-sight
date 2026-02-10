@@ -62,7 +62,7 @@ public static class RiskPrompts
         Fields to extract:
 
         suicidalIdeation - Level of suicidal ideation:
-        - None: No suicidal thoughts mentioned or explicitly denied
+        - None: No suicidal thoughts mentioned or explicitly denied (e.g., "I don't want to die", "no thoughts of suicide"). Self-harm for emotional regulation without any suicidal ideation is still None.
         - Passive: Wishes to be dead, "wouldn't mind not waking up" (NO active intent)
         - ActiveNoPlan: Active thoughts of suicide without a specific plan
         - ActiveWithPlan: Active thoughts WITH a specific method/plan identified

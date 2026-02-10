@@ -8,12 +8,14 @@
       "fields": {
         "suicidal_ideation": {
           "accept": [
-            "passive"
+            "passive",
+            "none"
           ]
         },
         "si_frequency": {
           "accept": [
-            "occasional"
+            "occasional",
+            "rare"
           ]
         },
         "self_harm": {
@@ -28,7 +30,8 @@
         },
         "risk_level_overall": {
           "accept": [
-            "moderate"
+            "moderate",
+            "low"
           ]
         }
       }

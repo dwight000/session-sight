@@ -136,7 +136,7 @@ public static class ExtractionPrompts
         Extract mood assessment information from this therapy note.
 
         Fields to extract:
-        - selfReportedMood (int): Client's self-reported mood on 1-10 scale
+        - selfReportedMood (int): Client's self-reported mood on 1-10 scale. Parse "X/10", "X out of 10", or bare numbers. Extract X as the integer value (e.g., "5/10" → 5).
         - observedAffect (enum): Bright|Euthymic|Flat|Blunted|Tearful|Anxious|Agitated|Irritable|Labile|Incongruent
         - affectCongruence (enum): Congruent|Incongruent|Mixed
         - moodChangeFromLast (enum): SignificantlyImproved|Improved|Stable|Declined|SignificantlyDeclined|Unknown
@@ -209,20 +209,24 @@ public static class ExtractionPrompts
           * Collateral reports about researching means or suicide planning should affect suicidalIdeation/riskLevelOverall, but do not set selfHarm unless self-injury behavior is explicitly reported.
         - Collateral information (family, partner, other reliable sources) counts as valid evidence for risk, even if the patient denies it.
 
+        IMPORTANT: Risk indicators may appear ANYWHERE in the note (session narrative, clinical observations,
+        collateral reports, intake sections, plan) — not only in a labeled "Risk Assessment" section.
+        Scan the full note text before deciding any risk field value.
+
         Return JSON in this format:
         {
-          "suicidalIdeation": {"value": "None", "confidence": 0.95, "source": {"text": "exact quote", "section": "risk assessment"}},
-          "siFrequency": {"value": null, "confidence": 0.0, "source": null},
-          "siIntensity": {"value": null, "confidence": 0.0, "source": null},
-          "selfHarm": {"value": "None", "confidence": 0.95, "source": {"text": "exact quote", "section": "risk assessment"}},
+          "suicidalIdeation": {"value": "ActiveNoPlan", "confidence": 0.95, "source": {"text": "exact quote from note", "section": "clinical observations"}},
+          "siFrequency": {"value": "Occasional", "confidence": 0.90, "source": {"text": "exact quote from note", "section": "clinical observations"}},
+          "siIntensity": {"value": "Moderate", "confidence": 0.90, "source": {"text": "exact quote from note", "section": "clinical observations"}},
+          "selfHarm": {"value": "None", "confidence": 0.95, "source": {"text": "exact quote from note", "section": "risk assessment"}},
           "shRecency": {"value": null, "confidence": 0.0, "source": null},
-          "homicidalIdeation": {"value": "None", "confidence": 0.95, "source": {"text": "exact quote", "section": "risk assessment"}},
+          "homicidalIdeation": {"value": "None", "confidence": 0.95, "source": {"text": "exact quote from note", "section": "risk assessment"}},
           "hiTarget": {"value": null, "confidence": 0.0, "source": null},
-          "safetyPlanStatus": {"value": "NotNeeded", "confidence": 0.90, "source": {"text": "exact quote", "section": "risk assessment"}},
-          "protectiveFactors": {"value": ["supportive family", "employment"], "confidence": 0.85, "source": {"text": "exact quote", "section": "risk assessment"}},
-          "riskFactors": {"value": [], "confidence": 0.85, "source": {"text": "exact quote", "section": "risk assessment"}},
-          "meansRestrictionDiscussed": {"value": false, "confidence": 0.90, "source": {"text": "exact quote", "section": "risk assessment"}},
-          "riskLevelOverall": {"value": "Low", "confidence": 0.90, "source": {"text": "exact quote", "section": "risk assessment"}}
+          "safetyPlanStatus": {"value": "InPlace", "confidence": 0.90, "source": {"text": "exact quote from note", "section": "plan"}},
+          "protectiveFactors": {"value": ["supportive family", "employment"], "confidence": 0.85, "source": {"text": "exact quote from note", "section": "clinical observations"}},
+          "riskFactors": {"value": ["recent stressor", "isolation"], "confidence": 0.85, "source": {"text": "exact quote from note", "section": "clinical observations"}},
+          "meansRestrictionDiscussed": {"value": false, "confidence": 0.90, "source": {"text": "exact quote from note", "section": "risk assessment"}},
+          "riskLevelOverall": {"value": "Moderate", "confidence": 0.90, "source": {"text": "exact quote from note", "section": "risk assessment"}}
         }
 
         Therapy Note:
