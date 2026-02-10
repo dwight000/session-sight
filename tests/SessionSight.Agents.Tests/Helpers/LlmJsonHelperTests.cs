@@ -156,4 +156,40 @@ public class LlmJsonHelperTests
         var result = LlmJsonHelper.TryParseDouble(doc.RootElement.GetProperty("n"));
         result.Should().Be(2.71);
     }
+
+    [Fact]
+    public void TryParseDouble_FromBoolean_ReturnsNull()
+    {
+        var json = """{"n": true}""";
+        using var doc = JsonDocument.Parse(json);
+        var result = LlmJsonHelper.TryParseDouble(doc.RootElement.GetProperty("n"));
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void TryParseDouble_FromNull_ReturnsNull()
+    {
+        var json = """{"n": null}""";
+        using var doc = JsonDocument.Parse(json);
+        var result = LlmJsonHelper.TryParseDouble(doc.RootElement.GetProperty("n"));
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void TryParseInt_FromBoolean_ReturnsNull()
+    {
+        var json = """{"n": true}""";
+        using var doc = JsonDocument.Parse(json);
+        var result = LlmJsonHelper.TryParseInt(doc.RootElement.GetProperty("n"));
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void TryParseDouble_FromInvalidString_ReturnsNull()
+    {
+        var json = """{"n": "not-a-number"}""";
+        using var doc = JsonDocument.Parse(json);
+        var result = LlmJsonHelper.TryParseDouble(doc.RootElement.GetProperty("n"));
+        result.Should().BeNull();
+    }
 }

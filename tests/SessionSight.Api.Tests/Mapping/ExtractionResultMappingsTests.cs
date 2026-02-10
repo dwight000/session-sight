@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentAssertions;
 using SessionSight.Api.Mapping;
 using SessionSight.Core.Entities;
@@ -25,12 +26,26 @@ public class ExtractionResultMappingsTests
             RequiresReview = true,
             ExtractedAt = extractedAt,
             Data = data,
-            CriteriaValidationAttemptsUsed = 2,
+            GuardrailApplied = true,
             HomicidalGuardrailApplied = true,
             HomicidalGuardrailReason = "keyword_present",
             SelfHarmGuardrailApplied = false,
             SelfHarmGuardrailReason = null,
-            RiskDecisionsJson = """[{"field":"suicidal_ideation"}]"""
+            CriteriaValidationAttempts = 2,
+            DiscrepancyCount = 1,
+            RiskFieldDecisionsJson = JsonSerializer.Serialize(new[]
+            {
+                new
+                {
+                    field = "suicidal_ideation",
+                    originalValue = "None",
+                    reExtractedValue = "Low",
+                    finalValue = "Low",
+                    ruleApplied = "conservative_merge",
+                    criteriaUsed = new[] { "keyword_match" },
+                    reasoningUsed = "Elevated based on note content"
+                }
+            })
         };
 
         var dto = entity.ToDto();
@@ -43,16 +58,27 @@ public class ExtractionResultMappingsTests
         dto.RequiresReview.Should().BeTrue();
         dto.ExtractedAt.Should().Be(extractedAt);
         dto.Data.Should().BeSameAs(data);
-        dto.CriteriaValidationAttemptsUsed.Should().Be(2);
-        dto.HomicidalGuardrailApplied.Should().BeTrue();
-        dto.HomicidalGuardrailReason.Should().Be("keyword_present");
-        dto.SelfHarmGuardrailApplied.Should().BeFalse();
-        dto.SelfHarmGuardrailReason.Should().BeNull();
-        dto.RiskDecisionsJson.Should().NotBeNull();
+        dto.RiskDiagnostics.Should().NotBeNull();
+        dto.RiskDiagnostics!.GuardrailApplied.Should().BeTrue();
+        dto.RiskDiagnostics.HomicidalGuardrail.Should().NotBeNull();
+        dto.RiskDiagnostics.HomicidalGuardrail!.Applied.Should().BeTrue();
+        dto.RiskDiagnostics.HomicidalGuardrail.Reason.Should().Be("keyword_present");
+        dto.RiskDiagnostics.SelfHarmGuardrail.Should().BeNull();
+        dto.RiskDiagnostics.CriteriaValidationAttempts.Should().Be(2);
+        dto.RiskDiagnostics.DiscrepancyCount.Should().Be(1);
+        dto.RiskDiagnostics.FieldDecisions.Should().HaveCount(1);
+        var decision = dto.RiskDiagnostics.FieldDecisions[0];
+        decision.Field.Should().Be("suicidal_ideation");
+        decision.OriginalValue.Should().Be("None");
+        decision.ReExtractedValue.Should().Be("Low");
+        decision.FinalValue.Should().Be("Low");
+        decision.RuleApplied.Should().Be("conservative_merge");
+        decision.CriteriaUsed.Should().ContainSingle("keyword_match");
+        decision.ReasoningUsed.Should().Be("Elevated based on note content");
     }
 
     [Fact]
-    public void ToDto_WithDefaultValues_MapsCorrectly()
+    public void ToDto_WithDefaultValues_ReturnsNullDiagnostics()
     {
         var entity = new ExtractionResult
         {
@@ -66,10 +92,7 @@ public class ExtractionResultMappingsTests
         dto.ModelUsed.Should().BeEmpty();
         dto.OverallConfidence.Should().Be(0);
         dto.RequiresReview.Should().BeFalse();
-        dto.CriteriaValidationAttemptsUsed.Should().Be(1);
-        dto.HomicidalGuardrailApplied.Should().BeFalse();
-        dto.SelfHarmGuardrailApplied.Should().BeFalse();
-        dto.RiskDecisionsJson.Should().BeNull();
+        dto.RiskDiagnostics.Should().BeNull();
     }
 
     [Fact]
@@ -87,5 +110,67 @@ public class ExtractionResultMappingsTests
 
         dto.OverallConfidence.Should().Be(0.5);
         dto.RequiresReview.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ToDto_WithDiscrepancyCountOnly_ReturnsDiagnostics()
+    {
+        var entity = new ExtractionResult
+        {
+            Id = Guid.NewGuid(),
+            SessionId = Guid.NewGuid(),
+            DiscrepancyCount = 3
+        };
+
+        var dto = entity.ToDto();
+
+        dto.RiskDiagnostics.Should().NotBeNull();
+        dto.RiskDiagnostics!.DiscrepancyCount.Should().Be(3);
+        dto.RiskDiagnostics.GuardrailApplied.Should().BeFalse();
+        dto.RiskDiagnostics.FieldDecisions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ToDto_WithInvalidJson_ReturnsEmptyFieldDecisions()
+    {
+        var entity = new ExtractionResult
+        {
+            Id = Guid.NewGuid(),
+            SessionId = Guid.NewGuid(),
+            GuardrailApplied = true,
+            HomicidalGuardrailApplied = true,
+            RiskFieldDecisionsJson = "not valid json"
+        };
+
+        var dto = entity.ToDto();
+
+        dto.RiskDiagnostics.Should().NotBeNull();
+        dto.RiskDiagnostics!.FieldDecisions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ToDto_WithBothGuardrails_MapsCorrectly()
+    {
+        var entity = new ExtractionResult
+        {
+            Id = Guid.NewGuid(),
+            SessionId = Guid.NewGuid(),
+            GuardrailApplied = true,
+            HomicidalGuardrailApplied = true,
+            HomicidalGuardrailReason = "explicit threats",
+            SelfHarmGuardrailApplied = true,
+            SelfHarmGuardrailReason = "self-harm indicators"
+        };
+
+        var dto = entity.ToDto();
+
+        dto.RiskDiagnostics.Should().NotBeNull();
+        dto.RiskDiagnostics!.GuardrailApplied.Should().BeTrue();
+        dto.RiskDiagnostics.HomicidalGuardrail.Should().NotBeNull();
+        dto.RiskDiagnostics.HomicidalGuardrail!.Applied.Should().BeTrue();
+        dto.RiskDiagnostics.HomicidalGuardrail.Reason.Should().Be("explicit threats");
+        dto.RiskDiagnostics.SelfHarmGuardrail.Should().NotBeNull();
+        dto.RiskDiagnostics.SelfHarmGuardrail!.Applied.Should().BeTrue();
+        dto.RiskDiagnostics.SelfHarmGuardrail.Reason.Should().Be("self-harm indicators");
     }
 }

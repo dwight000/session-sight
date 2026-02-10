@@ -226,4 +226,40 @@ public class ConfidenceCalculatorTests
         resultWithDefaultThreshold.Should().NotContain("SessionInfo.SessionDate");
         resultWithHighThreshold.Should().Contain("SessionInfo.SessionDate");
     }
+
+    [Fact]
+    public void HasLowConfidenceRiskFields_LowConfidenceSelfHarm_ReturnsTrue()
+    {
+        var extraction = new ClinicalExtraction
+        {
+            RiskAssessment = new RiskAssessmentExtracted
+            {
+                SelfHarm = new ExtractedField<SelfHarm>
+                {
+                    Value = SelfHarm.Current,
+                    Confidence = 0.70
+                }
+            }
+        };
+
+        ConfidenceCalculator.HasLowConfidenceRiskFields(extraction).Should().BeTrue();
+    }
+
+    [Fact]
+    public void HasLowConfidenceRiskFields_LowConfidenceHomicidalIdeation_ReturnsTrue()
+    {
+        var extraction = new ClinicalExtraction
+        {
+            RiskAssessment = new RiskAssessmentExtracted
+            {
+                HomicidalIdeation = new ExtractedField<HomicidalIdeation>
+                {
+                    Value = HomicidalIdeation.ActiveNoPlan,
+                    Confidence = 0.70
+                }
+            }
+        };
+
+        ConfidenceCalculator.HasLowConfidenceRiskFields(extraction).Should().BeTrue();
+    }
 }

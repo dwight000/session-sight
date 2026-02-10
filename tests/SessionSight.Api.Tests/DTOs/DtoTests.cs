@@ -23,11 +23,6 @@ public class DtoTests
             true,
             extractedAt,
             data,
-            1,
-            false,
-            null,
-            false,
-            null,
             null);
 
         dto.Id.Should().Be(id);
@@ -38,12 +33,37 @@ public class DtoTests
         dto.RequiresReview.Should().BeTrue();
         dto.ExtractedAt.Should().Be(extractedAt);
         dto.Data.Should().BeSameAs(data);
-        dto.CriteriaValidationAttemptsUsed.Should().Be(1);
-        dto.HomicidalGuardrailApplied.Should().BeFalse();
-        dto.HomicidalGuardrailReason.Should().BeNull();
-        dto.SelfHarmGuardrailApplied.Should().BeFalse();
-        dto.SelfHarmGuardrailReason.Should().BeNull();
-        dto.RiskDecisionsJson.Should().BeNull();
+        dto.RiskDiagnostics.Should().BeNull();
+    }
+
+    [Fact]
+    public void ExtractionResultDto_WithRiskDiagnostics_MapsCorrectly()
+    {
+        var diagnostics = new RiskDiagnosticsDto(
+            GuardrailApplied: true,
+            HomicidalGuardrail: new GuardrailDetailDto(true, "keyword_present"),
+            SelfHarmGuardrail: null,
+            CriteriaValidationAttempts: 2,
+            DiscrepancyCount: 1,
+            FieldDecisions: [new RiskFieldDecisionDto(
+                "suicidal_ideation", "None", "Low", "Low",
+                "conservative_merge", ["keyword_match"], "Elevated based on note content")]);
+
+        var dto = new ExtractionResultDto(
+            Guid.NewGuid(), Guid.NewGuid(), "1.0.0", "gpt-4o",
+            0.95, true, DateTime.UtcNow, new ClinicalExtraction(),
+            diagnostics);
+
+        dto.RiskDiagnostics.Should().NotBeNull();
+        dto.RiskDiagnostics!.GuardrailApplied.Should().BeTrue();
+        dto.RiskDiagnostics.HomicidalGuardrail.Should().NotBeNull();
+        dto.RiskDiagnostics.HomicidalGuardrail!.Applied.Should().BeTrue();
+        dto.RiskDiagnostics.HomicidalGuardrail.Reason.Should().Be("keyword_present");
+        dto.RiskDiagnostics.SelfHarmGuardrail.Should().BeNull();
+        dto.RiskDiagnostics.CriteriaValidationAttempts.Should().Be(2);
+        dto.RiskDiagnostics.DiscrepancyCount.Should().Be(1);
+        dto.RiskDiagnostics.FieldDecisions.Should().HaveCount(1);
+        dto.RiskDiagnostics.FieldDecisions[0].Field.Should().Be("suicidal_ideation");
     }
 
     [Fact]
@@ -54,8 +74,17 @@ public class DtoTests
         var extractedAt = DateTime.UtcNow;
         var data = new ClinicalExtraction();
 
-        var dto1 = new ExtractionResultDto(id, sessionId, "1.0.0", "gpt-4o", 0.95, true, extractedAt, data, 1, false, null, false, null, null);
-        var dto2 = new ExtractionResultDto(id, sessionId, "1.0.0", "gpt-4o", 0.95, true, extractedAt, data, 1, false, null, false, null, null);
+        var dto1 = new ExtractionResultDto(id, sessionId, "1.0.0", "gpt-4o", 0.95, true, extractedAt, data, null);
+        var dto2 = new ExtractionResultDto(id, sessionId, "1.0.0", "gpt-4o", 0.95, true, extractedAt, data, null);
+
+        dto1.Should().Be(dto2);
+    }
+
+    [Fact]
+    public void GuardrailDetailDto_RecordEquality_WorksCorrectly()
+    {
+        var dto1 = new GuardrailDetailDto(true, "keyword_present");
+        var dto2 = new GuardrailDetailDto(true, "keyword_present");
 
         dto1.Should().Be(dto2);
     }

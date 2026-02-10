@@ -22,10 +22,12 @@ public class ExtractionResult
     /// </summary>
     public string? SummaryJson { get; set; }
 
+    // ── Queryable risk columns (all scalar, no JSON needed) ──
+
     /// <summary>
-    /// Number of attempts used by criteria/reasoning validation for risk re-extraction.
+    /// True if either homicidal or self-harm guardrail fired.
     /// </summary>
-    public int CriteriaValidationAttemptsUsed { get; set; } = 1;
+    public bool GuardrailApplied { get; set; }
 
     /// <summary>
     /// Whether homicidal guardrail logic changed the final value.
@@ -48,9 +50,21 @@ public class ExtractionResult
     public string? SelfHarmGuardrailReason { get; set; }
 
     /// <summary>
-    /// Per-field risk decisions stored as JSON string (trimmed diagnostics payload).
+    /// Number of attempts used by criteria/reasoning validation for risk re-extraction.
     /// </summary>
-    public string? RiskDecisionsJson { get; set; }
+    public int CriteriaValidationAttempts { get; set; } = 1;
+
+    /// <summary>
+    /// Number of fields that disagreed between extraction and re-extraction stages.
+    /// </summary>
+    public int DiscrepancyCount { get; set; }
+
+    // ── Per-field audit trail (genuinely list-shaped → JSON) ──
+
+    /// <summary>
+    /// Per-field risk decisions stored as JSON string (List&lt;RiskFieldDiagnostic&gt;).
+    /// </summary>
+    public string? RiskFieldDecisionsJson { get; set; }
 
     public ICollection<SupervisorReview> Reviews { get; set; } = new List<SupervisorReview>();
 }

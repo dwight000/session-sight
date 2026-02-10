@@ -15,10 +15,12 @@ public class ExtractionResultConfiguration : IEntityTypeConfiguration<Extraction
         builder.HasOne(e => e.Session).WithOne(s => s.Extraction).HasForeignKey<ExtractionResult>(e => e.SessionId);
         builder.Property(e => e.SchemaVersion).HasMaxLength(20).IsRequired();
         builder.Property(e => e.ModelUsed).HasMaxLength(100).IsRequired();
-        builder.Property(e => e.CriteriaValidationAttemptsUsed).HasDefaultValue(1);
-        builder.Property(e => e.HomicidalGuardrailReason).HasMaxLength(100);
-        builder.Property(e => e.SelfHarmGuardrailReason).HasMaxLength(100);
-        builder.Property(e => e.RiskDecisionsJson).HasColumnType("nvarchar(max)");
+        builder.Property(e => e.GuardrailApplied).HasDefaultValue(false);
+        builder.Property(e => e.HomicidalGuardrailReason).HasMaxLength(200);
+        builder.Property(e => e.SelfHarmGuardrailReason).HasMaxLength(200);
+        builder.Property(e => e.CriteriaValidationAttempts).HasDefaultValue(1);
+        builder.Property(e => e.DiscrepancyCount).HasDefaultValue(0);
+        builder.Property(e => e.RiskFieldDecisionsJson).HasColumnType("nvarchar(max)");
         builder.Property(e => e.Data).HasConversion(
             v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
             v => JsonSerializer.Deserialize<ClinicalExtraction>(v, (JsonSerializerOptions?)null)!

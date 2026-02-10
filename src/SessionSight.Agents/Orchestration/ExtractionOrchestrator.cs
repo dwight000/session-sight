@@ -188,7 +188,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                 extractionResult,
                 modelsUsed,
                 sessionSummary,
-                riskResult.Diagnostics);
+                riskResult.Diagnostics,
+                riskResult);
 
             // Update document status to Completed
             await _sessionRepository.UpdateDocumentStatusAsync(
@@ -246,7 +247,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         AgentExtractionResult agentResult,
         List<string> modelsUsed,
         SessionSummary? sessionSummary,
-        RiskDiagnostics? riskDiagnostics)
+        RiskDiagnostics? riskDiagnostics,
+        RiskAssessmentResult? riskResult = null)
     {
         // Convert agent result to entity
         var reviewReasons = agentResult.LowConfidenceFields
@@ -270,12 +272,15 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             SummaryJson = sessionSummary != null
                 ? JsonSerializer.Serialize(sessionSummary, JsonOptions)
                 : null,
-            CriteriaValidationAttemptsUsed = riskDiagnostics?.CriteriaValidationAttemptsUsed ?? 1,
+            GuardrailApplied = (riskDiagnostics?.HomicidalGuardrailApplied ?? false)
+                || (riskDiagnostics?.SelfHarmGuardrailApplied ?? false),
             HomicidalGuardrailApplied = riskDiagnostics?.HomicidalGuardrailApplied ?? false,
             HomicidalGuardrailReason = riskDiagnostics?.HomicidalGuardrailReason,
             SelfHarmGuardrailApplied = riskDiagnostics?.SelfHarmGuardrailApplied ?? false,
             SelfHarmGuardrailReason = riskDiagnostics?.SelfHarmGuardrailReason,
-            RiskDecisionsJson = riskDiagnostics?.Decisions != null
+            CriteriaValidationAttempts = riskDiagnostics?.CriteriaValidationAttemptsUsed ?? 1,
+            DiscrepancyCount = riskResult?.Discrepancies.Count ?? 0,
+            RiskFieldDecisionsJson = riskDiagnostics?.Decisions != null
                 ? JsonSerializer.Serialize(riskDiagnostics.Decisions, JsonOptions)
                 : null
         };

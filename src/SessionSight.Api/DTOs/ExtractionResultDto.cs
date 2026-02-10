@@ -11,9 +11,23 @@ public record ExtractionResultDto(
     bool RequiresReview,
     DateTime ExtractedAt,
     ClinicalExtraction Data,
-    int CriteriaValidationAttemptsUsed,
-    bool HomicidalGuardrailApplied,
-    string? HomicidalGuardrailReason,
-    bool SelfHarmGuardrailApplied,
-    string? SelfHarmGuardrailReason,
-    string? RiskDecisionsJson);
+    RiskDiagnosticsDto? RiskDiagnostics);
+
+public record RiskDiagnosticsDto(
+    bool GuardrailApplied,
+    GuardrailDetailDto? HomicidalGuardrail,
+    GuardrailDetailDto? SelfHarmGuardrail,
+    int CriteriaValidationAttempts,
+    int DiscrepancyCount,
+    List<RiskFieldDecisionDto> FieldDecisions);
+
+public record GuardrailDetailDto(bool Applied, string? Reason);
+
+public record RiskFieldDecisionDto(
+    string Field,
+    string OriginalValue,
+    string ReExtractedValue,
+    string FinalValue,
+    string RuleApplied,
+    List<string> CriteriaUsed,
+    string ReasoningUsed);

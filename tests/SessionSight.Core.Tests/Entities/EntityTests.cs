@@ -49,6 +49,7 @@ public class EntityTests
 
         doc.Id.Should().Be(Guid.Empty);
         doc.SessionId.Should().Be(Guid.Empty);
+        doc.Session.Should().BeNull();
         doc.OriginalFileName.Should().BeEmpty();
         doc.BlobUri.Should().BeEmpty();
         doc.ContentType.Should().BeEmpty();
@@ -131,5 +132,19 @@ public class EntityTests
         patient.Sessions.Should().HaveCount(2);
         patient.Sessions.Should().Contain(session1);
         patient.Sessions.Should().Contain(session2);
+    }
+
+    [Fact]
+    public void SupervisorReview_DefaultValues_AreInitialized()
+    {
+        var review = new SupervisorReview();
+
+        review.Id.Should().Be(Guid.Empty);
+        review.ExtractionId.Should().Be(Guid.Empty);
+        review.Extraction.Should().BeNull();
+        review.Action.Should().Be(default(ReviewStatus));
+        review.ReviewerName.Should().BeEmpty();
+        review.Notes.Should().BeNull();
+        review.ReviewedAt.Should().Be(default);
     }
 }
