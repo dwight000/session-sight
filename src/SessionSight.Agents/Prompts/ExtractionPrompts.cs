@@ -193,6 +193,21 @@ public static class ExtractionPrompts
         - If suicidal or homicidal ideation is mentioned, confidence must be >= 0.90
         - If risk indicators are ambiguous, set to the more concerning value
         - Always extract protective factors when risk is present
+        - Classification boundaries:
+          * suicidalIdeation: statements like "wish I could go to sleep and not wake up", "wish I would not wake up", "better off dead", or "not be here" are Passive (not None), even when plan/intent is denied.
+          * suicidalIdeation: if the patient makes a distress statement (for example "I can't take this anymore") and is evasive or refuses to answer direct suicide-risk questions, classify as Passive rather than None.
+          * siFrequency: "once or twice a month" is Rare; several times per week is Occasional; daily/most days is Frequent.
+          * selfHarm: classify only when there is evidence of actual self-injury behavior (e.g., cutting, burning, scratching, overdose attempt, other direct self-injury act).
+          * selfHarm: suicidal ideation/plan/intent by itself does NOT imply selfHarm. If no self-injury behavior is described, use None.
+          * selfHarm: Recent means any self-harm within the last 12 months; Historical is only when last event is more than 12 months ago.
+          * homicidalIdeation: use Passive only when thoughts about harming others are actually present; otherwise use None.
+          * Self-directed phrases ("hurt myself", "harm myself", "kill myself", suicidal ideation) are NOT homicidal ideation.
+          * riskLevelOverall: ActiveWithPlan or ActiveWithIntent cannot be Low. Minimum is High unless the note clearly supports Imminent.
+          * riskLevelOverall: Passive suicidal ideation with recurrent thoughts (Occasional/Frequent/Constant) should be at least Moderate, even without plan or intent.
+          * riskLevelOverall: if safety assessment is incomplete due to evasiveness/refusal on suicide-risk questions after distress language, minimum is Moderate.
+          * If frequency is explicitly stated, use literal mapping; only escalate severity when frequency is ambiguous.
+          * Collateral reports about researching means or suicide planning should affect suicidalIdeation/riskLevelOverall, but do not set selfHarm unless self-injury behavior is explicitly reported.
+        - Collateral information (family, partner, other reliable sources) counts as valid evidence for risk, even if the patient denies it.
 
         Return JSON in this format:
         {

@@ -22,7 +22,13 @@ public class DtoTests
             0.95,
             true,
             extractedAt,
-            data);
+            data,
+            1,
+            false,
+            null,
+            false,
+            null,
+            null);
 
         dto.Id.Should().Be(id);
         dto.SessionId.Should().Be(sessionId);
@@ -32,6 +38,12 @@ public class DtoTests
         dto.RequiresReview.Should().BeTrue();
         dto.ExtractedAt.Should().Be(extractedAt);
         dto.Data.Should().BeSameAs(data);
+        dto.CriteriaValidationAttemptsUsed.Should().Be(1);
+        dto.HomicidalGuardrailApplied.Should().BeFalse();
+        dto.HomicidalGuardrailReason.Should().BeNull();
+        dto.SelfHarmGuardrailApplied.Should().BeFalse();
+        dto.SelfHarmGuardrailReason.Should().BeNull();
+        dto.RiskDecisionsJson.Should().BeNull();
     }
 
     [Fact]
@@ -42,8 +54,8 @@ public class DtoTests
         var extractedAt = DateTime.UtcNow;
         var data = new ClinicalExtraction();
 
-        var dto1 = new ExtractionResultDto(id, sessionId, "1.0.0", "gpt-4o", 0.95, true, extractedAt, data);
-        var dto2 = new ExtractionResultDto(id, sessionId, "1.0.0", "gpt-4o", 0.95, true, extractedAt, data);
+        var dto1 = new ExtractionResultDto(id, sessionId, "1.0.0", "gpt-4o", 0.95, true, extractedAt, data, 1, false, null, false, null, null);
+        var dto2 = new ExtractionResultDto(id, sessionId, "1.0.0", "gpt-4o", 0.95, true, extractedAt, data, 1, false, null, false, null, null);
 
         dto1.Should().Be(dto2);
     }

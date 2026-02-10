@@ -20,6 +20,9 @@ param deployGpt41Mini bool = true
 @description('Deploy GPT-4.1-nano model (replaces gpt-4o-mini)')
 param deployGpt41Nano bool = true
 
+@description('Deploy GPT-4.1 model')
+param deployGpt41 bool = true
+
 @description('Deploy text-embedding-3-large model')
 param deployEmbeddings bool = true
 
@@ -28,6 +31,9 @@ param gpt41MiniCapacity int = 10
 
 @description('GPT-4.1-nano deployment capacity (TPM in thousands)')
 param gpt41NanoCapacity int = 10
+
+@description('GPT-4.1 deployment capacity (TPM in thousands)')
+param gpt41Capacity int = 10
 
 @description('Embeddings deployment capacity (TPM in thousands)')
 param embeddingsCapacity int = 10
@@ -63,6 +69,24 @@ resource gpt41MiniDeployment 'Microsoft.CognitiveServices/accounts/deployments@2
     model: {
       format: 'OpenAI'
       name: 'gpt-4.1-mini'
+      version: '2025-04-14'
+    }
+    raiPolicyName: 'Microsoft.DefaultV2'
+  }
+  dependsOn: [gpt41Deployment] // Sequential deployment to avoid conflicts
+}
+
+resource gpt41Deployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = if (deployGpt41) {
+  parent: openai
+  name: 'gpt-4.1'
+  sku: {
+    name: 'GlobalStandard'
+    capacity: gpt41Capacity
+  }
+  properties: {
+    model: {
+      format: 'OpenAI'
+      name: 'gpt-4.1'
       version: '2025-04-14'
     }
     raiPolicyName: 'Microsoft.DefaultV2'

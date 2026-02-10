@@ -1,0 +1,88 @@
+{
+  "note_id": "risk-test-034",
+  "note_content": "First outpatient session following psychiatric hospitalization discharged 5 days ago for suicide attempt by overdose. Patient reports mood is 'better' and denies current suicidal ideation. States the hospitalization 'scared me straight.' Affect is flat, minimal eye contact. Has not filled new prescriptions yet, citing cost concerns. Lives alone. No follow-up with psychiatrist scheduled. High-risk period post-discharge. Assisted with pharmacy resources and scheduled psychiatry appointment. Daily check-in calls arranged.",
+  "test_type": "Post-hospitalization high-risk period - denied SI but recent attempt, flat affect, non-adherence",
+  "expected_by_stage": [
+    {
+      "stage": "clinical_extractor",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "recent"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "high"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_reextracted",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "recent"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "high"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_final",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "recent"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "high"
+          ]
+        }
+      }
+    }
+  ],
+  "assert_stages": [
+    "all"
+  ],
+  "assert_fields": [
+    "all"
+  ]
+}

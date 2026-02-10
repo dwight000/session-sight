@@ -23,9 +23,10 @@ public static class DangerKeywordChecker
     /// </summary>
     public static readonly string[] SelfHarmKeywords =
     {
-        "self-harm", "self harm", "cutting", "hurt myself", "overdose",
+        "self-harm", "self harm", "cutting", "hurt myself",
         "burning myself", "scratching", "self-injury", "hurting myself",
-        "harming myself", "cut myself", "burned myself"
+        "harming myself", "cut myself", "burned myself",
+        "attempted overdose", "overdose attempt", "overdosed"
     };
 
     /// <summary>
@@ -33,9 +34,25 @@ public static class DangerKeywordChecker
     /// </summary>
     public static readonly string[] HomicidalKeywords =
     {
-        "homicidal", "kill someone", "hurt someone", "violent thoughts",
-        "want to hurt", "harm others", "kill them", "hurt them",
-        "thoughts of hurting", "thoughts of killing"
+        "homicidal",
+        "kill someone",
+        "kill somebody",
+        "hurt someone",
+        "hurt somebody",
+        "violent thoughts",
+        "harm others",
+        "harm other people",
+        "kill them",
+        "hurt them",
+        "want to hurt others",
+        "want to hurt someone",
+        "want to hurt somebody",
+        "thoughts of hurting others",
+        "thoughts of hurting someone",
+        "thoughts of hurting somebody",
+        "thoughts of killing others",
+        "thoughts of killing someone",
+        "thoughts of killing somebody"
     };
 
     /// <summary>

@@ -52,4 +52,9 @@ public class RiskAssessmentResult
     /// Model used for re-extraction.
     /// </summary>
     public string ModelUsed { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Structured diagnostic details for risk-field decisions.
+    /// </summary>
+    public RiskDiagnostics Diagnostics { get; set; } = new();
 }

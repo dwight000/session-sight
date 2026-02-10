@@ -51,6 +51,123 @@ public class RiskAssessorAgentTests
     }
 
     [Fact]
+    public void ParseRiskResponseWithCriteria_ValidCriteriaUsed_ParsesCriteria()
+    {
+        var json = """
+            {
+                "suicidalIdeation": {"value": "Passive", "confidence": 0.92},
+                "riskLevelOverall": {"value": "Moderate", "confidence": 0.90},
+                "criteria_used": {
+                    "suicidal_ideation": ["explicit_suicidal_statement", "denial_statement_present"],
+                    "risk_level_overall": ["si_present", "protective_factors_present"]
+                },
+                "reasoning_used": {
+                    "suicidal_ideation": "Patient directly reported suicidal thoughts, so ideation is present.",
+                    "risk_level_overall": "Risk is elevated due to ongoing ideation, but no immediate intent was stated."
+                }
+            }
+            """;
+
+        var result = RiskAssessorAgent.ParseRiskResponseWithCriteria(json);
+
+        result.Should().NotBeNull();
+        result!.Risk.SuicidalIdeation.Value.Should().Be(SuicidalIdeation.Passive);
+        result.CriteriaUsed.Should().ContainKey("suicidal_ideation");
+        result.CriteriaUsed["suicidal_ideation"].Should().Contain("explicit_suicidal_statement");
+        result.CriteriaUsed.Should().ContainKey("risk_level_overall");
+        result.ReasoningUsed.Should().ContainKey("suicidal_ideation");
+        result.ReasoningUsed["suicidal_ideation"].Should().Contain("reported suicidal thoughts");
+    }
+
+    [Fact]
+    public void ParseRiskResponseWithCriteria_MissingCriteriaUsed_ReturnsEmptyCriteria()
+    {
+        var json = """
+            {
+                "suicidalIdeation": {"value": "None", "confidence": 0.95}
+            }
+            """;
+
+        var result = RiskAssessorAgent.ParseRiskResponseWithCriteria(json);
+
+        result.Should().NotBeNull();
+        result!.CriteriaUsed.Should().BeEmpty();
+        result.ReasoningUsed.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void HasRequiredCriteriaUsed_AllKeysPresent_ReturnsTrue()
+    {
+        var criteria = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["suicidal_ideation"] = ["explicit_suicidal_statement"],
+            ["si_frequency"] = ["daily_frequency_statement"],
+            ["self_harm"] = ["self_injury_behavior_absent"],
+            ["homicidal_ideation"] = ["no_homicidal_thoughts_reported"],
+            ["risk_level_overall"] = ["active_with_plan"]
+        };
+
+        var isValid = RiskAssessorAgent.HasRequiredCriteriaUsed(criteria, out var missing);
+
+        isValid.Should().BeTrue();
+        missing.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void HasRequiredCriteriaUsed_MissingKeys_ReturnsFalseWithMissingList()
+    {
+        var criteria = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["suicidal_ideation"] = ["explicit_suicidal_statement"],
+            ["self_harm"] = [""]
+        };
+
+        var isValid = RiskAssessorAgent.HasRequiredCriteriaUsed(criteria, out var missing);
+
+        isValid.Should().BeFalse();
+        missing.Should().Contain("si_frequency");
+        missing.Should().Contain("self_harm");
+        missing.Should().Contain("homicidal_ideation");
+        missing.Should().Contain("risk_level_overall");
+    }
+
+    [Fact]
+    public void HasRequiredReasoningUsed_AllKeysPresent_ReturnsTrue()
+    {
+        var reasoning = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["suicidal_ideation"] = "Direct suicidal language is present in the note.",
+            ["si_frequency"] = "Frequency language indicates daily recurrence.",
+            ["self_harm"] = "No self-injury behavior is documented.",
+            ["homicidal_ideation"] = "No harm-to-others thoughts are reported.",
+            ["risk_level_overall"] = "Plan evidence supports a high overall risk level."
+        };
+
+        var isValid = RiskAssessorAgent.HasRequiredReasoningUsed(reasoning, out var missing);
+
+        isValid.Should().BeTrue();
+        missing.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void HasRequiredReasoningUsed_MissingKeys_ReturnsFalseWithMissingList()
+    {
+        var reasoning = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["suicidal_ideation"] = "Direct suicidal statements are present.",
+            ["self_harm"] = ""
+        };
+
+        var isValid = RiskAssessorAgent.HasRequiredReasoningUsed(reasoning, out var missing);
+
+        isValid.Should().BeFalse();
+        missing.Should().Contain("si_frequency");
+        missing.Should().Contain("self_harm");
+        missing.Should().Contain("homicidal_ideation");
+        missing.Should().Contain("risk_level_overall");
+    }
+
+    [Fact]
     public void ParseRiskResponse_MalformedJson_ReturnsNull()
     {
         var badJson = "not valid json at all";

@@ -1,0 +1,103 @@
+{
+  "note_id": "risk-test-027",
+  "note_content": "Patient discussing chronic pain stated 'Sometimes I think death would be a relief from this pain.' When explored, patient became tearful and said they think about this 'probably too much.' Unclear if this represents active wish to die or expression of suffering. Patient stated they are 'too Catholic' to ever do anything but also admitted to researching pain conditions that could be terminal. Recommend psychiatric consultation for clarification.",
+  "test_type": "Ambiguous death ideation in chronic pain context, concerning behaviors",
+  "expected_by_stage": [
+    {
+      "stage": "clinical_extractor",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "passive"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "frequent"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "moderate"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_reextracted",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "passive"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "frequent"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "moderate"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_final",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "passive"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "frequent"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "moderate"
+          ]
+        }
+      }
+    }
+  ],
+  "assert_stages": [
+    "all"
+  ],
+  "assert_fields": [
+    "all"
+  ]
+}

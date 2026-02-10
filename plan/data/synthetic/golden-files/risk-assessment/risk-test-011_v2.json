@@ -1,0 +1,91 @@
+{
+  "note_id": "risk-test-011",
+  "note_content": "Patient disclosed current self-harm behavior. Has been cutting forearms 2-3 times per week for the past month using a razor blade. Reports it helps manage overwhelming emotions after arguments with mother. Wounds are superficial and she cleans them afterward. Denies suicidal intent - 'I don't want to die, I just need to feel something different.' No history of suicidal ideation. Harm reduction strategies discussed.",
+  "test_type": "Current self-harm (cutting) without suicidal ideation",
+  "expected_by_stage": [
+    {
+      "stage": "clinical_extractor",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "current"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "moderate",
+            "high"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_reextracted",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "current"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "moderate",
+            "high"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_final",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "current"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "moderate",
+            "high"
+          ]
+        }
+      }
+    }
+  ],
+  "assert_stages": [
+    "all"
+  ],
+  "assert_fields": [
+    "all"
+  ]
+}

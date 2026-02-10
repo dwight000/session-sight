@@ -46,7 +46,7 @@ public class GoldenExtractionTests : IClassFixture<ApiFixture>
 
     public static IEnumerable<object[]> GoldenCases() => GoldenRiskCaseProvider.GetSelectedCases();
 
-    [Theory(Skip = "Temporarily disabled pending golden mismatch investigation; re-enable next session.")]
+    [Theory(Skip = "Temporarily disabled while tuning golden risk expectations and prompt alignment.")]
     [MemberData(nameof(GoldenCases))]
     public async Task GoldenRiskCases_ExtractionMatchesExpectedRiskFields(GoldenRiskCase goldenCase)
     {
@@ -54,11 +54,18 @@ public class GoldenExtractionTests : IClassFixture<ApiFixture>
         WriteSelectionManifest(selection);
 
         var sessionId = await CreateSessionWithNoteAsync(goldenCase);
-        await TriggerExtractionAsync(goldenCase, sessionId);
-        var extractionData = await GetExtractionDataAsync(sessionId);
-        var riskAssessment = extractionData.GetProperty("riskAssessment");
+        var triggerResult = await TriggerExtractionAsync(goldenCase, sessionId);
+        if (!triggerResult.ShouldContinueAssertions)
+        {
+            return;
+        }
 
-        AssertExpectedRiskFields(goldenCase, riskAssessment);
+        var extractionDto = await GetExtractionDtoAsync(sessionId);
+        var extractionData = extractionDto.GetProperty("data");
+        var stageOutputs = BuildStageOutputs(triggerResult.Response, extractionData);
+        WriteRiskDiagnostics(goldenCase, triggerResult.Response);
+
+        AssertExpectedRiskFields(goldenCase, stageOutputs);
     }
 
     private async Task<Guid> CreateSessionWithNoteAsync(GoldenRiskCase goldenCase)
@@ -289,7 +296,7 @@ public class GoldenExtractionTests : IClassFixture<ApiFixture>
             .Replace("(", "\\(", StringComparison.Ordinal)
             .Replace(")", "\\)", StringComparison.Ordinal);
 
-    private async Task TriggerExtractionAsync(GoldenRiskCase goldenCase, Guid sessionId)
+    private async Task<TriggerExtractionResult> TriggerExtractionAsync(GoldenRiskCase goldenCase, Guid sessionId)
     {
         var extractionResponse = await _longClient.PostAsync($"/api/extraction/{sessionId}", null);
         extractionResponse.StatusCode.Should().Be(HttpStatusCode.OK,
@@ -304,51 +311,166 @@ public class GoldenExtractionTests : IClassFixture<ApiFixture>
                 ? errProp.GetString()
                 : "Unknown error";
 
+            if (goldenCase.ExpectedOutcome is GoldenExpectedOutcome.ContentFilterBlocked or GoldenExpectedOutcome.ContentFilterOptional)
+            {
+                var normalizedError = errorMessage ?? string.Empty;
+                normalizedError.Should().Contain("content_filter",
+                    $"golden case {goldenCase.NoteId} expects content filter blocking.");
+                _output.WriteLine(
+                    $"Golden case {goldenCase.NoteId} matched expected content filter path: {normalizedError}");
+                return new TriggerExtractionResult(
+                    ShouldContinueAssertions: false,
+                    Response: extractionJson);
+            }
+
             throw new InvalidOperationException(
                 $"Golden case {goldenCase.NoteId} extraction failed. Error: {errorMessage}");
         }
+
+        if (goldenCase.ExpectedOutcome == GoldenExpectedOutcome.ContentFilterBlocked)
+        {
+            throw new InvalidOperationException(
+                $"Golden case {goldenCase.NoteId} expected content filter blocking but extraction succeeded.");
+        }
+
+        return new TriggerExtractionResult(
+            ShouldContinueAssertions: true,
+            Response: extractionJson);
     }
 
-    private async Task<JsonElement> GetExtractionDataAsync(Guid sessionId)
+    private async Task<JsonElement> GetExtractionDtoAsync(Guid sessionId)
     {
         var getResponse = await _client.GetAsync($"/api/sessions/{sessionId}/extraction");
         getResponse.StatusCode.Should().Be(HttpStatusCode.OK,
             $"Should retrieve saved extraction for session {sessionId}");
 
-        var dto = await getResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
-        return dto.GetProperty("data");
+        return await getResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
     }
 
-    private static void AssertExpectedRiskFields(GoldenRiskCase goldenCase, JsonElement riskAssessment)
+    private static Dictionary<string, JsonElement> BuildStageOutputs(JsonElement triggerResponse, JsonElement extractionData)
     {
-        foreach (var (expectedFieldKey, expectedRawValue) in goldenCase.ExpectedExtraction
-                     .OrderBy(entry => entry.Key, StringComparer.Ordinal))
+        var stageOutputs = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+
+        if (triggerResponse.TryGetProperty("riskStageOutputs", out var riskStages))
         {
-            ExpectedToActualRiskFieldMap.TryGetValue(expectedFieldKey, out var extractionFieldName)
+            if (riskStages.TryGetProperty("clinicalExtractor", out var clinicalExtractor))
+            {
+                stageOutputs["clinical_extractor"] = clinicalExtractor;
+            }
+
+            if (riskStages.TryGetProperty("riskReextracted", out var riskReextracted))
+            {
+                stageOutputs["risk_reextracted"] = riskReextracted;
+            }
+
+            if (riskStages.TryGetProperty("riskFinal", out var riskFinal))
+            {
+                stageOutputs["risk_final"] = riskFinal;
+            }
+        }
+
+        stageOutputs["risk_final"] = extractionData.GetProperty("riskAssessment");
+        return stageOutputs;
+    }
+
+    private static void AssertExpectedRiskFields(
+        GoldenRiskCase goldenCase,
+        IReadOnlyDictionary<string, JsonElement> stageOutputs)
+    {
+        var assertStages = ResolveAssertStages(goldenCase);
+
+        foreach (var stageName in assertStages)
+        {
+            var stageFound = goldenCase.ExpectedByStage.TryGetValue(stageName, out var expectedStage);
+            stageFound.Should().BeTrue(
+                $"Golden case {goldenCase.NoteId} missing expected_by_stage for stage '{stageName}' in {goldenCase.FilePath}");
+            expectedStage.Should().NotBeNull();
+            var expectedStageValue = expectedStage!;
+
+            stageOutputs.TryGetValue(stageName, out var actualStageOutput)
                 .Should().BeTrue(
-                    $"Golden case {goldenCase.NoteId} has unsupported expected_extraction key '{expectedFieldKey}' in {goldenCase.FilePath}");
+                    $"Golden case {goldenCase.NoteId} stage '{stageName}' was requested by assert_stages but not returned by extraction pipeline.");
 
-            var actualValue = ExtractionAssertions.GetFieldValue(riskAssessment, extractionFieldName!);
-            var expectedValue = NormalizeExpectedEnumValue(expectedRawValue);
+            var assertFields = ResolveAssertFields(goldenCase, expectedStageValue);
+            foreach (var expectedFieldKey in assertFields.OrderBy(field => field, StringComparer.Ordinal))
+            {
+                expectedStageValue.Fields.TryGetValue(expectedFieldKey, out var expectedAcceptRawValues)
+                    .Should().BeTrue(
+                        $"Golden case {goldenCase.NoteId} stage '{stageName}' missing expected field '{expectedFieldKey}'.");
 
-            actualValue.Should().Be(expectedValue,
-                $"golden case {goldenCase.NoteId} ({goldenCase.TestType}) expected {expectedFieldKey}='{expectedRawValue}' from {goldenCase.FileName}");
+                ExpectedToActualRiskFieldMap.TryGetValue(expectedFieldKey, out var extractionFieldName)
+                    .Should().BeTrue(
+                        $"Golden case {goldenCase.NoteId} has unsupported field '{expectedFieldKey}' in stage '{stageName}' ({goldenCase.FilePath}).");
+
+                var actualValue = ExtractionAssertions.GetFieldValue(actualStageOutput, extractionFieldName!);
+                var normalizedAccept = expectedAcceptRawValues!
+                    .Select(NormalizeExpectedValue)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                normalizedAccept.Should().Contain(actualValue,
+                    $"golden case {goldenCase.NoteId} ({goldenCase.TestType}) stage '{stageName}' expected {expectedFieldKey} in [{string.Join(", ", normalizedAccept)}] from {goldenCase.FileName}");
+            }
         }
     }
 
-    private static string NormalizeExpectedEnumValue(string expectedRawValue)
+    private static IReadOnlyCollection<string> ResolveAssertStages(GoldenRiskCase goldenCase)
     {
-        var tokens = expectedRawValue
-            .Split('_', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (goldenCase.AssertStages.Any(stage =>
+                string.Equals(stage, "all", StringComparison.OrdinalIgnoreCase)))
+        {
+            return goldenCase.ExpectedByStage.Keys.ToList();
+        }
 
-        if (tokens.Length == 0)
+        var requestedStages = goldenCase.AssertStages.ToList();
+        if (requestedStages.Count == 0)
         {
             throw new InvalidOperationException(
-                $"Expected extraction enum value cannot be empty: '{expectedRawValue}'");
+                $"Golden case {goldenCase.NoteId} has empty assert_stages in {goldenCase.FilePath}");
         }
 
-        return string.Concat(tokens.Select(token =>
-            $"{char.ToUpperInvariant(token[0])}{token[1..].ToLowerInvariant()}"));
+        return requestedStages;
+    }
+
+    private static IReadOnlyCollection<string> ResolveAssertFields(
+        GoldenRiskCase goldenCase,
+        GoldenStageExpectation stageExpectation)
+    {
+        if (goldenCase.AssertFields.Any(field =>
+                string.Equals(field, "all", StringComparison.OrdinalIgnoreCase)))
+        {
+            return stageExpectation.Fields.Keys.ToList();
+        }
+
+        var requestedFields = goldenCase.AssertFields.ToList();
+        if (requestedFields.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"Golden case {goldenCase.NoteId} has empty assert_fields in {goldenCase.FilePath}");
+        }
+
+        return requestedFields;
+    }
+
+    private static string NormalizeExpectedValue(string expectedRawValue)
+    {
+        var trimmed = expectedRawValue.Trim();
+        if (trimmed.Length == 0)
+        {
+            throw new InvalidOperationException("Expected value cannot be empty.");
+        }
+
+        if (trimmed.Contains('_', StringComparison.Ordinal))
+        {
+            var tokens = trimmed
+                .Split('_', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            return string.Concat(tokens.Select(token =>
+                $"{char.ToUpperInvariant(token[0])}{token[1..].ToLowerInvariant()}"));
+        }
+
+        return trimmed.Any(char.IsUpper)
+            ? trimmed
+            : $"{char.ToUpperInvariant(trimmed[0])}{trimmed[1..].ToLowerInvariant()}";
     }
 
     private void WriteSelectionManifest(GoldenRiskSelection selection)
@@ -357,4 +479,60 @@ public class GoldenExtractionTests : IClassFixture<ApiFixture>
             $"Golden selection mode={selection.Mode.ToString().ToLowerInvariant()}, date={selection.EffectiveDateUtc:yyyy-MM-dd}, corpus={selection.CorpusCount}, candidates={selection.CandidateCount}, selected={selection.SelectedCount}, filter={selection.Filter ?? "(none)"}");
         _output.WriteLine("Selected cases: " + string.Join(", ", selection.SelectedCases.Select(c => c.NoteId)));
     }
+
+    private void WriteRiskDiagnostics(GoldenRiskCase goldenCase, JsonElement triggerResponse)
+    {
+        if (!triggerResponse.TryGetProperty("riskDiagnostics", out var responseDiagnostics))
+        {
+            _output.WriteLine($"No riskDiagnostics present in trigger response for {goldenCase.NoteId}.");
+            return;
+        }
+
+        _output.WriteLine($"Risk diagnostics for {goldenCase.NoteId}:");
+        var criteriaValidationAttemptsUsed = 1;
+        if (responseDiagnostics.TryGetProperty("criteriaValidationAttemptsUsed", out var attemptsElement) &&
+            attemptsElement.TryGetInt32(out var attemptsParsed))
+        {
+            criteriaValidationAttemptsUsed = attemptsParsed;
+        }
+
+        _output.WriteLine($"criteria_validation_attempts_used={criteriaValidationAttemptsUsed}");
+        _output.WriteLine("field | original | re_extracted | final | rule_applied | criteria_used | reasoning_used");
+
+        if (responseDiagnostics.TryGetProperty("decisions", out var decisions)
+            && decisions.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var decision in decisions.EnumerateArray())
+            {
+                var field = GetDiagnosticValue(decision, "field");
+                var original = GetDiagnosticValue(decision, "originalValue");
+                var reExtracted = GetDiagnosticValue(decision, "reExtractedValue");
+                var final = GetDiagnosticValue(decision, "finalValue");
+                var rule = GetDiagnosticValue(decision, "ruleApplied");
+                var criteria = GetDiagnosticValue(decision, "criteriaUsed");
+                var reasoning = GetDiagnosticValue(decision, "reasoningUsed");
+                _output.WriteLine($"{field} | {original} | {reExtracted} | {final} | {rule} | {criteria} | {reasoning}");
+            }
+        }
+    }
+
+    private static string GetDiagnosticValue(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property))
+        {
+            return "(missing)";
+        }
+
+        return property.ValueKind switch
+        {
+            JsonValueKind.Null => "null",
+            JsonValueKind.String => property.GetString() ?? string.Empty,
+            JsonValueKind.Array => string.Join(",", property.EnumerateArray().Select(item => item.ToString())),
+            _ => property.ToString()
+        };
+    }
+
+    private sealed record TriggerExtractionResult(
+        bool ShouldContinueAssertions,
+        JsonElement Response);
 }

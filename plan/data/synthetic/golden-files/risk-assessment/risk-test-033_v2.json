@@ -1,0 +1,104 @@
+{
+  "note_id": "risk-test-033",
+  "note_content": "Session attended with mother present. Mother reports finding text messages where patient told friend 'I want to kill myself, I can't do this anymore.' Mother also found patient researching overdose amounts online. When confronted, patient became defensive and stated 'I was just venting, I didn't mean it literally.' Patient denies current suicidal ideation and refuses to discuss further. Given collateral information indicating active SI with research behavior, safety plan initiated despite patient denial. Parents to secure medications.",
+  "test_type": "Collateral conflict - family reports SI with research, patient denies - collateral should override",
+  "expected_outcome": "content_filter_optional",
+  "expected_by_stage": [
+    {
+      "stage": "clinical_extractor",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "active_with_plan"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "occasional"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "high"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_reextracted",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "active_with_plan"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "occasional"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "high"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_final",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "active_with_plan"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "occasional"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "high"
+          ]
+        }
+      }
+    }
+  ],
+  "assert_stages": [
+    "all"
+  ],
+  "assert_fields": [
+    "all"
+  ]
+}

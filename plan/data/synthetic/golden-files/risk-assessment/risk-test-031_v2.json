@@ -1,0 +1,103 @@
+{
+  "note_id": "risk-test-031",
+  "note_content": "Patient reports frequent thoughts about ending his life. States he thinks about suicide 'almost every day' but when asked about method, says 'I haven't really thought about how, I just want the pain to stop.' No specific plan identified. No means acquired. Denies intent to act. Reports these thoughts started after divorce was finalized. Safety plan reviewed and updated.",
+  "test_type": "Active SI without plan - thoughts present but no specific method identified",
+  "expected_by_stage": [
+    {
+      "stage": "clinical_extractor",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "active_no_plan"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "frequent"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "high"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_reextracted",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "active_no_plan"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "frequent"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "high"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_final",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "active_no_plan"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "frequent"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "high"
+          ]
+        }
+      }
+    }
+  ],
+  "assert_stages": [
+    "all"
+  ],
+  "assert_fields": [
+    "all"
+  ]
+}

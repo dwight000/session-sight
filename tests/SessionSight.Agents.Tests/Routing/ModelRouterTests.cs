@@ -9,7 +9,7 @@ public class ModelRouterTests
 
     [Theory]
     [InlineData(ModelTask.DocumentIntake, ModelRouter.Gpt41Nano)]
-    [InlineData(ModelTask.Extraction, ModelRouter.Gpt41Mini)]
+    [InlineData(ModelTask.Extraction, ModelRouter.Gpt41)]
     [InlineData(ModelTask.ExtractionSimple, ModelRouter.Gpt41Nano)]
     [InlineData(ModelTask.RiskAssessment, ModelRouter.Gpt41Mini)]
     [InlineData(ModelTask.Summarization, ModelRouter.Gpt41Nano)]
@@ -32,6 +32,7 @@ public class ModelRouterTests
     [Fact]
     public void ModelConstants_HaveCorrectValues()
     {
+        ModelRouter.Gpt41.Should().Be("gpt-4.1");
         ModelRouter.Gpt41Mini.Should().Be("gpt-4.1-mini");
         ModelRouter.Gpt41Nano.Should().Be("gpt-4.1-nano");
         ModelRouter.Embedding.Should().Be("text-embedding-3-large");

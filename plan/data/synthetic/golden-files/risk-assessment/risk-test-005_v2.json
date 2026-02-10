@@ -1,0 +1,103 @@
+{
+  "note_id": "risk-test-005",
+  "note_content": "Patient called emergency line this morning reporting active suicidal ideation. States she wants to end her life and has been thinking about using her husband's firearm. Husband is away on business trip and she has access to gun safe combination. Reports feeling completely hopeless since learning about infidelity. Mobile crisis team dispatched. Patient voluntarily surrendered firearm to neighbor before transport to ER for evaluation.",
+  "test_type": "Active SI with lethal means access and acute crisis",
+  "expected_by_stage": [
+    {
+      "stage": "clinical_extractor",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "active_with_plan"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "constant"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "imminent"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_reextracted",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "active_with_plan"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "constant"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "imminent"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_final",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "active_with_plan"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "constant"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "imminent"
+          ]
+        }
+      }
+    }
+  ],
+  "assert_stages": [
+    "all"
+  ],
+  "assert_fields": [
+    "all"
+  ]
+}

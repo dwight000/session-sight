@@ -21,6 +21,8 @@ public class OptionsTests
         options.AlwaysReExtract.Should().BeTrue();
         options.EnableKeywordSafetyNet.Should().BeTrue();
         options.UseConservativeMerge.Should().BeTrue();
+        options.RequireCriteriaUsed.Should().BeTrue();
+        options.CriteriaValidationAttempts.Should().Be(2);
     }
 
     [Fact]
@@ -31,13 +33,17 @@ public class OptionsTests
             RiskConfidenceThreshold = 0.85,
             AlwaysReExtract = false,
             EnableKeywordSafetyNet = false,
-            UseConservativeMerge = false
+            UseConservativeMerge = false,
+            RequireCriteriaUsed = false,
+            CriteriaValidationAttempts = 4
         };
 
         options.RiskConfidenceThreshold.Should().Be(0.85);
         options.AlwaysReExtract.Should().BeFalse();
         options.EnableKeywordSafetyNet.Should().BeFalse();
         options.UseConservativeMerge.Should().BeFalse();
+        options.RequireCriteriaUsed.Should().BeFalse();
+        options.CriteriaValidationAttempts.Should().Be(4);
     }
 
     [Fact]

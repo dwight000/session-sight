@@ -1,0 +1,88 @@
+{
+  "note_id": "risk-test-029",
+  "note_content": "Routine psychiatric follow-up. Patient with history of major depressive disorder, currently in remission on sertraline 100mg. Reports mood has been stable for past 6 months. Denies suicidal ideation. Denies self-harm urges or behaviors. Denies homicidal ideation. Sleep 7-8 hours nightly. Appetite good. Energy improved. Continue current medications. Follow up in 3 months.",
+  "test_type": "Negated statements using 'Denies' - should extract as none",
+  "expected_by_stage": [
+    {
+      "stage": "clinical_extractor",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "low"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_reextracted",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "low"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_final",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "low"
+          ]
+        }
+      }
+    }
+  ],
+  "assert_stages": [
+    "all"
+  ],
+  "assert_fields": [
+    "all"
+  ]
+}

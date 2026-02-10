@@ -183,7 +183,12 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             }
 
             // Step 6: Save to database
-            var savedExtraction = await SaveExtractionAsync(session, extractionResult, modelsUsed, sessionSummary);
+            var savedExtraction = await SaveExtractionAsync(
+                session,
+                extractionResult,
+                modelsUsed,
+                sessionSummary,
+                riskResult.Diagnostics);
 
             // Update document status to Completed
             await _sessionRepository.UpdateDocumentStatusAsync(
@@ -200,7 +205,14 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                 RequiresReview = extractionResult.RequiresReview,
                 ModelsUsed = modelsUsed,
                 ElapsedMilliseconds = stopwatch.ElapsedMilliseconds,
-                ToolCallCount = extractionResult.ToolCallCount
+                ToolCallCount = extractionResult.ToolCallCount,
+                RiskStageOutputs = new RiskStageOutputs
+                {
+                    ClinicalExtractor = riskResult.OriginalExtraction,
+                    RiskReextracted = riskResult.ValidatedExtraction,
+                    RiskFinal = riskResult.FinalExtraction
+                },
+                RiskDiagnostics = riskResult.Diagnostics
             };
         }
         catch (Exception ex)
@@ -233,7 +245,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         Session session,
         AgentExtractionResult agentResult,
         List<string> modelsUsed,
-        SessionSummary? sessionSummary)
+        SessionSummary? sessionSummary,
+        RiskDiagnostics? riskDiagnostics)
     {
         // Convert agent result to entity
         var reviewReasons = agentResult.LowConfidenceFields
@@ -256,6 +269,14 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             Data = agentResult.Data,
             SummaryJson = sessionSummary != null
                 ? JsonSerializer.Serialize(sessionSummary, JsonOptions)
+                : null,
+            CriteriaValidationAttemptsUsed = riskDiagnostics?.CriteriaValidationAttemptsUsed ?? 1,
+            HomicidalGuardrailApplied = riskDiagnostics?.HomicidalGuardrailApplied ?? false,
+            HomicidalGuardrailReason = riskDiagnostics?.HomicidalGuardrailReason,
+            SelfHarmGuardrailApplied = riskDiagnostics?.SelfHarmGuardrailApplied ?? false,
+            SelfHarmGuardrailReason = riskDiagnostics?.SelfHarmGuardrailReason,
+            RiskDecisionsJson = riskDiagnostics?.Decisions != null
+                ? JsonSerializer.Serialize(riskDiagnostics.Decisions, JsonOptions)
                 : null
         };
 

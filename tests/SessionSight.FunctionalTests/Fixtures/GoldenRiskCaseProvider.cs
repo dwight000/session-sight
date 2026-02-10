@@ -11,6 +11,7 @@ internal static class GoldenRiskCaseProvider
     private const int DefaultSmokeCount = 5;
     private static readonly TimeSpan DailyBoundaryEastern = TimeSpan.FromHours(7);
     private const string GoldenRootRelativePath = "plan/data/synthetic/golden-files/risk-assessment";
+    private const string GoldenFilePattern = "*_v2.json";
 
     private static readonly Lazy<GoldenRiskSelection> SelectionLazy = new(LoadSelection);
 
@@ -30,14 +31,14 @@ internal static class GoldenRiskCaseProvider
                 $"Golden risk directory not found: {goldenDirectory}");
         }
 
-        var allFiles = Directory.GetFiles(goldenDirectory, "*.json", SearchOption.TopDirectoryOnly)
+        var allFiles = Directory.GetFiles(goldenDirectory, GoldenFilePattern, SearchOption.TopDirectoryOnly)
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToArray();
 
         if (allFiles.Length == 0)
         {
             throw new InvalidOperationException(
-                $"No golden files found in: {goldenDirectory}");
+                $"No v2 golden files found in: {goldenDirectory} (pattern '{GoldenFilePattern}').");
         }
 
         var allCases = allFiles.Select(LoadCase).ToList();
@@ -113,7 +114,7 @@ internal static class GoldenRiskCaseProvider
     private static GoldenRiskCase LoadCase(string filePath)
     {
         var content = File.ReadAllTextAsync(filePath).GetAwaiter().GetResult();
-        var parsed = JsonSerializer.Deserialize<GoldenRiskFile>(content, JsonOptions)
+        var parsed = JsonSerializer.Deserialize<GoldenRiskFileV2>(content, JsonOptions)
             ?? throw new InvalidOperationException($"Failed to parse golden file: {filePath}");
 
         if (string.IsNullOrWhiteSpace(parsed.NoteId))
@@ -131,30 +132,112 @@ internal static class GoldenRiskCaseProvider
             throw new InvalidOperationException($"Missing 'test_type' in {filePath}");
         }
 
-        if (parsed.ExpectedExtraction is null || parsed.ExpectedExtraction.Count == 0)
-        {
-            throw new InvalidOperationException($"Missing 'expected_extraction' in {filePath}");
-        }
-
-        var expectedExtraction = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (key, value) in parsed.ExpectedExtraction)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                throw new InvalidOperationException(
-                    $"Expected extraction value for key '{key}' is null/empty in {filePath}");
-            }
-
-            expectedExtraction[key] = value;
-        }
+        var expectedByStage = ParseExpectedByStage(parsed, filePath);
+        var assertStages = ParseAssertTargets(parsed.AssertStages, "assert_stages", filePath);
+        var assertFields = ParseAssertTargets(parsed.AssertFields, "assert_fields", filePath);
+        var expectedOutcome = ParseExpectedOutcome(parsed.ExpectedOutcome, filePath);
 
         return new GoldenRiskCase(
             NoteId: parsed.NoteId,
             NoteContent: parsed.NoteContent,
             TestType: parsed.TestType,
-            ExpectedExtraction: expectedExtraction,
+            ExpectedOutcome: expectedOutcome,
+            ExpectedByStage: expectedByStage,
+            AssertStages: assertStages,
+            AssertFields: assertFields,
             FilePath: filePath,
             FileName: Path.GetFileName(filePath));
+    }
+
+    private static IReadOnlyDictionary<string, GoldenStageExpectation> ParseExpectedByStage(
+        GoldenRiskFileV2 parsed,
+        string filePath)
+    {
+        if (parsed.ExpectedByStage is null || parsed.ExpectedByStage.Count == 0)
+        {
+            throw new InvalidOperationException($"Missing 'expected_by_stage' in {filePath}");
+        }
+
+        var byStage = new Dictionary<string, GoldenStageExpectation>(StringComparer.OrdinalIgnoreCase);
+        foreach (var stage in parsed.ExpectedByStage)
+        {
+            if (string.IsNullOrWhiteSpace(stage.Stage))
+            {
+                throw new InvalidOperationException($"expected_by_stage contains empty 'stage' in {filePath}");
+            }
+
+            if (stage.Fields is null || stage.Fields.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    $"expected_by_stage '{stage.Stage}' has no fields in {filePath}");
+            }
+
+            var fieldMap = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (fieldKey, fieldExpectations) in stage.Fields)
+            {
+                if (string.IsNullOrWhiteSpace(fieldKey))
+                {
+                    throw new InvalidOperationException(
+                        $"expected_by_stage '{stage.Stage}' has an empty field name in {filePath}");
+                }
+
+                var acceptedValues = (fieldExpectations.Accept ?? [])
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .Select(value => value.Trim())
+                    .ToList();
+
+                if (acceptedValues.Count == 0)
+                {
+                    throw new InvalidOperationException(
+                        $"expected_by_stage '{stage.Stage}' field '{fieldKey}' has empty accept[] in {filePath}");
+                }
+
+                fieldMap[fieldKey] = acceptedValues;
+            }
+
+            if (!byStage.TryAdd(stage.Stage, new GoldenStageExpectation(stage.Stage, fieldMap)))
+            {
+                throw new InvalidOperationException(
+                    $"Duplicate stage '{stage.Stage}' in expected_by_stage for {filePath}");
+            }
+        }
+
+        return byStage;
+    }
+
+    private static IReadOnlyList<string> ParseAssertTargets(
+        List<string> targets,
+        string fieldName,
+        string filePath)
+    {
+        var normalized = targets
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .ToList();
+
+        if (normalized.Count == 0)
+        {
+            throw new InvalidOperationException($"'{fieldName}' must be non-empty in {filePath}");
+        }
+
+        return normalized;
+    }
+
+    private static GoldenExpectedOutcome ParseExpectedOutcome(string? value, string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return GoldenExpectedOutcome.ExtractionSuccess;
+        }
+
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "extraction_success" => GoldenExpectedOutcome.ExtractionSuccess,
+            "content_filter_blocked" => GoldenExpectedOutcome.ContentFilterBlocked,
+            "content_filter_optional" => GoldenExpectedOutcome.ContentFilterOptional,
+            _ => throw new InvalidOperationException(
+                $"Invalid expected_outcome '{value}' in {filePath}. Expected 'extraction_success', 'content_filter_blocked', or 'content_filter_optional'.")
+        };
     }
 
     private static string FindRepositoryRoot()
@@ -274,7 +357,7 @@ internal static class GoldenRiskCaseProvider
         PropertyNameCaseInsensitive = true
     };
 
-    private sealed class GoldenRiskFile
+    private sealed class GoldenRiskFileV2
     {
         [JsonPropertyName("note_id")]
         public string NoteId { get; init; } = string.Empty;
@@ -282,12 +365,37 @@ internal static class GoldenRiskCaseProvider
         [JsonPropertyName("note_content")]
         public string NoteContent { get; init; } = string.Empty;
 
-        [JsonPropertyName("expected_extraction")]
-        public Dictionary<string, string> ExpectedExtraction { get; init; } = new(StringComparer.OrdinalIgnoreCase);
-
         [JsonPropertyName("test_type")]
         public string TestType { get; init; } = string.Empty;
+
+        [JsonPropertyName("expected_outcome")]
+        public string? ExpectedOutcome { get; init; }
+
+        [JsonPropertyName("expected_by_stage")]
+        public List<GoldenRiskStageFile> ExpectedByStage { get; init; } = [];
+
+        [JsonPropertyName("assert_stages")]
+        public List<string> AssertStages { get; init; } = [];
+
+        [JsonPropertyName("assert_fields")]
+        public List<string> AssertFields { get; init; } = [];
     }
+
+    private sealed class GoldenRiskStageFile
+    {
+        [JsonPropertyName("stage")]
+        public string Stage { get; init; } = string.Empty;
+
+        [JsonPropertyName("fields")]
+        public Dictionary<string, GoldenFieldExpectationFile> Fields { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private sealed class GoldenFieldExpectationFile
+    {
+        [JsonPropertyName("accept")]
+        public List<string> Accept { get; init; } = [];
+    }
+
 }
 
 internal enum GoldenMode
@@ -300,12 +408,27 @@ public sealed record GoldenRiskCase(
     string NoteId,
     string NoteContent,
     string TestType,
-    IReadOnlyDictionary<string, string> ExpectedExtraction,
+    GoldenExpectedOutcome ExpectedOutcome,
+    IReadOnlyDictionary<string, GoldenStageExpectation> ExpectedByStage,
+    IReadOnlyList<string> AssertStages,
+    IReadOnlyList<string> AssertFields,
     string FilePath,
     string FileName)
 {
     public override string ToString() => NoteId;
 }
+
+public sealed record GoldenStageExpectation(
+    string Stage,
+    IReadOnlyDictionary<string, IReadOnlyList<string>> Fields);
+
+public enum GoldenExpectedOutcome
+{
+    ExtractionSuccess,
+    ContentFilterBlocked,
+    ContentFilterOptional
+}
+
 
 internal sealed record GoldenRiskSelection(
     GoldenMode Mode,

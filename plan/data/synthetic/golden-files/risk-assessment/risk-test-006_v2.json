@@ -1,0 +1,103 @@
+{
+  "note_id": "risk-test-006",
+  "note_content": "Patient reports feeling exhausted by life. States 'I just wish I could go to sleep and not wake up.' Denies any plans or intent to harm self. No specific methods considered. Reports these thoughts occur a few times per week, usually at night when alone. Finds some relief in talking to her sister. Coping strategies reviewed.",
+  "test_type": "Classic passive SI - wish to not exist without plan or intent",
+  "expected_by_stage": [
+    {
+      "stage": "clinical_extractor",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "passive"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "occasional"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "moderate"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_reextracted",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "passive"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "occasional"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "moderate"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_final",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "passive"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "occasional"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "moderate"
+          ]
+        }
+      }
+    }
+  ],
+  "assert_stages": [
+    "all"
+  ],
+  "assert_fields": [
+    "all"
+  ]
+}

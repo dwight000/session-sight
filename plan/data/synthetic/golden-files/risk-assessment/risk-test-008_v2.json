@@ -1,0 +1,103 @@
+{
+  "note_id": "risk-test-008",
+  "note_content": "Patient tearful throughout session. Reports pervasive hopelessness since divorce was finalized. States 'I don't see the point in going on' and 'Nothing will ever get better.' When asked directly about suicidal thoughts, endorsed wishing she were dead but quickly added she would never do anything because of her children. No plans or means considered. These thoughts are present most days.",
+  "test_type": "Passive SI with protective factors identified, frequent hopelessness",
+  "expected_by_stage": [
+    {
+      "stage": "clinical_extractor",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "passive"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "frequent"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "moderate"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_reextracted",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "passive"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "frequent"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "moderate"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_final",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "passive"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "frequent"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "moderate"
+          ]
+        }
+      }
+    }
+  ],
+  "assert_stages": [
+    "all"
+  ],
+  "assert_fields": [
+    "all"
+  ]
+}

@@ -1,3 +1,6 @@
+using SessionSight.Agents.Models;
+using SessionSight.Core.Schema;
+
 namespace SessionSight.Agents.Orchestration;
 
 /// <summary>
@@ -45,4 +48,26 @@ public class OrchestrationResult
     /// Number of tool calls made by the agent during extraction.
     /// </summary>
     public int ToolCallCount { get; set; }
+
+    /// <summary>
+    /// Risk stage outputs captured during orchestration for diagnostics/testing.
+    /// </summary>
+    public RiskStageOutputs? RiskStageOutputs { get; set; }
+
+    /// <summary>
+    /// Structured risk diagnostics from risk assessor merge/guardrail decisions.
+    /// </summary>
+    public RiskDiagnostics? RiskDiagnostics { get; set; }
+}
+
+/// <summary>
+/// Captures risk extraction snapshots for each stage of the risk pipeline.
+/// </summary>
+public sealed class RiskStageOutputs
+{
+    public RiskAssessmentExtracted ClinicalExtractor { get; set; } = new();
+
+    public RiskAssessmentExtracted RiskReextracted { get; set; } = new();
+
+    public RiskAssessmentExtracted RiskFinal { get; set; } = new();
 }

@@ -1,0 +1,103 @@
+{
+  "note_id": "risk-test-035",
+  "note_content": "Patient arrived to session intoxicated, smelling of alcohol. Slurred speech, poor balance. Became tearful and stated 'What's the point? I should just drive into a tree on the way home.' When asked to clarify, said 'I think about it every time I drink, which is every night now.' Reports having identified specific tree on route home. Denied intent but admitted 'I don't know if I'd stop myself.' Keys confiscated, emergency contact called for transport. Referral to substance treatment provided.",
+  "test_type": "Substance intoxication with active SI - impaired judgment increases risk severity",
+  "expected_by_stage": [
+    {
+      "stage": "clinical_extractor",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "active_with_plan"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "frequent"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "imminent"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_reextracted",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "active_with_plan"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "frequent"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "imminent"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_final",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "active_with_plan"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "frequent"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "imminent"
+          ]
+        }
+      }
+    }
+  ],
+  "assert_stages": [
+    "all"
+  ],
+  "assert_fields": [
+    "all"
+  ]
+}

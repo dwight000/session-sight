@@ -37,6 +37,15 @@ public class RiskPromptsTests
     }
 
     [Fact]
+    public void SystemPrompt_RequiresCompleteCriteriaUsedObject()
+    {
+        RiskPrompts.SystemPrompt.Should().Contain("criteria_used");
+        RiskPrompts.SystemPrompt.Should().Contain("reasoning_used");
+        RiskPrompts.SystemPrompt.Should().Contain("must include all five keys");
+        RiskPrompts.SystemPrompt.Should().Contain("insufficient_evidence");
+    }
+
+    [Fact]
     public void GetRiskReExtractionPrompt_IncludesNoteText()
     {
         var noteText = "Patient reports feeling anxious.";
@@ -122,5 +131,17 @@ public class RiskPromptsTests
         var prompt = RiskPrompts.GetRiskReExtractionPrompt("Test note");
 
         prompt.Should().Contain("0.90");
+    }
+
+    [Fact]
+    public void GetRiskReExtractionPrompt_RequiresNonEmptyCriteriaUsedValues()
+    {
+        var prompt = RiskPrompts.GetRiskReExtractionPrompt("Test note");
+
+        prompt.Should().Contain("must include all 5 keys");
+        prompt.Should().Contain("at least one non-empty label");
+        prompt.Should().Contain("reasoning_used");
+        prompt.Should().Contain("non-empty freeform sentence");
+        prompt.Should().Contain("insufficient_evidence");
     }
 }

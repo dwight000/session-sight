@@ -24,7 +24,13 @@ public class ExtractionResultMappingsTests
             OverallConfidence = 0.95,
             RequiresReview = true,
             ExtractedAt = extractedAt,
-            Data = data
+            Data = data,
+            CriteriaValidationAttemptsUsed = 2,
+            HomicidalGuardrailApplied = true,
+            HomicidalGuardrailReason = "keyword_present",
+            SelfHarmGuardrailApplied = false,
+            SelfHarmGuardrailReason = null,
+            RiskDecisionsJson = """[{"field":"suicidal_ideation"}]"""
         };
 
         var dto = entity.ToDto();
@@ -37,6 +43,12 @@ public class ExtractionResultMappingsTests
         dto.RequiresReview.Should().BeTrue();
         dto.ExtractedAt.Should().Be(extractedAt);
         dto.Data.Should().BeSameAs(data);
+        dto.CriteriaValidationAttemptsUsed.Should().Be(2);
+        dto.HomicidalGuardrailApplied.Should().BeTrue();
+        dto.HomicidalGuardrailReason.Should().Be("keyword_present");
+        dto.SelfHarmGuardrailApplied.Should().BeFalse();
+        dto.SelfHarmGuardrailReason.Should().BeNull();
+        dto.RiskDecisionsJson.Should().NotBeNull();
     }
 
     [Fact]
@@ -54,6 +66,10 @@ public class ExtractionResultMappingsTests
         dto.ModelUsed.Should().BeEmpty();
         dto.OverallConfidence.Should().Be(0);
         dto.RequiresReview.Should().BeFalse();
+        dto.CriteriaValidationAttemptsUsed.Should().Be(1);
+        dto.HomicidalGuardrailApplied.Should().BeFalse();
+        dto.SelfHarmGuardrailApplied.Should().BeFalse();
+        dto.RiskDecisionsJson.Should().BeNull();
     }
 
     [Fact]

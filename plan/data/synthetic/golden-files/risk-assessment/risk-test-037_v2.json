@@ -1,0 +1,88 @@
+{
+  "note_id": "risk-test-037",
+  "note_content": "45yo F w/ hx MDD, GAD. F/u visit. Pt reports mood 7/10, improved from 4/10 last visit. Sleep 6-7hrs, appetite fair. Denies SI/SH/HI. No AH/VH. Compliance w/ Lexapro 20mg qd - good. PHQ-9: 8 (was 14). GAD-7: 6. A/P: MDD in partial remission. Continue current tx. RTC 4wks.",
+  "test_type": "Clinical abbreviation format - heavy use of medical shorthand (SI/SH/HI neg, hx, F/u, qd)",
+  "expected_by_stage": [
+    {
+      "stage": "clinical_extractor",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "low"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_reextracted",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "low"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_final",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "low"
+          ]
+        }
+      }
+    }
+  ],
+  "assert_stages": [
+    "all"
+  ],
+  "assert_fields": [
+    "all"
+  ]
+}

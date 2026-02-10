@@ -29,4 +29,15 @@ public class RiskAssessorOptions
     /// Whether to use conservative merge (more severe value wins).
     /// </summary>
     public bool UseConservativeMerge { get; set; } = true;
+
+    /// <summary>
+    /// Whether risk re-extraction must include non-empty criteria_used values for all required risk fields.
+    /// </summary>
+    public bool RequireCriteriaUsed { get; set; } = true;
+
+    /// <summary>
+    /// Max attempts for risk re-extraction when criteria_used validation fails.
+    /// Includes the initial attempt.
+    /// </summary>
+    public int CriteriaValidationAttempts { get; set; } = 2;
 }

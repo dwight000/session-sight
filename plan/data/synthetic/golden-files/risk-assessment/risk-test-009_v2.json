@@ -1,0 +1,103 @@
+{
+  "note_id": "risk-test-009",
+  "note_content": "Adolescent patient presented with flat affect. Reports feeling like 'disappearing' and having thoughts that 'things would be easier if I just wasn't here anymore.' Denies any plans, intent, or means. States these thoughts come and go, maybe a couple times a week. Has not told parents. School performance declining. Discussed importance of informing parents with patient consent. Safety resources provided.",
+  "test_type": "Passive SI in adolescent, euphemistic language about disappearing",
+  "expected_by_stage": [
+    {
+      "stage": "clinical_extractor",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "passive"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "occasional"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "moderate"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_reextracted",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "passive"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "occasional"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "moderate"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_final",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "passive"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "occasional"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "moderate"
+          ]
+        }
+      }
+    }
+  ],
+  "assert_stages": [
+    "all"
+  ],
+  "assert_fields": [
+    "all"
+  ]
+}

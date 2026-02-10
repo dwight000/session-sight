@@ -10,4 +10,10 @@ public record ExtractionResultDto(
     double OverallConfidence,
     bool RequiresReview,
     DateTime ExtractedAt,
-    ClinicalExtraction Data);
+    ClinicalExtraction Data,
+    int CriteriaValidationAttemptsUsed,
+    bool HomicidalGuardrailApplied,
+    string? HomicidalGuardrailReason,
+    bool SelfHarmGuardrailApplied,
+    string? SelfHarmGuardrailReason,
+    string? RiskDecisionsJson);

@@ -32,8 +32,19 @@ namespace SessionSight.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("CriteriaValidationAttemptsUsed")
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
                     b.Property<DateTime>("ExtractedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<bool>("HomicidalGuardrailApplied")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("HomicidalGuardrailReason")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("ModelUsed")
                         .IsRequired()
@@ -55,6 +66,9 @@ namespace SessionSight.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("RiskDecisionsJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("SchemaVersion")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -62,6 +76,13 @@ namespace SessionSight.Infrastructure.Migrations
 
                     b.Property<Guid>("SessionId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("SelfHarmGuardrailApplied")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("SelfHarmGuardrailReason")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("SummaryJson")
                         .HasColumnType("nvarchar(max)");

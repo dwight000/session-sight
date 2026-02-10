@@ -48,6 +48,14 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
     private const string FieldSelfHarm = "SelfHarm";
     private const string FieldHomicidalIdeation = "HomicidalIdeation";
     private const string FieldRiskLevelOverall = "RiskLevelOverall";
+    private static readonly string[] RequiredDiagnosticKeys =
+    [
+        "suicidal_ideation",
+        "si_frequency",
+        "self_harm",
+        "homicidal_ideation",
+        "risk_level_overall"
+    ];
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -80,6 +88,10 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         {
             OriginalExtraction = extraction.Data.RiskAssessment
         };
+        KeywordCheckResult? keywordResult = null;
+        var criteriaUsed = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        var reasoningUsed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var criteriaValidationAttemptsUsed = 1;
 
         // Step 1: Re-extract with focused safety prompt
         var modelName = _modelRouter.SelectModel(ModelTask.RiskAssessment);
@@ -88,10 +100,18 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         try
         {
             var reExtracted = await ReExtractRiskAsync(originalNoteText, modelName, ct);
-            result.ValidatedExtraction = reExtracted;
+            result.ValidatedExtraction = reExtracted.Risk;
+            criteriaUsed = reExtracted.CriteriaUsed;
+            reasoningUsed = reExtracted.ReasoningUsed;
+            criteriaValidationAttemptsUsed = Math.Max(1, reExtracted.CriteriaValidationAttemptsUsed);
         }
         catch (Exception ex)
         {
+            if (_options.RequireCriteriaUsed && ex is MissingDiagnosticFeedbackException)
+            {
+                throw;
+            }
+
             LogRiskReExtractionError(_logger, ex, extraction.SessionId);
             result.ValidatedExtraction = new RiskAssessmentExtracted();
             result.ReviewReasons.Add($"Re-extraction failed: {ex.Message}");
@@ -101,7 +121,7 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         // Step 2: Check for danger keywords (safety net)
         if (_options.EnableKeywordSafetyNet)
         {
-            var keywordResult = DangerKeywordChecker.Check(originalNoteText);
+            keywordResult = DangerKeywordChecker.Check(originalNoteText);
             result.KeywordMatches = keywordResult.AllMatches;
 
             // Flag if keywords found but extraction shows "None"
@@ -118,6 +138,23 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
             ? ConservativeMerge(result.OriginalExtraction, result.ValidatedExtraction)
             : result.ValidatedExtraction;
 
+        var homicidalGuardrail = ApplyHomicidalEvidenceGuardrail(result, keywordResult);
+        var selfHarmGuardrail = ApplySelfHarmEvidenceGuardrail(result, keywordResult, criteriaUsed);
+
+        result.Diagnostics = BuildDiagnostics(
+            result.OriginalExtraction,
+            result.ValidatedExtraction,
+            result.FinalExtraction,
+            result.Discrepancies,
+            keywordResult,
+            homicidalGuardrail.Applied,
+            homicidalGuardrail.Reason,
+            selfHarmGuardrail.Applied,
+            selfHarmGuardrail.Reason,
+            criteriaUsed,
+            reasoningUsed,
+            criteriaValidationAttemptsUsed);
+
         result.DeterminedRiskLevel = result.FinalExtraction.RiskLevelOverall.Value;
 
         // Step 5: Determine if review is required
@@ -128,35 +165,67 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         return result;
     }
 
-    private async Task<RiskAssessmentExtracted> ReExtractRiskAsync(
+    private async Task<RiskReExtractionResponse> ReExtractRiskAsync(
         string noteText,
         string modelName,
         CancellationToken ct)
     {
         var chatClient = _clientFactory.CreateChatClient(modelName);
-        var prompt = RiskPrompts.GetRiskReExtractionPrompt(noteText);
+        var basePrompt = RiskPrompts.GetRiskReExtractionPrompt(noteText);
+        var attempts = Math.Max(1, _options.CriteriaValidationAttempts);
+        List<string>? lastMissingCriteria = null;
+        List<string>? lastMissingReasoning = null;
 
-        var messages = new List<ChatMessage>
+        for (var attempt = 1; attempt <= attempts; attempt++)
         {
-            new SystemChatMessage(RiskPrompts.SystemPrompt),
-            new UserChatMessage(prompt)
-        };
+            var prompt = attempt == 1
+                ? basePrompt
+                : $"{basePrompt}\n\nRETRY REQUIREMENT: Include non-empty criteria_used arrays and non-empty reasoning_used strings for all required keys.";
+            var messages = new List<ChatMessage>
+            {
+                new SystemChatMessage(RiskPrompts.SystemPrompt),
+                new UserChatMessage(prompt)
+            };
 
-        // JSON response format guarantees valid JSON from the API (see also: RiskPrompts.SystemPrompt CRITICAL instruction)
-        var options = new ChatCompletionOptions
-        {
-            Temperature = 0.1f,
-            MaxOutputTokenCount = 2048,
-            ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
-        };
+            // JSON response format guarantees valid JSON from the API (see also: RiskPrompts.SystemPrompt CRITICAL instruction)
+            var options = new ChatCompletionOptions
+            {
+                Temperature = 0.1f,
+                MaxOutputTokenCount = 2048,
+                ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
+            };
 
-        var response = await chatClient.CompleteChatAsync(messages, options, ct);
-        var content = response.Value.Content[0].Text;
+            var response = await chatClient.CompleteChatAsync(messages, options, ct);
+            var content = response.Value.Content[0].Text;
+            var parsed = ParseRiskResponseWithCriteria(content)
+                ?? throw new InvalidOperationException("Failed to parse risk re-extraction response");
+            parsed.CriteriaValidationAttemptsUsed = attempt;
 
-        return ParseRiskResponse(content) ?? throw new InvalidOperationException("Failed to parse risk re-extraction response");
+            if (!_options.RequireCriteriaUsed)
+            {
+                return parsed;
+            }
+
+            var hasCriteria = HasRequiredCriteriaUsed(parsed.CriteriaUsed, out var missingCriteriaKeys);
+            var hasReasoning = HasRequiredReasoningUsed(parsed.ReasoningUsed, out var missingReasoningKeys);
+            if (hasCriteria && hasReasoning)
+            {
+                return parsed;
+            }
+
+            lastMissingCriteria = missingCriteriaKeys;
+            lastMissingReasoning = missingReasoningKeys;
+        }
+
+        throw new MissingDiagnosticFeedbackException(lastMissingCriteria ?? [], lastMissingReasoning ?? []);
     }
 
     internal static RiskAssessmentExtracted? ParseRiskResponse(string content)
+    {
+        return ParseRiskResponseWithCriteria(content)?.Risk;
+    }
+
+    internal static RiskReExtractionResponse? ParseRiskResponseWithCriteria(string content)
     {
         var json = ExtractJson(content);
 
@@ -168,7 +237,12 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
                 return null;
             }
 
-            return MapToRiskAssessment(parsed);
+            return new RiskReExtractionResponse
+            {
+                Risk = MapToRiskAssessment(parsed),
+                CriteriaUsed = ParseCriteriaUsed(parsed),
+                ReasoningUsed = ParseReasoningUsed(parsed)
+            };
         }
         catch (JsonException)
         {
@@ -202,6 +276,109 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         }
 
         return section;
+    }
+
+    private static Dictionary<string, List<string>> ParseCriteriaUsed(Dictionary<string, JsonElement> parsed)
+    {
+        var result = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        if (!parsed.TryGetValue("criteria_used", out var criteriaElement) ||
+            criteriaElement.ValueKind != JsonValueKind.Object)
+        {
+            return result;
+        }
+
+        foreach (var property in criteriaElement.EnumerateObject())
+        {
+            var values = new List<string>();
+            if (property.Value.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in property.Value.EnumerateArray())
+                {
+                    if (item.ValueKind == JsonValueKind.String)
+                    {
+                        var value = item.GetString();
+                        if (!string.IsNullOrWhiteSpace(value))
+                        {
+                            values.Add(value.Trim());
+                        }
+                    }
+                }
+            }
+            else if (property.Value.ValueKind == JsonValueKind.String)
+            {
+                var value = property.Value.GetString();
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    values.Add(value.Trim());
+                }
+            }
+
+            if (values.Count > 0)
+            {
+                result[property.Name] = values;
+            }
+        }
+
+        return result;
+    }
+
+    private static Dictionary<string, string> ParseReasoningUsed(Dictionary<string, JsonElement> parsed)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (!parsed.TryGetValue("reasoning_used", out var reasoningElement) ||
+            reasoningElement.ValueKind != JsonValueKind.Object)
+        {
+            return result;
+        }
+
+        foreach (var property in reasoningElement.EnumerateObject())
+        {
+            if (property.Value.ValueKind == JsonValueKind.String)
+            {
+                var value = property.Value.GetString();
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    result[property.Name] = NormalizeReasoning(value);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    internal static bool HasRequiredCriteriaUsed(
+        IReadOnlyDictionary<string, List<string>> criteriaUsed,
+        out List<string> missingKeys)
+    {
+        missingKeys = [];
+        foreach (var key in RequiredDiagnosticKeys)
+        {
+            if (!criteriaUsed.TryGetValue(key, out var values) ||
+                values.Count == 0 ||
+                values.All(static value => string.IsNullOrWhiteSpace(value)))
+            {
+                missingKeys.Add(key);
+            }
+        }
+
+        return missingKeys.Count == 0;
+    }
+
+    internal static bool HasRequiredReasoningUsed(
+        IReadOnlyDictionary<string, string> reasoningUsed,
+        out List<string> missingKeys)
+    {
+        missingKeys = [];
+        foreach (var key in RequiredDiagnosticKeys)
+        {
+            if (!reasoningUsed.TryGetValue(key, out var value) ||
+                string.IsNullOrWhiteSpace(value))
+            {
+                missingKeys.Add(key);
+            }
+        }
+
+        return missingKeys.Count == 0;
     }
 
     private static object? MapToExtractedField(Type fieldType, JsonElement element)
@@ -695,6 +872,264 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         return reExtractedRisk > originalRisk;
     }
 
+    private static (bool Applied, string? Reason) ApplyHomicidalEvidenceGuardrail(
+        RiskAssessmentResult result,
+        KeywordCheckResult? keywordResult)
+    {
+        if (result.FinalExtraction.HomicidalIdeation.Value != HomicidalIdeation.Passive)
+        {
+            return (false, null);
+        }
+
+        var hasHomicidalKeywords = keywordResult?.HomicidalMatches.Count > 0;
+        var hasHiTarget = !string.IsNullOrWhiteSpace(result.FinalExtraction.HiTarget.Value);
+        if (hasHomicidalKeywords || hasHiTarget)
+        {
+            return (false, "homicidal_keywords_or_target_present");
+        }
+
+        var originalHi = result.OriginalExtraction.HomicidalIdeation;
+        var validatedHi = result.ValidatedExtraction.HomicidalIdeation;
+        var noneConfidence = Math.Max(originalHi.Confidence, validatedHi.Confidence);
+
+        result.FinalExtraction.HomicidalIdeation = new ExtractedField<HomicidalIdeation>
+        {
+            Value = HomicidalIdeation.None,
+            Confidence = noneConfidence
+        };
+
+        return (true, "no_other_directed_homicidal_evidence");
+    }
+
+    private static (bool Applied, string? Reason) ApplySelfHarmEvidenceGuardrail(
+        RiskAssessmentResult result,
+        KeywordCheckResult? keywordResult,
+        Dictionary<string, List<string>> criteriaUsed)
+    {
+        if (result.FinalExtraction.SelfHarm.Value == SelfHarm.None)
+        {
+            return (false, null);
+        }
+
+        var hasSelfHarmKeywords = keywordResult?.SelfHarmMatches.Count > 0;
+        if (hasSelfHarmKeywords)
+        {
+            return (false, "self_harm_keywords_present");
+        }
+
+        if (result.ValidatedExtraction.SelfHarm.Value != SelfHarm.None)
+        {
+            return (false, "reextracted_self_harm_not_none");
+        }
+
+        if (!criteriaUsed.TryGetValue("self_harm", out var selfHarmCriteria))
+        {
+            return (false, "criteria_missing");
+        }
+
+        var behaviorAbsent = selfHarmCriteria.Any(criteria =>
+            criteria.Equals("self_injury_behavior_absent", StringComparison.OrdinalIgnoreCase) ||
+            criteria.Equals("no_self_harm_behavior_reported", StringComparison.OrdinalIgnoreCase));
+
+        if (!behaviorAbsent)
+        {
+            return (false, "behavior_absence_not_confirmed");
+        }
+
+        var originalSh = result.OriginalExtraction.SelfHarm;
+        var validatedSh = result.ValidatedExtraction.SelfHarm;
+        var noneConfidence = Math.Max(originalSh.Confidence, validatedSh.Confidence);
+
+        result.FinalExtraction.SelfHarm = new ExtractedField<SelfHarm>
+        {
+            Value = SelfHarm.None,
+            Confidence = noneConfidence
+        };
+
+        return (true, "no_self_injury_behavior_evidence");
+    }
+
+    private static RiskDiagnostics BuildDiagnostics(
+        RiskAssessmentExtracted original,
+        RiskAssessmentExtracted reExtracted,
+        RiskAssessmentExtracted final,
+        IReadOnlyCollection<RiskDiscrepancy> discrepancies,
+        KeywordCheckResult? keywordResult,
+        bool homicidalGuardrailApplied,
+        string? homicidalGuardrailReason,
+        bool selfHarmGuardrailApplied,
+        string? selfHarmGuardrailReason,
+        Dictionary<string, List<string>> criteriaUsed,
+        Dictionary<string, string> reasoningUsed,
+        int criteriaValidationAttemptsUsed)
+    {
+        var diagnostics = new RiskDiagnostics
+        {
+            HomicidalGuardrailApplied = homicidalGuardrailApplied,
+            HomicidalGuardrailReason = homicidalGuardrailReason,
+            HomicidalKeywordMatches = keywordResult?.HomicidalMatches.ToList() ?? [],
+            SelfHarmGuardrailApplied = selfHarmGuardrailApplied,
+            SelfHarmGuardrailReason = selfHarmGuardrailReason,
+            CriteriaValidationAttemptsUsed = Math.Max(1, criteriaValidationAttemptsUsed)
+        };
+
+        diagnostics.Decisions.Add(CreateFieldDiagnostic(
+            field: "suicidal_ideation",
+            originalValue: GetEnumString(original.SuicidalIdeation.Value),
+            reExtractedValue: GetEnumString(reExtracted.SuicidalIdeation.Value),
+            finalValue: GetEnumString(final.SuicidalIdeation.Value),
+            originalSource: original.SuicidalIdeation.Source?.Text,
+            reExtractedSource: reExtracted.SuicidalIdeation.Source?.Text,
+            finalSource: final.SuicidalIdeation.Source?.Text,
+            hadDiscrepancy: discrepancies.Any(d => d.FieldName.Equals(FieldSuicidalIdeation, StringComparison.OrdinalIgnoreCase)),
+            guardrailApplied: false,
+            criteriaUsed: GetCriteriaForField(criteriaUsed, "suicidal_ideation"),
+            reasoningUsed: GetReasoningForField(reasoningUsed, "suicidal_ideation")));
+
+        diagnostics.Decisions.Add(CreateFieldDiagnostic(
+            field: "si_frequency",
+            originalValue: original.SiFrequency.Value.ToString(),
+            reExtractedValue: reExtracted.SiFrequency.Value.ToString(),
+            finalValue: final.SiFrequency.Value.ToString(),
+            originalSource: original.SiFrequency.Source?.Text,
+            reExtractedSource: reExtracted.SiFrequency.Source?.Text,
+            finalSource: final.SiFrequency.Source?.Text,
+            hadDiscrepancy: false,
+            guardrailApplied: false,
+            criteriaUsed: GetCriteriaForField(criteriaUsed, "si_frequency"),
+            reasoningUsed: GetReasoningForField(reasoningUsed, "si_frequency")));
+
+        diagnostics.Decisions.Add(CreateFieldDiagnostic(
+            field: "self_harm",
+            originalValue: GetEnumString(original.SelfHarm.Value),
+            reExtractedValue: GetEnumString(reExtracted.SelfHarm.Value),
+            finalValue: GetEnumString(final.SelfHarm.Value),
+            originalSource: original.SelfHarm.Source?.Text,
+            reExtractedSource: reExtracted.SelfHarm.Source?.Text,
+            finalSource: final.SelfHarm.Source?.Text,
+            hadDiscrepancy: discrepancies.Any(d => d.FieldName.Equals(FieldSelfHarm, StringComparison.OrdinalIgnoreCase)),
+            guardrailApplied: selfHarmGuardrailApplied,
+            criteriaUsed: GetCriteriaForField(criteriaUsed, "self_harm"),
+            reasoningUsed: GetReasoningForField(reasoningUsed, "self_harm")));
+
+        diagnostics.Decisions.Add(CreateFieldDiagnostic(
+            field: "homicidal_ideation",
+            originalValue: GetEnumString(original.HomicidalIdeation.Value),
+            reExtractedValue: GetEnumString(reExtracted.HomicidalIdeation.Value),
+            finalValue: GetEnumString(final.HomicidalIdeation.Value),
+            originalSource: original.HomicidalIdeation.Source?.Text,
+            reExtractedSource: reExtracted.HomicidalIdeation.Source?.Text,
+            finalSource: final.HomicidalIdeation.Source?.Text,
+            hadDiscrepancy: discrepancies.Any(d => d.FieldName.Equals(FieldHomicidalIdeation, StringComparison.OrdinalIgnoreCase)),
+            guardrailApplied: homicidalGuardrailApplied,
+            criteriaUsed: GetCriteriaForField(criteriaUsed, "homicidal_ideation"),
+            reasoningUsed: GetReasoningForField(reasoningUsed, "homicidal_ideation")));
+
+        diagnostics.Decisions.Add(CreateFieldDiagnostic(
+            field: "risk_level_overall",
+            originalValue: GetEnumString(original.RiskLevelOverall.Value, "Low"),
+            reExtractedValue: GetEnumString(reExtracted.RiskLevelOverall.Value, "Low"),
+            finalValue: GetEnumString(final.RiskLevelOverall.Value, "Low"),
+            originalSource: original.RiskLevelOverall.Source?.Text,
+            reExtractedSource: reExtracted.RiskLevelOverall.Source?.Text,
+            finalSource: final.RiskLevelOverall.Source?.Text,
+            hadDiscrepancy: discrepancies.Any(d => d.FieldName.Equals(FieldRiskLevelOverall, StringComparison.OrdinalIgnoreCase)),
+            guardrailApplied: false,
+            criteriaUsed: GetCriteriaForField(criteriaUsed, "risk_level_overall"),
+            reasoningUsed: GetReasoningForField(reasoningUsed, "risk_level_overall")));
+
+        return diagnostics;
+    }
+
+    private static RiskFieldDiagnostic CreateFieldDiagnostic(
+        string field,
+        string originalValue,
+        string reExtractedValue,
+        string finalValue,
+        string? originalSource,
+        string? reExtractedSource,
+        string? finalSource,
+        bool hadDiscrepancy,
+        bool guardrailApplied,
+        List<string> criteriaUsed,
+        string reasoningUsed)
+    {
+        var ruleApplied = "no_merge_change";
+        if (hadDiscrepancy)
+        {
+            ruleApplied = "conservative_merge";
+        }
+        if (guardrailApplied)
+        {
+            ruleApplied = "guardrail_override";
+        }
+
+        return new RiskFieldDiagnostic
+        {
+            Field = field,
+            OriginalValue = originalValue,
+            ReExtractedValue = reExtractedValue,
+            FinalValue = finalValue,
+            RuleApplied = ruleApplied,
+            OriginalSource = NormalizeSource(originalSource),
+            ReExtractedSource = NormalizeSource(reExtractedSource),
+            FinalSource = NormalizeSource(finalSource),
+            CriteriaUsed = criteriaUsed,
+            ReasoningUsed = NormalizeReasoning(reasoningUsed)
+        };
+    }
+
+    private static List<string> GetCriteriaForField(
+        Dictionary<string, List<string>> criteriaUsed,
+        string fieldName)
+    {
+        if (criteriaUsed.TryGetValue(fieldName, out var criteria) && criteria.Count > 0)
+        {
+            return criteria;
+        }
+
+        return [];
+    }
+
+    private static string GetReasoningForField(
+        Dictionary<string, string> reasoningUsed,
+        string fieldName)
+    {
+        if (reasoningUsed.TryGetValue(fieldName, out var reasoning) &&
+            !string.IsNullOrWhiteSpace(reasoning))
+        {
+            return NormalizeReasoning(reasoning);
+        }
+
+        return string.Empty;
+    }
+
+    private static string? NormalizeSource(string? sourceText)
+    {
+        if (string.IsNullOrWhiteSpace(sourceText))
+        {
+            return null;
+        }
+
+        var trimmed = sourceText.Trim();
+        return trimmed.Length <= 220
+            ? trimmed
+            : trimmed[..220];
+    }
+
+    private static string NormalizeReasoning(string? reasoningText)
+    {
+        if (string.IsNullOrWhiteSpace(reasoningText))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = reasoningText.Trim();
+        return trimmed.Length <= 320
+            ? trimmed
+            : trimmed[..320];
+    }
+
     [LoggerMessage(Level = LogLevel.Information, Message = "Starting risk assessment for session {SessionId}")]
     private static partial void LogStartingRiskAssessment(ILogger logger, string sessionId);
 
@@ -703,4 +1138,15 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Risk assessment completed for session {SessionId}. RequiresReview: {RequiresReview}, RiskLevel: {RiskLevel}, Discrepancies: {DiscrepancyCount}")]
     private static partial void LogRiskAssessmentCompleted(ILogger logger, string sessionId, bool requiresReview, RiskLevelOverall? riskLevel, int discrepancyCount);
+
+    private sealed class MissingDiagnosticFeedbackException : InvalidOperationException
+    {
+        public MissingDiagnosticFeedbackException(
+            IReadOnlyCollection<string> missingCriteriaKeys,
+            IReadOnlyCollection<string> missingReasoningKeys)
+            : base(
+                $"Missing required diagnostic feedback. criteria_used: [{string.Join(", ", missingCriteriaKeys)}], reasoning_used: [{string.Join(", ", missingReasoningKeys)}]")
+        {
+        }
+    }
 }

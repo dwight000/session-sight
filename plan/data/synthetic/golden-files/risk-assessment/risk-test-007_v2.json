@@ -1,0 +1,107 @@
+{
+  "note_id": "risk-test-007",
+  "note_content": "Client expressed significant hopelessness about the future. When discussing chronic pain, stated 'Sometimes I think everyone would be better off without me.' Clarified that he has no intention of acting on this thought and no plans. Describes it as a fleeting thought that passes. Occurs once or twice a month during pain flares. Exploring referral to pain management clinic.",
+  "test_type": "Passive SI with perceived burdensomeness, low frequency",
+  "expected_by_stage": [
+    {
+      "stage": "clinical_extractor",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "passive"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "rare",
+            "occasional"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "low",
+            "moderate"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_reextracted",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "passive"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "rare"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "low",
+            "moderate"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_final",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "passive"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "occasional"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "low",
+            "moderate"
+          ]
+        }
+      }
+    }
+  ],
+  "assert_stages": [
+    "all"
+  ],
+  "assert_fields": [
+    "all"
+  ]
+}

@@ -140,6 +140,7 @@ gh run view <run-id> --log-failed
 |-------|-----|
 | "401/credential" errors | `az login`, verify Cognitive Services User role |
 | Port conflicts | `pkill -f SessionSight` |
+| codex sandbox `Permission denied` binding localhost ports during `run-e2e` | Re-run `./scripts/run-e2e.sh ...` with escalated permissions so AppHost can bind local endpoints |
 | "403 Forbidden" on search | Deploy Bicep with `developerUserObjectId` parameter |
 | Docker network exhaustion | Remove containers first: `docker ps -a --format '{{.Names}}' \| grep -E 'sql-\|storage-' \| xargs -r docker rm -f` |
 

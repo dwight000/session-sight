@@ -1,0 +1,103 @@
+{
+  "note_id": "risk-test-002",
+  "note_content": "Client arrived in acute distress following argument with spouse. Expressed strong suicidal ideation with intent to hang himself tonight. Has identified location in garage and rope. Reports feeling like a burden to family. Immediate psychiatric evaluation arranged. Client agreed to voluntary hospitalization. Family member contacted to remove means from home.",
+  "test_type": "Active SI with plan, intent, identified means, and timeline - imminent risk",
+  "expected_by_stage": [
+    {
+      "stage": "clinical_extractor",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "active_with_intent"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "constant"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "imminent"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_reextracted",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "active_with_intent"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "constant"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "imminent"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_final",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "active_with_intent"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "constant"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "none"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "imminent"
+          ]
+        }
+      }
+    }
+  ],
+  "assert_stages": [
+    "all"
+  ],
+  "assert_fields": [
+    "all"
+  ]
+}

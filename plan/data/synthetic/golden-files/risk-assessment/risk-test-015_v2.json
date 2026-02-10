@@ -1,0 +1,107 @@
+{
+  "note_id": "risk-test-015",
+  "note_content": "Patient with borderline personality disorder presents for regular session. Reports strong urges to cut this week but has not acted on them. Used ice cubes and rubber band snapping as alternatives. Has history of severe cutting requiring stitches on three occasions, most recent being 4 months ago. Also experiencing passive suicidal thoughts daily. No plans or intent. DBT skills practice reviewed.",
+  "test_type": "Self-harm urges with recent history, using harm reduction, with passive SI",
+  "expected_by_stage": [
+    {
+      "stage": "clinical_extractor",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "passive"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "frequent"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "recent",
+            "historical"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "moderate",
+            "high"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_reextracted",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "passive"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "frequent"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "recent"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "moderate",
+            "high"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "risk_final",
+      "fields": {
+        "suicidal_ideation": {
+          "accept": [
+            "passive"
+          ]
+        },
+        "si_frequency": {
+          "accept": [
+            "frequent"
+          ]
+        },
+        "self_harm": {
+          "accept": [
+            "recent"
+          ]
+        },
+        "homicidal_ideation": {
+          "accept": [
+            "none"
+          ]
+        },
+        "risk_level_overall": {
+          "accept": [
+            "moderate",
+            "high"
+          ]
+        }
+      }
+    }
+  ],
+  "assert_stages": [
+    "all"
+  ],
+  "assert_fields": [
+    "all"
+  ]
+}

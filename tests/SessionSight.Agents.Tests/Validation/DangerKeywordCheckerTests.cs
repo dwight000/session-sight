@@ -70,6 +70,48 @@ public class DangerKeywordCheckerTests
     }
 
     [Fact]
+    public void Check_SelfDirectedHarmLanguage_DoesNotTriggerHomicidalKeywords()
+    {
+        var text = "Patient reports thoughts of hurting myself when overwhelmed.";
+
+        var result = DangerKeywordChecker.Check(text);
+
+        result.SelfHarmMatches.Should().Contain("hurting myself");
+        result.HomicidalMatches.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Check_OtherDirectedHarmLanguage_TriggersHomicidalKeywords()
+    {
+        var text = "Patient reports thoughts of hurting others at work.";
+
+        var result = DangerKeywordChecker.Check(text);
+
+        result.HomicidalMatches.Should().Contain("thoughts of hurting others");
+    }
+
+    [Fact]
+    public void Check_OverdosePlanningLanguage_DoesNotAloneTriggerSelfHarmKeywords()
+    {
+        var text = "Patient reports thoughts of suicide and a plan to overdose on pills.";
+
+        var result = DangerKeywordChecker.Check(text);
+
+        result.SuicidalMatches.Should().Contain("suicide");
+        result.SelfHarmMatches.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Check_OverdoseAttemptLanguage_TriggersSelfHarmKeywords()
+    {
+        var text = "Patient disclosed an overdose attempt last month.";
+
+        var result = DangerKeywordChecker.Check(text);
+
+        result.SelfHarmMatches.Should().Contain("overdose attempt");
+    }
+
+    [Fact]
     public void Check_CaseInsensitive_DetectsMatch()
     {
         var text = "Patient has SUICIDAL ideation.";

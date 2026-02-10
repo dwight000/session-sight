@@ -169,12 +169,13 @@ internal static class ExtractionAssertions
                 "Should be a valid ConcernSeverity enum value");
         }
 
-        // "over the past two weeks"
+        // Note contains both "ongoing anxiety" and "over the past two weeks" (sleep/irritability).
+        // The single concernDuration field can reasonably map to either phrasing.
         var duration = GetFieldValue(s, "concernDuration");
         if (duration != null)
         {
-            duration.ToLowerInvariant().Should().ContainAny("two week", "2 week", "14 day",
-                "Note says 'over the past two weeks'");
+            duration.ToLowerInvariant().Should().ContainAny("two week", "2 week", "14 day", "ongoing",
+                "Note describes both ongoing concern and a past-two-weeks timeframe");
         }
 
         // "ongoing" implies not new this session

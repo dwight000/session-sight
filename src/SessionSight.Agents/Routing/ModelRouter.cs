@@ -2,8 +2,11 @@ namespace SessionSight.Agents.Routing;
 
 public class ModelRouter : IModelRouter
 {
-    // Stepped down one tier for cost savings (Feb 2026 migration from deprecated gpt-4o)
-    // gpt-4o tasks → gpt-4.1-mini, gpt-4o-mini tasks → gpt-4.1-nano
+    // Current tiering:
+    // - gpt-4.1 for highest-complexity clinical extraction only
+    // - gpt-4.1-mini for moderate complexity and final risk assessment
+    // - gpt-4.1-nano for lowest-cost tasks
+    public const string Gpt41 = "gpt-4.1";
     public const string Gpt41Mini = "gpt-4.1-mini";
     public const string Gpt41Nano = "gpt-4.1-nano";
     public const string Embedding = "text-embedding-3-large";
@@ -15,7 +18,7 @@ public class ModelRouter : IModelRouter
     public string SelectModel(ModelTask task) => task switch
     {
         ModelTask.DocumentIntake => Gpt41Nano,
-        ModelTask.Extraction => Gpt41Mini,
+        ModelTask.Extraction => Gpt41,
         ModelTask.ExtractionSimple => Gpt41Nano,
         ModelTask.RiskAssessment => Gpt41Mini,
         ModelTask.Summarization => Gpt41Nano,
