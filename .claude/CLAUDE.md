@@ -1,5 +1,11 @@
 # SessionSight Project Guide
 
+## LLM Test Guidelines
+
+When fixing flaky or failing LLM/golden file tests, ALWAYS try improving prompts first before widening tolerances or golden file values. Only widen after prompt improvements have been exhausted.
+
+---
+
 ## Scripts Reference
 
 | Script | Purpose | Options |

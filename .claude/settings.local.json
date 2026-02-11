@@ -59,7 +59,10 @@
       "Bash(head:*)",
       "Bash(done)",
       "Bash(for f in /home/dwight/.claude/paste-cache/3ffac48efbcfb7fe.txt /home/dwight/.claude/paste-cache/503497e0962491a0.txt /home/dwight/.claude/paste-cache/80e18fc6fb3cefbd.txt /home/dwight/.claude/paste-cache/420df3c86b5b3769.txt /home/dwight/.claude/paste-cache/a64d30e48e35f9a1.txt)",
-      "Bash(do stat -c \"%y %n\" \"$f\")"
+      "Bash(do stat -c \"%y %n\" \"$f\")",
+      "Bash(GOLDEN_DATE=2026-02-14 ./scripts/run-e2e.sh:*)",
+      "Bash(GOLDEN_DATE=2026-03-01 ./scripts/run-e2e.sh:*)",
+      "Bash(GOLDEN_DATE=2026-03-15 GOLDEN_FILTER=risk-test-032 ./scripts/run-e2e.sh:*)"
     ]
   }
 }

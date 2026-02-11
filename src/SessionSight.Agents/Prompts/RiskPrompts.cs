@@ -135,6 +135,7 @@ public static class RiskPrompts
           * homicidalIdeation: Passive means wishing someone dead or fantasizing about their death without thoughts of personally causing harm. ActiveNoPlan requires thoughts of actually killing or harming someone. Use None when no such thoughts are present.
           * Self-directed phrases ("hurt myself", "harm myself", "kill myself", suicidal ideation) are NOT homicidal ideation.
           * riskLevelOverall: ActiveWithPlan or ActiveWithIntent cannot be Low. Minimum is High unless evidence supports Imminent.
+          * riskLevelOverall: Passive suicidal ideation combined with behavioral warning signs suggesting preparation or concealment (e.g., sudden calm after crisis, giving away possessions, denial despite evidence) should be at least High — these patterns indicate potential undisclosed planning.
           * riskLevelOverall: Imminent requires ActiveWithPlan or ActiveWithIntent PLUS at least one of: current means access, emergency/crisis response triggered (crisis team, ER transport, 911 call), or stated intent to act now. Subsequent mitigation (e.g., voluntarily surrendering means) does not retroactively lower the risk classification from the assessment moment.
           * If frequency is explicitly stated, use literal mapping; only escalate severity when frequency is ambiguous.
           * Collateral evidence of suicide planning or means research should influence suicidalIdeation/riskLevelOverall, not selfHarm unless self-injury behavior is explicitly present.

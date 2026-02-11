@@ -208,6 +208,7 @@ public static class ExtractionPrompts
           * riskLevelOverall: ActiveWithPlan or ActiveWithIntent cannot be Low. Minimum is High unless the note clearly supports Imminent.
           * riskLevelOverall: Imminent requires ActiveWithPlan or ActiveWithIntent PLUS at least one of: current means access, emergency/crisis response triggered (crisis team, ER transport, 911 call), or stated intent to act now. Subsequent mitigation (e.g., voluntarily surrendering means) does not retroactively lower the risk classification from the assessment moment.
           * riskLevelOverall: Passive suicidal ideation with recurrent thoughts (Occasional/Frequent/Constant) should be at least Moderate, even without plan or intent.
+          * riskLevelOverall: Passive suicidal ideation combined with behavioral warning signs suggesting preparation or concealment (e.g., sudden calm after crisis, giving away possessions, denial despite evidence) should be at least High — these patterns indicate potential undisclosed planning.
           * riskLevelOverall: if safety assessment is incomplete due to evasiveness/refusal on suicide-risk questions after distress language, minimum is Moderate.
           * If frequency is explicitly stated, use literal mapping; only escalate severity when frequency is ambiguous.
           * Collateral reports about researching means or suicide planning should affect suicidalIdeation/riskLevelOverall, but do not set selfHarm unless self-injury behavior is explicitly reported.
