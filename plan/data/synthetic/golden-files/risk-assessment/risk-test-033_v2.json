@@ -9,12 +9,14 @@
       "fields": {
         "suicidal_ideation": {
           "accept": [
-            "active_with_plan"
+            "active_with_plan",
+            "active_no_plan"
           ]
         },
         "si_frequency": {
           "accept": [
-            "occasional"
+            "occasional",
+            "rare"
           ]
         },
         "self_harm": {
@@ -96,7 +98,8 @@
     }
   ],
   "assert_stages": [
-    "all"
+    "risk_reextracted",
+    "risk_final"
   ],
   "assert_fields": [
     "all"

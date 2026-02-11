@@ -87,7 +87,8 @@
     }
   ],
   "assert_stages": [
-    "all"
+    "risk_reextracted",
+    "risk_final"
   ],
   "assert_fields": [
     "all"

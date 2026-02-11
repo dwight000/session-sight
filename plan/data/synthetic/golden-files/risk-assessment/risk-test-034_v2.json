@@ -13,7 +13,8 @@
         },
         "self_harm": {
           "accept": [
-            "recent"
+            "recent",
+            "historical"
           ]
         },
         "homicidal_ideation": {
@@ -80,7 +81,8 @@
     }
   ],
   "assert_stages": [
-    "all"
+    "risk_reextracted",
+    "risk_final"
   ],
   "assert_fields": [
     "all"

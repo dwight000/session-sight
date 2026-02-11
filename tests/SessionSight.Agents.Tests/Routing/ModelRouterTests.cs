@@ -9,7 +9,7 @@ public class ModelRouterTests
 
     [Theory]
     [InlineData(ModelTask.DocumentIntake, ModelRouter.Gpt41Nano)]
-    [InlineData(ModelTask.Extraction, ModelRouter.Gpt41)]
+    [InlineData(ModelTask.Extraction, ModelRouter.Gpt41Mini)]
     [InlineData(ModelTask.ExtractionSimple, ModelRouter.Gpt41Nano)]
     [InlineData(ModelTask.RiskAssessment, ModelRouter.Gpt41Mini)]
     [InlineData(ModelTask.Summarization, ModelRouter.Gpt41Nano)]

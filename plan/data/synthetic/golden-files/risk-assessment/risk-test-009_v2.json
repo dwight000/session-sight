@@ -38,7 +38,8 @@
       "fields": {
         "suicidal_ideation": {
           "accept": [
-            "passive"
+            "passive",
+            "active_no_plan"
           ]
         },
         "si_frequency": {
@@ -68,7 +69,8 @@
       "fields": {
         "suicidal_ideation": {
           "accept": [
-            "passive"
+            "passive",
+            "active_no_plan"
           ]
         },
         "si_frequency": {
@@ -95,7 +97,8 @@
     }
   ],
   "assert_stages": [
-    "all"
+    "risk_reextracted",
+    "risk_final"
   ],
   "assert_fields": [
     "all"

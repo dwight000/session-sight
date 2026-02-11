@@ -77,7 +77,8 @@
         },
         "si_frequency": {
           "accept": [
-            "occasional"
+            "occasional",
+            "rare"
           ]
         },
         "self_harm": {
@@ -99,7 +100,8 @@
     }
   ],
   "assert_stages": [
-    "all"
+    "risk_reextracted",
+    "risk_final"
   ],
   "assert_fields": [
     "all"

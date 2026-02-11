@@ -13,7 +13,9 @@
         },
         "si_frequency": {
           "accept": [
-            "constant"
+            "constant",
+            "frequent",
+            "rare"
           ]
         },
         "self_harm": {
@@ -28,7 +30,8 @@
         },
         "risk_level_overall": {
           "accept": [
-            "imminent"
+            "imminent",
+            "high"
           ]
         }
       }
@@ -43,7 +46,9 @@
         },
         "si_frequency": {
           "accept": [
-            "constant"
+            "constant",
+            "frequent",
+            "rare"
           ]
         },
         "self_harm": {
@@ -73,7 +78,9 @@
         },
         "si_frequency": {
           "accept": [
-            "constant"
+            "constant",
+            "frequent",
+            "rare"
           ]
         },
         "self_harm": {
@@ -95,7 +102,8 @@
     }
   ],
   "assert_stages": [
-    "all"
+    "risk_reextracted",
+    "risk_final"
   ],
   "assert_fields": [
     "all"

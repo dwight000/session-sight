@@ -199,10 +199,12 @@ public static class ExtractionPrompts
           * siFrequency: "once or twice a month" is Rare; several times per week is Occasional; daily/most days is Frequent.
           * selfHarm: classify only when there is evidence of actual self-injury behavior (e.g., cutting, burning, scratching, overdose attempt, other direct self-injury act).
           * selfHarm: suicidal ideation/plan/intent by itself does NOT imply selfHarm. If no self-injury behavior is described, use None.
-          * selfHarm: Recent means any self-harm within the last 12 months; Historical is only when last event is more than 12 months ago.
+          * selfHarm: Recent means any self-harm within the last 12 months; Historical is only when last event is more than 12 months ago. A suicide attempt described as days, weeks, or months ago is Recent, not Historical.
+          * suicidalIdeation: Behavioral warning signs (getting affairs in order, giving away possessions, writing a will without medical reason) are RISK FACTORS that elevate riskLevelOverall. They are NOT suicidal ideation unless the patient also expresses suicidal thoughts.
           * homicidalIdeation: use Passive only when thoughts about harming others are actually present; otherwise use None.
           * Self-directed phrases ("hurt myself", "harm myself", "kill myself", suicidal ideation) are NOT homicidal ideation.
           * riskLevelOverall: ActiveWithPlan or ActiveWithIntent cannot be Low. Minimum is High unless the note clearly supports Imminent.
+          * riskLevelOverall: Imminent requires ActiveWithPlan or ActiveWithIntent PLUS at least one of: current means access, emergency/crisis response triggered (crisis team, ER transport, 911 call), or stated intent to act now. Subsequent mitigation (e.g., voluntarily surrendering means) does not retroactively lower the risk classification from the assessment moment.
           * riskLevelOverall: Passive suicidal ideation with recurrent thoughts (Occasional/Frequent/Constant) should be at least Moderate, even without plan or intent.
           * riskLevelOverall: if safety assessment is incomplete due to evasiveness/refusal on suicide-risk questions after distress language, minimum is Moderate.
           * If frequency is explicitly stated, use literal mapping; only escalate severity when frequency is ambiguous.

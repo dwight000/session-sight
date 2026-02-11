@@ -141,7 +141,7 @@ public class RiskPromptsTests
         prompt.Should().Contain("must include all 5 keys");
         prompt.Should().Contain("at least one non-empty label");
         prompt.Should().Contain("reasoning_used");
-        prompt.Should().Contain("non-empty freeform sentence");
+        prompt.Should().Contain("non-empty freeform explanation");
         prompt.Should().Contain("insufficient_evidence");
     }
 }

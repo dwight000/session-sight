@@ -20,13 +20,13 @@ public class AzureRetryDefaultsTests
     }
 
     [Fact]
-    public void Configure_SetsDelay_ToOneSecond()
+    public void Configure_SetsDelay_ToThreeSeconds()
     {
         var options = new SearchClientOptions();
 
         AzureRetryDefaults.Configure(options);
 
-        options.Retry.Delay.Should().Be(TimeSpan.FromSeconds(1));
+        options.Retry.Delay.Should().Be(TimeSpan.FromSeconds(3));
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public class AzureRetryDefaultsTests
         AzureRetryDefaults.ConfigureRetryPolicy(options);
 
         options.RetryPolicy.Should().NotBeNull();
-        options.RetryPolicy.Should().BeOfType<ClientRetryPolicy>();
+        options.RetryPolicy.Should().BeOfType<SpacedRetryPolicy>();
     }
 
     [Fact]
