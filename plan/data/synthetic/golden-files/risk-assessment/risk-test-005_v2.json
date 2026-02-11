@@ -15,7 +15,7 @@
           "accept": [
             "constant",
             "frequent",
-            "rare"
+            "occasional"
           ]
         },
         "self_harm": {
@@ -48,7 +48,7 @@
           "accept": [
             "constant",
             "frequent",
-            "rare"
+            "occasional"
           ]
         },
         "self_harm": {
@@ -80,7 +80,7 @@
           "accept": [
             "constant",
             "frequent",
-            "rare"
+            "occasional"
           ]
         },
         "self_harm": {

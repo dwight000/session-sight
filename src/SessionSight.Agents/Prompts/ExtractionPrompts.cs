@@ -197,6 +197,7 @@ public static class ExtractionPrompts
           * suicidalIdeation: statements like "wish I could go to sleep and not wake up", "wish I would not wake up", "better off dead", or "not be here" are Passive (not None), even when plan/intent is denied.
           * suicidalIdeation: if the patient makes a distress statement (for example "I can't take this anymore") and is evasive or refuses to answer direct suicide-risk questions, classify as Passive rather than None.
           * siFrequency: "once or twice a month" is Rare; several times per week is Occasional; daily/most days is Frequent.
+          * siFrequency: When suicidalIdeation is ActiveWithPlan or ActiveWithIntent but frequency is not explicitly stated, infer at least Occasional (active planning implies recurring thoughts).
           * selfHarm: classify only when there is evidence of actual self-injury behavior (e.g., cutting, burning, scratching, overdose attempt, other direct self-injury act).
           * selfHarm: suicidal ideation/plan/intent by itself does NOT imply selfHarm. If no self-injury behavior is described, use None.
           * selfHarm: Recent means any self-harm within the last 12 months; Historical is only when last event is more than 12 months ago. A suicide attempt described as days, weeks, or months ago is Recent, not Historical.

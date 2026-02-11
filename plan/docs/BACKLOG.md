@@ -7,10 +7,10 @@
 ## Current Status
 
 **Phase**: Phase 5 (Polish & Testing) - IN PROGRESS
-**Next Action**: P5-001 golden harness stable — expand to non-risk fields (B-038) or address backlog items B-068/B-069
+**Next Action**: P5-001 golden harness stable — expand to non-risk fields (B-038) or run golden batch to validate B-068 prompt rule
 **Last Updated**: February 10, 2026
 
-**Milestone**: Golden risk harness re-enabled with relaxed assertions (risk_reextracted+risk_final only), extraction downgraded to gpt-4.1-mini, risk prompts hardened, 15 golden cases validated across 3 batches
+**Milestone**: B-068 si_frequency inference rule added to both prompt files, B-069 LongClient timeout bumped to 7 min, golden case 005 tightened
 
 ---
 
@@ -149,8 +149,8 @@
 | B-016 | Load/concurrency tests | M | 5 | Blocked | P5-001 |
 | B-017 | Safety/red-team evals | L | 5 | Ready | P2-005 |
 | B-038 | Golden files for non-risk fields | L | 5 | Ready | P2-004 |
-| B-068 | Add prompt rule: infer si_frequency from severity when evidence absent | S | 5 | Ready | P5-001 |
-| B-069 | Investigate extraction timeout (300s HttpClient.Timeout in golden cases) | S | 5 | Ready | P5-001 |
+| B-068 | Add prompt rule: infer si_frequency from severity when evidence absent | S | 5 | Done | P5-001 |
+| B-069 | Investigate extraction timeout (300s HttpClient.Timeout in golden cases) | S | 5 | Done | P5-001 |
 | **Phase 6: Deployment** |||||
 | P6-001 | Configure dev environment (development Azure resources) | M | 6 | Blocked | P5-001 |
 | P6-002 | Configure prod environment (production Azure resources) | M | 6 | Blocked | P6-001 |
@@ -317,6 +317,8 @@
 | B-065 | Frontend code coverage: Add Vitest coverage (v8), set 80% threshold, add to check-frontend.sh + CI | 2026-02-09 |
 | B-046 | Add local API file logging (Serilog) to `/tmp/sessionsight/` + update debug docs/scripts | 2026-02-09 |
 | B-066 | Remove temporary DIAG_LOG hack (`/tmp/api-diag.log`) and legacy docs/scripts after Serilog validation | 2026-02-09 |
+| B-068 | Add prompt rule: infer si_frequency from severity when evidence absent | 2026-02-10 |
+| B-069 | Increase LongClient timeout from 5 to 7 minutes for extraction pipeline | 2026-02-10 |
 
 ---
 
@@ -324,6 +326,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-10 | **B-068 + B-069 complete.** Added `si_frequency` inference rule to both `ExtractionPrompts.cs` and `RiskPrompts.cs`: when `suicidalIdeation` is ActiveWithPlan/ActiveWithIntent but frequency is not explicitly stated, infer at least Occasional (prevents clinically implausible Rare + active-planning). Tightened golden case 005 `si_frequency` accept from `[constant, frequent, rare]` to `[constant, frequent, occasional]`. Bumped `LongClient` timeout from 5 to 7 minutes in `ApiFixture.cs` to accommodate extraction pipeline + retry delays under load. Added `RiskPromptsTests.GetRiskReExtractionPrompt_ContainsSiFrequencyInferenceRule` test. Validation: 697 unit tests pass, 83.05% backend coverage. |
 | 2026-02-10 | **P5-001 golden harness re-enabled with relaxed assertions.** Downgraded `ModelTask.Extraction` from gpt-4.1 to gpt-4.1-mini (cost reduction). Improved risk prompts: added Imminent classification criteria (ActiveWithPlan + means access + crisis response), behavioral-warning-sign vs ideation distinction, self_harm temporal anchoring, and increased `reasoning_used` to 3-5 sentences. Changed golden `assert_stages` from `["all"]` to `["risk_reextracted", "risk_final"]` across all 37 v2 files — clinical_extractor risk fields are now informational only. Widened golden accepted values for 5 genuinely ambiguous adjacent-value cases (005 si_frequency, 009 suicidal_ideation, 013 si_frequency, 018 si_frequency, 035 risk_level_overall). Increased retry base delay from 1s to 3s (~93s total window) with new `SpacedRetryPolicy` for System.ClientModel/OpenAI clients to handle 429 rate limits. Validation: 696 unit tests pass, 83% backend coverage, 15 golden cases pass across 3 batches. Added backlog items B-068 (si_frequency inference prompt rule) and B-069 (extraction timeout investigation). |
 | 2026-02-10 | **P5-001 diagnostics schema cleanup complete.** Replaced hybrid 6-column layout with zero-overlap design: 8 scalar columns (added `GuardrailApplied`, `DiscrepancyCount`; renamed `CriteriaValidationAttempts`, `RiskFieldDecisionsJson`) + JSON only for per-field audit trail. Restructured API DTO from 6 flat params to typed `RiskDiagnosticsDto` with `GuardrailDetailDto`/`RiskFieldDecisionDto`. Added coverage-boosting tests (middleware, validator, prompts, model, DTO tests) to maintain 83% threshold. Validation: build clean, 693 unit tests pass, `check-backend.sh` 83.04%, `check-frontend.sh` pass, `run-e2e.sh` 7 passed / 1 skipped / 1 pre-existing flaky `selfReportedMood` assertion (unrelated to schema changes). |
 | 2026-02-10 | **P5-001 refactor validation complete; full local E2E green with golden still intentionally skipped.** Reproduced the functional failures as deterministic (not flaky): `Pipeline_FullExtraction`, `QA_AnswersQuestionAboutExtractedSession`, and `Extraction_IndexesSessionWithEmbedding` all failed on the same strict duration assertion in `ExtractionAssertions` (`concernDuration` expected only "two weeks" variants while model returned `ongoing`). Updated assertion to accept both clinically valid phrasings when the note includes both timelines. Re-ran isolated tests (all pass) and then full suite `./scripts/run-e2e.sh --all`: backend functional `8 passed / 1 skipped` (golden skip), frontend full-stack browser tests `3 passed / 1 skipped`. |

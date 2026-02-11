@@ -134,6 +134,14 @@ public class RiskPromptsTests
     }
 
     [Fact]
+    public void GetRiskReExtractionPrompt_ContainsSiFrequencyInferenceRule()
+    {
+        var prompt = RiskPrompts.GetRiskReExtractionPrompt("Test note");
+
+        prompt.Should().Contain("infer at least Occasional");
+    }
+
+    [Fact]
     public void GetRiskReExtractionPrompt_RequiresNonEmptyCriteriaUsedValues()
     {
         var prompt = RiskPrompts.GetRiskReExtractionPrompt("Test note");

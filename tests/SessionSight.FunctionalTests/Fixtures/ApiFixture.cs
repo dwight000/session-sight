@@ -52,7 +52,7 @@ public class ApiFixture : IDisposable
         LongClient = new HttpClient(_retryHandler)
         {
             BaseAddress = new Uri(BaseUrl),
-            Timeout = TimeSpan.FromMinutes(5)
+            Timeout = TimeSpan.FromMinutes(7)
         };
     }
 

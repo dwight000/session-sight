@@ -125,6 +125,7 @@ public static class RiskPrompts
         - When indicators are ambiguous, choose the MORE SEVERE value
         - Classification boundaries:
           * siFrequency: "once or twice a month" is Rare; several times per week is Occasional; daily/most days is Frequent.
+          * siFrequency: When suicidalIdeation is ActiveWithPlan or ActiveWithIntent but frequency is not explicitly stated, infer at least Occasional (active planning implies recurring thoughts).
           * selfHarm: classify only when there is evidence of actual self-injury behavior (cutting, burning, scratching, overdose attempt, other direct self-injury act).
           * selfHarm: suicidal ideation/plan/intent alone does NOT imply selfHarm. If no self-injury behavior is described, use None.
           * selfHarm: Recent means any self-harm within the last 12 months; Historical is only when last event is more than 12 months ago. A suicide attempt described as days, weeks, or months ago is Recent, not Historical.
