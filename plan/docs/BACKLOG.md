@@ -148,7 +148,7 @@
 | B-015 | Contract tests for API DTOs | M | 5 | Blocked | P1-004 |
 | B-016 | Load/concurrency tests | M | 5 | Blocked | P5-001 |
 | B-017 | Safety/red-team evals | L | 5 | Ready | P2-005 |
-| B-038 | Golden files for non-risk fields | L | 5 | Ready | P2-004 |
+| B-038 | Golden files for non-risk fields | L | 5 | Done | P2-004 |
 | B-068 | Add prompt rule: infer si_frequency from severity when evidence absent | S | 5 | Done | P5-001 |
 | B-069 | Investigate extraction timeout (300s HttpClient.Timeout in golden cases) | S | 5 | Done | P5-001 |
 | **Phase 6: Deployment** |||||

@@ -395,7 +395,7 @@ public static class ExtractionPrompts
 
         Fields to extract:
         - nextSessionDate (date): Next scheduled session date in YYYY-MM-DD format
-        - nextSessionFrequency (enum): TwiceWeekly|Weekly|Biweekly|Monthly|AsNeeded|Discharge
+        - nextSessionFrequency (enum): TwiceWeekly(2x per week)|Weekly(1x per week)|Biweekly(every 2 weeks)|Monthly(1x per month)|AsNeeded|Discharge
         - nextSessionFocus (string): Planned focus for next session
         - referralsMade (list of strings): Referrals made this session
         - referralTypes (list of enums): Psychiatry|Medical|GroupTherapy|IntensiveOutpatient|PartialHospitalization|Inpatient|Specialist|SupportGroup|CommunityResources

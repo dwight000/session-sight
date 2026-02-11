@@ -1,0 +1,57 @@
+{
+  "note_id": "nonrisk-003",
+  "note_content": "Session Note - March 12, 2026\nPatient: Elena Rodriguez\nTherapist: Dr. Amanda Foster, PhD\n\nPresenting Concerns:\nPatient presents with trauma-related symptoms following a motor vehicle accident eight months ago. Severity is moderate. Reports intrusive memories, hypervigilance in traffic, and avoidance of driving. These concerns are ongoing, not new this session. Triggers include loud noises and being a passenger in vehicles.\n\nSession Summary:\nIn-person session focused on EMDR processing of the accident memory. Completed bilateral stimulation targeting the moment of impact. Patient demonstrated strong emotional processing with visible distress during reprocessing that resolved by end of set. SUD rating decreased from 7 to 3 during session. Patient reported feeling lighter after processing.\n\nMood Assessment:\nCurrent mood: 5/10 (tense but relieved after processing)\nMood change from last session: Improved\nEnergy level: Normal\nEmotional themes: fear, relief, cautious optimism\nAffect observed: Anxious initially, shifting to calmer presentation\nAffect congruence: Congruent\n\nMental Status Examination:\nAppearance: Well-groomed\nBehavior: Initially restless, became calmer during session\nSpeech: Normal\nThought process: Linear\nThought content: Trauma memories, safety concerns while driving\nPerception: Reports occasional flashbacks of accident, no hallucinations\nCognition: Intact\nInsight: Good - understands connection between trauma and current symptoms\nJudgment: Good\n\nRisk Assessment:\nSuicidal ideation: None. Self-harm: None. Homicidal ideation: None. Risk level: Low.\n\nInterventions Used:\n- EMDR bilateral stimulation\n- Grounding techniques\n- Psychoeducation about trauma processing\nTechniques were effective - SUD decreased significantly during session.\nSkills taught: Container visualization for managing distressing memories between sessions\nSkills practiced: Grounding techniques, safe place visualization\nHomework assigned: Practice container exercise daily and note any intrusive memories in trauma log\nPrevious homework: Completed - practiced grounding exercises as assigned\nMedications: Not applicable\n\nDiagnoses:\nPrimary diagnosis: Post-Traumatic Stress Disorder\nPrimary diagnosis code: F43.10\nDiagnosis status: No change\n\nTreatment Progress:\nOverall progress: Some improvement - SUD ratings decreasing across sessions\nTreatment phase: Middle\nBarriers: Avoidance of driving continues outside of sessions\nStrengths: Strong engagement with EMDR process, good emotional regulation capacity\nTreatment goals: Reduce intrusive symptoms, resume normal driving, decrease hypervigilance\nGoals addressed: Processing traumatic memory through EMDR\n\nPlan:\n- Continue weekly sessions in person\n- Next session: March 19, 2026\n- Focus: Continue EMDR processing of remaining target memories\n- No referrals needed at this time\n- Level of care: Outpatient\n- Discharge planning: Not planned",
+  "test_type": "Trauma/EMDR in-person, PTSD diagnosis, moderate severity",
+  "expected_outcome": "extraction_success",
+  "expected_sections": {
+    "sessionInfo": {
+      "sessionType": { "accept": ["Individual"], "match": "exact" },
+      "sessionModality": { "accept": ["InPerson"], "match": "exact" }
+    },
+    "presentingConcerns": {
+      "primaryConcernCategory": { "accept": ["Trauma"], "match": "exact" },
+      "primaryConcern": { "accept": ["trauma", "accident", "ptsd", "intrusive"], "match": "contains_any" },
+      "concernSeverity": { "accept": ["Moderate"], "match": "exact" },
+      "newThisSession": { "accept": ["False"], "match": "exact" },
+      "triggerEvents": { "accept": ["noise", "loud", "vehicle", "passenger", "driving", "traffic"], "match": "any_keyword" }
+    },
+    "moodAssessment": {
+      "selfReportedMood": { "accept": ["5"], "match": "exact" },
+      "moodChangeFromLast": { "accept": ["Improved"], "match": "exact" },
+      "energyLevel": { "accept": ["Normal"], "match": "exact" }
+    },
+    "mentalStatusExam": {
+      "appearance": { "accept": ["WellGroomed", "Appropriate"], "match": "exact" },
+      "behavior": { "accept": ["Restless", "Cooperative"], "match": "exact" },
+      "thoughtProcess": { "accept": ["Linear"], "match": "exact" },
+      "cognition": { "accept": ["Intact"], "match": "exact" },
+      "insight": { "accept": ["Good"], "match": "exact" }
+    },
+    "interventions": {
+      "techniquesUsed": { "accept": ["Emdr", "EMDR", "Grounding", "Psychoeducation"], "match": "any_value" },
+      "techniquesEffectiveness": { "accept": ["Effective", "VeryEffective"], "match": "exact" },
+      "homeworkCompletion": { "accept": ["Completed"], "match": "exact" },
+      "homeworkAssigned": { "accept": ["container", "trauma", "log", "intrusive"], "match": "contains_any" },
+      "medicationAdherence": { "accept": ["NotApplicable"], "match": "exact" }
+    },
+    "diagnoses": {
+      "primaryDiagnosisCode": { "accept": ["F43.10", "F43.1"], "match": "exact" },
+      "primaryDiagnosis": { "accept": ["ptsd", "post-traumatic", "posttraumatic", "trauma"], "match": "contains_any" },
+      "diagnosisChanges": { "accept": ["NoChange"], "match": "exact" }
+    },
+    "treatmentProgress": {
+      "progressRatingOverall": { "accept": ["SomeImprovement"], "match": "exact" },
+      "treatmentPhase": { "accept": ["Middle"], "match": "exact" },
+      "barriersIdentified": { "accept": ["avoid", "driving"], "match": "any_keyword" },
+      "strengthsObserved": { "accept": ["engag", "emotional", "regulation", "emdr"], "match": "any_keyword" }
+    },
+    "nextSteps": {
+      "nextSessionFrequency": { "accept": ["Weekly", "TwiceWeekly"], "match": "exact" },
+      "nextSessionDate": { "accept": ["2026-03-19", "0001-01-01"], "match": "exact" },
+      "levelOfCareRecommendation": { "accept": ["Outpatient"], "match": "exact" },
+      "dischargePlanning": { "accept": ["NotPlanned", "NotApplicable"], "match": "exact" }
+    }
+  },
+  "assert_sections": ["all"],
+  "assert_fields": ["all"]
+}

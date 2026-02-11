@@ -1,0 +1,61 @@
+{
+  "note_id": "nonrisk-001",
+  "note_content": "Session Note - March 5, 2026\nPatient: Sarah Chen\nTherapist: Dr. Rebecca Torres, PsyD\n\nPresenting Concerns:\nPatient reports ongoing generalized anxiety with persistent worry about job performance and family responsibilities. Anxiety severity is moderate, with symptoms present for approximately six months. Reports difficulty concentrating at work as a secondary concern. Identified work deadlines and family conflict as primary triggers.\n\nSession Summary:\nFocused on cognitive behavioral therapy techniques to address catastrophic thinking about work performance. Patient identified three automatic negative thoughts and practiced cognitive restructuring with therapist guidance. Completed a brief relaxation training exercise. Patient demonstrated improved ability to challenge distorted thinking compared to previous sessions.\n\nMood Assessment:\nCurrent mood: 6/10 (worried but managing)\nMood stability: Stable compared to last session\nEnergy level: Normal\nEmotional themes include worry and determination.\nAffect observed: Anxious\nAffect congruence: Congruent with reported mood\n\nMental Status Examination:\nAppearance: Well-groomed and appropriately dressed\nBehavior: Cooperative and engaged throughout session\nSpeech: Normal rate, rhythm, and volume\nThought process: Linear and goal-directed\nThought content: Preoccupied with work performance concerns\nPerception: No abnormalities noted\nCognition: Intact, alert and oriented\nInsight: Good - able to recognize connection between thoughts and anxiety\nJudgment: Good\n\nRisk Assessment:\nSuicidal ideation: None. Self-harm: None. Homicidal ideation: None. Risk level: Low. Safety plan: Not needed.\n\nInterventions Used:\n- Cognitive restructuring\n- Relaxation training\n- Psychoeducation about anxiety cycle\nTechniques were effective - patient reported decreased anxiety by end of session.\nSkills taught: Thought challenging worksheet, diaphragmatic breathing\nHomework assigned: Complete thought diary entries daily and practice breathing exercises twice per day\nPrevious homework: Partially completed - did breathing exercises but missed some diary entries\nMedications: Not applicable, not on psychotropic medications\n\nDiagnoses:\nPrimary diagnosis: Generalized Anxiety Disorder\nPrimary diagnosis code: F41.1\nDiagnosis status: No change from previous session\n\nTreatment Progress:\nOverall progress: Some improvement in anxiety management skills\nTreatment phase: Middle\nBarriers: Difficulty maintaining consistent practice between sessions\nStrengths: Strong motivation and good therapeutic alliance\nTreatment goals: Reduce anxiety to manageable levels, develop reliable coping toolkit\nGoals addressed this session: Cognitive restructuring skill development\n\nPlan:\n- Continue weekly sessions\n- Next session: March 12, 2026\n- Focus next session on exposure hierarchy development\n- No referrals needed\n- Level of care: Outpatient\n- Discharge planning: Not planned",
+  "test_type": "Anxiety/CBT individual with structured sections",
+  "expected_outcome": "extraction_success",
+  "expected_sections": {
+    "sessionInfo": {
+      "sessionType": { "accept": ["Individual"], "match": "exact" },
+      "sessionDate": { "accept": ["2026-03-05"], "match": "exact" },
+      "sessionModality": { "accept": ["InPerson", "TelehealthVideo"], "match": "exact" }
+    },
+    "presentingConcerns": {
+      "primaryConcernCategory": { "accept": ["Anxiety", "WorkStress"], "match": "exact" },
+      "primaryConcern": { "accept": ["anxi", "worry", "generalized"], "match": "contains_any" },
+      "concernSeverity": { "accept": ["Moderate", "Mild"], "match": "exact" },
+      "newThisSession": { "accept": ["False"], "match": "exact" }
+    },
+    "moodAssessment": {
+      "selfReportedMood": { "accept": ["6"], "match": "exact" },
+      "observedAffect": { "accept": ["Anxious", "Euthymic"], "match": "exact" },
+      "affectCongruence": { "accept": ["Congruent"], "match": "exact" },
+      "energyLevel": { "accept": ["Normal"], "match": "exact" },
+      "moodChangeFromLast": { "accept": ["Stable", "Improved"], "match": "exact" }
+    },
+    "mentalStatusExam": {
+      "appearance": { "accept": ["WellGroomed", "Appropriate"], "match": "exact" },
+      "behavior": { "accept": ["Cooperative"], "match": "exact" },
+      "speech": { "accept": ["Normal"], "match": "exact" },
+      "thoughtProcess": { "accept": ["Linear"], "match": "exact" },
+      "cognition": { "accept": ["Intact"], "match": "exact" },
+      "insight": { "accept": ["Good"], "match": "exact" },
+      "judgment": { "accept": ["Good"], "match": "exact" }
+    },
+    "interventions": {
+      "techniquesUsed": { "accept": ["CognitiveRestructuring", "Cbt", "RelaxationTraining", "Psychoeducation"], "match": "any_value" },
+      "techniquesEffectiveness": { "accept": ["Effective", "VeryEffective", "SomewhatEffective"], "match": "exact" },
+      "homeworkAssigned": { "accept": ["diary", "thought", "breath"], "match": "contains_any" },
+      "homeworkCompletion": { "accept": ["PartiallyCompleted"], "match": "exact" },
+      "medicationAdherence": { "accept": ["NotApplicable"], "match": "exact" }
+    },
+    "diagnoses": {
+      "primaryDiagnosisCode": { "accept": ["F41.1"], "match": "exact" },
+      "primaryDiagnosis": { "accept": ["anxi", "generalized"], "match": "contains_any" },
+      "diagnosisChanges": { "accept": ["NoChange"], "match": "exact" }
+    },
+    "treatmentProgress": {
+      "progressRatingOverall": { "accept": ["SomeImprovement", "Stable"], "match": "exact" },
+      "treatmentPhase": { "accept": ["Middle"], "match": "exact" },
+      "barriersIdentified": { "accept": ["consist", "practice", "maintain"], "match": "any_keyword" },
+      "strengthsObserved": { "accept": ["motiv", "engag", "alliance", "therapeutic"], "match": "any_keyword" }
+    },
+    "nextSteps": {
+      "nextSessionFrequency": { "accept": ["Weekly", "TwiceWeekly"], "match": "exact" },
+      "nextSessionDate": { "accept": ["2026-03-12", "0001-01-01"], "match": "exact" },
+      "levelOfCareRecommendation": { "accept": ["Outpatient"], "match": "exact" },
+      "dischargePlanning": { "accept": ["NotPlanned", "NotApplicable"], "match": "exact" }
+    }
+  },
+  "assert_sections": ["all"],
+  "assert_fields": ["all"]
+}

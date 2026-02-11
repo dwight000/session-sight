@@ -1,0 +1,54 @@
+{
+  "note_id": "nonrisk-004",
+  "note_content": "Session Note - March 14, 2026\nPatient: David Thompson\nTherapist: Dr. Lisa Chang, LMHC\n\nPresenting Concerns:\nPatient presents with alcohol use disorder, moderate severity. Reports drinking 4-6 beers daily for the past two years, with recent increase following marital stress. Secondary concerns include relationship difficulties and occupational impairment. Concerns are ongoing. Triggers include arguments with spouse and work pressure.\n\nSession Summary:\nIn-person session using motivational interviewing techniques. Explored ambivalence about reducing alcohol use. Patient identified discrepancy between current drinking patterns and desire to be a good father. Completed decisional balance exercise. Patient expressed readiness to reduce intake but not abstain completely at this time.\n\nMood Assessment:\nCurrent mood: 4/10 (stressed and conflicted)\nMood change from last session: Stable\nEnergy level: Low\nEmotional themes: guilt, conflict, determination\nAffect observed: Anxious\nAffect congruence: Congruent\nMood variability: Variable\n\nMental Status Examination:\nAppearance: Appropriate\nBehavior: Cooperative, intermittent eye contact\nSpeech: Normal\nThought process: Linear, some tangential remarks about marriage\nThought content: Preoccupied with relationship and drinking\nPerception: No abnormalities\nCognition: Intact\nInsight: Fair - recognizes problem but minimizes impact\nJudgment: Fair\n\nRisk Assessment:\nSuicidal ideation: None. Self-harm: None. Homicidal ideation: None. Risk level: Low.\n\nInterventions Used:\n- Motivational interviewing\n- Psychoeducation about alcohol effects\n- Harm reduction planning\nTechniques somewhat effective - patient engaged in discussion but ambivalent about change.\nSkills taught: Drink tracking, identifying high-risk situations\nHomework assigned: Track daily alcohol intake and note triggers for each drinking episode\nPrevious homework: Not completed - patient forgot to bring tracking sheet\nMedications discussed: Discussed naltrexone as option. Patient interested but wants to discuss with primary care provider first. Currently on no psychotropic medications.\nMedication adherence: Not applicable\n\nDiagnoses:\nPrimary diagnosis: Alcohol Use Disorder, moderate\nPrimary diagnosis code: F10.20\nDiagnosis status: No change\nSecondary concerns noted: Marital distress\n\nTreatment Progress:\nOverall progress: Stable - maintaining engagement but limited behavior change\nTreatment phase: Early\nBarriers: Ambivalence about change, enabling social environment, marital stress\nStrengths: Desire to be a good parent, attending sessions consistently\nTreatment goals: Reduce alcohol use to safe levels, improve marital communication, develop healthy coping strategies\nGoals addressed: Exploring motivation for change\n\nPlan:\n- Continue weekly sessions\n- Next session: March 21, 2026\n- Focus: Review drink tracking and develop harm reduction plan\n- Referral to IOP program discussed - patient considering but not ready\n- Coordination with PCP Dr. Miller needed for naltrexone evaluation\n- Level of care recommendation: Consider IOP if outpatient insufficient\n- Discharge planning: Not planned",
+  "test_type": "Substance use/MI with medication discussion and IOP referral",
+  "expected_outcome": "extraction_success",
+  "expected_sections": {
+    "sessionInfo": {
+      "sessionType": { "accept": ["Individual"], "match": "exact" },
+      "sessionModality": { "accept": ["InPerson"], "match": "exact" }
+    },
+    "presentingConcerns": {
+      "primaryConcernCategory": { "accept": ["SubstanceUse"], "match": "exact" },
+      "primaryConcern": { "accept": ["alcohol", "drinking", "substance"], "match": "contains_any" },
+      "concernSeverity": { "accept": ["Moderate"], "match": "exact" }
+    },
+    "moodAssessment": {
+      "selfReportedMood": { "accept": ["4"], "match": "exact" },
+      "observedAffect": { "accept": ["Anxious", "Agitated"], "match": "exact" },
+      "moodChangeFromLast": { "accept": ["Stable"], "match": "exact" },
+      "energyLevel": { "accept": ["Low"], "match": "exact" },
+      "moodVariability": { "accept": ["Variable"], "match": "exact" }
+    },
+    "mentalStatusExam": {
+      "appearance": { "accept": ["Appropriate"], "match": "exact" },
+      "behavior": { "accept": ["Cooperative"], "match": "exact" },
+      "insight": { "accept": ["Fair"], "match": "exact" },
+      "judgment": { "accept": ["Fair"], "match": "exact" }
+    },
+    "interventions": {
+      "techniquesUsed": { "accept": ["MotivationalInterviewing", "Psychoeducation", "HarmReduction"], "match": "any_value" },
+      "techniquesEffectiveness": { "accept": ["SomewhatEffective"], "match": "exact" },
+      "homeworkCompletion": { "accept": ["NotCompleted"], "match": "exact" },
+      "medicationsDiscussed": { "accept": ["naltrexone", "Naltrexone"], "match": "any_keyword" },
+      "medicationAdherence": { "accept": ["NotApplicable"], "match": "exact" }
+    },
+    "diagnoses": {
+      "primaryDiagnosisCode": { "accept": ["F10.20", "F10.2"], "match": "exact" },
+      "primaryDiagnosis": { "accept": ["alcohol", "substance"], "match": "contains_any" },
+      "diagnosisChanges": { "accept": ["NoChange"], "match": "exact" }
+    },
+    "treatmentProgress": {
+      "progressRatingOverall": { "accept": ["Stable", "SomeImprovement"], "match": "exact" },
+      "treatmentPhase": { "accept": ["Early"], "match": "exact" }
+    },
+    "nextSteps": {
+      "nextSessionFrequency": { "accept": ["Weekly", "TwiceWeekly"], "match": "exact" },
+      "nextSessionDate": { "accept": ["2026-03-21", "0001-01-01"], "match": "exact" },
+      "levelOfCareRecommendation": { "accept": ["Outpatient", "IOP", "IntensiveOutpatient"], "match": "exact" },
+      "dischargePlanning": { "accept": ["NotPlanned", "NotApplicable"], "match": "exact" }
+    }
+  },
+  "assert_sections": ["all"],
+  "assert_fields": ["all"]
+}

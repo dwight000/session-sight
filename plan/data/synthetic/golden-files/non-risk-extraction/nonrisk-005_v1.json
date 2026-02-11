@@ -1,0 +1,52 @@
+{
+  "note_id": "nonrisk-005",
+  "note_content": "Session Note - March 18, 2026\nPatient: Jennifer Walsh\nTherapist: Dr. Michael Chen, PsyD\n\nPresenting Concerns:\nPatient originally presented with adjustment disorder related to divorce, now largely resolved. Severity is mild at this point. Concerns have been ongoing for eight months but symptoms have significantly decreased. No new concerns this session.\n\nSession Summary:\nTermination planning session. Reviewed progress made throughout 16 sessions of therapy. Patient reflected on gains in emotional regulation and boundary-setting skills. Discussed strategies for maintaining progress independently. Created relapse prevention plan identifying warning signs and coping strategies. Patient expressed gratitude and confidence about managing independently.\n\nMood Assessment:\nCurrent mood: 8/10 (positive and confident)\nMood change from last session: Improved\nEnergy level: Normal\nEmotional themes: gratitude, confidence, mild apprehension about ending therapy\nAffect observed: Bright and engaged\nAffect congruence: Congruent\n\nMental Status Examination:\nAppearance: Well-groomed\nBehavior: Cooperative and engaged\nSpeech: Normal\nThought process: Linear and organized\nThought content: Future-oriented, reflecting on progress\nPerception: No abnormalities\nCognition: Intact\nInsight: Good - clear understanding of gains and ongoing needs\nJudgment: Good\n\nRisk Assessment:\nSuicidal ideation: None. Self-harm: None. Homicidal ideation: None. Risk level: Low.\n\nInterventions Used:\n- Relapse prevention planning\n- Psychoeducation about maintaining gains\n- Supportive therapy\nTechniques were very effective - patient articulated clear plan for independence.\nSkills practiced: Identifying warning signs, reviewing coping toolkit\nHomework assigned: Implement relapse prevention plan and schedule follow-up if needed\nPrevious homework: Completed - practiced all assigned coping strategies successfully\nMedications: Not applicable\n\nDiagnoses:\nPrimary diagnosis: Adjustment Disorder with mixed anxiety and depressed mood, resolved\nPrimary diagnosis code: F43.23\nDiagnosis status: Updated - symptoms have resolved\n\nTreatment Progress:\nOverall progress: Significant improvement across all treatment goals\nTreatment phase: Termination\nBarriers: Mild apprehension about ending therapy\nStrengths: Strong coping skills, good social support network, self-awareness\nTreatment goals: Emotional regulation, boundary setting, adjusting to post-divorce life\nGoals addressed: All goals reviewed and progress consolidated\n\nPlan:\n- Final session - therapy concluded\n- Discharge planned with option to return if needed\n- No further regular sessions scheduled\n- No referrals needed\n- Level of care: Outpatient - completed\n- Discharge planning: Ready for discharge",
+  "test_type": "Termination session with discharge planned, late/termination phase",
+  "expected_outcome": "extraction_success",
+  "expected_sections": {
+    "sessionInfo": {
+      "sessionType": { "accept": ["Individual", "Termination"], "match": "exact" },
+      "sessionDate": { "accept": ["2026-03-18"], "match": "exact" }
+    },
+    "presentingConcerns": {
+      "primaryConcernCategory": { "accept": ["LifeTransition", "Relationship", "Other"], "match": "exact" },
+      "primaryConcern": { "accept": ["adjust", "divorce", "transition"], "match": "contains_any" },
+      "concernSeverity": { "accept": ["Mild"], "match": "exact" },
+      "newThisSession": { "accept": ["False"], "match": "exact" }
+    },
+    "moodAssessment": {
+      "selfReportedMood": { "accept": ["8"], "match": "exact" },
+      "observedAffect": { "accept": ["Bright", "Euthymic"], "match": "exact" },
+      "moodChangeFromLast": { "accept": ["Improved", "SignificantlyImproved"], "match": "exact" },
+      "energyLevel": { "accept": ["Normal"], "match": "exact" }
+    },
+    "mentalStatusExam": {
+      "appearance": { "accept": ["WellGroomed", "Appropriate"], "match": "exact" },
+      "behavior": { "accept": ["Cooperative"], "match": "exact" },
+      "insight": { "accept": ["Good"], "match": "exact" },
+      "judgment": { "accept": ["Good"], "match": "exact" }
+    },
+    "interventions": {
+      "techniquesUsed": { "accept": ["RelapsePrevention", "Psychoeducation", "SupportiveTherapy", "Supportive"], "match": "any_value" },
+      "techniquesEffectiveness": { "accept": ["VeryEffective", "Effective"], "match": "exact" },
+      "homeworkCompletion": { "accept": ["Completed"], "match": "exact" },
+      "medicationAdherence": { "accept": ["NotApplicable"], "match": "exact" }
+    },
+    "diagnoses": {
+      "primaryDiagnosisCode": { "accept": ["F43.23", "F43.2"], "match": "exact" },
+      "primaryDiagnosis": { "accept": ["adjust", "adjustment"], "match": "contains_any" },
+      "diagnosisChanges": { "accept": ["Updated", "Removed"], "match": "exact" }
+    },
+    "treatmentProgress": {
+      "progressRatingOverall": { "accept": ["SignificantImprovement"], "match": "exact" },
+      "treatmentPhase": { "accept": ["Termination", "Late"], "match": "exact" },
+      "strengthsObserved": { "accept": ["coping", "support", "social", "self-aware", "skill"], "match": "any_keyword" }
+    },
+    "nextSteps": {
+      "dischargePlanning": { "accept": ["ReadyForDischarge", "Discharged", "InProgress"], "match": "exact" },
+      "levelOfCareRecommendation": { "accept": ["Outpatient", "NotApplicable"], "match": "exact" }
+    }
+  },
+  "assert_sections": ["all"],
+  "assert_fields": ["all"]
+}

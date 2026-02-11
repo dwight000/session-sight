@@ -25,7 +25,7 @@ internal static class ExtractionAssertions
         return value.ValueKind == JsonValueKind.Null ? null : value.ToString();
     }
 
-    private static List<string> GetArrayValues(JsonElement section, string fieldName)
+    internal static List<string> GetArrayValues(JsonElement section, string fieldName)
     {
         if (!section.TryGetProperty(fieldName, out var field))
             return [];

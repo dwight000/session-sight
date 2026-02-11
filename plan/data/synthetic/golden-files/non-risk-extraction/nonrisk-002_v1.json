@@ -1,0 +1,53 @@
+{
+  "note_id": "nonrisk-002",
+  "note_content": "Session Note - March 10, 2026\nPatient: Marcus Williams\nTherapist: Dr. James Park, LCSW\n\nPresenting Concerns:\nPatient presents with moderate depression, reporting persistent low mood and anhedonia for the past three months. Reports that symptoms worsened after a recent job loss. Secondary concerns include social withdrawal and poor sleep. This is not a new concern.\n\nSession Summary:\nConducted via telehealth video. Session focused on behavioral activation strategies to address withdrawal patterns. Reviewed activity log from the past week and identified avoidance behaviors. Patient committed to scheduling two pleasurable activities this week. Discussed relationship between inactivity and depressed mood.\n\nMood Assessment:\nCurrent mood: 3/10 (low and unmotivated)\nMood change from last session: Declined\nEnergy level: Low\nEmotional themes: sadness, hopelessness, loss\nAffect observed: Flat\nAffect congruence: Congruent\nMood variability: Stable\n\nMental Status Examination:\nAppearance: Appropriate but somewhat disheveled\nBehavior: Cooperative but withdrawn at times\nSpeech: Slow rate, low volume\nThought process: Linear but slowed\nThought content: Themes of worthlessness and loss\nPerception: No abnormalities\nCognition: Intact\nInsight: Fair - acknowledges depression but minimizes severity\nJudgment: Fair\n\nRisk Assessment:\nSuicidal ideation: None. Self-harm: None. Homicidal ideation: None. Risk level: Low.\n\nInterventions Used:\n- Behavioral activation\n- Motivational interviewing\n- Psychoeducation about depression\nTechniques somewhat effective - patient was engaged but expressed doubt about follow-through.\nSkills taught: Activity scheduling, mood monitoring\nSkills practiced: Identifying avoidance patterns\nHomework assigned: Complete activity schedule and rate enjoyment for each activity\nPrevious homework: Not completed - patient reported too tired to engage\nMedications discussed: Patient currently on sertraline 50mg. Discussed possible dose adjustment with psychiatrist.\nMedication adherence: Partially adherent - missed doses on weekends\n\nDiagnoses:\nPrimary diagnosis: Major Depressive Disorder, single episode, moderate\nPrimary diagnosis code: F32.1\nDiagnosis status: No change\n\nTreatment Progress:\nOverall progress: Some regression since job loss\nTreatment phase: Early\nBarriers: Low energy, social isolation, job loss stressor\nStrengths: Willingness to attend sessions, some awareness of patterns\nTreatment goals: Increase daily activity level, improve mood, rebuild social connections\nGoals addressed: Behavioral activation planning\n\nPlan:\n- Continue weekly sessions via telehealth\n- Next session: March 17, 2026\n- Focus: Review activity schedule results\n- Referral made to psychiatrist Dr. Singh for medication review\n- Level of care: Outpatient\n- Discharge planning: Not planned",
+  "test_type": "Depression/BehavioralActivation telehealth with referral",
+  "expected_outcome": "extraction_success",
+  "expected_sections": {
+    "sessionInfo": {
+      "sessionModality": { "accept": ["TelehealthVideo"], "match": "exact" }
+    },
+    "presentingConcerns": {
+      "primaryConcernCategory": { "accept": ["Depression"], "match": "exact" },
+      "primaryConcern": { "accept": ["depress", "low mood", "anhedonia"], "match": "contains_any" },
+      "concernSeverity": { "accept": ["Moderate"], "match": "exact" },
+      "newThisSession": { "accept": ["False"], "match": "exact" }
+    },
+    "moodAssessment": {
+      "selfReportedMood": { "accept": ["3"], "match": "exact" },
+      "observedAffect": { "accept": ["Flat", "Blunted"], "match": "exact" },
+      "moodChangeFromLast": { "accept": ["Declined", "SignificantlyDeclined"], "match": "exact" },
+      "energyLevel": { "accept": ["Low"], "match": "exact" }
+    },
+    "mentalStatusExam": {
+      "appearance": { "accept": ["Appropriate", "Disheveled"], "match": "exact" },
+      "behavior": { "accept": ["Cooperative", "Withdrawn"], "match": "exact" },
+      "insight": { "accept": ["Fair"], "match": "exact" },
+      "judgment": { "accept": ["Fair"], "match": "exact" }
+    },
+    "interventions": {
+      "techniquesUsed": { "accept": ["BehavioralActivation", "MotivationalInterviewing", "Psychoeducation"], "match": "any_value" },
+      "techniquesEffectiveness": { "accept": ["SomewhatEffective", "Effective"], "match": "exact" },
+      "homeworkCompletion": { "accept": ["NotCompleted"], "match": "exact" },
+      "medicationAdherence": { "accept": ["PartiallyAdherent"], "match": "exact" },
+      "medicationsDiscussed": { "accept": ["sertraline", "Sertraline", "SSRI"], "match": "any_keyword" }
+    },
+    "diagnoses": {
+      "primaryDiagnosisCode": { "accept": ["F32.1"], "match": "exact" },
+      "primaryDiagnosis": { "accept": ["depress", "major"], "match": "contains_any" },
+      "diagnosisChanges": { "accept": ["NoChange"], "match": "exact" }
+    },
+    "treatmentProgress": {
+      "progressRatingOverall": { "accept": ["SomeRegression", "Stable", "SomeImprovement"], "match": "exact" },
+      "treatmentPhase": { "accept": ["Early"], "match": "exact" }
+    },
+    "nextSteps": {
+      "nextSessionFrequency": { "accept": ["Weekly", "TwiceWeekly"], "match": "exact" },
+      "referralsMade": { "accept": ["psychiat", "Dr. Singh", "medication"], "match": "any_keyword" },
+      "levelOfCareRecommendation": { "accept": ["Outpatient"], "match": "exact" },
+      "dischargePlanning": { "accept": ["NotPlanned", "NotApplicable"], "match": "exact" }
+    }
+  },
+  "assert_sections": ["all"],
+  "assert_fields": ["all"]
+}
