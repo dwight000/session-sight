@@ -152,4 +152,14 @@ public class RiskPromptsTests
         prompt.Should().Contain("non-empty freeform explanation");
         prompt.Should().Contain("insufficient_evidence");
     }
+
+    [Fact]
+    public void GetRiskReExtractionPrompt_ContainsEuphemisticLanguageRule()
+    {
+        var prompt = RiskPrompts.GetRiskReExtractionPrompt("Test note");
+
+        prompt.Should().Contain("Euphemistic or indirect language");
+        prompt.Should().Contain("go to sleep and not wake up");
+        prompt.Should().Contain("ActiveNoPlan");
+    }
 }

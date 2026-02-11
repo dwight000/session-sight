@@ -15,7 +15,7 @@
     {
       "stage": "risk_reextracted",
       "fields": {
-        "suicidal_ideation": { "accept": ["passive", "active_no_plan", "active_with_plan", "active_with_intent"] },
+        "suicidal_ideation": { "accept": ["active_no_plan", "active_with_plan", "active_with_intent"] },
         "si_frequency": { "accept": ["frequent", "constant", "occasional"] },
         "self_harm": { "accept": ["none"] },
         "homicidal_ideation": { "accept": ["none"] },
@@ -25,7 +25,7 @@
     {
       "stage": "risk_final",
       "fields": {
-        "suicidal_ideation": { "accept": ["passive", "active_no_plan", "active_with_plan", "active_with_intent"] },
+        "suicidal_ideation": { "accept": ["active_no_plan", "active_with_plan", "active_with_intent"] },
         "si_frequency": { "accept": ["frequent", "constant", "occasional"] },
         "self_harm": { "accept": ["none"] },
         "homicidal_ideation": { "accept": ["none"] },
