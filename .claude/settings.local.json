@@ -67,7 +67,8 @@
       "Bash(GOLDEN_MODE=full GOLDEN_FILTER=nonrisk-002 ./scripts/run-e2e.sh:*)",
       "Bash(for f in plan/data/synthetic/golden-files/risk-assessment/risk-test-{038..051}_v2.json)",
       "Bash(GOLDEN_FILTER=risk-test-038 ./scripts/run-e2e.sh:*)",
-      "Bash(GOLDEN_MODE=full GOLDEN_FILTER=adversarial ./scripts/run-e2e.sh:*)"
+      "Bash(GOLDEN_MODE=full GOLDEN_FILTER=adversarial ./scripts/run-e2e.sh:*)",
+      "Bash(wc:*)"
     ]
   }
 }

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SessionSight.Core.Entities;
 using SessionSight.Core.Enums;
 using SessionSight.Core.Interfaces;
@@ -6,13 +7,18 @@ using SessionSight.Infrastructure.Data;
 
 namespace SessionSight.Infrastructure.Repositories;
 
-public class SessionRepository : ISessionRepository
+public partial class SessionRepository : ISessionRepository
 {
-    private readonly SessionSightDbContext _context;
+    private const int MaxConcurrencyRetries = 3;
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(100);
 
-    public SessionRepository(SessionSightDbContext context)
+    private readonly SessionSightDbContext _context;
+    private readonly ILogger<SessionRepository> _logger;
+
+    public SessionRepository(SessionSightDbContext context, ILogger<SessionRepository> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     public async Task<Session?> GetByIdAsync(Guid id)
@@ -67,8 +73,7 @@ public class SessionRepository : ISessionRepository
 
     public async Task UpdateAsync(Session session)
     {
-        const int maxRetries = 3;
-        for (int attempt = 0; attempt < maxRetries; attempt++)
+        for (var attempt = 1; attempt <= MaxConcurrencyRetries; attempt++)
         {
             try
             {
@@ -76,14 +81,27 @@ public class SessionRepository : ISessionRepository
                 await _context.SaveChangesAsync();
                 return;
             }
-            catch (DbUpdateConcurrencyException) when (attempt < maxRetries - 1)
+            catch (DbUpdateConcurrencyException ex)
             {
-                // Reload entity with fresh values from database
+                if (attempt == MaxConcurrencyRetries)
+                {
+                    LogConcurrencyFailed(_logger, session.Id, MaxConcurrencyRetries);
+                    throw new InvalidOperationException(
+                        $"Failed to update session {session.Id} after {MaxConcurrencyRetries} attempts due to concurrency conflicts", ex);
+                }
+
+                LogConcurrencyRetry(_logger, session.Id, attempt, MaxConcurrencyRetries);
                 await _context.Entry(session).ReloadAsync();
+                await Task.Delay(RetryDelay);
             }
         }
-        throw new InvalidOperationException($"Failed to update session {session.Id} after {maxRetries} attempts due to concurrency conflicts");
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Concurrency conflict updating session {SessionId}, retry {Attempt}/{MaxRetries}")]
+    private static partial void LogConcurrencyRetry(ILogger logger, Guid sessionId, int attempt, int maxRetries);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Failed to update session {SessionId} after {MaxRetries} concurrency retries")]
+    private static partial void LogConcurrencyFailed(ILogger logger, Guid sessionId, int maxRetries);
 
     public async Task AddDocumentAsync(Session session, SessionDocument document)
     {

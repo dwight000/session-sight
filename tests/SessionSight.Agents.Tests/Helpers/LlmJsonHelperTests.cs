@@ -192,4 +192,37 @@ public class LlmJsonHelperTests
         var result = LlmJsonHelper.TryParseDouble(doc.RootElement.GetProperty("n"));
         result.Should().BeNull();
     }
+
+    [Fact]
+    public void ExtractJson_IncompleteCodeBlock_HandlesGracefully()
+    {
+        var input = "```json\n{\"key\": \"value\"}";
+        var result = LlmJsonHelper.ExtractJson(input);
+        result.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public void ExtractJson_UppercaseJsonFence_ExtractsJson()
+    {
+        var input = """
+            ```JSON
+            {"key": "value"}
+            ```
+            """;
+        LlmJsonHelper.ExtractJson(input).Should().Be("""{"key": "value"}""");
+    }
+
+    [Fact]
+    public void ExtractJson_WhitespaceAround_Trims()
+    {
+        var input = "   {\"key\": \"value\"}   ";
+        LlmJsonHelper.ExtractJson(input).Should().Be("{\"key\": \"value\"}");
+    }
+
+    [Fact]
+    public void ExtractJson_PlainText_ReturnsAsIs()
+    {
+        var input = "plain text content";
+        LlmJsonHelper.ExtractJson(input).Should().Be("plain text content");
+    }
 }

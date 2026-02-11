@@ -407,10 +407,32 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
         return Enum.TryParse(enumType, stringValue, ignoreCase: true, out var result) ? result : null;
     }
 
+    private static readonly string[] DateFormats =
+    [
+        "yyyy-MM-dd",      // ISO: 2026-03-05
+        "M/d/yyyy",        // US: 3/5/2026
+        "MM/dd/yyyy",      // US padded: 03/05/2026
+        "MMMM d, yyyy",    // Full: March 5, 2026
+        "MMM d, yyyy",     // Abbrev: Mar 5, 2026
+        "d MMMM yyyy",     // Euro: 5 March 2026
+        "yyyy/MM/dd"       // Alt ISO: 2026/03/05
+    ];
+
     private static DateOnly? DeserializeDateOnly(JsonElement element)
     {
         var dateStr = element.GetString();
-        return DateOnly.TryParse(dateStr, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var date) ? date : null;
+        if (string.IsNullOrWhiteSpace(dateStr))
+            return null;
+
+        // Try standard parsing first (handles many formats)
+        if (DateOnly.TryParse(dateStr, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var date))
+            return date;
+
+        // Try explicit formats for edge cases
+        if (DateOnly.TryParseExact(dateStr, DateFormats, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out date))
+            return date;
+
+        return null;
     }
 
     private static TimeOnly? DeserializeTimeOnly(JsonElement element)

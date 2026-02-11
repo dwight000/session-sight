@@ -23,14 +23,16 @@ public class ConfidenceScoreTests
     public void Constructor_ValueBelowZero_ThrowsArgumentOutOfRange()
     {
         var act = () => new ConfidenceScore(-0.1);
-        act.Should().Throw<ArgumentOutOfRangeException>();
+        act.Should().Throw<ArgumentOutOfRangeException>()
+           .WithParameterName("value");
     }
 
     [Fact]
     public void Constructor_ValueAboveOne_ThrowsArgumentOutOfRange()
     {
         var act = () => new ConfidenceScore(1.1);
-        act.Should().Throw<ArgumentOutOfRangeException>();
+        act.Should().Throw<ArgumentOutOfRangeException>()
+           .WithParameterName("value");
     }
 
     [Theory]

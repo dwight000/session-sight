@@ -9,26 +9,6 @@ namespace SessionSight.Agents.Tests.Agents;
 public class RiskAssessorAgentTests
 {
     [Fact]
-    public void ExtractJson_PlainJson_ReturnsAsIs()
-    {
-        var json = """{"suicidalIdeation": {"value": "None", "confidence": 0.95}}""";
-        var result = RiskAssessorAgent.ExtractJson(json);
-        result.Should().Be(json);
-    }
-
-    [Fact]
-    public void ExtractJson_MarkdownCodeBlock_ExtractsJson()
-    {
-        var input = """
-            ```json
-            {"suicidalIdeation": {"value": "None", "confidence": 0.95}}
-            ```
-            """;
-        var result = RiskAssessorAgent.ExtractJson(input);
-        result.Should().Be("""{"suicidalIdeation": {"value": "None", "confidence": 0.95}}""");
-    }
-
-    [Fact]
     public void ParseRiskResponse_ValidJson_ReturnsExtraction()
     {
         var json = """
@@ -93,78 +73,6 @@ public class RiskAssessorAgentTests
         result.Should().NotBeNull();
         result!.CriteriaUsed.Should().BeEmpty();
         result.ReasoningUsed.Should().BeEmpty();
-    }
-
-    [Fact]
-    public void HasRequiredCriteriaUsed_AllKeysPresent_ReturnsTrue()
-    {
-        var criteria = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["suicidal_ideation"] = ["explicit_suicidal_statement"],
-            ["si_frequency"] = ["daily_frequency_statement"],
-            ["self_harm"] = ["self_injury_behavior_absent"],
-            ["homicidal_ideation"] = ["no_homicidal_thoughts_reported"],
-            ["risk_level_overall"] = ["active_with_plan"]
-        };
-
-        var isValid = RiskAssessorAgent.HasRequiredCriteriaUsed(criteria, out var missing);
-
-        isValid.Should().BeTrue();
-        missing.Should().BeEmpty();
-    }
-
-    [Fact]
-    public void HasRequiredCriteriaUsed_MissingKeys_ReturnsFalseWithMissingList()
-    {
-        var criteria = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["suicidal_ideation"] = ["explicit_suicidal_statement"],
-            ["self_harm"] = [""]
-        };
-
-        var isValid = RiskAssessorAgent.HasRequiredCriteriaUsed(criteria, out var missing);
-
-        isValid.Should().BeFalse();
-        missing.Should().Contain("si_frequency");
-        missing.Should().Contain("self_harm");
-        missing.Should().Contain("homicidal_ideation");
-        missing.Should().Contain("risk_level_overall");
-    }
-
-    [Fact]
-    public void HasRequiredReasoningUsed_AllKeysPresent_ReturnsTrue()
-    {
-        var reasoning = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["suicidal_ideation"] = "Direct suicidal language is present in the note.",
-            ["si_frequency"] = "Frequency language indicates daily recurrence.",
-            ["self_harm"] = "No self-injury behavior is documented.",
-            ["homicidal_ideation"] = "No harm-to-others thoughts are reported.",
-            ["risk_level_overall"] = "Plan evidence supports a high overall risk level."
-        };
-
-        var isValid = RiskAssessorAgent.HasRequiredReasoningUsed(reasoning, out var missing);
-
-        isValid.Should().BeTrue();
-        missing.Should().BeEmpty();
-    }
-
-    [Fact]
-    public void HasRequiredReasoningUsed_MissingKeys_ReturnsFalseWithMissingList()
-    {
-        var reasoning = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["suicidal_ideation"] = "Direct suicidal statements are present.",
-            ["self_harm"] = ""
-        };
-
-        var isValid = RiskAssessorAgent.HasRequiredReasoningUsed(reasoning, out var missing);
-
-        isValid.Should().BeFalse();
-        missing.Should().Contain("si_frequency");
-        missing.Should().Contain("self_harm");
-        missing.Should().Contain("homicidal_ideation");
-        missing.Should().Contain("risk_level_overall");
     }
 
     [Fact]
@@ -469,26 +377,6 @@ public class RiskAssessorAgentTests
     }
 
     [Fact]
-    public void ExtractJson_GenericCodeBlock_ExtractsContent()
-    {
-        var input = """
-            ```
-            {"suicidalIdeation": {"value": "None", "confidence": 0.95}}
-            ```
-            """;
-        var result = RiskAssessorAgent.ExtractJson(input);
-        result.Should().Be("""{"suicidalIdeation": {"value": "None", "confidence": 0.95}}""");
-    }
-
-    [Fact]
-    public void ExtractJson_PlainText_ReturnsAsIs()
-    {
-        var input = "plain text content";
-        var result = RiskAssessorAgent.ExtractJson(input);
-        result.Should().Be("plain text content");
-    }
-
-    [Fact]
     public void ConservativeMerge_SiFrequency_MoreSevereWins()
     {
         var original = new RiskAssessmentExtracted
@@ -755,27 +643,6 @@ public class RiskAssessorAgentTests
         // The caller (ReExtractRiskAsync) now throws on null, which the AssessAsync catch block handles
         var result = RiskAssessorAgent.ParseRiskResponse("completely invalid [[[ not json");
         result.Should().BeNull();
-    }
-
-    [Fact]
-    public void ExtractJson_ProseBeforeCodeFence_Extracts()
-    {
-        var input = """
-            Here is the risk assessment:
-            ```json
-            {"suicidalIdeation": {"value": "None"}}
-            ```
-            """;
-        var result = RiskAssessorAgent.ExtractJson(input);
-        result.Should().Contain("suicidalIdeation");
-    }
-
-    [Fact]
-    public void ExtractJson_JsonEmbeddedInProse_Extracts()
-    {
-        var input = """I found: {"riskLevelOverall": {"value": "Low"}} end.""";
-        var result = RiskAssessorAgent.ExtractJson(input);
-        result.Should().Contain("riskLevelOverall");
     }
 
     [Fact]

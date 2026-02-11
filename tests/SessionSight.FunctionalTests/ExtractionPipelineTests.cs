@@ -1,10 +1,25 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Azure.Identity;
+using Azure.Search.Documents;
 using FluentAssertions;
+using Microsoft.Extensions.Configuration;
 using SessionSight.FunctionalTests.Fixtures;
 
 namespace SessionSight.FunctionalTests;
+
+/// <summary>
+/// DTO for deserializing search documents. Mirrors SearchDocument from Infrastructure.
+/// Defined here to keep FunctionalTests independent of main projects.
+/// </summary>
+public class SearchDocument
+{
+    public string Id { get; set; } = string.Empty;
+    public string SessionId { get; set; } = string.Empty;
+    public string PatientId { get; set; } = string.Empty;
+    public IReadOnlyList<float>? ContentVector { get; set; }
+}
 
 /// <summary>
 /// End-to-end functional tests for the extraction pipeline.
@@ -16,6 +31,8 @@ public class ExtractionPipelineTests : IClassFixture<ApiFixture>
     private readonly HttpClient _client;
     private readonly HttpClient _longClient;
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly string _searchEndpoint;
+    private readonly string _indexName;
 
     public ExtractionPipelineTests(ApiFixture fixture)
     {
@@ -25,6 +42,22 @@ public class ExtractionPipelineTests : IClassFixture<ApiFixture>
         {
             PropertyNameCaseInsensitive = true
         };
+
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("appsettings.Test.json", optional: true)
+            .AddEnvironmentVariables()
+            .Build();
+
+        _searchEndpoint = Environment.GetEnvironmentVariable("AZURE_SEARCH_ENDPOINT")
+            ?? Environment.GetEnvironmentVariable("AzureSearch__Endpoint")
+            ?? configuration["AzureSearch:Endpoint"]
+            ?? throw new InvalidOperationException(
+                "Search endpoint not configured. Set AZURE_SEARCH_ENDPOINT or AzureSearch__Endpoint environment variable.");
+
+        _indexName = Environment.GetEnvironmentVariable("AZURE_SEARCH_INDEX_NAME")
+            ?? configuration["AzureSearch:IndexName"]
+            ?? "sessionsight-sessions";
     }
 
     [Fact]
@@ -90,13 +123,19 @@ public class ExtractionPipelineTests : IClassFixture<ApiFixture>
     }
 
     /// <summary>
-    /// Full end-to-end test: Create patient → Create session → Upload PDF → Trigger extraction.
-    /// This test verifies the AI Foundry → OpenAI connection is working.
-    /// Requires: Azure CLI login, Bicep role assignments deployed, AI Project connection configured.
+    /// Full end-to-end test: Create patient -> Create session -> Upload PDF -> Trigger extraction
+    /// -> Verify fields -> Verify Q&A -> Verify search indexing.
+    /// Sections 3-4 were merged from QATests and SearchIndexTests to share the single
+    /// extraction call (~$0.06 and ~4 min saved per run).
     /// </summary>
     [Fact]
     public async Task Pipeline_FullExtraction_ReturnsSuccess()
     {
+        // ── Section 1: Extraction Pipeline ──────────────────────────────
+        // Tests that the full extraction pipeline (Doc Intelligence → Intake →
+        // ClinicalExtractor → RiskAssessor → Summarizer → Embedding → Index)
+        // completes successfully and returns correct metadata.
+
         // 1. Create patient
         var patientRequest = new
         {
@@ -200,8 +239,113 @@ public class ExtractionPipelineTests : IClassFixture<ApiFixture>
             models.Should().NotBeEmpty("At least one model should be used for extraction");
         }
 
-        // 6. Verify extracted fields contain actual clinical data (not just empty defaults)
+        // ── Section 2: Extraction Field Accuracy (74 fields) ────────────
+        // Verifies the extracted clinical fields match expected values from
+        // sample-note.pdf. Shared assertion helper in ExtractionAssertions.cs.
+
         await ExtractionAssertions.AssertExtractionFields(_client, sessionId);
+
+        // ── Section 3: Q&A over Extracted Session ───────────────────────
+        // Originally: QATests.QA_AnswersQuestionAboutExtractedSession
+        // Merged here to share the extraction (~$0.03 saved per run).
+        // Tests that the RAG Q&A pipeline can answer questions using the
+        // extracted session data via vector search + LLM generation.
+        // Retry loop: search index is near-real-time, not instant.
+
+        var qaRequest = new { question = "What was discussed in the therapy session?" };
+        JsonElement qaJson = default;
+        var qaMaxAttempts = 15;
+
+        for (int attempt = 1; attempt <= qaMaxAttempts; attempt++)
+        {
+            await Task.Delay(2000);
+
+            var qaResponse = await _client.PostAsJsonAsync($"/api/qa/patient/{patientId}", qaRequest);
+            qaResponse.StatusCode.Should().Be(HttpStatusCode.OK, "Q&A endpoint should return 200 OK");
+
+            qaJson = await qaResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+            var sources = qaJson.GetProperty("sources");
+
+            if (sources.GetArrayLength() > 0)
+            {
+                break;
+            }
+
+            if (attempt == qaMaxAttempts)
+            {
+                var answer = qaJson.GetProperty("answer").GetString();
+                throw new Exception(
+                    $"Q&A returned no sources after {qaMaxAttempts} attempts. Answer: {answer}. " +
+                    "Search index may not have finished indexing the session.");
+            }
+        }
+
+        qaJson.GetProperty("question").GetString().Should().Be("What was discussed in the therapy session?");
+        qaJson.GetProperty("answer").GetString().Should().NotBeNullOrWhiteSpace("Answer should contain content");
+        qaJson.GetProperty("confidence").GetDouble().Should().BeGreaterOrEqualTo(0, "Confidence should be non-negative");
+        qaJson.GetProperty("modelUsed").GetString().Should().NotBeNullOrWhiteSpace("ModelUsed should be set");
+
+        qaJson.GetProperty("answer").GetString().Should().NotContain("error occurred",
+            "Answer should not be the error fallback");
+
+        var finalSources = qaJson.GetProperty("sources");
+        finalSources.GetArrayLength().Should().BeGreaterOrEqualTo(1, "Should have at least one source citation");
+
+        var firstSource = finalSources[0];
+        firstSource.GetProperty("sessionId").GetString().Should().Be(sessionId.ToString(),
+            "Source should reference the extracted session");
+        firstSource.GetProperty("relevanceScore").GetDouble().Should().BeGreaterThan(0,
+            "Relevance score should be positive");
+
+        // ── Section 4: Search Index Verification ────────────────────────
+        // Originally: SearchIndexTests.Extraction_IndexesSessionWithEmbedding
+        // Merged here to share the extraction (~$0.03 saved per run).
+        // Tests that the embedding pipeline generated a 3072-dimension vector
+        // (text-embedding-3-large) and indexed the session in Azure AI Search.
+        // Retry loop: indexing is near-real-time, not instant.
+
+        var searchClient = new SearchClient(
+            new Uri(_searchEndpoint),
+            _indexName,
+            new DefaultAzureCredential());
+
+        SearchDocument? indexedDocument = null;
+        var searchMaxAttempts = 30;
+
+        for (int attempt = 1; attempt <= searchMaxAttempts; attempt++)
+        {
+            try
+            {
+                var response = await searchClient.GetDocumentAsync<SearchDocument>(sessionId.ToString());
+                indexedDocument = response.Value;
+
+                if (indexedDocument?.ContentVector != null && indexedDocument.ContentVector.Count > 0)
+                {
+                    break;
+                }
+            }
+            catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+            {
+                // Document not indexed yet, keep waiting
+            }
+
+            if (attempt < searchMaxAttempts)
+            {
+                await Task.Delay(2000);
+            }
+        }
+
+        indexedDocument.Should().NotBeNull(
+            $"Session {sessionId} should be indexed in search within 30 seconds. " +
+            "Check that AzureSearch:Endpoint is configured and the search service is accessible.");
+
+        indexedDocument!.SessionId.Should().Be(sessionId.ToString(), "SessionId should match");
+        indexedDocument.PatientId.Should().Be(patientId.ToString(), "PatientId should match");
+
+        indexedDocument.ContentVector.Should().NotBeNull(
+            "ContentVector should be populated. Check that embedding generation is working.");
+        indexedDocument.ContentVector!.Count.Should().Be(3072,
+            "ContentVector should have 3072 dimensions (text-embedding-3-large)");
     }
 
     [Fact]

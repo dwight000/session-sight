@@ -8,38 +8,6 @@ namespace SessionSight.Agents.Tests.Agents;
 public class IntakeAgentTests
 {
     [Fact]
-    public void ExtractJson_PlainJson_ReturnsAsIs()
-    {
-        var json = """{"isValidTherapyNote": true}""";
-        var result = IntakeAgent.ExtractJson(json);
-        result.Should().Be(json);
-    }
-
-    [Fact]
-    public void ExtractJson_MarkdownCodeBlock_ExtractsJson()
-    {
-        var input = """
-            ```json
-            {"isValidTherapyNote": true}
-            ```
-            """;
-        var result = IntakeAgent.ExtractJson(input);
-        result.Should().Be("""{"isValidTherapyNote": true}""");
-    }
-
-    [Fact]
-    public void ExtractJson_GenericCodeBlock_ExtractsContent()
-    {
-        var input = """
-            ```
-            {"isValidTherapyNote": false}
-            ```
-            """;
-        var result = IntakeAgent.ExtractJson(input);
-        result.Should().Be("""{"isValidTherapyNote": false}""");
-    }
-
-    [Fact]
     public void ParseResponse_ValidJson_ReturnsIntakeResult()
     {
         var json = """
@@ -288,23 +256,6 @@ public class IntakeAgentTests
 
             result.Metadata.SessionDate.Should().Be(expected, $"Failed to parse date format: {dateStr}");
         }
-    }
-
-    [Fact]
-    public void ExtractJson_WithNoCodeBlock_ReturnsContent()
-    {
-        var input = """{"isValidTherapyNote": true}""";
-        var result = IntakeAgent.ExtractJson(input);
-        result.Should().Be("""{"isValidTherapyNote": true}""");
-    }
-
-    [Fact]
-    public void ExtractJson_WithIncompleteCodeBlock_ReturnsOriginal()
-    {
-        var input = "```json\n{\"isValidTherapyNote\": true}";
-        var result = IntakeAgent.ExtractJson(input);
-        // When no closing ```, should handle gracefully
-        result.Should().NotBeNullOrEmpty();
     }
 
     private static ParsedDocument CreateSampleDocument()

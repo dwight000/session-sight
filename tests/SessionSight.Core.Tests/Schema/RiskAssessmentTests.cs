@@ -106,4 +106,23 @@ public class RiskAssessmentTests
         var risk = new RiskAssessmentExtracted();
         risk.IsHighRisk().Should().BeFalse();
     }
+
+    [Fact]
+    public void DefaultValues_AreInitialized()
+    {
+        var risk = new RiskAssessmentExtracted();
+
+        risk.SuicidalIdeation.Should().NotBeNull();
+        risk.SiFrequency.Should().NotBeNull();
+        risk.SiIntensity.Should().NotBeNull();
+        risk.SelfHarm.Should().NotBeNull();
+        risk.ShRecency.Should().NotBeNull();
+        risk.HomicidalIdeation.Should().NotBeNull();
+        risk.HiTarget.Should().NotBeNull();
+        risk.SafetyPlanStatus.Should().NotBeNull();
+        risk.ProtectiveFactors.Should().NotBeNull();
+        risk.RiskFactors.Should().NotBeNull();
+        risk.MeansRestrictionDiscussed.Should().NotBeNull();
+        risk.RiskLevelOverall.Should().NotBeNull();
+    }
 }

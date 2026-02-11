@@ -37,7 +37,7 @@ public static class IntakePrompts
             "isValidTherapyNote": true/false,
             "validationError": "string or null if valid",
             "documentType": "Session Note|Progress Report|Assessment|Treatment Plan|Other",
-            "sessionDate": "YYYY-MM-DD or null if not found",
+            "sessionDate": "YYYY-MM-DD format (parse dates like 'March 5, 2026' or '3/5/26') or null if not found",
             "patientId": "string or null if not found",
             "therapistName": "string or null if not found",
             "language": "en|es|fr|etc",

@@ -63,7 +63,7 @@ public static class ExtractionPrompts
 
         Fields to extract:
         - patientId (string): Patient/client identifier
-        - sessionDate (date): Session date in YYYY-MM-DD format
+        - sessionDate (date): Session date - look for dates in headers like "Session Note - March 5, 2026" or "Date: 01/15/2024". Convert to YYYY-MM-DD format
         - sessionStartTime (time): Start time in HH:MM format
         - sessionEndTime (time): End time in HH:MM format
         - sessionDurationMinutes (int): Duration in minutes
@@ -394,7 +394,7 @@ public static class ExtractionPrompts
         Extract next steps and planning information from this therapy note.
 
         Fields to extract:
-        - nextSessionDate (date): Next scheduled session date in YYYY-MM-DD format
+        - nextSessionDate (date): Next scheduled session date - look for dates like "Next session: March 12, 2026" or "Follow-up on 3/12/26". Convert to YYYY-MM-DD format
         - nextSessionFrequency (enum): TwiceWeekly(2x per week)|Weekly(1x per week)|Biweekly(every 2 weeks)|Monthly(1x per month)|AsNeeded|Discharge
         - nextSessionFocus (string): Planned focus for next session
         - referralsMade (list of strings): Referrals made this session

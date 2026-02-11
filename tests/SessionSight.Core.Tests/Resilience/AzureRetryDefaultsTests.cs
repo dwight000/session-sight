@@ -10,23 +10,23 @@ namespace SessionSight.Core.Tests.Resilience;
 public class AzureRetryDefaultsTests
 {
     [Fact]
-    public void Configure_SetsMaxRetries_ToFive()
+    public void Configure_SetsMaxRetries_ToThree()
     {
         var options = new SearchClientOptions();
 
         AzureRetryDefaults.Configure(options);
 
-        options.Retry.MaxRetries.Should().Be(5);
+        options.Retry.MaxRetries.Should().Be(3);
     }
 
     [Fact]
-    public void Configure_SetsDelay_ToThreeSeconds()
+    public void Configure_SetsDelay_ToSevenSeconds()
     {
         var options = new SearchClientOptions();
 
         AzureRetryDefaults.Configure(options);
 
-        options.Retry.Delay.Should().Be(TimeSpan.FromSeconds(3));
+        options.Retry.Delay.Should().Be(TimeSpan.FromSeconds(7));
     }
 
     [Fact]

@@ -48,14 +48,6 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
     private const string FieldSelfHarm = "SelfHarm";
     private const string FieldHomicidalIdeation = "HomicidalIdeation";
     private const string FieldRiskLevelOverall = "RiskLevelOverall";
-    private static readonly string[] RequiredDiagnosticKeys =
-    [
-        "suicidal_ideation",
-        "si_frequency",
-        "self_harm",
-        "homicidal_ideation",
-        "risk_level_overall"
-    ];
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -107,11 +99,6 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         }
         catch (Exception ex)
         {
-            if (_options.RequireCriteriaUsed && ex is MissingDiagnosticFeedbackException)
-            {
-                throw;
-            }
-
             LogRiskReExtractionError(_logger, ex, extraction.SessionId);
             result.ValidatedExtraction = new RiskAssessmentExtracted();
             result.ReviewReasons.Add($"Re-extraction failed: {ex.Message}");
@@ -171,53 +158,28 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         CancellationToken ct)
     {
         var chatClient = _clientFactory.CreateChatClient(modelName);
-        var basePrompt = RiskPrompts.GetRiskReExtractionPrompt(noteText);
-        var attempts = Math.Max(1, _options.CriteriaValidationAttempts);
-        List<string>? lastMissingCriteria = null;
-        List<string>? lastMissingReasoning = null;
-
-        for (var attempt = 1; attempt <= attempts; attempt++)
+        var prompt = RiskPrompts.GetRiskReExtractionPrompt(noteText);
+        var messages = new List<ChatMessage>
         {
-            var prompt = attempt == 1
-                ? basePrompt
-                : $"{basePrompt}\n\nRETRY REQUIREMENT: Include non-empty criteria_used arrays and non-empty reasoning_used strings for all required keys.";
-            var messages = new List<ChatMessage>
-            {
-                new SystemChatMessage(RiskPrompts.SystemPrompt),
-                new UserChatMessage(prompt)
-            };
+            new SystemChatMessage(RiskPrompts.SystemPrompt),
+            new UserChatMessage(prompt)
+        };
 
-            // JSON response format guarantees valid JSON from the API (see also: RiskPrompts.SystemPrompt CRITICAL instruction)
-            var options = new ChatCompletionOptions
-            {
-                Temperature = 0.1f,
-                MaxOutputTokenCount = 2048,
-                ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
-            };
+        // JSON response format guarantees valid JSON from the API (see also: RiskPrompts.SystemPrompt CRITICAL instruction)
+        var options = new ChatCompletionOptions
+        {
+            Temperature = 0.1f,
+            MaxOutputTokenCount = 2048,
+            ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
+        };
 
-            var response = await chatClient.CompleteChatAsync(messages, options, ct);
-            var content = response.Value.Content[0].Text;
-            var parsed = ParseRiskResponseWithCriteria(content)
-                ?? throw new InvalidOperationException("Failed to parse risk re-extraction response");
-            parsed.CriteriaValidationAttemptsUsed = attempt;
+        var response = await chatClient.CompleteChatAsync(messages, options, ct);
+        var content = response.Value.Content[0].Text;
+        var parsed = ParseRiskResponseWithCriteria(content)
+            ?? throw new InvalidOperationException("Failed to parse risk re-extraction response");
+        parsed.CriteriaValidationAttemptsUsed = 1;
 
-            if (!_options.RequireCriteriaUsed)
-            {
-                return parsed;
-            }
-
-            var hasCriteria = HasRequiredCriteriaUsed(parsed.CriteriaUsed, out var missingCriteriaKeys);
-            var hasReasoning = HasRequiredReasoningUsed(parsed.ReasoningUsed, out var missingReasoningKeys);
-            if (hasCriteria && hasReasoning)
-            {
-                return parsed;
-            }
-
-            lastMissingCriteria = missingCriteriaKeys;
-            lastMissingReasoning = missingReasoningKeys;
-        }
-
-        throw new MissingDiagnosticFeedbackException(lastMissingCriteria ?? [], lastMissingReasoning ?? []);
+        return parsed;
     }
 
     internal static RiskAssessmentExtracted? ParseRiskResponse(string content)
@@ -344,41 +306,6 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         }
 
         return result;
-    }
-
-    internal static bool HasRequiredCriteriaUsed(
-        IReadOnlyDictionary<string, List<string>> criteriaUsed,
-        out List<string> missingKeys)
-    {
-        missingKeys = [];
-        foreach (var key in RequiredDiagnosticKeys)
-        {
-            if (!criteriaUsed.TryGetValue(key, out var values) ||
-                values.Count == 0 ||
-                values.All(static value => string.IsNullOrWhiteSpace(value)))
-            {
-                missingKeys.Add(key);
-            }
-        }
-
-        return missingKeys.Count == 0;
-    }
-
-    internal static bool HasRequiredReasoningUsed(
-        IReadOnlyDictionary<string, string> reasoningUsed,
-        out List<string> missingKeys)
-    {
-        missingKeys = [];
-        foreach (var key in RequiredDiagnosticKeys)
-        {
-            if (!reasoningUsed.TryGetValue(key, out var value) ||
-                string.IsNullOrWhiteSpace(value))
-            {
-                missingKeys.Add(key);
-            }
-        }
-
-        return missingKeys.Count == 0;
     }
 
     private static object? MapToExtractedField(Type fieldType, JsonElement element)
@@ -1138,15 +1065,4 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Risk assessment completed for session {SessionId}. RequiresReview: {RequiresReview}, RiskLevel: {RiskLevel}, Discrepancies: {DiscrepancyCount}")]
     private static partial void LogRiskAssessmentCompleted(ILogger logger, string sessionId, bool requiresReview, RiskLevelOverall? riskLevel, int discrepancyCount);
-
-    private sealed class MissingDiagnosticFeedbackException : InvalidOperationException
-    {
-        public MissingDiagnosticFeedbackException(
-            IReadOnlyCollection<string> missingCriteriaKeys,
-            IReadOnlyCollection<string> missingReasoningKeys)
-            : base(
-                $"Missing required diagnostic feedback. criteria_used: [{string.Join(", ", missingCriteriaKeys)}], reasoning_used: [{string.Join(", ", missingReasoningKeys)}]")
-        {
-        }
-    }
 }

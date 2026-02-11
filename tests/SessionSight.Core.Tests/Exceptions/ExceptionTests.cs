@@ -5,20 +5,37 @@ namespace SessionSight.Core.Tests.Exceptions;
 
 public class ExceptionTests
 {
-    [Fact]
-    public void SessionSightException_WithMessageAndInner_StoresBoth()
+    [Theory]
+    [InlineData(typeof(NotFoundException))]
+    [InlineData(typeof(ValidationException))]
+    [InlineData(typeof(ExtractionException))]
+    [InlineData(typeof(AzureServiceException))]
+    public void Exception_InheritsFromSessionSightException(Type exceptionType)
     {
-        var inner = new InvalidOperationException("Inner error");
-        var ex = new SessionSightException("Outer error", inner);
-        ex.Message.Should().Be("Outer error");
-        ex.InnerException.Should().Be(inner);
+        var ex = (Exception)Activator.CreateInstance(exceptionType, "Test message")!;
+        ex.Should().BeAssignableTo<SessionSightException>();
     }
 
-    [Fact]
-    public void NotFoundException_InheritsFromSessionSightException()
+    [Theory]
+    [InlineData(typeof(SchemaValidationException))]
+    [InlineData(typeof(InputValidationException))]
+    public void Exception_InheritsFromValidationException(Type exceptionType)
     {
-        var ex = new NotFoundException("Not found");
-        ex.Should().BeAssignableTo<SessionSightException>();
+        var ex = (Exception)Activator.CreateInstance(exceptionType, "Test message")!;
+        ex.Should().BeAssignableTo<ValidationException>();
+    }
+
+    [Theory]
+    [InlineData(typeof(SessionSightException))]
+    [InlineData(typeof(ValidationException))]
+    [InlineData(typeof(ExtractionException))]
+    [InlineData(typeof(AzureServiceException))]
+    public void Exception_WithMessageAndInner_StoresBoth(Type exceptionType)
+    {
+        var inner = new InvalidOperationException("Inner error");
+        var ex = (Exception)Activator.CreateInstance(exceptionType, "Outer error", inner)!;
+        ex.Message.Should().Be("Outer error");
+        ex.InnerException.Should().Be(inner);
     }
 
     [Fact]
@@ -37,67 +54,5 @@ public class ExceptionTests
         var ex = new SessionNotFoundException(id);
         ex.Message.Should().Contain(id.ToString());
         ex.Message.Should().Contain("Session");
-    }
-
-    [Fact]
-    public void ValidationException_WithMessageAndInner_StoresBoth()
-    {
-        var inner = new ArgumentException("Bad arg");
-        var ex = new ValidationException("Validation failed", inner);
-        ex.Message.Should().Be("Validation failed");
-        ex.InnerException.Should().Be(inner);
-    }
-
-    [Fact]
-    public void ValidationException_InheritsFromSessionSightException()
-    {
-        var ex = new ValidationException("Invalid");
-        ex.Should().BeAssignableTo<SessionSightException>();
-    }
-
-    [Fact]
-    public void SchemaValidationException_InheritsFromValidationException()
-    {
-        var ex = new SchemaValidationException("Schema error");
-        ex.Should().BeAssignableTo<ValidationException>();
-    }
-
-    [Fact]
-    public void InputValidationException_InheritsFromValidationException()
-    {
-        var ex = new InputValidationException("Bad input");
-        ex.Should().BeAssignableTo<ValidationException>();
-    }
-
-    [Fact]
-    public void ExtractionException_WithMessageAndInner_StoresBoth()
-    {
-        var inner = new TimeoutException("Timeout");
-        var ex = new ExtractionException("Extraction failed", inner);
-        ex.Message.Should().Be("Extraction failed");
-        ex.InnerException.Should().Be(inner);
-    }
-
-    [Fact]
-    public void ExtractionException_InheritsFromSessionSightException()
-    {
-        var ex = new ExtractionException("Error");
-        ex.Should().BeAssignableTo<SessionSightException>();
-    }
-
-    [Fact]
-    public void AzureServiceException_WithMessageAndInner_StoresBoth()
-    {
-        var inner = new HttpRequestException("Network error");
-        var ex = new AzureServiceException("Azure error", inner);
-        ex.Message.Should().Be("Azure error");
-        ex.InnerException.Should().Be(inner);
-    }
-
-    [Fact]
-    public void AzureServiceException_InheritsFromSessionSightException()
-    {
-        var ex = new AzureServiceException("Error");
-        ex.Should().BeAssignableTo<SessionSightException>();
     }
 }

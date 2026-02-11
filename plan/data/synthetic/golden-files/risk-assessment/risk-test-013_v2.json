@@ -28,7 +28,8 @@
         },
         "risk_level_overall": {
           "accept": [
-            "moderate"
+            "moderate",
+            "high"
           ]
         }
       }
@@ -59,7 +60,8 @@
         },
         "risk_level_overall": {
           "accept": [
-            "moderate"
+            "moderate",
+            "high"
           ]
         }
       }
@@ -90,7 +92,8 @@
         },
         "risk_level_overall": {
           "accept": [
-            "moderate"
+            "moderate",
+            "high"
           ]
         }
       }

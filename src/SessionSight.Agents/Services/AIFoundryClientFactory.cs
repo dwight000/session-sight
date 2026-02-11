@@ -25,7 +25,7 @@ public partial class AIFoundryClientFactory : IAIFoundryClientFactory
 
         var endpoint = new Uri(openAIEndpointStr);
         var credential = new DefaultAzureCredential();
-        var options = AzureRetryDefaults.ConfigureRetryPolicy(new AzureOpenAIClientOptions());
+        var options = AzureRetryDefaults.ConfigureRetryPolicy(new AzureOpenAIClientOptions(), logger);
 
         _openAIClient = new AzureOpenAIClient(endpoint, credential, options);
 
