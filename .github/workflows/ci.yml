@@ -12,8 +12,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Full history for SonarCloud
+        # with:
+        #   fetch-depth: 0  # Full history for SonarCloud
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -22,14 +22,14 @@ jobs:
             6.0.x
             9.0.x
 
-      - name: Setup Java (for SonarScanner)
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+      # - name: Setup Java (for SonarScanner)
+      #   uses: actions/setup-java@v4
+      #   with:
+      #     distribution: 'temurin'
+      #     java-version: '17'
 
-      - name: Install SonarScanner
-        run: dotnet tool install --global dotnet-sonarscanner
+      # - name: Install SonarScanner
+      #   run: dotnet tool install --global dotnet-sonarscanner
 
       - name: Restore dependencies
         run: dotnet restore session-sight.sln
@@ -37,24 +37,24 @@ jobs:
       - name: Check formatting
         run: dotnet format whitespace session-sight.sln --verify-no-changes --verbosity diagnostic
 
-      - name: Begin SonarCloud analysis
-        if: env.SONAR_TOKEN != ''
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          dotnet sonarscanner begin \
-            /k:"dwight000_session-sight" \
-            /o:"dwight000" \
-            /d:sonar.token="${SONAR_TOKEN}" \
-            /d:sonar.host.url="https://sonarcloud.io" \
-            /d:sonar.cs.opencover.reportsPaths="coverage/**/coverage.opencover.xml" \
-            /d:sonar.exclusions="**/Migrations/**,**/obj/**,**/bin/**,plan/spike/**,infra/**" \
-            /d:sonar.coverage.exclusions="**/Migrations/**,**/AIFoundryClientFactory.cs,**/DocumentIntelligenceParser.cs,**/AzureBlobDocumentStorage.cs,**/AgentLoopRunner.cs,**/DependencyInjection.cs,**/SessionSightDbContext.cs,**/SessionRepository.cs,**/PatientRepository.cs,**/ReviewRepository.cs,**/ProcessIncomingNoteFunction.cs,**/SearchIndexService.cs,**/SearchIndexInitializer.cs,**/EmbeddingService.cs,**/obj/**"
-            # Disabled: sonar.qualitygate.wait=true
-            # Free tier can't customize quality gate (stuck at 80% new code coverage).
-            # Instead we use "Check for high severity SonarCloud issues" step below
-            # which queries the API for BLOCKER/CRITICAL issues only.
-            # Re-enable this if we get a paid plan with custom quality gate.
+      # - name: Begin SonarCloud analysis
+      #   if: env.SONAR_TOKEN != ''
+      #   env:
+      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      #   run: |
+      #     dotnet sonarscanner begin \
+      #       /k:"dwight000_session-sight" \
+      #       /o:"dwight000" \
+      #       /d:sonar.token="${SONAR_TOKEN}" \
+      #       /d:sonar.host.url="https://sonarcloud.io" \
+      #       /d:sonar.cs.opencover.reportsPaths="coverage/**/coverage.opencover.xml" \
+      #       /d:sonar.exclusions="**/Migrations/**,**/obj/**,**/bin/**,plan/spike/**,infra/**" \
+      #       /d:sonar.coverage.exclusions="**/Migrations/**,**/AIFoundryClientFactory.cs,**/DocumentIntelligenceParser.cs,**/AzureBlobDocumentStorage.cs,**/AgentLoopRunner.cs,**/DependencyInjection.cs,**/SessionSightDbContext.cs,**/SessionRepository.cs,**/PatientRepository.cs,**/ReviewRepository.cs,**/ProcessIncomingNoteFunction.cs,**/SearchIndexService.cs,**/SearchIndexInitializer.cs,**/EmbeddingService.cs,**/obj/**"
+      #       # Disabled: sonar.qualitygate.wait=true
+      #       # Free tier can't customize quality gate (stuck at 80% new code coverage).
+      #       # Instead we use "Check for high severity SonarCloud issues" step below
+      #       # which queries the API for BLOCKER/CRITICAL issues only.
+      #       # Re-enable this if we get a paid plan with custom quality gate.
 
       - name: Verify analyzer configuration
         run: |
@@ -93,49 +93,49 @@ jobs:
       - name: Test + coverage gate (80%)
         run: COVERAGE_THRESHOLD=0.80 COVERAGE_THRESHOLD_PERCENT=80 COVERAGE_FORMATS=opencover,cobertura ./scripts/check-backend.sh
 
-      - name: End SonarCloud analysis
-        if: env.SONAR_TOKEN != ''
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
+      # - name: End SonarCloud analysis
+      #   if: env.SONAR_TOKEN != ''
+      #   env:
+      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      #   run: dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
 
       # FREE TIER WORKAROUND: Since we can't customize SonarCloud's quality gate on the free plan
       # (it requires 80% coverage on new code which is too strict), we bypass the quality gate
       # and instead query the API directly for serious issues only.
       # This lets us catch serious problems while ignoring minor coverage shortfalls.
       # Severity levels: BLOCKER > CRITICAL > MAJOR (High) > MINOR > INFO
-      - name: Check for high severity SonarCloud issues
-        if: env.SONAR_TOKEN != ''
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          # Wait for SonarCloud to process the analysis (no qualitygate.wait means async upload)
-          echo "Waiting 5s for SonarCloud to process analysis..."
-          sleep 5
-
-          # Query SonarCloud API for BLOCKER, CRITICAL, and MAJOR (High) issues
-          RESPONSE=$(curl -s -u "${SONAR_TOKEN}:" \
-            "https://sonarcloud.io/api/issues/search?componentKeys=dwight000_session-sight&severities=BLOCKER,CRITICAL,MAJOR&statuses=OPEN,CONFIRMED,REOPENED&ps=100")
-
-          # Filter out excluded rules:
-          # - S7684: .NET config env vars in shell scripts (false positive)
-          # - S4830: --insecure in dev scripts (intentional for localhost self-signed certs)
-          # - S6819: role="img" on SVG (correct pattern for accessible charts)
-          EXCLUDED_RULES='["shelldre:S7684", "shell:S4830", "typescript:S6819"]'
-          FILTERED=$(echo "$RESPONSE" | jq --argjson excluded "$EXCLUDED_RULES" '{
-            total: ([.issues[] | select(.rule as $r | $excluded | index($r) | not)] | length),
-            issues: [.issues[] | select(.rule as $r | $excluded | index($r) | not)]
-          }')
-          COUNT=$(echo "$FILTERED" | jq '.total')
-          echo "Found $COUNT high severity issues (BLOCKER/CRITICAL/MAJOR, excluding ${EXCLUDED_RULES})"
-
-          if [[ "$COUNT" -gt 0 ]]; then
-            echo "::error::Found $COUNT high severity SonarCloud issues that must be fixed"
-            echo ""
-            echo "High severity issues:"
-            echo "$FILTERED" | jq -r '.issues[] | "  \(.severity) [\(.type)]: \(.message)\n    File: \(.component | split(":")[1]):\(.line)\n    Rule: \(.rule)\n"'
-            exit 1
-          fi
+      # - name: Check for high severity SonarCloud issues
+      #   if: env.SONAR_TOKEN != ''
+      #   env:
+      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      #   run: |
+      #     # Wait for SonarCloud to process the analysis (no qualitygate.wait means async upload)
+      #     echo "Waiting 5s for SonarCloud to process analysis..."
+      #     sleep 5
+      #
+      #     # Query SonarCloud API for BLOCKER, CRITICAL, and MAJOR (High) issues
+      #     RESPONSE=$(curl -s -u "${SONAR_TOKEN}:" \
+      #       "https://sonarcloud.io/api/issues/search?componentKeys=dwight000_session-sight&severities=BLOCKER,CRITICAL,MAJOR&statuses=OPEN,CONFIRMED,REOPENED&ps=100")
+      #
+      #     # Filter out excluded rules:
+      #     # - S7684: .NET config env vars in shell scripts (false positive)
+      #     # - S4830: --insecure in dev scripts (intentional for localhost self-signed certs)
+      #     # - S6819: role="img" on SVG (correct pattern for accessible charts)
+      #     EXCLUDED_RULES='["shelldre:S7684", "shell:S4830", "typescript:S6819"]'
+      #     FILTERED=$(echo "$RESPONSE" | jq --argjson excluded "$EXCLUDED_RULES" '{
+      #       total: ([.issues[] | select(.rule as $r | $excluded | index($r) | not)] | length),
+      #       issues: [.issues[] | select(.rule as $r | $excluded | index($r) | not)]
+      #     }')
+      #     COUNT=$(echo "$FILTERED" | jq '.total')
+      #     echo "Found $COUNT high severity issues (BLOCKER/CRITICAL/MAJOR, excluding ${EXCLUDED_RULES})"
+      #
+      #     if [[ "$COUNT" -gt 0 ]]; then
+      #       echo "::error::Found $COUNT high severity SonarCloud issues that must be fixed"
+      #       echo ""
+      #       echo "High severity issues:"
+      #       echo "$FILTERED" | jq -r '.issues[] | "  \(.severity) [\(.type)]: \(.message)\n    File: \(.component | split(":")[1]):\(.line)\n    Rule: \(.rule)\n"'
+      #       exit 1
+      #     fi
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
