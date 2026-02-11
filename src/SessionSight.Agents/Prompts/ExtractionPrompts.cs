@@ -194,7 +194,8 @@ public static class ExtractionPrompts
         - If risk indicators are ambiguous, set to the more concerning value
         - Always extract protective factors when risk is present
         - Classification boundaries:
-          * suicidalIdeation: statements like "wish I could go to sleep and not wake up", "wish I would not wake up", "better off dead", or "not be here" are Passive (not None), even when plan/intent is denied.
+          * suicidalIdeation: Wishing for death or wanting to be dead (e.g., "better off dead", "wish I were dead") is Passive — not ActiveNoPlan. ActiveNoPlan requires thoughts of actually killing oneself.
+          * suicidalIdeation: Classify based on current presentation. When SI is explicitly resolved and currently denied (e.g., "haven't had those thoughts in weeks"), classify as None. Historical SI informs riskLevelOverall but not current ideation.
           * suicidalIdeation: if the patient makes a distress statement (for example "I can't take this anymore") and is evasive or refuses to answer direct suicide-risk questions, classify as Passive rather than None.
           * siFrequency: "once or twice a month" is Rare; several times per week is Occasional; daily/most days is Frequent.
           * siFrequency: When suicidalIdeation is ActiveWithPlan or ActiveWithIntent but frequency is not explicitly stated, infer at least Occasional (active planning implies recurring thoughts).
@@ -202,7 +203,7 @@ public static class ExtractionPrompts
           * selfHarm: suicidal ideation/plan/intent by itself does NOT imply selfHarm. If no self-injury behavior is described, use None.
           * selfHarm: Recent means any self-harm within the last 12 months; Historical is only when last event is more than 12 months ago. A suicide attempt described as days, weeks, or months ago is Recent, not Historical.
           * suicidalIdeation: Behavioral warning signs (getting affairs in order, giving away possessions, writing a will without medical reason) are RISK FACTORS that elevate riskLevelOverall. They are NOT suicidal ideation unless the patient also expresses suicidal thoughts.
-          * homicidalIdeation: use Passive only when thoughts about harming others are actually present; otherwise use None.
+          * homicidalIdeation: Passive means wishing someone dead or fantasizing about their death without thoughts of personally causing harm. ActiveNoPlan requires thoughts of actually killing or harming someone. Use None when no such thoughts are present.
           * Self-directed phrases ("hurt myself", "harm myself", "kill myself", suicidal ideation) are NOT homicidal ideation.
           * riskLevelOverall: ActiveWithPlan or ActiveWithIntent cannot be Low. Minimum is High unless the note clearly supports Imminent.
           * riskLevelOverall: Imminent requires ActiveWithPlan or ActiveWithIntent PLUS at least one of: current means access, emergency/crisis response triggered (crisis team, ER transport, 911 call), or stated intent to act now. Subsequent mitigation (e.g., voluntarily surrendering means) does not retroactively lower the risk classification from the assessment moment.

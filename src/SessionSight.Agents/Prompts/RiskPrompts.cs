@@ -126,11 +126,13 @@ public static class RiskPrompts
         - Classification boundaries:
           * siFrequency: "once or twice a month" is Rare; several times per week is Occasional; daily/most days is Frequent.
           * siFrequency: When suicidalIdeation is ActiveWithPlan or ActiveWithIntent but frequency is not explicitly stated, infer at least Occasional (active planning implies recurring thoughts).
+          * suicidalIdeation: Wishing for death or wanting to be dead (e.g., "better off dead", "wish I were dead") is Passive — not ActiveNoPlan. ActiveNoPlan requires thoughts of actually killing oneself.
+          * suicidalIdeation: Classify based on current presentation. When SI is explicitly resolved and currently denied (e.g., "haven't had those thoughts in weeks"), classify as None. Historical SI informs riskLevelOverall but not current ideation.
           * selfHarm: classify only when there is evidence of actual self-injury behavior (cutting, burning, scratching, overdose attempt, other direct self-injury act).
           * selfHarm: suicidal ideation/plan/intent alone does NOT imply selfHarm. If no self-injury behavior is described, use None.
           * selfHarm: Recent means any self-harm within the last 12 months; Historical is only when last event is more than 12 months ago. A suicide attempt described as days, weeks, or months ago is Recent, not Historical.
           * suicidalIdeation: Behavioral warning signs (getting affairs in order, giving away possessions, writing a will without medical reason) are RISK FACTORS that elevate riskLevelOverall. They are NOT suicidal ideation unless the patient also expresses suicidal thoughts. If the patient denies suicidal thoughts and only exhibits behavioral warning signs, classify as None.
-          * homicidalIdeation: use Passive only when thoughts about harming others are actually present; otherwise use None.
+          * homicidalIdeation: Passive means wishing someone dead or fantasizing about their death without thoughts of personally causing harm. ActiveNoPlan requires thoughts of actually killing or harming someone. Use None when no such thoughts are present.
           * Self-directed phrases ("hurt myself", "harm myself", "kill myself", suicidal ideation) are NOT homicidal ideation.
           * riskLevelOverall: ActiveWithPlan or ActiveWithIntent cannot be Low. Minimum is High unless evidence supports Imminent.
           * riskLevelOverall: Imminent requires ActiveWithPlan or ActiveWithIntent PLUS at least one of: current means access, emergency/crisis response triggered (crisis team, ER transport, 911 call), or stated intent to act now. Subsequent mitigation (e.g., voluntarily surrendering means) does not retroactively lower the risk classification from the assessment moment.

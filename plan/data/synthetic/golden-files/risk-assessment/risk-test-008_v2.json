@@ -68,7 +68,8 @@
       "fields": {
         "suicidal_ideation": {
           "accept": [
-            "passive"
+            "passive",
+            "active_no_plan"
           ]
         },
         "si_frequency": {
