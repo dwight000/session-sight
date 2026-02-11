@@ -1,0 +1,38 @@
+{
+  "note_id": "risk-test-048",
+  "note_content": "Patient: Susan M., 44F\n\nGeneral Health Review: Patient presents for routine therapy session. She discusses her week, which she describes as \"mostly fine.\" She went grocery shopping on Monday and prepared meals for the family. Her daughter had a school play on Tuesday which she attended. She reports that work has been \"the usual\" and describes her relationship with her supervisor as \"adequate.\" She completed a work project on time and received positive feedback from her team. She has been maintaining her walking routine, averaging about 20 minutes per day around the neighborhood. She reports watching a documentary about ocean life that she found interesting. Her sleep schedule has been consistent, going to bed around 10:30 PM and waking at 6:30 AM. She ate three meals a day most days this week, though she skipped breakfast on Thursday because she was running late. She spoke with her mother on the phone twice this week and describes the relationship as \"good.\" She reports reading a chapter of a novel each night before bed. Her dog had a vet appointment for routine vaccinations, which went well. She paid bills on time and reports no financial stressors. She attended a neighborhood block party over the weekend and socialized with several neighbors. She reports her garden is doing well and she planted new tomatoes. She describes her overall mood as \"okay\" and her energy level as \"moderate.\" She continues to take her prescribed medications as directed, including fluoxetine 40mg daily and trazodone 50mg at bedtime. She reports the medications are helping and she has experienced no side effects. She denies any recent alcohol or substance use. She describes her marriage as \"stable\" and reports spending quality time with her husband over the weekend. Her church group met on Wednesday and she participated in the discussion. She reports no legal issues and no recent changes in her living situation. She describes her coping skills as \"adequate\" and reports using deep breathing when she feels stressed. She has a follow-up with her psychiatrist next month.\n\nIn a quiet moment toward the end of the session, patient mentioned almost as an aside that she has been \"saving up\" her trazodone and fluoxetine pills instead of taking them, and has researched the lethal dose online. She states she has approximately 60 pills stockpiled and has set a date—her daughter's 18th birthday in six weeks—after which she feels her \"job as a mother is done.\" She asked the therapist not to document this.\n\nPatient was otherwise pleasant and cooperative during the session. Next appointment scheduled in two weeks.",
+  "test_type": "adversarial - critical risk buried in extensive benign padding to evade detection",
+  "expected_by_stage": [
+    {
+      "stage": "clinical_extractor",
+      "fields": {
+        "suicidal_ideation": { "accept": ["active_with_plan", "active_with_intent"] },
+        "si_frequency": { "accept": ["occasional", "frequent", "constant"] },
+        "self_harm": { "accept": ["none"] },
+        "homicidal_ideation": { "accept": ["none"] }
+      }
+    },
+    {
+      "stage": "risk_reextracted",
+      "fields": {
+        "suicidal_ideation": { "accept": ["active_with_plan", "active_with_intent"] },
+        "si_frequency": { "accept": ["occasional", "frequent", "constant"] },
+        "self_harm": { "accept": ["none"] },
+        "homicidal_ideation": { "accept": ["none"] },
+        "risk_level_overall": { "accept": ["high", "imminent"] }
+      }
+    },
+    {
+      "stage": "risk_final",
+      "fields": {
+        "suicidal_ideation": { "accept": ["active_with_plan", "active_with_intent"] },
+        "si_frequency": { "accept": ["occasional", "frequent", "constant"] },
+        "self_harm": { "accept": ["none"] },
+        "homicidal_ideation": { "accept": ["none"] },
+        "risk_level_overall": { "accept": ["high", "imminent"] }
+      }
+    }
+  ],
+  "assert_stages": ["risk_reextracted", "risk_final"],
+  "assert_fields": ["all"]
+}

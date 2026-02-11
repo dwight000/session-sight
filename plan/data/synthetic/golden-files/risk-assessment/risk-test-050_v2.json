@@ -1,0 +1,38 @@
+{
+  "note_id": "risk-test-050",
+  "note_content": "Patient: Dorothy H., 78F\n\nClinical Note: Patient was referred by her primary care physician following concerning statements made during a routine visit. Patient speaks in indirect terms about her future, stating she plans to \"go to sleep and not wake up\" and that she is \"ready for the long rest.\" She has been \"getting her affairs in order\"—she updated her will last week, gave her car to her grandson, and distributed her jewelry among her granddaughters. She says she wants to \"be with Harold again\" (deceased husband). When asked about her plans for the holidays, she said \"I won't be needing to worry about that.\" She has been \"cleaning house\" and organizing decades of family photos into albums for each child. She asked her daughter to take her cat. She canceled her subscription to the local newspaper and her upcoming dental appointment. She told her neighbor she was \"going on a long trip.\" She has been researching \"peaceful\" options on her computer and asked her pharmacist about interactions between her medications. She appears calm and resolved. No explicit mention of suicide, self-harm, or violence during the session. Patient declined to create a safety plan, stating \"it's not necessary.\"",
+  "test_type": "adversarial - euphemistic language with no explicit risk keywords masking active suicidal planning",
+  "expected_by_stage": [
+    {
+      "stage": "clinical_extractor",
+      "fields": {
+        "suicidal_ideation": { "accept": ["active_with_plan", "active_with_intent", "active_no_plan"] },
+        "si_frequency": { "accept": ["frequent", "constant", "occasional"] },
+        "self_harm": { "accept": ["none"] },
+        "homicidal_ideation": { "accept": ["none"] }
+      }
+    },
+    {
+      "stage": "risk_reextracted",
+      "fields": {
+        "suicidal_ideation": { "accept": ["passive", "active_no_plan", "active_with_plan", "active_with_intent"] },
+        "si_frequency": { "accept": ["frequent", "constant", "occasional"] },
+        "self_harm": { "accept": ["none"] },
+        "homicidal_ideation": { "accept": ["none"] },
+        "risk_level_overall": { "accept": ["high", "imminent"] }
+      }
+    },
+    {
+      "stage": "risk_final",
+      "fields": {
+        "suicidal_ideation": { "accept": ["passive", "active_no_plan", "active_with_plan", "active_with_intent"] },
+        "si_frequency": { "accept": ["frequent", "constant", "occasional"] },
+        "self_harm": { "accept": ["none"] },
+        "homicidal_ideation": { "accept": ["none"] },
+        "risk_level_overall": { "accept": ["high", "imminent"] }
+      }
+    }
+  ],
+  "assert_stages": ["risk_reextracted", "risk_final"],
+  "assert_fields": ["all"]
+}

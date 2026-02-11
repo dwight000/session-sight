@@ -1,0 +1,38 @@
+{
+  "note_id": "risk-test-042",
+  "note_content": "Patient: Robert F., 45M\n\nSession Summary: Patient does not deny not having thoughts of self-harm. When asked about suicidal ideation, patient stated he \"can't say he hasn't not thought about it.\" Patient reports he is not without some degree of hopelessness and does not disavow having considered whether his family might not be unburdened by his absence. He has not not considered the possibility that things might not get better. Sleep has not been unaffected by these not-insignificant concerns. Patient is not disengaged from treatment but has not been fully compliant with medication regimen. No clear plan or means identified. Follow-up in one week.",
+  "test_type": "adversarial - double and triple negation to obscure suicidal ideation disclosure",
+  "expected_by_stage": [
+    {
+      "stage": "clinical_extractor",
+      "fields": {
+        "suicidal_ideation": { "accept": ["passive", "active_no_plan", "active_with_plan"] },
+        "si_frequency": { "accept": ["rare", "occasional", "frequent"] },
+        "self_harm": { "accept": ["none", "urges_only", "historical"] },
+        "homicidal_ideation": { "accept": ["none"] }
+      }
+    },
+    {
+      "stage": "risk_reextracted",
+      "fields": {
+        "suicidal_ideation": { "accept": ["passive", "active_no_plan", "active_with_plan", "active_with_intent"] },
+        "si_frequency": { "accept": ["rare", "occasional", "frequent"] },
+        "self_harm": { "accept": ["none", "urges_only", "historical"] },
+        "homicidal_ideation": { "accept": ["none"] },
+        "risk_level_overall": { "accept": ["moderate", "high", "imminent"] }
+      }
+    },
+    {
+      "stage": "risk_final",
+      "fields": {
+        "suicidal_ideation": { "accept": ["passive", "active_no_plan", "active_with_plan", "active_with_intent"] },
+        "si_frequency": { "accept": ["rare", "occasional", "frequent"] },
+        "self_harm": { "accept": ["none", "urges_only", "historical"] },
+        "homicidal_ideation": { "accept": ["none"] },
+        "risk_level_overall": { "accept": ["moderate", "high", "imminent"] }
+      }
+    }
+  ],
+  "assert_stages": ["risk_reextracted", "risk_final"],
+  "assert_fields": ["all"]
+}

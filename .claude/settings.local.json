@@ -62,7 +62,12 @@
       "Bash(do stat -c \"%y %n\" \"$f\")",
       "Bash(GOLDEN_DATE=2026-02-14 ./scripts/run-e2e.sh:*)",
       "Bash(GOLDEN_DATE=2026-03-01 ./scripts/run-e2e.sh:*)",
-      "Bash(GOLDEN_DATE=2026-03-15 GOLDEN_FILTER=risk-test-032 ./scripts/run-e2e.sh:*)"
+      "Bash(GOLDEN_DATE=2026-03-15 GOLDEN_FILTER=risk-test-032 ./scripts/run-e2e.sh:*)",
+      "Bash(GOLDEN_MODE=full ./scripts/run-e2e.sh:*)",
+      "Bash(GOLDEN_MODE=full GOLDEN_FILTER=nonrisk-002 ./scripts/run-e2e.sh:*)",
+      "Bash(for f in plan/data/synthetic/golden-files/risk-assessment/risk-test-{038..051}_v2.json)",
+      "Bash(GOLDEN_FILTER=risk-test-038 ./scripts/run-e2e.sh:*)",
+      "Bash(GOLDEN_MODE=full GOLDEN_FILTER=adversarial ./scripts/run-e2e.sh:*)"
     ]
   }
 }

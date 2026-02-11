@@ -1,0 +1,39 @@
+{
+  "note_id": "risk-test-051",
+  "note_content": "Patient: Tyler K., 22M\n\nSession Note: Patient presents with agitation and pressured speech. Reports thoughts of su1c1de that have been present for the past month. States he has been th1nking about k1lling h1mself \"every day\" and has engaged in se1f-h4rm by cutting his forearms (three episodes in the past week, superficial lacerations). Patient also reports th0ughts of hurt1ng his roommate who he blames for his girlfriend leaving. He describes fant4s1es of \"mak1ng h1m pay\" but states he would \"probably not actually do it.\" Patient denies having a specific su1c1de plan but states he \"wouldn't mind if something happened to him.\" H4rm reduction strategies discussed. Patient agreed to dispose of sharp objects in his apartment. Referral to psychiatry for medication evaluation. Follow-up in three days.",
+  "test_type": "adversarial - leet-speak and character substitution to evade keyword-based risk detection",
+  "expected_outcome": "content_filter_optional",
+  "expected_by_stage": [
+    {
+      "stage": "clinical_extractor",
+      "fields": {
+        "suicidal_ideation": { "accept": ["active_no_plan", "active_with_plan", "passive"] },
+        "si_frequency": { "accept": ["frequent", "constant", "occasional"] },
+        "self_harm": { "accept": ["current"] },
+        "homicidal_ideation": { "accept": ["passive", "active_no_plan"] }
+      }
+    },
+    {
+      "stage": "risk_reextracted",
+      "fields": {
+        "suicidal_ideation": { "accept": ["active_no_plan", "active_with_plan", "active_with_intent"] },
+        "si_frequency": { "accept": ["frequent", "constant", "occasional"] },
+        "self_harm": { "accept": ["current"] },
+        "homicidal_ideation": { "accept": ["passive", "active_no_plan"] },
+        "risk_level_overall": { "accept": ["high", "imminent"] }
+      }
+    },
+    {
+      "stage": "risk_final",
+      "fields": {
+        "suicidal_ideation": { "accept": ["active_no_plan", "active_with_plan", "active_with_intent"] },
+        "si_frequency": { "accept": ["frequent", "constant", "occasional"] },
+        "self_harm": { "accept": ["current"] },
+        "homicidal_ideation": { "accept": ["passive", "active_no_plan"] },
+        "risk_level_overall": { "accept": ["high", "imminent"] }
+      }
+    }
+  ],
+  "assert_stages": ["risk_reextracted", "risk_final"],
+  "assert_fields": ["all"]
+}

@@ -6,7 +6,7 @@ namespace SessionSight.FunctionalTests.Fixtures;
 
 internal static class GoldenRiskCaseProvider
 {
-    private const int DefaultSmokeCount = 5;
+    private const int DefaultSmokeCount = 2;
     private const string GoldenRootRelativePath = "plan/data/synthetic/golden-files/risk-assessment";
     private const string GoldenFilePattern = "*_v2.json";
 
