@@ -1,3 +1,4 @@
+// P6-003: Deploy workflow verified
 import { Routes, Route } from 'react-router-dom'
 import { AppShell } from './components/layout/AppShell'
 import { Dashboard } from './pages/Dashboard'
