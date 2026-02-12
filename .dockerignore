@@ -1,0 +1,47 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.vs
+.vscode
+.idea
+*.user
+*.suo
+
+# Build outputs
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/coverage
+**/test-results
+
+# Tests (not needed in production image)
+tests/
+plan/
+**/*.Tests.csproj
+**/*.FunctionalTests.csproj
+
+# Documentation
+*.md
+docs/
+
+# Local dev files
+.env
+.env.*
+appsettings.Development.json
+**/*.local.json
+
+# Claude/AI
+.claude/
+
+# Scripts (not needed in container)
+scripts/
+
+# Infrastructure (not needed in container)
+infra/
+
+# Aspire (only for local orchestration)
+src/SessionSight.AppHost/
+src/SessionSight.BlobTrigger/

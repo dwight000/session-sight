@@ -23,6 +23,13 @@ param servicePrincipalObjectId string = ''
 @description('Object ID of a developer user for local dev RBAC assignments (e.g., for DefaultAzureCredential)')
 param developerUserObjectId string = ''
 
+@description('GitHub PAT with read:packages scope for pulling images from ghcr.io')
+@secure()
+param ghcrToken string = ''
+
+@description('Enable Container Apps deployment (requires ghcrToken)')
+param deployContainerApps bool = false
+
 // === Variables ===
 
 var prefix = 'sessionsight'
@@ -241,6 +248,80 @@ module searchRoleAssignmentDeveloper 'modules/search.bicep' = if (!empty(develop
   dependsOn: [search]
 }
 
+// === Container Apps ===
+// Deploys API and Web frontend to Azure Container Apps (pulls from ghcr.io)
+
+module containerApps 'modules/containerApps.bicep' = if (deployContainerApps) {
+  name: 'containerApps'
+  scope: resourceGroup(resourceGroupName)
+  params: {
+    name: '${prefix}-${environmentName}'
+    location: location
+    tags: tags
+    ghcrToken: ghcrToken
+    // Pass Azure service endpoints
+    sqlConnectionString: 'Server=${sql.outputs.serverFqdn};Database=${sql.outputs.databaseName};Authentication=Active Directory Default;'
+    openaiEndpoint: openai.outputs.endpoint
+    searchEndpoint: search.outputs.endpoint
+    docIntelligenceEndpoint: docIntelligence.outputs.endpoint
+    storageBlobEndpoint: storage.outputs.blobEndpoint
+  }
+  dependsOn: [rg]
+}
+
+// === Container Apps Role Assignments ===
+// Grant the API managed identity access to Azure services
+
+module containerAppsOpenaiRole 'modules/openai.bicep' = if (deployContainerApps) {
+  name: 'containerApps-openai-role'
+  scope: resourceGroup(resourceGroupName)
+  params: {
+    name: '${prefix}-openai-${environmentName}'
+    location: location
+    tags: tags
+    deployGpt41: false
+    deployGpt41Mini: false
+    deployGpt41Nano: false
+    deployEmbeddings: false
+    cognitiveServicesUserPrincipalId: containerApps.outputs.apiPrincipalId
+  }
+}
+
+module containerAppsDocIntelRole 'modules/docintell.bicep' = if (deployContainerApps) {
+  name: 'containerApps-docintell-role'
+  scope: resourceGroup(resourceGroupName)
+  params: {
+    name: '${prefix}-docint-${environmentName}'
+    location: location
+    tags: tags
+    cognitiveServicesUserPrincipalId: containerApps.outputs.apiPrincipalId
+  }
+}
+
+module containerAppsSearchRole 'modules/search.bicep' = if (deployContainerApps) {
+  name: 'containerApps-search-role'
+  scope: resourceGroup(resourceGroupName)
+  params: {
+    name: '${prefix}-search-${environmentName}'
+    location: location
+    tags: tags
+    skuName: environmentName == 'prod' ? 'basic' : 'free'
+    searchIndexDataContributorPrincipalId: containerApps.outputs.apiPrincipalId
+    searchIndexDataContributorPrincipalType: 'ServicePrincipal'
+  }
+}
+
+module containerAppsStorageRole 'modules/storage.bicep' = if (deployContainerApps) {
+  name: 'containerApps-storage-role'
+  scope: resourceGroup(resourceGroupName)
+  params: {
+    name: storageAccountName
+    location: location
+    tags: tags
+    contributorObjectId: containerApps.outputs.apiPrincipalId
+  }
+}
+
 // === Outputs ===
 
 output resourceGroupName string = rg.outputs.name
@@ -260,3 +341,11 @@ output docIntelligenceEndpoint string = docIntelligence.outputs.endpoint
 output aiHubName string = aiHub.outputs.name
 output aiProjectName string = aiProject.outputs.name
 output aiProjectEndpoint string = 'https://${location}.api.azureml.ms/agents/v1.0/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceGroupName}/providers/Microsoft.MachineLearningServices/workspaces/${aiProject.outputs.name}'
+
+// Container Apps outputs (only when deployed)
+#disable-next-line outputs-should-not-contain-secrets  // False positive: outputs contain URLs, not secrets
+output containerAppsEnvName string = deployContainerApps ? containerApps.outputs.envName : ''
+#disable-next-line outputs-should-not-contain-secrets  // False positive: outputs contain URLs, not secrets
+output apiUrl string = deployContainerApps ? containerApps.outputs.apiUrl : ''
+#disable-next-line outputs-should-not-contain-secrets  // False positive: outputs contain URLs, not secrets
+output webUrl string = deployContainerApps ? containerApps.outputs.webUrl : ''

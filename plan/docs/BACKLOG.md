@@ -6,12 +6,12 @@
 
 ## Current Status
 
-**Phase**: Phase 5 (Polish & Testing) - IN PROGRESS
-**Next Action**: Pick next Ready task (P6-001 dev environment, B-064 race condition fix, or documentation tasks)
+**Phase**: Phase 6 (Deployment) - IN PROGRESS
+**Next Action**: P6-003 (deploy.yml workflow) or P6-002 (prod environment)
 
-**Last Updated**: February 11, 2026
+**Last Updated**: February 12, 2026
 
-**Milestone**: B-017 complete — 14 adversarial/red-team golden files, 0 injection successes, 51 total golden risk cases + 5 non-risk cases.
+**Milestone**: P6-001 complete — Container Apps infrastructure + Dockerfiles ready for cloud hosting.
 
 ---
 
@@ -155,9 +155,9 @@
 | B-068 | Add prompt rule: infer si_frequency from severity when evidence absent | S | 5 | Done | P5-001 |
 | B-069 | Investigate extraction timeout (300s HttpClient.Timeout in golden cases) | S | 5 | Done | P5-001 |
 | **Phase 6: Deployment** |||||
-| P6-001 | Configure dev environment (development Azure resources) | M | 6 | Ready | - |
-| P6-002 | Configure prod environment (production Azure resources) | M | 6 | Blocked | P6-001 |
-| P6-003 | GitHub Actions deploy.yml (app deployment) | M | 6 | Blocked | P6-001 |
+| P6-001 | Configure dev environment (development Azure resources) | M | 6 | Done | - |
+| P6-002 | Configure prod environment (production Azure resources) | M | 6 | Ready | - |
+| P6-003 | GitHub Actions deploy.yml (app deployment) | M | 6 | Ready | - |
 | B-029 | Infra drift checks: bicep what-if + validate | M | 6 | Ready | P1-015 |
 | B-067 | Validate hosted cloud log ingestion (App Insights) + troubleshooting playbook and query pack | M | 6 | Blocked | P6-003 |
 | B-030 | Promotion model: dev->prod approval rules | M | 6 | Blocked | P6-003 |
