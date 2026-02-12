@@ -62,6 +62,19 @@ resource searchIndexDataContributorRole 'Microsoft.Authorization/roleAssignments
   }
 }
 
+// Grant Search Service Contributor role if principal provided
+// This allows the principal to create/update/delete indexes (schema management)
+// Role ID: 7ca78c08-252a-4471-8644-bb5ff32d4ba0
+resource searchServiceContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(searchIndexDataContributorPrincipalId)) {
+  name: guid(search.id, searchIndexDataContributorPrincipalId, 'Search Service Contributor')
+  scope: search
+  properties: {
+    principalId: searchIndexDataContributorPrincipalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7ca78c08-252a-4471-8644-bb5ff32d4ba0') // Search Service Contributor
+    principalType: searchIndexDataContributorPrincipalType
+  }
+}
+
 output name string = search.name
 output id string = search.id
 output endpoint string = 'https://${search.name}.search.windows.net'

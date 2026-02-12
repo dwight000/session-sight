@@ -1,0 +1,119 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/SessionSight.Api/**'
+      - 'src/SessionSight.Web/**'
+      - 'src/SessionSight.Core/**'
+      - 'src/SessionSight.Agents/**'
+      - 'src/SessionSight.Infrastructure/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment'
+        type: choice
+        options:
+          - dev
+        default: dev
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-push:
+    name: Build and Push Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        run: |
+          echo "version=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+          echo "date=$(date -u +%Y%m%d)" >> $GITHUB_OUTPUT
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/SessionSight.Api/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/sessionsight-api:${{ steps.meta.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/sessionsight-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/SessionSight.Web/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/sessionsight-web:${{ steps.meta.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/sessionsight-web:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Container Apps
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Update API Container App
+        run: |
+          ENV="${{ github.event.inputs.environment || 'dev' }}"
+          TAG="${{ needs.build-and-push.outputs.image_tag }}"
+          az containerapp update \
+            --resource-group rg-sessionsight-${ENV} \
+            --name sessionsight-${ENV}-api \
+            --image ghcr.io/${{ github.repository_owner }}/sessionsight-api:${TAG}
+
+      - name: Update Web Container App
+        run: |
+          ENV="${{ github.event.inputs.environment || 'dev' }}"
+          TAG="${{ needs.build-and-push.outputs.image_tag }}"
+          az containerapp update \
+            --resource-group rg-sessionsight-${ENV} \
+            --name sessionsight-${ENV}-web \
+            --image ghcr.io/${{ github.repository_owner }}/sessionsight-web:${TAG}
+
+      - name: Get deployment URLs
+        run: |
+          ENV="${{ github.event.inputs.environment || 'dev' }}"
+          API_URL=$(az containerapp show -g rg-sessionsight-${ENV} -n sessionsight-${ENV}-api --query properties.configuration.ingress.fqdn -o tsv)
+          WEB_URL=$(az containerapp show -g rg-sessionsight-${ENV} -n sessionsight-${ENV}-web --query properties.configuration.ingress.fqdn -o tsv)
+          echo "### Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "- API: https://${API_URL}" >> $GITHUB_STEP_SUMMARY
+          echo "- Web: https://${WEB_URL}" >> $GITHUB_STEP_SUMMARY
