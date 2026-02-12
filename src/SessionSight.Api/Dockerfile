@@ -1,4 +1,5 @@
 # SessionSight API Dockerfile
+# Deployed via GitHub Actions deploy.yml
 # Multi-stage build for .NET 9 API
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS base
