@@ -4,14 +4,17 @@
 # =============================================================================
 # Runs E2E tests against a fresh Aspire instance with clean database.
 #
-# Usage:
-#   ./scripts/run-e2e.sh                      # Backend C# functional tests (default)
+# Usage (one of --backend, --frontend, or --all is REQUIRED):
+#   ./scripts/run-e2e.sh --backend            # Backend C# functional tests
 #   ./scripts/run-e2e.sh --frontend           # Full-stack Playwright tests (browser + backend)
 #   ./scripts/run-e2e.sh --frontend --headed  # Playwright with visible browser
 #   ./scripts/run-e2e.sh --all                # Run both backend and frontend tests
-#   ./scripts/run-e2e.sh --hot                # Reuse running Aspire (fast iteration)
-#   ./scripts/run-e2e.sh --keep-db            # Keep existing database
-#   ./scripts/run-e2e.sh --filter "TestName"  # Run specific test(s)
+#
+# Optional flags:
+#   --hot                # Reuse running Aspire (fast iteration, implies --keep-db)
+#   --keep-db            # Keep existing database (don't recreate SQL container)
+#   --filter "TestName"  # Run specific test(s) matching pattern
+#   --headed             # Show visible browser (use with --frontend)
 #
 # What it does:
 #   1. Kills existing SessionSight/Aspire/dcp processes (unless --hot)
@@ -21,7 +24,7 @@
 #   5. Discovers HTTPS port via HTTP->HTTPS redirect
 #   6. Runs EF migrations and inserts test therapist
 #   7. Runs tests:
-#      - Default: C# functional tests (dotnet test)
+#      - --backend: C# functional tests (dotnet test)
 #      - --frontend: Starts Vite + runs Playwright fullStack project
 #      - --all: Runs both
 #
@@ -72,6 +75,9 @@ for arg in "$@"; do
         --keep-db)
             KEEP_DB=true
             ;;
+        --backend)
+            RUN_BACKEND=true
+            ;;
         --frontend)
             RUN_FRONTEND=true
             ;;
@@ -95,9 +101,17 @@ for arg in "$@"; do
     esac
 done
 
-# Default to backend tests if neither --frontend nor --all specified
+# Require at least one of --backend, --frontend, or --all
 if [[ "$RUN_FRONTEND" = false && "$RUN_BACKEND" = false ]]; then
-    RUN_BACKEND=true
+    echo "Error: Must specify --backend, --frontend, or --all"
+    echo ""
+    echo "Usage:"
+    echo "  ./scripts/run-e2e.sh --backend            # Backend C# functional tests"
+    echo "  ./scripts/run-e2e.sh --frontend           # Full-stack Playwright tests"
+    echo "  ./scripts/run-e2e.sh --all                # Run both"
+    echo ""
+    echo "Optional: --hot, --keep-db, --filter \"Name\", --headed"
+    exit 1
 fi
 
 # Colors for output

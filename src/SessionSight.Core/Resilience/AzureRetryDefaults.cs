@@ -12,7 +12,7 @@ namespace SessionSight.Core.Resilience;
 /// - Retry 1 at 7s: catches quick transient errors early
 /// - Retry 2 at 21s: ~half of 45s, may clear if limit triggered earlier in request
 /// - Retry 3 at 49s: just over 45s, clears most rate limit windows
-/// - ±1s jitter per retry prevents thundering herd, total range 46s-52s
+/// - ±4s jitter per retry prevents thundering herd, total range 37s-61s
 /// </summary>
 public static class AzureRetryDefaults
 {
@@ -20,7 +20,7 @@ public static class AzureRetryDefaults
     public static readonly TimeSpan Delay = TimeSpan.FromSeconds(7);
     public static readonly TimeSpan MaxDelay = TimeSpan.FromSeconds(60);
     public static readonly TimeSpan NetworkTimeout = TimeSpan.FromSeconds(120);
-    public static readonly TimeSpan Jitter = TimeSpan.FromSeconds(1);
+    public static readonly TimeSpan Jitter = TimeSpan.FromSeconds(4);
 
     /// <summary>
     /// Applies standard retry configuration to Azure SDK clients using Azure.Core (Search, Document Intelligence, etc.).
@@ -47,7 +47,7 @@ public static class AzureRetryDefaults
 
 /// <summary>
 /// Retry policy with exponential backoff and jitter for System.ClientModel clients.
-/// Delays: 7s, 14s, 28s ±1s each → total 49s ±3s (range 46s-52s).
+/// Delays: 7s, 14s, 28s ±4s each → total 49s ±12s (range 37s-61s).
 /// Designed to clear 45s rate limit windows by retry 3.
 /// </summary>
 public sealed partial class SpacedRetryPolicy : ClientRetryPolicy
@@ -109,7 +109,7 @@ public sealed partial class SpacedRetryPolicy : ClientRetryPolicy
         var exponential = TimeSpan.FromTicks(_baseDelay.Ticks * (1L << (tryCount - 1)));
         var delay = exponential > _maxDelay ? _maxDelay : exponential;
 
-        // Add ±1s jitter
+        // Add ±4s jitter
         var jitterMs = (Random.Shared.NextDouble() * 2 - 1) * _jitter.TotalMilliseconds;
         var finalDelay = delay + TimeSpan.FromMilliseconds(jitterMs);
 

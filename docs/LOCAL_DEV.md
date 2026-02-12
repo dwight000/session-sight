@@ -167,7 +167,7 @@ dotnet ef database update \
 
 ```bash
 # Run backend E2E tests (C# functional tests)
-./scripts/run-e2e.sh
+./scripts/run-e2e.sh --backend
 
 # Run frontend E2E tests (Playwright, browser + real backend)
 ./scripts/run-e2e.sh --frontend
@@ -179,7 +179,7 @@ dotnet ef database update \
 ./scripts/run-e2e.sh --all
 
 # Reuse running Aspire for faster iteration
-./scripts/run-e2e.sh --hot
+./scripts/run-e2e.sh --backend --hot
 ./scripts/run-e2e.sh --frontend --hot
 
 # Or start Aspire manually for interactive testing

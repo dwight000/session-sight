@@ -12,10 +12,11 @@ When fixing flaky or failing LLM/golden file tests, ALWAYS try improving prompts
 |--------|---------|---------|
 | `start-dev.sh` | Full stack + migrations + sample data + frontend | (none) |
 | `start-aspire.sh` | Backend only (no data, no frontend) | (none) |
-| `run-e2e.sh` | Run E2E tests | `--frontend`, `--all`, `--hot`, `--headed`, `--filter "name"`, `--keep-db` |
+| `run-e2e.sh` | Run E2E tests (flag required) | `--backend`, `--frontend`, `--all`, `--hot`, `--headed`, `--filter "name"`, `--keep-db` |
 | `check-frontend.sh` | Frontend validation (TS + Vitest + 83% coverage + Playwright smoke + build) | (none) |
 | `check-backend.sh` | Backend tests with 83% coverage check | `--report` |
 | `watch-frontend-tests.sh` | Interactive Playwright UI | `--headed` |
+| `load-test.sh` | k6 load tests (concurrent users) | `LOAD_TEST_EXPENSIVE=true` for LLM endpoints |
 
 **Endpoints (fixed ports):**
 - Frontend: http://localhost:5173
@@ -45,7 +46,7 @@ cd src/SessionSight.Web && services__api__https__0=https://localhost:7039 npx vi
 1. `dotnet test --filter "Category!=Functional"` — unit tests (fast, free)
 2. `./scripts/check-frontend.sh` — frontend validation (fast, free)
 3. E2E scope (costs LLM tokens):
-   - `./scripts/run-e2e.sh` — backend only
+   - `./scripts/run-e2e.sh --backend` — backend only
    - `./scripts/run-e2e.sh --frontend` — full-stack Playwright
    - `./scripts/run-e2e.sh --all` — both
 
@@ -107,10 +108,19 @@ cd src/SessionSight.Web && services__api__https__0=https://localhost:7039 npx vi
 | Type | Path | Run Command |
 |------|------|-------------|
 | Backend Unit | `tests/SessionSight.*.Tests/` | `dotnet test --filter "Category!=Functional"` |
-| Backend E2E | `tests/SessionSight.FunctionalTests/` | `./scripts/run-e2e.sh` |
+| Backend E2E | `tests/SessionSight.FunctionalTests/` | `./scripts/run-e2e.sh --backend` |
 | Frontend Unit | `src/SessionSight.Web/__tests__/` | `npx vitest run --coverage` |
 | Frontend Smoke | `src/SessionSight.Web/e2e/smoke.spec.ts` | `npx playwright test --project=chromium` |
 | Full-Stack E2E | `src/SessionSight.Web/e2e/full-stack/` | `./scripts/run-e2e.sh --frontend` |
+| Load Tests | `tests/load/smoke.js` | `./scripts/load-test.sh` |
+
+**Load testing:**
+- Requires k6 installed (`brew install k6` / `apt install k6`)
+- Default: cheap GET endpoints only (10 VUs, 30s)
+- Expensive: `LOAD_TEST_EXPENSIVE=true ./scripts/load-test.sh` runs full pipeline (create patient → session → upload → extract → Q&A)
+  - 2 VUs, 4 iterations, up to 8 min, ~$0.10
+  - Azure OpenAI rate limits trigger retries with exponential backoff
+- Thresholds: cheap P95 < 500ms, expensive P95 < 5min (allows for rate limit retries)
 
 **Frontend test conventions:**
 - Tests in `__tests__/` directory
@@ -130,7 +140,7 @@ cd src/SessionSight.Web && services__api__https__0=https://localhost:7039 npx vi
 
 **Diagnosing failures:**
 ```bash
-./scripts/run-e2e.sh 2>&1 | tee /tmp/e2e-output.log
+./scripts/run-e2e.sh --backend 2>&1 | tee /tmp/e2e-output.log
 grep -E "FAIL\]|Error Message:" /tmp/e2e-output.log
 ```
 
