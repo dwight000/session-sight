@@ -409,6 +409,60 @@ az containerapp update -g rg-sessionsight-dev -n sessionsight-dev-api \
   --set-env-vars "VAR_NAME=new-value"
 ```
 
+**IMPORTANT**: Always use `--set-env-vars` for incremental updates. Never use `--replace-env-vars` as it wipes ALL existing env vars.
+
+## CI/CD and Configuration
+
+### What Each Workflow Does
+
+| Workflow | Trigger | What it updates | Container Apps config? |
+|----------|---------|-----------------|------------------------|
+| `deploy.yml` | Push to `main` (src changes) | Container images only | ❌ No - env vars preserved |
+| `infra.yml` | Push with `infra/**` changes | Azure resources (SQL, OpenAI, etc.) | ❌ No - `deployContainerApps=false` |
+| Manual Bicep | `az deployment sub create` | Full infrastructure | ⚠️ Only if `deployContainerApps=true` |
+
+### Configuration Safety
+
+Container Apps env vars and secrets are **safe** from normal CI/CD:
+- The `deploy.yml` workflow only updates container images via `az containerapp update --image`
+- The `infra.yml` workflow has `deployContainerApps=false` by default
+
+### Full Bicep Deployment (When Needed)
+
+If you need to run a full Bicep deployment with Container Apps:
+
+1. Ensure SQL password in Key Vault matches Azure SQL Server
+2. Add GitHub PAT to user secrets:
+   ```bash
+   dotnet user-secrets set --project src/SessionSight.AppHost 'Parameters:ghcr-token' 'YOUR_GITHUB_PAT'
+   ```
+3. Deploy with Container Apps enabled:
+   ```bash
+   SQL_PWD=$(dotnet user-secrets list --project src/SessionSight.AppHost | grep sql-password | cut -d'=' -f2 | tr -d ' ')
+   GHCR_TOKEN=$(dotnet user-secrets list --project src/SessionSight.AppHost | grep ghcr-token | cut -d'=' -f2 | tr -d ' ')
+   USER_ID=$(az ad signed-in-user show --query id -o tsv)
+
+   az deployment sub create --location eastus2 --template-file infra/main.bicep \
+     --parameters environmentName=dev \
+     --parameters sqlAdminPassword="$SQL_PWD" \
+     --parameters developerUserObjectId="$USER_ID" \
+     --parameters deployContainerApps=true \
+     --parameters ghcrToken="$GHCR_TOKEN"
+   ```
+
+### SQL Password Sync
+
+The SQL admin password must match between:
+- Azure SQL Server (actual password)
+- Container Apps secret/env var (connection string)
+- Local user secrets (for Bicep deploys)
+
+If they get out of sync, reset the Azure SQL password:
+```bash
+SQL_PWD=$(dotnet user-secrets list --project src/SessionSight.AppHost | grep sql-password | cut -d'=' -f2 | tr -d ' ')
+az sql server update -g rg-sessionsight-dev -n sessionsight-sql-dev --admin-password "$SQL_PWD"
+```
+
 ## Quick Reference
 
 | Task | CLI Command |
