@@ -1,0 +1,422 @@
+# Cloud Troubleshooting Guide
+
+Troubleshooting SessionSight in Azure Container Apps.
+
+## Log Locations
+
+| Environment | Location | Access Method |
+|-------------|----------|---------------|
+| **Local** | `/tmp/sessionsight/api/api-*.log` | `tail`, `grep`, `rg` |
+| **Cloud** | Log Analytics workspace | KQL queries via Portal or CLI |
+
+## Deployed URLs
+
+| Service | URL |
+|---------|-----|
+| API | https://sessionsight-dev-api.proudsky-5508f8b0.eastus2.azurecontainerapps.io |
+| Web | https://sessionsight-dev-web.proudsky-5508f8b0.eastus2.azurecontainerapps.io |
+
+## Accessing Cloud Logs
+
+### Prerequisites
+
+Container Apps Environment must have Log Analytics configured. Check current config:
+
+```bash
+az containerapp env show -g rg-sessionsight-dev -n sessionsight-dev-env \
+  --query "properties.appLogsConfiguration"
+```
+
+If `logAnalyticsConfiguration` is null, logs aren't being collected. Enable via Bicep update or Portal.
+
+### Portal Access
+
+1. Azure Portal → Resource Groups → `rg-sessionsight-dev`
+2. Select `sessionsight-dev-api` Container App
+3. Left menu → **Monitoring** → **Log stream** (real-time) or **Logs** (KQL)
+
+### CLI Access
+
+```bash
+# Get workspace ID
+WORKSPACE=$(az containerapp env show -g rg-sessionsight-dev -n sessionsight-dev-env \
+  --query "properties.appLogsConfiguration.logAnalyticsConfiguration.customerId" -o tsv)
+
+# Run KQL query
+az monitor log-analytics query -w $WORKSPACE \
+  --analytics-query "ContainerAppConsoleLogs_CL | where ContainerAppName_s == 'sessionsight-dev-api' | take 20" \
+  -o table
+```
+
+## KQL Query Pack
+
+Copy these queries into Azure Portal → Log Analytics → Logs.
+
+### Recent Logs (Last 100)
+
+```kql
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s == "sessionsight-dev-api"
+| project TimeGenerated, Log_s
+| order by TimeGenerated desc
+| take 100
+```
+
+### Recent Errors
+
+```kql
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s == "sessionsight-dev-api"
+| where Log_s contains "ERR]" or Log_s contains "Exception" or Log_s contains "error"
+| project TimeGenerated, Log_s
+| order by TimeGenerated desc
+| take 50
+```
+
+### Extraction Pipeline Trace (by Session ID)
+
+Replace `<session-id>` with actual GUID:
+
+```kql
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s == "sessionsight-dev-api"
+| where Log_s contains "<session-id>"
+| project TimeGenerated, Log_s
+| order by TimeGenerated asc
+```
+
+### Extraction Success/Failure Rate (Last 24h)
+
+```kql
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s == "sessionsight-dev-api"
+| where TimeGenerated > ago(24h)
+| where Log_s contains "Extraction completed" or Log_s contains "Extraction failed"
+| extend Status = iff(Log_s contains "completed", "Success", "Failed")
+| summarize Count=count() by Status
+| render piechart
+```
+
+### Extraction Duration P95 (Last 24h)
+
+```kql
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s == "sessionsight-dev-api"
+| where TimeGenerated > ago(24h)
+| where Log_s contains "Extraction completed for session"
+| parse Log_s with * "in " Duration:long "ms" *
+| summarize P50=percentile(Duration,50), P95=percentile(Duration,95), P99=percentile(Duration,99), Avg=avg(Duration)
+```
+
+### Risk Guardrail Triggers
+
+```kql
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s == "sessionsight-dev-api"
+| where Log_s contains "RiskAssessor" or Log_s contains "guardrail" or Log_s contains "safety"
+| project TimeGenerated, Log_s
+| order by TimeGenerated desc
+| take 50
+```
+
+### Q&A Usage by Complexity
+
+```kql
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s == "sessionsight-dev-api"
+| where TimeGenerated > ago(7d)
+| where Log_s contains "QA complexity:"
+| parse Log_s with * "complexity: " Complexity:string *
+| summarize Count=count() by Complexity
+| render columnchart
+```
+
+### Container Restarts/Crashes
+
+```kql
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s == "sessionsight-dev-api"
+| where Log_s contains "Starting" or Log_s contains "Shutdown" or Log_s contains "terminated"
+| project TimeGenerated, Log_s
+| order by TimeGenerated desc
+| take 30
+```
+
+### HTTP 5xx Errors (Last Hour)
+
+```kql
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s == "sessionsight-dev-api"
+| where TimeGenerated > ago(1h)
+| where Log_s contains "HTTP" and (Log_s contains " 500 " or Log_s contains " 502 " or Log_s contains " 503 ")
+| project TimeGenerated, Log_s
+| order by TimeGenerated desc
+```
+
+### Request Volume Over Time
+
+```kql
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s == "sessionsight-dev-api"
+| where TimeGenerated > ago(24h)
+| where Log_s contains "HTTP"
+| summarize Requests=count() by bin(TimeGenerated, 5m)
+| render timechart
+```
+
+## Local-to-Cloud Triage Mapping
+
+| Local Command | Cloud Equivalent |
+|--------------|------------------|
+| `curl localhost:7039/health` | `curl https://sessionsight-dev-api.proudsky-5508f8b0.eastus2.azurecontainerapps.io/health` |
+| `tail /tmp/sessionsight/api/*.log` | KQL: Recent Logs query |
+| `grep "Error" /tmp/sessionsight/api/*.log` | KQL: Recent Errors query |
+| `grep "<session-id>" /tmp/sessionsight/api/*.log` | KQL: Extraction Pipeline Trace query |
+| `rg "Extraction completed" /tmp/sessionsight/api/*.log` | KQL: Extraction Duration P95 query |
+| Check if API is running | Portal → Container App → Overview → Running status |
+| View real-time logs | Portal → Container App → Log stream |
+| Restart API | Portal → Container App → Revisions → Restart |
+
+## Common Issues
+
+### Container Scaled to Zero (404 Errors)
+
+**Symptoms**: API returns 404 "Container App is stopped or does not exist" even though app shows "Running" in Portal.
+
+**Root cause**: Container Apps with `minReplicas: 0` scale to zero after ~5 min of inactivity. First request wakes it up (cold start takes 5-15 seconds).
+
+**Triage**:
+```bash
+# Check replica count
+az containerapp revision list -g rg-sessionsight-dev -n sessionsight-dev-api -o table
+# Look at "Replicas" column - if 0, app is scaled down
+```
+
+**Solution**: Wait and retry. First request triggers scale-up. If you need always-on:
+```bash
+az containerapp update -g rg-sessionsight-dev -n sessionsight-dev-api --min-replicas 1
+```
+
+**Note**: SessionSight is now configured with `minReplicas: 1` for both API and Web containers to avoid cold start issues and ensure reliable internal communication.
+
+### Web-to-API Proxy Issues (502/504 Errors)
+
+**Symptoms**: Frontend loads but API calls fail with 502 Bad Gateway or 504 Gateway Timeout.
+
+**Root cause**: The nginx proxy in the web container forwards `/api/` requests to the API container. Issues can occur with:
+1. Internal DNS not resolving correctly
+2. SSL handshake failures when proxying to HTTPS
+3. API container not accessible on expected port
+
+**Triage**:
+```bash
+# Check web container nginx logs
+az containerapp logs show -g rg-sessionsight-dev -n sessionsight-dev-web --tail 50 | grep error
+
+# Verify API responds directly
+curl https://sessionsight-dev-api.proudsky-5508f8b0.eastus2.azurecontainerapps.io/api/patients
+```
+
+**Solution**: The web container nginx is configured to proxy to the API's external HTTPS URL with SSL verification disabled for internal trusted traffic. If issues persist, verify:
+1. `API_URL` env var is set correctly
+2. Both containers have `minReplicas: 1`
+3. Nginx config includes `proxy_ssl_verify off`
+
+### Logs Not Appearing in Log Analytics
+
+**Symptoms**: KQL queries return empty results.
+
+**Possible causes**:
+1. Log Analytics not configured on Container Apps Environment
+2. Log ingestion delay (wait 2-5 minutes)
+3. Container not running/generating logs
+
+**Solution**:
+
+```bash
+# Check if Log Analytics is configured
+az containerapp env show -g rg-sessionsight-dev -n sessionsight-dev-env \
+  --query "properties.appLogsConfiguration"
+
+# Check container status
+az containerapp show -g rg-sessionsight-dev -n sessionsight-dev-api \
+  --query "properties.runningStatus"
+
+# View real-time logs (bypasses Log Analytics)
+az containerapp logs show -g rg-sessionsight-dev -n sessionsight-dev-api --follow
+```
+
+### API Returns 500 Errors
+
+**Symptoms**: All API calls return HTTP 500.
+
+**Triage steps**:
+
+1. Check recent errors in logs:
+   ```bash
+   az containerapp logs show -g rg-sessionsight-dev -n sessionsight-dev-api --tail 50
+   ```
+
+2. Common causes:
+   - Database connection string missing/invalid
+   - Azure OpenAI endpoint not configured
+   - Managed identity missing required roles
+
+3. Verify environment variables are set:
+   ```bash
+   az containerapp show -g rg-sessionsight-dev -n sessionsight-dev-api \
+     --query "properties.template.containers[0].env" -o table
+   ```
+
+### Container Keeps Restarting
+
+**Symptoms**: Container status shows restarts, health checks failing.
+
+**Triage**:
+
+```bash
+# Check container events
+az containerapp revision list -g rg-sessionsight-dev -n sessionsight-dev-api -o table
+
+# View startup logs
+az containerapp logs show -g rg-sessionsight-dev -n sessionsight-dev-api \
+  --tail 100 2>&1 | head -50
+```
+
+**Common causes**:
+- Health check endpoint failing (database not connected)
+- Missing required environment variables
+- Container image not found
+
+### Extraction Taking Too Long
+
+**Symptoms**: Extractions timeout or take >5 minutes.
+
+**Triage with KQL**:
+
+```kql
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s == "sessionsight-dev-api"
+| where TimeGenerated > ago(1h)
+| where Log_s contains "Extraction"
+| project TimeGenerated, Log_s
+| order by TimeGenerated desc
+```
+
+**Common causes**:
+- Azure OpenAI rate limiting (check for 429 errors)
+- Large document causing multiple agent loops
+- Search index timeout
+
+### SQL Login Failed (Error 18456)
+
+**Symptoms**: Logs show `Login failed for user 'sessionsightadmin'` with error number 18456.
+
+**Root cause**: SQL admin password in Container Apps secret doesn't match the actual Azure SQL Server password.
+
+**Fix**: Reset the SQL Server password to match your local user secrets:
+
+```bash
+# Get password from local secrets
+SQL_PWD=$(dotnet user-secrets list --project src/SessionSight.AppHost | grep sql-password | cut -d'=' -f2 | tr -d ' ')
+
+# Reset Azure SQL admin password
+az sql server update -g rg-sessionsight-dev -n sessionsight-sql-dev --admin-password "$SQL_PWD"
+
+# Restart container to retry connection
+REVISION=$(az containerapp revision list -g rg-sessionsight-dev -n sessionsight-dev-api --query "[0].name" -o tsv)
+az containerapp revision restart -g rg-sessionsight-dev -n sessionsight-dev-api --revision $REVISION
+```
+
+### Azure SQL Connection Timeout (Serverless Auto-Pause)
+
+**Symptoms**: Logs show `Connection Timeout Expired` during `post-login phase`:
+```
+Connection Timeout Expired. The timeout period elapsed during the post-login phase.
+[Pre-Login] initialization=82; handshake=16; [Login] initialization=1; authentication=3; [Post-Login] complete=14058
+```
+
+**Root cause**: Azure SQL Serverless (free tier) auto-pauses after inactivity. First connection must "wake up" the database, taking 10-30+ seconds. Default 15s timeout is too short.
+
+**Fix**: Increase connection timeout to 60 seconds:
+
+```bash
+# Get current SQL password
+SQL_PWD=$(dotnet user-secrets list --project src/SessionSight.AppHost | grep sql-password | cut -d'=' -f2 | tr -d ' ')
+
+# Update the connection string secret with longer timeout
+NEW_CONN="Server=sessionsight-sql-dev.database.windows.net;Database=sessionsight;User Id=sessionsightadmin;Password=${SQL_PWD};Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;"
+
+az containerapp secret set -g rg-sessionsight-dev -n sessionsight-dev-api \
+  --secrets "sql-connection-string=$NEW_CONN"
+
+# Restart to apply
+az containerapp revision restart -g rg-sessionsight-dev -n sessionsight-dev-api \
+  --revision $(az containerapp revision list -g rg-sessionsight-dev -n sessionsight-dev-api --query "[0].name" -o tsv)
+```
+
+**Prevention**: The fix is now in `infra/main.bicep` (`Connection Timeout=60`).
+
+### Azure OpenAI Rate Limits
+
+**Symptoms**: Logs show HTTP 429 or "rate limit exceeded".
+
+**Triage**:
+
+```kql
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s == "sessionsight-dev-api"
+| where Log_s contains "429" or Log_s contains "rate limit" or Log_s contains "throttl"
+| project TimeGenerated, Log_s
+| order by TimeGenerated desc
+| take 20
+```
+
+**Solutions**:
+- Increase Azure OpenAI TPM quota in Portal
+- Check for runaway agent loops generating excessive requests
+
+## Updating Configuration
+
+### Update Container App Secrets
+
+Secrets (like SQL connection strings) are managed separately from the container image:
+
+```bash
+# List current secrets
+az containerapp secret list -g rg-sessionsight-dev -n sessionsight-dev-api -o table
+
+# Update a secret
+az containerapp secret set -g rg-sessionsight-dev -n sessionsight-dev-api \
+  --secrets "secret-name=new-value"
+
+# Restart to apply (required for secret changes)
+REVISION=$(az containerapp revision list -g rg-sessionsight-dev -n sessionsight-dev-api --query "[0].name" -o tsv)
+az containerapp revision restart -g rg-sessionsight-dev -n sessionsight-dev-api --revision $REVISION
+```
+
+### Update Environment Variables
+
+Non-secret config can be updated directly:
+
+```bash
+# View current env vars
+az containerapp show -g rg-sessionsight-dev -n sessionsight-dev-api \
+  --query "properties.template.containers[0].env" -o table
+
+# Update an env var (creates new revision, auto-deploys)
+az containerapp update -g rg-sessionsight-dev -n sessionsight-dev-api \
+  --set-env-vars "VAR_NAME=new-value"
+```
+
+## Quick Reference
+
+| Task | CLI Command |
+|------|-------------|
+| Health check | `curl https://sessionsight-dev-api.proudsky-5508f8b0.eastus2.azurecontainerapps.io/api/patients` |
+| View live logs | `az containerapp logs show -g rg-sessionsight-dev -n sessionsight-dev-api --follow` |
+| Check status | `az containerapp show -g rg-sessionsight-dev -n sessionsight-dev-api --query "properties.runningStatus"` |
+| Check replicas | `az containerapp revision list -g rg-sessionsight-dev -n sessionsight-dev-api -o table` |
+| Restart app | `az containerapp revision restart -g rg-sessionsight-dev -n sessionsight-dev-api --revision <name>` |
+| List secrets | `az containerapp secret list -g rg-sessionsight-dev -n sessionsight-dev-api -o table` |
+| Get workspace ID | `az containerapp env show -g rg-sessionsight-dev -n sessionsight-dev-env --query "properties.appLogsConfiguration.logAnalyticsConfiguration.customerId" -o tsv` |

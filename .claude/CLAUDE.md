@@ -170,7 +170,7 @@ gh run view <run-id> --log-failed
 | "403 Forbidden" on search | Deploy Bicep with `developerUserObjectId` parameter |
 | Docker network exhaustion | Remove containers first: `docker ps -a --format '{{.Names}}' \| grep -E 'sql-\|storage-' \| xargs -r docker rm -f` |
 
-**Log triage (first pass):**
+**Log triage (first pass - local):**
 ```bash
 curl -sk https://localhost:7039/health
 tail -n 200 /tmp/sessionsight/aspire/aspire-e2e.log
@@ -179,6 +179,23 @@ ls -lah /tmp/sessionsight/
 ls -lah /tmp/sessionsight/api/
 tail -n 200 $(ls -1t /tmp/sessionsight/api/api-*.log 2>/dev/null | head -1)
 ```
+
+**Cloud log triage (Azure Container Apps):**
+```bash
+# Health check
+curl https://sessionsight-dev-api.proudsky-5508f8b0.eastus2.azurecontainerapps.io/health
+
+# View live logs
+az containerapp logs show -g rg-sessionsight-dev -n sessionsight-dev-api --follow
+
+# Recent errors (via Log Analytics - requires workspace configured)
+WORKSPACE=$(az containerapp env show -g rg-sessionsight-dev -n sessionsight-dev-env \
+  --query "properties.appLogsConfiguration.logAnalyticsConfiguration.customerId" -o tsv)
+az monitor log-analytics query -w $WORKSPACE \
+  --analytics-query "ContainerAppConsoleLogs_CL | where ContainerAppName_s == 'sessionsight-dev-api' | where Log_s contains 'ERR]' or Log_s contains 'Exception' | take 20" -o table
+```
+
+Full cloud troubleshooting guide: `docs/CLOUD_TROUBLESHOOTING.md`
 
 **Extraction trace quick check:**
 `LATEST=$(ls -1t /tmp/sessionsight/api/api-*.log | head -1); rg -n "HTTP POST /api/extraction|HTTP GET /api/sessions/.*/extraction|Extraction completed for session" "$LATEST" | tail -n 40`
@@ -258,6 +275,12 @@ az deployment sub create --location eastus2 --template-file infra/main.bicep \
 - **Avoid stale coverage inflation**: backend script clears `coverage/` before running tests
 - **E2E tests don't count** — Playwright runs in browser, can't measure code coverage
 - Coverage reports: `coverage/` (frontend HTML), `coverage/report/` (backend)
+
+### Cloud Deployment
+- **Azure SQL Serverless auto-pauses** — connection timeout must be 60s+ (configured in `infra/main.bicep`)
+- **Container Apps scale to zero** — first request after idle returns 404 until container starts (5-15s cold start)
+- **Log Analytics not yet configured** — use `az containerapp logs show --follow` for live logs
+- Full guide: `docs/CLOUD_TROUBLESHOOTING.md`
 
 ### Memory
 - All memories go in this CLAUDE.md, NOT auto memory file
