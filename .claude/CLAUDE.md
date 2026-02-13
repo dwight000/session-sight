@@ -50,7 +50,17 @@ cd src/SessionSight.Web && services__api__https__0=https://localhost:7039 npx vi
    - `./scripts/run-e2e.sh --frontend` — full-stack Playwright
    - `./scripts/run-e2e.sh --all` — both
 
-**Before `git push`:**
+**Git workflow (always use PRs):**
+
+At the start of a new workitem:
+1. Create feature branch: `git checkout -b feature/P6-003-deploy-workflow develop`
+2. Make changes, commit
+3. Run validation (below), then push: `git push -u origin feature/P6-003-deploy-workflow`
+4. Create PR: `gh pr create --base develop`
+5. Wait for user to approve and merge
+6. Never push directly to `develop` or `main`
+
+**Before pushing (validation):**
 1. `dotnet build`
 2. `./scripts/check-backend.sh` — backend 83% coverage
 3. `./scripts/check-frontend.sh` — frontend 83% coverage
