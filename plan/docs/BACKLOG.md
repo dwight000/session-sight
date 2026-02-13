@@ -9,7 +9,7 @@
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
 **Next Action**: B-072 (cloud DB seeding) or P6-002 (prod environment)
 
-**Last Updated**: February 12, 2026
+**Last Updated**: February 13, 2026
 
 **Milestone**: P6-003 complete — Full CI/CD pipeline working: feature branch → PR → merge → auto-deploy to Container Apps.
 
@@ -387,6 +387,7 @@
 | B-070 | Merge redundant E2E extraction tests into shared collection fixture | 2026-02-11 |
 | B-071 | Prompt hardening: euphemistic language → active SI classification | 2026-02-11 |
 | P6-003 | GitHub Actions deploy.yml (full CI/CD pipeline) | 2026-02-12 |
+| B-067 | Cloud logging validation + troubleshooting playbook | 2026-02-13 |
 
 ---
 
@@ -394,6 +395,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-13 | **B-067 complete: Cloud troubleshooting playbook.** Created `docs/CLOUD_TROUBLESHOOTING.md` with KQL query pack, local-to-cloud triage mapping, and common issues guide. Fixed multiple cloud deployment issues: SQL Serverless connection timeout (increased to 60s), SQL password sync (18456 errors), nginx proxy trailing slash (404 errors), env vars getting wiped (restored AzureOpenAI/Search/DocIntel endpoints). Set `minReplicas=1` for both API and Web containers to avoid cold starts. Added CI/CD configuration safety docs explaining which workflows touch Container Apps config. Created B-072 for cloud database seeding (Therapist FK constraint blocks session creation in dev). |
 | 2026-02-12 | **P6-003 complete: GitHub Actions deploy workflow + full CI/CD pipeline.** Created `deploy.yml` workflow that triggers on push to main. Builds Docker images, pushes to ghcr.io, updates Azure Container Apps. Fixed runtime issues: added Search Service Contributor role for index schema management, changed SQL connection to use SQL auth, added ICU libraries to Dockerfile for SqlClient. Ran EF migrations on cloud database. Set up ghcr.io package permissions for GITHUB_TOKEN. Verified full pipeline: feature branch → PR (CI + CodeQL gates) → merge → auto-deploy. Apps live at `sessionsight-dev-api.proudsky-5508f8b0.eastus2.azurecontainerapps.io` and `sessionsight-dev-web.proudsky-5508f8b0.eastus2.azurecontainerapps.io`. |
 | 2026-02-11 | **B-005 + B-016 complete: Load testing setup + concurrency tests.** Fixed expensive scenario which was broken (Q&A timed out with no extracted data). Implemented full pipeline: create patient → session → upload doc → extract → Q&A. Config: 2 VUs, 4 iterations, 8 min max, 6 min extraction timeout, P95 < 5 min threshold. Accounts for Azure OpenAI rate limiting (HTTP 429) with exponential backoff retries (observed up to 6 retries with 59s waits). Cost: ~$0.10/run. Cheap scenario unchanged (10 VUs, 30s, P95 < 500ms). Concurrency validated via parallel VUs hitting extraction pipeline. Updated CLAUDE.md and load-test.sh with accurate documentation. Validation: 100% checks passed (465/465), 0% failures, P95 expensive 1m49s. **Also:** Refactored `run-e2e.sh` to require explicit flag (`--backend`, `--frontend`, or `--all`) — no default mode. Updated docs (CLAUDE.md, LOCAL_DEV.md). Increased retry jitter in `AzureRetryDefaults.cs`. |
 | 2026-02-11 | **B-071 complete.** Added euphemistic language → ActiveNoPlan classification rule to both `ExtractionPrompts.cs` and `RiskPrompts.cs`. When patient uses indirect death language ("go to sleep and not wake up", "be with [deceased]") combined with preparatory behaviors (means research, giving away possessions), classify SI as at minimum ActiveNoPlan. Tightened golden file `risk-test-050_v2.json` acceptance to remove "passive" from risk_reextracted/risk_final stages. Added unit test `GetRiskReExtractionPrompt_ContainsEuphemisticLanguageRule`. Validation: 658 unit tests pass, 83% backend coverage, risk-test-050 golden case passes with tightened acceptance. |
