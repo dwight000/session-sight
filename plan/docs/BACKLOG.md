@@ -160,7 +160,7 @@
 | P6-003 | GitHub Actions deploy.yml (app deployment) | M | 6 | Done | - |
 | B-029 | Infra drift checks: bicep what-if + validate | M | 6 | Ready | P1-015 |
 | B-067 | Validate hosted cloud log ingestion (App Insights) + troubleshooting playbook and query pack | M | 6 | Done | P6-003 |
-| B-072 | Cloud database seeding: Therapist FK constraint blocks session creation | S | 6 | Ready | P6-003 |
+| B-072 | Cloud database seeding (dev): Therapist FK constraint blocks session creation | S | 6 | Ready | P6-003 |
 | B-030 | Promotion model: dev->prod approval rules | M | 6 | Blocked | P6-003 |
 | B-031 | Rollback strategy: keep last good artifact | M | 6 | Blocked | P6-003 |
 | P6-004 | Environment-specific configuration | M | 6 | Blocked | P6-002 |
@@ -227,8 +227,9 @@
 - **Risk level was correct**: The LLM correctly classified `risk_level_overall` as High due to behavioral warning signs — so the safety-critical risk reporting was not compromised. This is an SI classification refinement.
 - **Validation**: After prompt change, re-run `GOLDEN_FILTER=risk-test-050 ./scripts/run-e2e.sh` and tighten accept to `["active_no_plan", "active_with_plan", "active_with_intent"]`.
 
-### B-072 Details (Cloud Database Seeding)
-- **Problem**: Creating a session in the cloud environment fails with HTTP 500:
+### B-072 Details (Cloud Database Seeding - Dev)
+- **Related**: P6-007 covers the same issue for prod environment.
+- **Problem**: Creating a session in the dev cloud environment fails with HTTP 500:
   ```
   The INSERT statement conflicted with the FOREIGN KEY constraint "FK_Sessions_Therapists_TherapistId".
   The conflict occurred in database "sessionsight", table "dbo.Therapists", column 'Id'.
@@ -249,6 +250,11 @@
       VALUES ('00000000-0000-0000-0000-000000000001', 'Test Therapist', 'LIC-001', 'PhD', 1, GETUTCDATE())
   ```
 - **Acceptance**: Cloud environment allows creating patients and sessions without FK errors; extraction pipeline can be tested end-to-end.
+
+### P6-007 Details (Demo Data and Walkthrough - Prod)
+- **Related**: B-072 covers the same seeding issue for dev environment.
+- **Scope**: Seed production database with demo data and create walkthrough documentation.
+- **Note**: Implementation approach from B-072 (EF seed or startup service) can be reused for prod.
 
 ### B-069 Details (Extraction Timeout Investigation)
 - Context: Case risk-test-034 hit a 300s `HttpClient.Timeout` during golden E2E (first run). Passed on second run.
