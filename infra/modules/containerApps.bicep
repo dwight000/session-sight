@@ -107,7 +107,7 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
         }
       ]
       scale: {
-        minReplicas: 0  // Scale to zero when idle
+        minReplicas: 1  // Keep at least 1 replica for reliable internal DNS + faster response
         maxReplicas: 3
         rules: [
           {
@@ -160,14 +160,14 @@ resource webApp 'Microsoft.App/containerApps@2023-05-01' = {
             memory: '0.5Gi'
           }
           env: [
-            // API URL for nginx proxy (internal Container Apps URL)
-            // Web container proxies /api/ requests to the API container
-            { name: 'API_URL', value: 'http://${apiApp.name}/' }
+            // API URL for nginx proxy
+            // Use external HTTPS URL - nginx config handles SSL verification
+            { name: 'API_URL', value: 'https://${apiApp.properties.configuration.ingress.fqdn}/' }
           ]
         }
       ]
       scale: {
-        minReplicas: 0  // Scale to zero when idle
+        minReplicas: 1  // Keep at least 1 replica for reliable response
         maxReplicas: 2
         rules: [
           {

@@ -260,7 +260,7 @@ module containerApps 'modules/containerApps.bicep' = if (deployContainerApps) {
     tags: tags
     ghcrToken: ghcrToken
     // Pass Azure service endpoints
-    sqlConnectionString: 'Server=${sql.outputs.serverFqdn};Database=${sql.outputs.databaseName};User Id=sessionsightadmin;Password=${sqlAdminPassword};Encrypt=True;TrustServerCertificate=False;'
+    sqlConnectionString: 'Server=${sql.outputs.serverFqdn};Database=${sql.outputs.databaseName};User Id=sessionsightadmin;Password=${sqlAdminPassword};Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;'
     openaiEndpoint: openai.outputs.endpoint
     searchEndpoint: search.outputs.endpoint
     docIntelligenceEndpoint: docIntelligence.outputs.endpoint
