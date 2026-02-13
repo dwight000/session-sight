@@ -7,7 +7,7 @@
 ## Current Status
 
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
-**Next Action**: P6-002 (prod environment) or B-067 (cloud logging validation)
+**Next Action**: B-072 (cloud DB seeding) or P6-002 (prod environment)
 
 **Last Updated**: February 12, 2026
 
@@ -159,7 +159,8 @@
 | P6-002 | Configure prod environment (production Azure resources) | M | 6 | Ready | - |
 | P6-003 | GitHub Actions deploy.yml (app deployment) | M | 6 | Done | - |
 | B-029 | Infra drift checks: bicep what-if + validate | M | 6 | Ready | P1-015 |
-| B-067 | Validate hosted cloud log ingestion (App Insights) + troubleshooting playbook and query pack | M | 6 | Blocked | P6-003 |
+| B-067 | Validate hosted cloud log ingestion (App Insights) + troubleshooting playbook and query pack | M | 6 | Done | P6-003 |
+| B-072 | Cloud database seeding: Therapist FK constraint blocks session creation | S | 6 | Ready | P6-003 |
 | B-030 | Promotion model: dev->prod approval rules | M | 6 | Blocked | P6-003 |
 | B-031 | Rollback strategy: keep last good artifact | M | 6 | Blocked | P6-003 |
 | P6-004 | Environment-specific configuration | M | 6 | Blocked | P6-002 |
@@ -225,6 +226,29 @@
 - **Proposed rule**: Add to `ExtractionPrompts.cs` and `RiskPrompts.cs`: "When a patient uses euphemistic or indirect language about ending their life (e.g., 'going to sleep permanently', 'ready for the long rest', 'be with [deceased person]') AND exhibits concrete preparatory behaviors (researching methods, giving away possessions, settling affairs, canceling future plans), classify as at minimum ActiveNoPlan even without explicit suicide language."
 - **Risk level was correct**: The LLM correctly classified `risk_level_overall` as High due to behavioral warning signs — so the safety-critical risk reporting was not compromised. This is an SI classification refinement.
 - **Validation**: After prompt change, re-run `GOLDEN_FILTER=risk-test-050 ./scripts/run-e2e.sh` and tighten accept to `["active_no_plan", "active_with_plan", "active_with_intent"]`.
+
+### B-072 Details (Cloud Database Seeding)
+- **Problem**: Creating a session in the cloud environment fails with HTTP 500:
+  ```
+  The INSERT statement conflicted with the FOREIGN KEY constraint "FK_Sessions_Therapists_TherapistId".
+  The conflict occurred in database "sessionsight", table "dbo.Therapists", column 'Id'.
+  ```
+- **Root cause**: Cloud Azure SQL database has schema (EF migrations ran) but no seed data. The `Sessions` table requires a valid `TherapistId` foreign key, but the `Therapists` table is empty.
+- **Local behavior**: `start-dev.sh` seeds a test therapist (`00000000-0000-0000-0000-000000000001`) and sample patients automatically. Cloud has no equivalent seeding mechanism.
+- **Affected functionality**: Cannot create sessions, upload documents, or test extraction pipeline in cloud environment.
+- **Options**:
+  1. **Manual SQL seed** (quick fix): Run INSERT via Azure Portal Query Editor or sqlcmd
+  2. **API seed endpoint** (dev only): Add `POST /api/seed` endpoint gated by `ASPNETCORE_ENVIRONMENT=Development`
+  3. **EF seed in migrations** (production-safe): Add seed data via `HasData()` in DbContext `OnModelCreating`
+  4. **Startup seed service** (environment-aware): `IHostedService` that seeds on startup if DB is empty and env is dev
+- **Recommended**: Option 3 or 4 — ensures any fresh deployment has minimum viable data without manual intervention.
+- **SQL for manual fix** (from `start-dev.sh`):
+  ```sql
+  IF NOT EXISTS (SELECT 1 FROM Therapists WHERE Id = '00000000-0000-0000-0000-000000000001')
+      INSERT INTO Therapists (Id, Name, LicenseNumber, Credentials, IsActive, CreatedAt)
+      VALUES ('00000000-0000-0000-0000-000000000001', 'Test Therapist', 'LIC-001', 'PhD', 1, GETUTCDATE())
+  ```
+- **Acceptance**: Cloud environment allows creating patients and sessions without FK errors; extraction pipeline can be tested end-to-end.
 
 ### B-069 Details (Extraction Timeout Investigation)
 - Context: Case risk-test-034 hit a 300s `HttpClient.Timeout` during golden E2E (first run). Passed on second run.
