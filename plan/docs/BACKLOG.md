@@ -7,11 +7,11 @@
 ## Current Status
 
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
-**Next Action**: P6-003 (deploy.yml workflow) or P6-002 (prod environment)
+**Next Action**: P6-002 (prod environment) or B-067 (cloud logging validation)
 
 **Last Updated**: February 12, 2026
 
-**Milestone**: P6-001 complete — Container Apps infrastructure + Dockerfiles ready for cloud hosting.
+**Milestone**: P6-003 complete — Full CI/CD pipeline working: feature branch → PR → merge → auto-deploy to Container Apps.
 
 ---
 
@@ -157,7 +157,7 @@
 | **Phase 6: Deployment** |||||
 | P6-001 | Configure dev environment (development Azure resources) | M | 6 | Done | - |
 | P6-002 | Configure prod environment (production Azure resources) | M | 6 | Ready | - |
-| P6-003 | GitHub Actions deploy.yml (app deployment) | M | 6 | Ready | - |
+| P6-003 | GitHub Actions deploy.yml (app deployment) | M | 6 | Done | - |
 | B-029 | Infra drift checks: bicep what-if + validate | M | 6 | Ready | P1-015 |
 | B-067 | Validate hosted cloud log ingestion (App Insights) + troubleshooting playbook and query pack | M | 6 | Blocked | P6-003 |
 | B-030 | Promotion model: dev->prod approval rules | M | 6 | Blocked | P6-003 |
@@ -356,6 +356,7 @@
 | B-017 | Safety/red-team evals (14 adversarial golden files, 6 categories, 0 injection successes) | 2026-02-11 |
 | B-070 | Merge redundant E2E extraction tests into shared collection fixture | 2026-02-11 |
 | B-071 | Prompt hardening: euphemistic language → active SI classification | 2026-02-11 |
+| P6-003 | GitHub Actions deploy.yml (full CI/CD pipeline) | 2026-02-12 |
 
 ---
 
@@ -363,6 +364,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-12 | **P6-003 complete: GitHub Actions deploy workflow + full CI/CD pipeline.** Created `deploy.yml` workflow that triggers on push to main. Builds Docker images, pushes to ghcr.io, updates Azure Container Apps. Fixed runtime issues: added Search Service Contributor role for index schema management, changed SQL connection to use SQL auth, added ICU libraries to Dockerfile for SqlClient. Ran EF migrations on cloud database. Set up ghcr.io package permissions for GITHUB_TOKEN. Verified full pipeline: feature branch → PR (CI + CodeQL gates) → merge → auto-deploy. Apps live at `sessionsight-dev-api.proudsky-5508f8b0.eastus2.azurecontainerapps.io` and `sessionsight-dev-web.proudsky-5508f8b0.eastus2.azurecontainerapps.io`. |
 | 2026-02-11 | **B-005 + B-016 complete: Load testing setup + concurrency tests.** Fixed expensive scenario which was broken (Q&A timed out with no extracted data). Implemented full pipeline: create patient → session → upload doc → extract → Q&A. Config: 2 VUs, 4 iterations, 8 min max, 6 min extraction timeout, P95 < 5 min threshold. Accounts for Azure OpenAI rate limiting (HTTP 429) with exponential backoff retries (observed up to 6 retries with 59s waits). Cost: ~$0.10/run. Cheap scenario unchanged (10 VUs, 30s, P95 < 500ms). Concurrency validated via parallel VUs hitting extraction pipeline. Updated CLAUDE.md and load-test.sh with accurate documentation. Validation: 100% checks passed (465/465), 0% failures, P95 expensive 1m49s. **Also:** Refactored `run-e2e.sh` to require explicit flag (`--backend`, `--frontend`, or `--all`) — no default mode. Updated docs (CLAUDE.md, LOCAL_DEV.md). Increased retry jitter in `AzureRetryDefaults.cs`. |
 | 2026-02-11 | **B-071 complete.** Added euphemistic language → ActiveNoPlan classification rule to both `ExtractionPrompts.cs` and `RiskPrompts.cs`. When patient uses indirect death language ("go to sleep and not wake up", "be with [deceased]") combined with preparatory behaviors (means research, giving away possessions), classify SI as at minimum ActiveNoPlan. Tightened golden file `risk-test-050_v2.json` acceptance to remove "passive" from risk_reextracted/risk_final stages. Added unit test `GetRiskReExtractionPrompt_ContainsEuphemisticLanguageRule`. Validation: 658 unit tests pass, 83% backend coverage, risk-test-050 golden case passes with tightened acceptance. |
 | 2026-02-11 | **B-070 complete + infrastructure hardening.** Merged redundant E2E tests: consolidated QA/search tests into `Pipeline_FullExtraction_ReturnsSuccess`, deleted `QATests.cs`, reduced golden non-risk smoke from 3→2 (saves ~$0.06/run, ~4 min). Deleted 36 duplicate unit tests across 4 files (ConfidenceScore, RiskAssessmentExtracted, ExtractJson helpers, Exception tests). **Retry infrastructure:** Added logging to `SpacedRetryPolicy` for 429/5xx retries (Warning level); tuned retry timing to 7s→14s→28s ±1s (clears 45s rate limits); added 100ms delay + logging to `SessionRepository` concurrency retries; removed RiskAssessor validation retry loop for consistency with other agents. **Date parsing fix:** Added multi-format `DeserializeDateOnly` (handles "March 5, 2026", "3/5/2026", etc.) + date format hints in 3 prompts — fixed flaky `sessionDate` extraction. **Cleanup:** Deleted 37 obsolete golden files (old format without `_v2` suffix); widened `risk-test-013` to accept both Moderate and High (clinically valid). Validation: 657 unit tests pass, 10/10 E2E pass, no 429 failures. |
@@ -371,7 +373,6 @@
 | 2026-02-10 | **Risk prompt generalization and golden validation sweep.** Generalized 3 prompt rules across both `ExtractionPrompts.cs` and `RiskPrompts.cs`: (1) SI Passive principle — replaced 4 specific example phrases with "wishing for death = Passive, thoughts of causing death = ActiveNoPlan" principle; (2) resolved-SI temporal rule — explicitly resolved and currently denied SI = None (historical SI informs riskLevelOverall only); (3) HI Passive/Active distinction — Passive = fantasizing about someone's death, ActiveNoPlan = thoughts of causing harm. Added preparation/concealment escalation rule: passive SI + behavioral warning signs (sudden calm, gift-giving, denial despite evidence) = at least High. Widened golden case 008 suicidal_ideation to [passive, active_no_plan] (conservative_merge structural limitation with 82-field extractor). Added LLM Test Guidelines to CLAUDE.md. Validated 20 unique golden cases across 4 batches (54% of corpus): all pass on risk_reextracted+risk_final stages. All-stages test (5 cases) showed 4/5 pass; 1 failure (032) was clinical_extractor-only (Moderate vs High) — re-extractor and final both correct, confirming assert_stages design is sound. |
 | 2026-02-10 | **B-068 + B-069 complete.** Added `si_frequency` inference rule to both `ExtractionPrompts.cs` and `RiskPrompts.cs`: when `suicidalIdeation` is ActiveWithPlan/ActiveWithIntent but frequency is not explicitly stated, infer at least Occasional (prevents clinically implausible Rare + active-planning). Tightened golden case 005 `si_frequency` accept from `[constant, frequent, rare]` to `[constant, frequent, occasional]`. Bumped `LongClient` timeout from 5 to 7 minutes in `ApiFixture.cs` to accommodate extraction pipeline + retry delays under load. Added `RiskPromptsTests.GetRiskReExtractionPrompt_ContainsSiFrequencyInferenceRule` test. Validation: 697 unit tests pass, 83.05% backend coverage. |
 | 2026-02-10 | **P5-001 golden harness re-enabled with relaxed assertions.** Downgraded `ModelTask.Extraction` from gpt-4.1 to gpt-4.1-mini (cost reduction). Improved risk prompts: added Imminent classification criteria (ActiveWithPlan + means access + crisis response), behavioral-warning-sign vs ideation distinction, self_harm temporal anchoring, and increased `reasoning_used` to 3-5 sentences. Changed golden `assert_stages` from `["all"]` to `["risk_reextracted", "risk_final"]` across all 37 v2 files — clinical_extractor risk fields are now informational only. Widened golden accepted values for 5 genuinely ambiguous adjacent-value cases (005 si_frequency, 009 suicidal_ideation, 013 si_frequency, 018 si_frequency, 035 risk_level_overall). Increased retry base delay from 1s to 3s (~93s total window) with new `SpacedRetryPolicy` for System.ClientModel/OpenAI clients to handle 429 rate limits. Validation: 696 unit tests pass, 83% backend coverage, 15 golden cases pass across 3 batches. Added backlog items B-068 (si_frequency inference prompt rule) and B-069 (extraction timeout investigation). |
-| 2026-02-10 | **P5-001 diagnostics schema cleanup complete.** Replaced hybrid 6-column layout with zero-overlap design: 8 scalar columns (added `GuardrailApplied`, `DiscrepancyCount`; renamed `CriteriaValidationAttempts`, `RiskFieldDecisionsJson`) + JSON only for per-field audit trail. Restructured API DTO from 6 flat params to typed `RiskDiagnosticsDto` with `GuardrailDetailDto`/`RiskFieldDecisionDto`. Added coverage-boosting tests (middleware, validator, prompts, model, DTO tests) to maintain 83% threshold. Validation: build clean, 693 unit tests pass, `check-backend.sh` 83.04%, `check-frontend.sh` pass, `run-e2e.sh` 7 passed / 1 skipped / 1 pre-existing flaky `selfReportedMood` assertion (unrelated to schema changes). |
 
 ---
 
