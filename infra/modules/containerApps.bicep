@@ -162,7 +162,7 @@ resource webApp 'Microsoft.App/containerApps@2023-05-01' = {
           env: [
             // API URL for nginx proxy
             // Use external HTTPS URL - nginx config handles SSL verification
-            { name: 'API_URL', value: 'https://${apiApp.properties.configuration.ingress.fqdn}/' }
+            { name: 'API_URL', value: 'https://${apiApp.properties.configuration.ingress.fqdn}' }
           ]
         }
       ]
