@@ -1,6 +1,7 @@
 // Container Apps module
-// Creates Azure Container Apps environment and apps for API and Web frontend
+// Creates Azure Container Apps environment (optionally) and apps for API and Web frontend
 // Pulls images from GitHub Container Registry (ghcr.io)
+// When createEnvironment is false, references an existing shared environment
 
 @description('Base name for resources')
 param name string
@@ -24,6 +25,15 @@ param webImageTag string = 'latest'
 @secure()
 param ghcrToken string
 
+@description('Create the Container Apps Environment (false = reference existing shared env)')
+param createEnvironment bool = true
+
+@description('Name of existing Container Apps Environment (used when createEnvironment is false)')
+param existingEnvName string = ''
+
+@description('Azure AI Search index name (env-specific to isolate data)')
+param searchIndexName string = 'sessionsight-sessions'
+
 // === Azure service endpoints (passed from main.bicep) ===
 
 @description('SQL Server connection string')
@@ -44,7 +54,7 @@ param storageBlobEndpoint string
 
 // === Container Apps Environment ===
 
-resource env 'Microsoft.App/managedEnvironments@2023-05-01' = {
+resource newEnv 'Microsoft.App/managedEnvironments@2023-05-01' = if (createEnvironment) {
   name: '${name}-env'
   location: location
   tags: tags
@@ -52,6 +62,12 @@ resource env 'Microsoft.App/managedEnvironments@2023-05-01' = {
     zoneRedundant: false  // Dev doesn't need HA
   }
 }
+
+resource existingEnv 'Microsoft.App/managedEnvironments@2023-05-01' existing = if (!createEnvironment) {
+  name: existingEnvName
+}
+
+var managedEnvId = createEnvironment ? newEnv.id : existingEnv.id
 
 // === API Container App ===
 
@@ -63,7 +79,7 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
     type: 'SystemAssigned'
   }
   properties: {
-    managedEnvironmentId: env.id
+    managedEnvironmentId: managedEnvId
     configuration: {
       ingress: {
         external: true
@@ -98,6 +114,7 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
             // Azure service endpoints (uses managed identity for auth)
             { name: 'AzureOpenAI__Endpoint', value: openaiEndpoint }
             { name: 'AzureSearch__Endpoint', value: searchEndpoint }
+            { name: 'AzureSearch__IndexName', value: searchIndexName }
             { name: 'DocumentIntelligence__Endpoint', value: docIntelligenceEndpoint }
             { name: 'ConnectionStrings__documents', value: storageBlobEndpoint }
             // ASP.NET Core settings
@@ -131,7 +148,7 @@ resource webApp 'Microsoft.App/containerApps@2023-05-01' = {
   location: location
   tags: tags
   properties: {
-    managedEnvironmentId: env.id
+    managedEnvironmentId: managedEnvId
     configuration: {
       ingress: {
         external: true
@@ -186,8 +203,8 @@ resource webApp 'Microsoft.App/containerApps@2023-05-01' = {
 
 // === Outputs ===
 
-output envId string = env.id
-output envName string = env.name
+output envId string = managedEnvId
+output envName string = createEnvironment ? newEnv.name : existingEnvName
 output apiAppName string = apiApp.name
 output apiUrl string = 'https://${apiApp.properties.configuration.ingress.fqdn}'
 output apiPrincipalId string = apiApp.identity.principalId

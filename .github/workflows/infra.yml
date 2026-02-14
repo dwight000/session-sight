@@ -8,7 +8,7 @@ on:
         type: choice
         options:
           - dev
-          - prod
+          - stage
         default: dev
       mode:
         description: 'Deployment mode'
@@ -66,7 +66,7 @@ jobs:
       - name: Get SQL Admin Password from Key Vault
         id: secrets
         run: |
-          # Get SQL password from existing Key Vault (provisioned in Phase 0)
+          # SQL password always from dev Key Vault (SQL server is shared across environments)
           SQL_PASSWORD=$(az keyvault secret show \
             --vault-name sessionsight-kv-dev \
             --name sql-admin-password \
