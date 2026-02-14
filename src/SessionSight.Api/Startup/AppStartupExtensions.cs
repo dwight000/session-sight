@@ -56,7 +56,7 @@ public static class AppStartupExtensions
 
     public static void ConfigureDevelopmentEndpoints(this WebApplication app)
     {
-        if (!app.Environment.IsDevelopment())
+        if (!app.Environment.IsDevelopment() && !app.Environment.IsStaging())
         {
             return;
         }
