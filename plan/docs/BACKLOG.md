@@ -7,7 +7,7 @@
 ## Current Status
 
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
-**Next Action**: P6-004/B-030
+**Next Action**: P6-004
 
 **Last Updated**: February 14, 2026
 
@@ -167,7 +167,7 @@
 | B-076 | Sync SQL connection string after infra deploy (prevent password drift) | S | 6 | Done | - |
 | B-077 | Switch to Managed Identity for SQL auth (eliminate password sync) | M | 6 | Ready | - |
 | B-078 | Fix nginx 413 error: add client_max_body_size for file uploads | S | 6 | Done | - |
-| B-030 | Promotion model: dev->stage approval rules | M | 6 | Blocked | P6-002 |
+| B-030 | Promotion model: dev->stage approval rules | M | 6 | Done | - |
 | B-031 | Rollback strategy: keep last good artifact | M | 6 | Blocked | P6-003 |
 | P6-004 | Environment-specific configuration | M | 6 | Blocked | P6-002 |
 | P6-005 | Create GitHub Release with SemVer tag (v1.0.0) | S | 6 | Blocked | P6-003 |
@@ -418,6 +418,7 @@
 | B-074 | Automate EF migrations in deploy.yml (run after image update) | 2026-02-14 |
 | B-076 | Sync SQL connection string after infra deploy | 2026-02-14 |
 | B-075 | Fix CRLF line endings (renormalize to LF) | 2026-02-14 |
+| B-030 | Promotion model: dev→stage approval rules (branch protection + env gates + deploy.yml split) | 2026-02-14 |
 
 ---
 
