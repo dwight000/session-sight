@@ -123,6 +123,9 @@ jobs:
       - name: Install EF Core tools
         run: dotnet tool install --global dotnet-ef
 
+      - name: Restore NuGet packages
+        run: dotnet restore src/SessionSight.Api/SessionSight.Api.csproj
+
       - name: Run EF Migrations
         run: |
           ENV="${{ github.event.inputs.environment || 'dev' }}"
