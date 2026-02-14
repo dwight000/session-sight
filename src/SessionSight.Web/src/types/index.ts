@@ -159,3 +159,32 @@ export interface ClinicalExtraction {
   nextSteps: Record<string, ExtractedField>
   metadata?: Record<string, ExtractedField>
 }
+
+// Therapist types
+export interface Therapist {
+  id: string
+  name: string
+  licenseNumber: string | null
+  credentials: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string | null
+}
+
+export interface CreateTherapistRequest {
+  name: string
+  licenseNumber?: string
+  credentials?: string
+  isActive: boolean
+}
+
+// Processing job types
+export type JobStatus = 'Pending' | 'Processing' | 'Completed' | 'Failed'
+
+export interface ProcessingJob {
+  id: string
+  jobKey: string
+  status: JobStatus
+  createdAt: string
+  completedAt: string | null
+}
