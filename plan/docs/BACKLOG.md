@@ -7,9 +7,9 @@
 ## Current Status
 
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
-**Next Action**: P6-002 deploy (stage infra + app)
+**Next Action**: P6-002 finish (merge develop→main, deploy latest images to stage)
 
-**Last Updated**: February 13, 2026
+**Last Updated**: February 14, 2026
 
 **Milestone**: P6-003 complete — Full CI/CD pipeline working: feature branch → PR → merge → auto-deploy to Container Apps.
 
@@ -19,7 +19,7 @@
 
 <!-- When you start a task, move it here. Only ONE task at a time. -->
 
-**P6-002** — Configure stage environment (Bicep code merged, deployment remaining)
+**P6-002** — Configure stage environment (infra deployed, need develop→main merge + image deploy)
 
 ---
 
@@ -161,6 +161,8 @@
 | B-029 | Infra drift checks: bicep what-if + validate | M | 6 | Ready | P1-015 |
 | B-067 | Validate hosted cloud log ingestion (App Insights) + troubleshooting playbook and query pack | M | 6 | Done | P6-003 |
 | B-072 | Cloud database seeding (dev): Therapist FK constraint blocks session creation | S | 6 | Done | - |
+| B-073 | Add `deployContainerApps`/`ghcrToken` inputs to infra.yml workflow | S | 6 | Ready | P6-002 |
+| B-074 | Automate EF migrations in deploy.yml (run after image update) | M | 6 | Ready | P6-002 |
 | B-030 | Promotion model: dev->stage approval rules | M | 6 | Blocked | P6-002 |
 | B-031 | Rollback strategy: keep last good artifact | M | 6 | Blocked | P6-003 |
 | P6-004 | Environment-specific configuration | M | 6 | Blocked | P6-002 |
@@ -396,6 +398,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-14 | **P6-002 stage infra deployed, app running on stale images.** Merged PR #6 (Bicep code). Set up GitHub `stage` environment + OIDC credential + secrets via CLI. Ran `infra.yml` what-if and deploy for stage — created KV (`sessionsight-kv-stage`), storage (`sessionsightstoragestage`), SQL DB (`sessionsight-stage`). Deployed Container Apps via manual `az deployment sub create` with `deployContainerApps=true` (not yet in workflow inputs — filed B-073). Ran EF migrations manually on stage DB (not yet automated — filed B-074). Search index `sessionsight-sessions-stage` created after RBAC propagation delay + container restart. Stage API and Web running, `/api/patients` returns 200. Problem: `main` is 6 commits behind `develop` — container images are pre-B-072, so `/api/therapists` returns 404. Next: merge develop→main, trigger deploy to stage. |
 | 2026-02-13 | **P6-002 Bicep code complete: Stage environment configuration.** Renamed prod→stage throughout infra. Modified `main.bicep` for resource sharing: stage shares dev's RG, SQL server, OpenAI, AI Search, Document Intelligence, AI Hub/Project, and Container Apps Environment. Stage gets its own: SQL database (`sessionsight-stage`), storage account, Key Vault, Container Apps (API + Web), and search index (`sessionsight-sessions-stage`). Modified `sql.bicep` with `createServer` param and `existing` server reference. Modified `containerApps.bicep` with `createEnvironment` param, `existingEnvName`, and `searchIndexName` env var. Updated `deploy.yml` and `infra.yml` workflows: added stage choice, hardcoded RG to `rg-sessionsight-dev`. Bicep validates cleanly. Remaining: GitHub environment setup (OIDC credential), redeploy dev infra, deploy stage infra + app. |
 | 2026-02-13 | **B-072 complete: Therapist CRUD + ProcessingJob status + EF seeding.** Added EF migration `SeedDefaultTherapist` to solve B-072 FK constraint issue. Built full Therapist CRUD: backend (repo, controller, DTOs, validators, tests) + frontend (`/therapists` page, create form, API client, hooks, 5 unit tests, smoke tests). Built ProcessingJob read-only status screen: backend (`GET /api/processing-jobs`) + frontend (`/jobs` page with 5s auto-refresh polling when active jobs exist, fixtures, tests). Replaced hardcoded `DEFAULT_THERAPIST_ID` in Sessions.tsx with therapist dropdown fetching from API. Added 2 Playwright smoke tests, 1 full-stack E2E test, 7 backend functional tests (TherapistCrudTests), 15 backend unit tests, 10 frontend unit tests. Fixed 3 test failures: Processing Jobs strict mode (cell selector), Sessions route mocking (query params), TherapistCrudTests substring bug (`[..36]` on 35-char string). Validation: 700 backend tests pass (83.34% coverage), 173 frontend tests pass (87.9% coverage), all E2E/smoke tests pass. Files: 27 new, 13 modified. |
 | 2026-02-13 | **B-067 complete: Cloud troubleshooting playbook.** Created `docs/CLOUD_TROUBLESHOOTING.md` with KQL query pack, local-to-cloud triage mapping, and common issues guide. Fixed multiple cloud deployment issues: SQL Serverless connection timeout (increased to 60s), SQL password sync (18456 errors), nginx proxy trailing slash (404 errors), env vars getting wiped (restored AzureOpenAI/Search/DocIntel endpoints). Set `minReplicas=1` for both API and Web containers to avoid cold starts. Added CI/CD configuration safety docs explaining which workflows touch Container Apps config. Created B-072 for cloud database seeding (Therapist FK constraint blocks session creation in dev). |
