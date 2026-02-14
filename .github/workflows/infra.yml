@@ -123,6 +123,24 @@ jobs:
             --parameters deployContainerApps=${{ github.event.inputs.deployContainerApps || 'false' }} \
             --parameters ghcrToken='${{ github.event.inputs.ghcrToken }}'
 
+      - name: Sync SQL connection string to Container Apps
+        if: github.event.inputs.mode != 'what-if'
+        run: |
+          ENV=${{ github.event.inputs.environment || 'dev' }}
+          RG="rg-sessionsight-dev"
+          SQL_PASSWORD='${{ steps.secrets.outputs.sql_password }}'
+          DB_NAME=$( [ "$ENV" = "dev" ] && echo "sessionsight" || echo "sessionsight-${ENV}" )
+          CONN_STRING="Server=sessionsight-sql-dev.database.windows.net;Database=${DB_NAME};User Id=sessionsightadmin;Password=${SQL_PASSWORD};Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;"
+
+          # Update API container if it exists (no-op if Container Apps not deployed yet)
+          if az containerapp show -g ${RG} -n sessionsight-${ENV}-api --query name -o tsv 2>/dev/null; then
+            echo "Syncing SQL connection string to sessionsight-${ENV}-api"
+            az containerapp update -g ${RG} -n sessionsight-${ENV}-api \
+              --set-env-vars "ConnectionStrings__sessionsight=${CONN_STRING}"
+          else
+            echo "Container App sessionsight-${ENV}-api not found, skipping"
+          fi
+
       - name: Show Deployment Outputs
         if: github.event.inputs.mode != 'what-if'
         run: |
