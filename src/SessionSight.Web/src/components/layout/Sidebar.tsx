@@ -4,6 +4,8 @@ const links = [
   { to: '/', label: 'Dashboard' },
   { to: '/patients', label: 'Patients' },
   { to: '/sessions', label: 'Sessions' },
+  { to: '/therapists', label: 'Therapists' },
+  { to: '/jobs', label: 'Jobs' },
   { to: '/upload', label: 'Upload' },
   { to: '/review', label: 'Review Queue' },
 ]

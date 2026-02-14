@@ -17,12 +17,12 @@ namespace SessionSight.Api.Tests.Integration;
 public class IntegrationTestBase : IAsyncLifetime
 {
     protected HttpClient Client { get; private set; } = null!;
-    private WebApplicationFactory<Program> _factory = null!;
+    protected WebApplicationFactory<Program> Factory { get; private set; } = null!;
     private readonly string _databaseName = $"TestDb_{Guid.NewGuid()}";
 
     public virtual Task InitializeAsync()
     {
-        _factory = new WebApplicationFactory<Program>()
+        Factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
                 builder.ConfigureServices(services =>
@@ -72,14 +72,14 @@ public class IntegrationTestBase : IAsyncLifetime
                 });
             });
 
-        Client = _factory.CreateClient();
+        Client = Factory.CreateClient();
         return Task.CompletedTask;
     }
 
     public virtual async Task DisposeAsync()
     {
         Client.Dispose();
-        await _factory.DisposeAsync();
+        await Factory.DisposeAsync();
     }
 }
 

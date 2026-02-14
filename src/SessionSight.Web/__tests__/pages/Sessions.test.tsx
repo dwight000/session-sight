@@ -51,6 +51,15 @@ describe('Sessions page', () => {
     expect(screen.getByLabelText(/session type/i)).toBeInTheDocument()
   })
 
+  it('shows therapist dropdown in form', async () => {
+    renderSessions()
+    await waitFor(() => expect(screen.getAllByText('Individual').length).toBeGreaterThanOrEqual(1))
+
+    await userEvent.click(screen.getByRole('button', { name: /add session/i }))
+
+    expect(screen.getByLabelText(/therapist/i)).toBeInTheDocument()
+  })
+
   it('displays empty state when no sessions', async () => {
     server.use(
       http.get('/api/sessions', () => HttpResponse.json([]))

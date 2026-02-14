@@ -8,6 +8,8 @@ import { Patients } from './pages/Patients'
 import { PatientTimeline } from './pages/PatientTimeline'
 import { Sessions } from './pages/Sessions'
 import { Upload } from './pages/Upload'
+import { Therapists } from './pages/Therapists'
+import { ProcessingJobs } from './pages/ProcessingJobs'
 
 export default function App() {
   return (
@@ -17,6 +19,8 @@ export default function App() {
         <Route path="/patients" element={<Patients />} />
         <Route path="/patients/:patientId/timeline" element={<PatientTimeline />} />
         <Route path="/sessions" element={<Sessions />} />
+        <Route path="/therapists" element={<Therapists />} />
+        <Route path="/jobs" element={<ProcessingJobs />} />
         <Route path="/upload" element={<Upload />} />
         <Route path="/review" element={<ReviewQueue />} />
         <Route path="/review/session/:sessionId" element={<SessionDetail />} />

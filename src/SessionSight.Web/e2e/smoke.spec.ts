@@ -4,6 +4,8 @@ import { mockReviewStats, mockReviewQueue, mockReviewDetail } from '../src/test/
 import { mockPatientRiskTrend } from '../src/test/fixtures/riskTrend'
 import { mockPatients } from '../src/test/fixtures/patients'
 import { mockPatientTimeline } from '../src/test/fixtures/timeline'
+import { mockTherapists } from '../src/test/fixtures/therapists'
+import { mockProcessingJobs } from '../src/test/fixtures/processingJobs'
 
 function mockDashboardRoutes(page: import('@playwright/test').Page) {
   return Promise.all([
@@ -155,4 +157,90 @@ test('Patients page navigates to patient timeline', async ({ page }) => {
   await expect(page).toHaveURL(/\/patients\/p1\/timeline/)
   await expect(page.getByRole('heading', { name: 'Patient Timeline' })).toBeVisible()
   await expect(page.getByText('Session Timeline')).toBeVisible()
+})
+
+test('Therapists page shows therapist table', async ({ page }) => {
+  await page.route('**/api/therapists', (route) =>
+    route.fulfill({ json: mockTherapists }),
+  )
+
+  await page.goto('/therapists')
+
+  await expect(page.getByRole('heading', { name: 'Therapists' })).toBeVisible()
+  await expect(page.getByText('Default Therapist')).toBeVisible()
+  await expect(page.getByText('Dr. Jane Wilson')).toBeVisible()
+})
+
+test('Therapists page create form captures correct payload', async ({ page }) => {
+  let capturedBody: Record<string, unknown> | null = null
+  await page.route('**/api/therapists', async (route) => {
+    const request = route.request()
+    if (request.method() === 'POST') {
+      capturedBody = request.postDataJSON() as Record<string, unknown>
+      await route.fulfill({ json: { id: 'new-t', ...capturedBody, createdAt: '2025-01-01T00:00:00Z', updatedAt: null } })
+      return
+    }
+    await route.fulfill({ json: mockTherapists })
+  })
+
+  await page.goto('/therapists')
+  await expect(page.getByText('Default Therapist')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Add Therapist' }).click()
+  await page.getByLabel('Name').fill('Dr. Smoke Test')
+  await page.getByLabel('License Number').fill('LIC-SMOKE')
+  await page.getByLabel('Credentials').fill('PhD')
+  await page.getByRole('button', { name: 'Create Therapist' }).click()
+
+  expect(capturedBody).toEqual({
+    name: 'Dr. Smoke Test',
+    licenseNumber: 'LIC-SMOKE',
+    credentials: 'PhD',
+    isActive: true,
+  })
+})
+
+test('Processing Jobs page shows job table', async ({ page }) => {
+  await page.route('**/api/processing-jobs', (route) =>
+    route.fulfill({ json: mockProcessingJobs }),
+  )
+
+  await page.goto('/jobs')
+
+  await expect(page.getByRole('heading', { name: 'Processing Jobs' })).toBeVisible()
+  await expect(page.getByText('extraction-session-001')).toBeVisible()
+  // Use role-based selectors to avoid ambiguity between header and badge text
+  const table = page.locator('table')
+  await expect(table.getByRole('cell', { name: 'Completed' })).toBeVisible()
+  await expect(table.getByRole('cell', { name: 'Processing' })).toBeVisible()
+  await expect(table.getByRole('cell', { name: 'Failed' })).toBeVisible()
+})
+
+test('Sessions form includes therapist dropdown', async ({ page }) => {
+  await Promise.all([
+    page.route('**/api/sessions', (route) =>
+      route.fulfill({ json: [] }),
+    ),
+    page.route('**/api/sessions?*', (route) =>
+      route.fulfill({ json: [] }),
+    ),
+    page.route('**/api/patients', (route) =>
+      route.fulfill({ json: mockPatients }),
+    ),
+    page.route('**/api/therapists', (route) =>
+      route.fulfill({ json: mockTherapists }),
+    ),
+  ])
+
+  await page.goto('/sessions')
+  await expect(page.getByRole('heading', { name: 'Sessions', exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Add Session' }).click()
+  await expect(page.getByLabel('Therapist')).toBeVisible()
+
+  // Verify therapist options are populated
+  const therapistSelect = page.getByLabel('Therapist')
+  const options = await therapistSelect.locator('option').allTextContents()
+  expect(options).toContain('Default Therapist')
+  expect(options).toContain('Dr. Jane Wilson')
 })

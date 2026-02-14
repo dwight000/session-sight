@@ -8,5 +8,6 @@ public class Therapist
     public string? Credentials { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
     public ICollection<Session> Sessions { get; set; } = new List<Session>();
 }
