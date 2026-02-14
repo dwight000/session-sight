@@ -17,6 +17,14 @@ on:
           - deploy
           - what-if
         default: deploy
+      deployContainerApps:
+        description: 'Deploy Container Apps (requires ghcrToken)'
+        type: boolean
+        default: false
+      ghcrToken:
+        description: 'GitHub PAT for ghcr.io (required if deployContainerApps=true)'
+        type: string
+        default: ''
   push:
     branches: [main, develop]
     paths:
@@ -97,7 +105,9 @@ jobs:
             --template-file infra/main.bicep \
             --parameters infra/main.parameters.${ENV}.json \
             --parameters sqlAdminPassword='${{ steps.secrets.outputs.sql_password }}' \
-            --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}'
+            --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
+            --parameters deployContainerApps=${{ github.event.inputs.deployContainerApps || 'false' }} \
+            --parameters ghcrToken='${{ github.event.inputs.ghcrToken }}'
 
       - name: Deploy Infrastructure
         if: github.event.inputs.mode != 'what-if'
@@ -109,7 +119,9 @@ jobs:
             --template-file infra/main.bicep \
             --parameters infra/main.parameters.${ENV}.json \
             --parameters sqlAdminPassword='${{ steps.secrets.outputs.sql_password }}' \
-            --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}'
+            --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
+            --parameters deployContainerApps=${{ github.event.inputs.deployContainerApps || 'false' }} \
+            --parameters ghcrToken='${{ github.event.inputs.ghcrToken }}'
 
       - name: Show Deployment Outputs
         if: github.event.inputs.mode != 'what-if'
