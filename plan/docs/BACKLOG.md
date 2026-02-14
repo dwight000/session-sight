@@ -7,7 +7,7 @@
 ## Current Status
 
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
-**Next Action**: Investigate dev API 500 error (stage is healthy), then continue with P6-004/B-030
+**Next Action**: B-075 (CRLF fix), then P6-004/B-030
 
 **Last Updated**: February 14, 2026
 
@@ -164,7 +164,8 @@
 | B-073 | Add `deployContainerApps`/`ghcrToken` inputs to infra.yml workflow | S | 6 | Done | - |
 | B-074 | Automate EF migrations in deploy.yml (run after image update) | M | 6 | Done | - |
 | B-075 | Fix CRLF line endings in repo (renormalize to LF per .gitattributes) | S | 6 | Ready | - |
-| B-076 | Investigate dev API 500 error on `/api/therapists` and `/api/patients` | S | 6 | Ready | - |
+| B-076 | Sync SQL connection string after infra deploy (prevent password drift) | S | 6 | Done | - |
+| B-077 | Switch to Managed Identity for SQL auth (eliminate password sync) | M | 6 | Ready | - |
 | B-030 | Promotion model: dev->stage approval rules | M | 6 | Blocked | P6-002 |
 | B-031 | Rollback strategy: keep last good artifact | M | 6 | Blocked | P6-003 |
 | P6-004 | Environment-specific configuration | M | 6 | Blocked | P6-002 |
@@ -261,12 +262,17 @@
 - **Fix**: Run `git add --renormalize .` on develop to convert all tracked files to LF in the index, then commit. This is a one-time normalization.
 - **Impact**: Pure whitespace change, no functional impact. Will show large diffs on affected files.
 
-### B-076 Details (Dev API 500 Error)
-- **Problem**: Dev API (`sessionsight-dev-api`) returns HTTP 500 on all endpoints (`/api/therapists`, `/api/patients`) after deploy run 22011841249.
-- **Stage works fine**: Same code, same images — stage returns 200 on all endpoints.
-- **Likely cause**: Dev container env vars or connection string may have been affected. Per troubleshooting doc, check `az containerapp logs show` and `az containerapp show --query "properties.template.containers[0].env"`.
-- **Pre-existing?**: May have been broken before this deploy — need to verify via container logs.
-- **Acceptance**: Dev API returns 200 on `/api/therapists` and `/api/patients`.
+### B-076 Details (SQL Connection String Sync — Done)
+- **Problem**: Pushing `infra/` changes to main auto-triggers `infra.yml`, which runs a Bicep deploy that resets the SQL server admin password to the Key Vault value. But the container app's connection string env var still has the old password → Error 18456 → HTTP 500 on all endpoints.
+- **Root cause**: SQL server password and container connection string are set independently. Bicep deploy changes the server password but doesn't update the container (when `deployContainerApps=false`).
+- **Fix**: Added "Sync SQL connection string to Container Apps" step in `infra.yml` that runs after every Bicep deploy. It reads the Key Vault password, builds the connection string, and updates the container app's env var if the container exists.
+- **Manual fix applied**: Updated dev container's `ConnectionStrings__sessionsight` via `az containerapp update --set-env-vars` to match Key Vault password.
+
+### B-077 Details (Managed Identity for SQL Auth)
+- **Problem**: SQL auth uses password-based login (`sessionsightadmin`), requiring password sync between Key Vault, SQL server, and container connection strings. Password drift causes outages (see B-076).
+- **Fix**: Switch to Azure AD / Managed Identity authentication for SQL. The container app's system-assigned managed identity would authenticate directly — no passwords in connection strings.
+- **Priority**: Low — B-076 sync step mitigates the immediate issue. This is a cleaner long-term solution.
+- **Scope**: Update `infra/main.bicep` (SQL AAD admin), `infra/modules/containerApps.bicep` (connection string without password), and EF migrations connection string in `deploy.yml`.
 
 ### P6-007 Details (Demo Data and Walkthrough - Stage)
 - **Related**: B-072 covers the same seeding issue for dev environment.
@@ -409,6 +415,7 @@
 | P6-002 | Configure stage environment (pre-production Azure resources) | 2026-02-14 |
 | B-073 | Add `deployContainerApps`/`ghcrToken` inputs to infra.yml workflow | 2026-02-14 |
 | B-074 | Automate EF migrations in deploy.yml (run after image update) | 2026-02-14 |
+| B-076 | Sync SQL connection string after infra deploy | 2026-02-14 |
 
 ---
 
@@ -416,7 +423,7 @@
 
 | Date | What Happened |
 |------|---------------|
-| 2026-02-14 | **P6-002 complete: Stage environment fully deployed.** Completed B-073 (PR #7: `deployContainerApps`/`ghcrToken` inputs to `infra.yml`) and B-074 (PR #7+#9: EF migrations in `deploy.yml` with `dotnet restore` fix). Merged develop→main (PRs #8, #10) triggering auto-deploy. Dev deploy: images built, containers updated, EF migrations passed (run 22011841249). Stage deploy: manual dispatch succeeded — images, containers, EF migrations all green. **Stage verified**: `/api/therapists` returns seeded data, `/api/patients` returns 200, web returns 200. **Dev issue**: API returning 500 on all endpoints — likely env var or connection string issue specific to dev container (filed B-076). CRLF line ending issue in repo causes phantom git diffs — filed B-075. |
+| 2026-02-14 | **P6-002 complete: Stage environment fully deployed.** Completed B-073 (PR #7: `deployContainerApps`/`ghcrToken` inputs to `infra.yml`) and B-074 (PR #7+#9: EF migrations in `deploy.yml` with `dotnet restore` fix). Merged develop→main (PRs #8, #10) triggering auto-deploy. Dev deploy: images built, containers updated, EF migrations passed (run 22011841249). Stage deploy: manual dispatch succeeded — images, containers, EF migrations all green. **Stage verified**: `/api/therapists` returns seeded data, `/api/patients` returns 200, web returns 200. **Dev 500 fix (B-076)**: `infra.yml` auto-triggered on push to main (infra/ changes), Bicep reset SQL server password to Key Vault value but container still had old password → Error 18456. Fixed manually via `az containerapp update --set-env-vars`. Added permanent fix: `infra.yml` now syncs the container connection string after every Bicep deploy. Both dev and stage verified healthy. Filed B-075 (CRLF), B-077 (managed identity for SQL — low priority). |
 | 2026-02-14 | **P6-002 stage infra deployed, app running on stale images.** Merged PR #6 (Bicep code). Set up GitHub `stage` environment + OIDC credential + secrets via CLI. Ran `infra.yml` what-if and deploy for stage — created KV (`sessionsight-kv-stage`), storage (`sessionsightstoragestage`), SQL DB (`sessionsight-stage`). Deployed Container Apps via manual `az deployment sub create` with `deployContainerApps=true` (not yet in workflow inputs — filed B-073). Ran EF migrations manually on stage DB (not yet automated — filed B-074). Search index `sessionsight-sessions-stage` created after RBAC propagation delay + container restart. Stage API and Web running, `/api/patients` returns 200. Problem: `main` is 6 commits behind `develop` — container images are pre-B-072, so `/api/therapists` returns 404. Next: merge develop→main, trigger deploy to stage. |
 | 2026-02-13 | **P6-002 Bicep code complete: Stage environment configuration.** Renamed prod→stage throughout infra. Modified `main.bicep` for resource sharing: stage shares dev's RG, SQL server, OpenAI, AI Search, Document Intelligence, AI Hub/Project, and Container Apps Environment. Stage gets its own: SQL database (`sessionsight-stage`), storage account, Key Vault, Container Apps (API + Web), and search index (`sessionsight-sessions-stage`). Modified `sql.bicep` with `createServer` param and `existing` server reference. Modified `containerApps.bicep` with `createEnvironment` param, `existingEnvName`, and `searchIndexName` env var. Updated `deploy.yml` and `infra.yml` workflows: added stage choice, hardcoded RG to `rg-sessionsight-dev`. Bicep validates cleanly. Remaining: GitHub environment setup (OIDC credential), redeploy dev infra, deploy stage infra + app. |
 | 2026-02-13 | **B-072 complete: Therapist CRUD + ProcessingJob status + EF seeding.** Added EF migration `SeedDefaultTherapist` to solve B-072 FK constraint issue. Built full Therapist CRUD: backend (repo, controller, DTOs, validators, tests) + frontend (`/therapists` page, create form, API client, hooks, 5 unit tests, smoke tests). Built ProcessingJob read-only status screen: backend (`GET /api/processing-jobs`) + frontend (`/jobs` page with 5s auto-refresh polling when active jobs exist, fixtures, tests). Replaced hardcoded `DEFAULT_THERAPIST_ID` in Sessions.tsx with therapist dropdown fetching from API. Added 2 Playwright smoke tests, 1 full-stack E2E test, 7 backend functional tests (TherapistCrudTests), 15 backend unit tests, 10 frontend unit tests. Fixed 3 test failures: Processing Jobs strict mode (cell selector), Sessions route mocking (query params), TherapistCrudTests substring bug (`[..36]` on 35-char string). Validation: 700 backend tests pass (83.34% coverage), 173 frontend tests pass (87.9% coverage), all E2E/smoke tests pass. Files: 27 new, 13 modified. |
