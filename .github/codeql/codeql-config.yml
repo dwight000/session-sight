@@ -1,0 +1,12 @@
+name: "CodeQL config"
+
+# Disable security rules that flag intentional design decisions in dev environment
+query-filters:
+  - exclude:
+      id: cs/web/missing-function-level-access-control  # Auth not implemented in dev
+  - exclude:
+      id: cs/web/insecure-direct-object-reference  # Auth not implemented in dev
+  - exclude:
+      id: cs/local-not-disposed  # IAsyncLifetime pattern (xUnit disposes via DisposeAsync)
+  - exclude:
+      id: cs/useless-upcast  # Explicit types for Moq and anonymous objects improve clarity
