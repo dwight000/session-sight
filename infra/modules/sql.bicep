@@ -1,5 +1,6 @@
 // SQL Server module
-// Creates Azure SQL Server and database
+// Creates Azure SQL Server (optionally) and database
+// When createServer is false, references an existing server (shared across environments)
 
 @description('Name of the SQL Server')
 param serverName string
@@ -29,7 +30,12 @@ param skuName string = 'GP_S_Gen5_1'
 @description('Database SKU tier')
 param skuTier string = 'GeneralPurpose'
 
-resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
+@description('Create the SQL Server (false = reference existing shared server)')
+param createServer bool = true
+
+// === SQL Server (conditional) ===
+
+resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = if (createServer) {
   name: serverName
   location: location
   tags: tags
@@ -42,8 +48,8 @@ resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
   }
 }
 
-// Allow Azure services to connect
-resource firewallRule 'Microsoft.Sql/servers/firewallRules@2023-08-01-preview' = {
+// Allow Azure services to connect (only when creating server)
+resource firewallRule 'Microsoft.Sql/servers/firewallRules@2023-08-01-preview' = if (createServer) {
   parent: sqlServer
   name: 'AllowAllWindowsAzureIps'
   properties: {
@@ -52,8 +58,17 @@ resource firewallRule 'Microsoft.Sql/servers/firewallRules@2023-08-01-preview' =
   }
 }
 
+// === Existing server reference (for shared server scenarios) ===
+
+resource existingSqlServer 'Microsoft.Sql/servers@2023-08-01-preview' existing = {
+  name: serverName
+}
+
+// === Database (always created) ===
+// Uses existing server reference so it works whether server was just created or already existed
+
 resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
-  parent: sqlServer
+  parent: existingSqlServer
   name: databaseName
   location: location
   tags: tags
@@ -71,11 +86,10 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
     requestedBackupStorageRedundancy: 'Local'
     isLedgerOn: false
   }
+  dependsOn: [sqlServer] // Ensures server is created first when createServer is true
 }
 
-output serverName string = sqlServer.name
-output serverId string = sqlServer.id
-output serverFqdn string = sqlServer.properties.fullyQualifiedDomainName
-output databaseName string = sqlDatabase.name
+output serverName string = serverName
+output serverFqdn string = '${serverName}.database.windows.net'
+output databaseName string = databaseName
 output databaseId string = sqlDatabase.id
-// Note: Connection string contains secrets, retrieve via Azure CLI or Key Vault

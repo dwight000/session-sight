@@ -1,13 +1,18 @@
 // SessionSight Infrastructure
 // Main entry point for deploying all Azure resources
 // Deploys at subscription scope, creates resource group and all resources
+//
+// Resource sharing strategy:
+// - Dev creates all resources (AI services, SQL server, Container Apps env)
+// - Stage shares dev's stateless AI services and SQL server, gets its own
+//   database, storage, key vault, and container apps within the same RG
 
 targetScope = 'subscription'
 
 // === Parameters ===
 
-@description('Environment name (dev, prod, etc.)')
-@allowed(['dev', 'prod', 'test'])
+@description('Environment name (dev or stage)')
+@allowed(['dev', 'stage', 'test'])
 param environmentName string
 
 @description('Location for all resources')
@@ -33,19 +38,39 @@ param deployContainerApps bool = false
 // === Variables ===
 
 var prefix = 'sessionsight'
-var resourceGroupName = 'rg-${prefix}-${environmentName}'
+var isDevEnvironment = environmentName == 'dev'
+
+// All environments share a single resource group
+var resourceGroupName = 'rg-${prefix}-dev'
+
 var tags = {
   project: 'SessionSight'
   environment: environmentName
   managedBy: 'Bicep'
 }
 
-// Storage account name must be lowercase alphanumeric, 3-24 chars
+// Per-env resource names
 var storageAccountName = '${prefix}storage${environmentName}'
 
-// === Resource Group ===
+// Shared resource names (always dev-suffixed, created by dev deployment)
+var sharedSqlServerName = '${prefix}-sql-dev'
+var sharedOpenaiName = '${prefix}-openai-dev'
+var sharedSearchName = '${prefix}-search-dev'
+var sharedDocIntName = '${prefix}-docint-dev'
 
-module rg 'modules/resourceGroup.bicep' = {
+// Per-env database and search index names
+var sqlDatabaseName = isDevEnvironment ? 'sessionsight' : 'sessionsight-${environmentName}'
+var searchIndexName = isDevEnvironment ? 'sessionsight-sessions' : 'sessionsight-sessions-${environmentName}'
+
+// Computed endpoints for shared AI services (predictable Azure naming)
+var openaiEndpointValue = 'https://${sharedOpenaiName}.openai.azure.com/'
+var searchEndpointValue = 'https://${sharedSearchName}.search.windows.net'
+var docIntelligenceEndpointValue = 'https://${sharedDocIntName}.cognitiveservices.azure.com/'
+
+// === Resource Group ===
+// Only dev creates the RG; stage deploys into the existing dev RG
+
+module rg 'modules/resourceGroup.bicep' = if (isDevEnvironment) {
   name: 'resourceGroup'
   params: {
     name: resourceGroupName
@@ -55,7 +80,7 @@ module rg 'modules/resourceGroup.bicep' = {
 }
 
 // === Key Vault ===
-// Deployed first as other resources may store secrets here
+// Per-env (different connection strings per environment)
 
 module keyVault 'modules/keyvault.bicep' = {
   name: 'keyVault'
@@ -70,6 +95,7 @@ module keyVault 'modules/keyvault.bicep' = {
 }
 
 // === Storage Account ===
+// Per-env (PHI isolation — document blobs separated by environment)
 
 module storage 'modules/storage.bicep' = {
   name: 'storage'
@@ -84,65 +110,64 @@ module storage 'modules/storage.bicep' = {
 }
 
 // === SQL Server and Database ===
+// Server is shared (created by dev only); each env gets its own database
 
 module sql 'modules/sql.bicep' = {
   name: 'sql'
   scope: resourceGroup(resourceGroupName)
   params: {
-    serverName: '${prefix}-sql-${environmentName}'
-    databaseName: 'sessionsight'
+    serverName: sharedSqlServerName
+    databaseName: sqlDatabaseName
     location: location
     tags: tags
     adminPassword: sqlAdminPassword
-    enableFreeTier: environmentName == 'dev' || environmentName == 'test'
+    createServer: isDevEnvironment
+    enableFreeTier: isDevEnvironment
   }
   dependsOn: [rg]
 }
 
-// === Azure OpenAI ===
+// === Shared AI Services (dev only) ===
+// These are stateless — stage reuses dev's instances via computed endpoints
 
-module openai 'modules/openai.bicep' = {
+module openai 'modules/openai.bicep' = if (isDevEnvironment) {
   name: 'openai'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: '${prefix}-openai-${environmentName}'
+    name: sharedOpenaiName
     location: location
     tags: tags
   }
   dependsOn: [rg]
 }
 
-// === Azure AI Search ===
-
-module search 'modules/search.bicep' = {
+module search 'modules/search.bicep' = if (isDevEnvironment) {
   name: 'search'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: '${prefix}-search-${environmentName}'
+    name: sharedSearchName
     location: location
     tags: tags
-    skuName: environmentName == 'prod' ? 'basic' : 'free'
+    skuName: 'free'
   }
   dependsOn: [rg]
 }
 
-// === Document Intelligence ===
-
-module docIntelligence 'modules/docintell.bicep' = {
+module docIntelligence 'modules/docintell.bicep' = if (isDevEnvironment) {
   name: 'docIntelligence'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: '${prefix}-docint-${environmentName}'
+    name: sharedDocIntName
     location: location
     tags: tags
-    skuName: environmentName == 'prod' ? 'S0' : 'F0'
+    skuName: 'F0'
   }
   dependsOn: [rg]
 }
 
-// === AI Foundry Hub ===
+// === AI Foundry Hub + Project (dev only) ===
 
-module aiHub 'modules/aiHub.bicep' = {
+module aiHub 'modules/aiHub.bicep' = if (isDevEnvironment) {
   name: 'aiHub'
   scope: resourceGroup(resourceGroupName)
   params: {
@@ -155,9 +180,7 @@ module aiHub 'modules/aiHub.bicep' = {
   dependsOn: [rg]
 }
 
-// === AI Foundry Project ===
-
-module aiProject 'modules/aiProject.bicep' = {
+module aiProject 'modules/aiProject.bicep' = if (isDevEnvironment) {
   name: 'aiProject'
   scope: resourceGroup(resourceGroupName)
   params: {
@@ -168,9 +191,7 @@ module aiProject 'modules/aiProject.bicep' = {
   }
 }
 
-// === AI Hub to OpenAI Connection ===
-
-module aiHubConnection 'modules/aiHubConnection.bicep' = {
+module aiHubConnection 'modules/aiHubConnection.bicep' = if (isDevEnvironment) {
   name: 'aiHubConnection'
   scope: resourceGroup(resourceGroupName)
   params: {
@@ -181,67 +202,60 @@ module aiHubConnection 'modules/aiHubConnection.bicep' = {
   }
 }
 
-// === Role Assignments for AI Project Managed Identity ===
-// Grant Cognitive Services User role on OpenAI and Doc Intelligence
-// so the AI Project can call these APIs using Azure AD authentication
+// === Role Assignments for AI Project Managed Identity (dev only) ===
 
-module openaiRoleAssignment 'modules/openai.bicep' = {
+module openaiRoleAssignment 'modules/openai.bicep' = if (isDevEnvironment) {
   name: 'openai-role-assignment'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: '${prefix}-openai-${environmentName}'
+    name: sharedOpenaiName
     location: location
     tags: tags
-    // Skip model deployments - they already exist
     deployGpt41: false
     deployGpt41Mini: false
     deployGpt41Nano: false
     deployEmbeddings: false
     cognitiveServicesUserPrincipalId: aiProject.outputs.principalId
   }
-  dependsOn: [openai, aiProject]
+  dependsOn: [openai]
 }
 
-module docIntelligenceRoleAssignment 'modules/docintell.bicep' = {
+module docIntelligenceRoleAssignment 'modules/docintell.bicep' = if (isDevEnvironment) {
   name: 'docIntelligence-role-assignment'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: '${prefix}-docint-${environmentName}'
+    name: sharedDocIntName
     location: location
     tags: tags
     cognitiveServicesUserPrincipalId: aiProject.outputs.principalId
   }
-  dependsOn: [docIntelligence, aiProject]
+  dependsOn: [docIntelligence]
 }
 
-// === Search Role Assignment for AI Project ===
-// Grant Search Index Data Contributor so the API can index session embeddings
-
-module searchRoleAssignment 'modules/search.bicep' = {
+module searchRoleAssignment 'modules/search.bicep' = if (isDevEnvironment) {
   name: 'search-role-assignment-aiproject'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: '${prefix}-search-${environmentName}'
+    name: sharedSearchName
     location: location
     tags: tags
-    skuName: environmentName == 'prod' ? 'basic' : 'free'
+    skuName: 'free'
     searchIndexDataContributorPrincipalId: aiProject.outputs.principalId
     searchIndexDataContributorPrincipalType: 'ServicePrincipal'
   }
-  dependsOn: [search, aiProject]
+  dependsOn: [search]
 }
 
-// === Search Role Assignment for Developer ===
-// Grant Search Index Data Contributor for local dev with DefaultAzureCredential
+// === Search Role Assignment for Developer (dev only — same search service covers all indexes) ===
 
-module searchRoleAssignmentDeveloper 'modules/search.bicep' = if (!empty(developerUserObjectId)) {
+module searchRoleAssignmentDeveloper 'modules/search.bicep' = if (isDevEnvironment && !empty(developerUserObjectId)) {
   name: 'search-role-assignment-developer'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: '${prefix}-search-${environmentName}'
+    name: sharedSearchName
     location: location
     tags: tags
-    skuName: environmentName == 'prod' ? 'basic' : 'free'
+    skuName: 'free'
     searchIndexDataContributorPrincipalId: developerUserObjectId
     searchIndexDataContributorPrincipalType: 'User'
   }
@@ -249,7 +263,7 @@ module searchRoleAssignmentDeveloper 'modules/search.bicep' = if (!empty(develop
 }
 
 // === Container Apps ===
-// Deploys API and Web frontend to Azure Container Apps (pulls from ghcr.io)
+// Environment is shared (created by dev); each env gets its own API + Web apps
 
 module containerApps 'modules/containerApps.bicep' = if (deployContainerApps) {
   name: 'containerApps'
@@ -259,24 +273,28 @@ module containerApps 'modules/containerApps.bicep' = if (deployContainerApps) {
     location: location
     tags: tags
     ghcrToken: ghcrToken
-    // Pass Azure service endpoints
-    sqlConnectionString: 'Server=${sql.outputs.serverFqdn};Database=${sql.outputs.databaseName};User Id=sessionsightadmin;Password=${sqlAdminPassword};Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;'
-    openaiEndpoint: openai.outputs.endpoint
-    searchEndpoint: search.outputs.endpoint
-    docIntelligenceEndpoint: docIntelligence.outputs.endpoint
+    createEnvironment: isDevEnvironment
+    existingEnvName: '${prefix}-dev-env'
+    searchIndexName: searchIndexName
+    // Pass Azure service endpoints (shared AI services, per-env storage)
+    sqlConnectionString: 'Server=${sharedSqlServerName}.database.windows.net;Database=${sqlDatabaseName};User Id=sessionsightadmin;Password=${sqlAdminPassword};Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;'
+    openaiEndpoint: openaiEndpointValue
+    searchEndpoint: searchEndpointValue
+    docIntelligenceEndpoint: docIntelligenceEndpointValue
     storageBlobEndpoint: storage.outputs.blobEndpoint
   }
   dependsOn: [rg]
 }
 
 // === Container Apps Role Assignments ===
-// Grant the API managed identity access to Azure services
+// Grant the API managed identity access to shared AI services + per-env storage
+// Role assignment modules are idempotent — re-deploying shared resources is a no-op
 
 module containerAppsOpenaiRole 'modules/openai.bicep' = if (deployContainerApps) {
   name: 'containerApps-openai-role'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: '${prefix}-openai-${environmentName}'
+    name: sharedOpenaiName
     location: location
     tags: tags
     deployGpt41: false
@@ -291,7 +309,7 @@ module containerAppsDocIntelRole 'modules/docintell.bicep' = if (deployContainer
   name: 'containerApps-docintell-role'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: '${prefix}-docint-${environmentName}'
+    name: sharedDocIntName
     location: location
     tags: tags
     cognitiveServicesUserPrincipalId: containerApps.outputs.apiPrincipalId
@@ -302,10 +320,10 @@ module containerAppsSearchRole 'modules/search.bicep' = if (deployContainerApps)
   name: 'containerApps-search-role'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: '${prefix}-search-${environmentName}'
+    name: sharedSearchName
     location: location
     tags: tags
-    skuName: environmentName == 'prod' ? 'basic' : 'free'
+    skuName: 'free'
     searchIndexDataContributorPrincipalId: containerApps.outputs.apiPrincipalId
     searchIndexDataContributorPrincipalType: 'ServicePrincipal'
   }
@@ -324,7 +342,7 @@ module containerAppsStorageRole 'modules/storage.bicep' = if (deployContainerApp
 
 // === Outputs ===
 
-output resourceGroupName string = rg.outputs.name
+output resourceGroupName string = resourceGroupName
 output keyVaultName string = keyVault.outputs.name
 output keyVaultUri string = keyVault.outputs.vaultUri
 output storageAccountName string = storage.outputs.name
@@ -332,15 +350,16 @@ output storageBlobEndpoint string = storage.outputs.blobEndpoint
 output sqlServerName string = sql.outputs.serverName
 output sqlServerFqdn string = sql.outputs.serverFqdn
 output sqlDatabaseName string = sql.outputs.databaseName
-output openaiName string = openai.outputs.name
-output openaiEndpoint string = openai.outputs.endpoint
-output searchName string = search.outputs.name
-output searchEndpoint string = search.outputs.endpoint
-output docIntelligenceName string = docIntelligence.outputs.name
-output docIntelligenceEndpoint string = docIntelligence.outputs.endpoint
-output aiHubName string = aiHub.outputs.name
-output aiProjectName string = aiProject.outputs.name
-output aiProjectEndpoint string = 'https://${location}.api.azureml.ms/agents/v1.0/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceGroupName}/providers/Microsoft.MachineLearningServices/workspaces/${aiProject.outputs.name}'
+output openaiName string = sharedOpenaiName
+output openaiEndpoint string = openaiEndpointValue
+output searchName string = sharedSearchName
+output searchEndpoint string = searchEndpointValue
+output searchIndexName string = searchIndexName
+output docIntelligenceName string = sharedDocIntName
+output docIntelligenceEndpoint string = docIntelligenceEndpointValue
+output aiHubName string = isDevEnvironment ? aiHub.outputs.name : ''
+output aiProjectName string = isDevEnvironment ? aiProject.outputs.name : ''
+output aiProjectEndpoint string = isDevEnvironment ? 'https://${location}.api.azureml.ms/agents/v1.0/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceGroupName}/providers/Microsoft.MachineLearningServices/workspaces/${aiProject.outputs.name}' : ''
 
 // Container Apps outputs (only when deployed)
 #disable-next-line outputs-should-not-contain-secrets  // False positive: outputs contain URLs, not secrets

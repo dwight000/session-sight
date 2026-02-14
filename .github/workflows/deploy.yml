@@ -17,6 +17,7 @@ on:
         type: choice
         options:
           - dev
+          - stage
         default: dev
 
 concurrency:
@@ -95,8 +96,10 @@ jobs:
         run: |
           ENV="${{ github.event.inputs.environment || 'dev' }}"
           TAG="${{ needs.build-and-push.outputs.image_tag }}"
+          # All environments share a single resource group
+          RG="rg-sessionsight-dev"
           az containerapp update \
-            --resource-group rg-sessionsight-${ENV} \
+            --resource-group ${RG} \
             --name sessionsight-${ENV}-api \
             --image ghcr.io/${{ github.repository_owner }}/sessionsight-api:${TAG}
 
@@ -104,16 +107,18 @@ jobs:
         run: |
           ENV="${{ github.event.inputs.environment || 'dev' }}"
           TAG="${{ needs.build-and-push.outputs.image_tag }}"
+          RG="rg-sessionsight-dev"
           az containerapp update \
-            --resource-group rg-sessionsight-${ENV} \
+            --resource-group ${RG} \
             --name sessionsight-${ENV}-web \
             --image ghcr.io/${{ github.repository_owner }}/sessionsight-web:${TAG}
 
       - name: Get deployment URLs
         run: |
           ENV="${{ github.event.inputs.environment || 'dev' }}"
-          API_URL=$(az containerapp show -g rg-sessionsight-${ENV} -n sessionsight-${ENV}-api --query properties.configuration.ingress.fqdn -o tsv)
-          WEB_URL=$(az containerapp show -g rg-sessionsight-${ENV} -n sessionsight-${ENV}-web --query properties.configuration.ingress.fqdn -o tsv)
+          RG="rg-sessionsight-dev"
+          API_URL=$(az containerapp show -g ${RG} -n sessionsight-${ENV}-api --query properties.configuration.ingress.fqdn -o tsv)
+          WEB_URL=$(az containerapp show -g ${RG} -n sessionsight-${ENV}-web --query properties.configuration.ingress.fqdn -o tsv)
           echo "### Deployment Complete" >> $GITHUB_STEP_SUMMARY
           echo "- API: https://${API_URL}" >> $GITHUB_STEP_SUMMARY
           echo "- Web: https://${WEB_URL}" >> $GITHUB_STEP_SUMMARY
