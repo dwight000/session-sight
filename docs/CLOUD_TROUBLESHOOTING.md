@@ -312,18 +312,33 @@ ContainerAppConsoleLogs_CL
 
 **Symptoms**: Logs show `Login failed for user 'sessionsightadmin'` with error number 18456.
 
-**Root cause**: SQL admin password in Container Apps secret doesn't match the actual Azure SQL Server password.
+**Root cause**: SQL admin password in Container Apps env var doesn't match the actual Azure SQL Server password. This commonly happens when `infra.yml` runs a Bicep deploy that resets the SQL server password (from Key Vault) but the container app still has the old password in `ConnectionStrings__sessionsight`.
 
-**Fix**: Reset the SQL Server password to match your local user secrets:
+**Common trigger**: Pushing `infra/` changes to `main` auto-triggers `infra.yml`, which runs Bicep and updates the SQL server password to the Key Vault value. The container's connection string is not updated by Bicep when `deployContainerApps=false`.
+
+**Prevention**: As of B-076, `infra.yml` includes a "Sync SQL connection string to Container Apps" step that automatically updates the container's connection string after every Bicep deploy. This should prevent future occurrences.
+
+**Manual fix** (if sync step fails or for ad-hoc recovery):
 
 ```bash
-# Get password from local secrets
+# Get the current correct password from Key Vault
+SQL_PWD=$(az keyvault secret show --vault-name sessionsight-kv-dev --name sql-admin-password --query value -o tsv)
+
+# Update the container's connection string to match
+ENV="dev"  # or "stage"
+DB_NAME=$( [ "$ENV" = "dev" ] && echo "sessionsight" || echo "sessionsight-${ENV}" )
+az containerapp update -g rg-sessionsight-dev -n sessionsight-${ENV}-api \
+  --set-env-vars "ConnectionStrings__sessionsight=Server=sessionsight-sql-dev.database.windows.net;Database=${DB_NAME};User Id=sessionsightadmin;Password=${SQL_PWD};Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;"
+```
+
+**Verify**: `curl https://sessionsight-${ENV}-api.proudsky-5508f8b0.eastus2.azurecontainerapps.io/api/therapists` should return 200.
+
+**Old fix** (no longer needed — B-076 sync step prevents this automatically):
+
+```bash
+# Reset SQL server password to match container (before B-076, this was the manual fix)
 SQL_PWD=$(dotnet user-secrets list --project src/SessionSight.AppHost | grep sql-password | cut -d'=' -f2 | tr -d ' ')
-
-# Reset Azure SQL admin password
 az sql server update -g rg-sessionsight-dev -n sessionsight-sql-dev --admin-password "$SQL_PWD"
-
-# Restart container to retry connection
 REVISION=$(az containerapp revision list -g rg-sessionsight-dev -n sessionsight-dev-api --query "[0].name" -o tsv)
 az containerapp revision restart -g rg-sessionsight-dev -n sessionsight-dev-api --revision $REVISION
 ```
