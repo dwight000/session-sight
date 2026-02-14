@@ -166,6 +166,7 @@
 | B-075 | Fix CRLF line endings in repo (renormalize to LF per .gitattributes) | S | 6 | Ready | - |
 | B-076 | Sync SQL connection string after infra deploy (prevent password drift) | S | 6 | Done | - |
 | B-077 | Switch to Managed Identity for SQL auth (eliminate password sync) | M | 6 | Ready | - |
+| B-078 | Fix nginx 413 error: add client_max_body_size for file uploads | S | 6 | Done | - |
 | B-030 | Promotion model: dev->stage approval rules | M | 6 | Blocked | P6-002 |
 | B-031 | Rollback strategy: keep last good artifact | M | 6 | Blocked | P6-003 |
 | P6-004 | Environment-specific configuration | M | 6 | Blocked | P6-002 |
