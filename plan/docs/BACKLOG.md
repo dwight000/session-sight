@@ -7,7 +7,7 @@
 ## Current Status
 
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
-**Next Action**: B-075 (CRLF fix), then P6-004/B-030
+**Next Action**: P6-004/B-030
 
 **Last Updated**: February 14, 2026
 
@@ -163,7 +163,7 @@
 | B-072 | Cloud database seeding (dev): Therapist FK constraint blocks session creation | S | 6 | Done | - |
 | B-073 | Add `deployContainerApps`/`ghcrToken` inputs to infra.yml workflow | S | 6 | Done | - |
 | B-074 | Automate EF migrations in deploy.yml (run after image update) | M | 6 | Done | - |
-| B-075 | Fix CRLF line endings in repo (renormalize to LF per .gitattributes) | S | 6 | Ready | - |
+| B-075 | Fix CRLF line endings in repo (renormalize to LF per .gitattributes) | S | 6 | Done | - |
 | B-076 | Sync SQL connection string after infra deploy (prevent password drift) | S | 6 | Done | - |
 | B-077 | Switch to Managed Identity for SQL auth (eliminate password sync) | M | 6 | Ready | - |
 | B-078 | Fix nginx 413 error: add client_max_body_size for file uploads | S | 6 | Done | - |
@@ -417,6 +417,7 @@
 | B-073 | Add `deployContainerApps`/`ghcrToken` inputs to infra.yml workflow | 2026-02-14 |
 | B-074 | Automate EF migrations in deploy.yml (run after image update) | 2026-02-14 |
 | B-076 | Sync SQL connection string after infra deploy | 2026-02-14 |
+| B-075 | Fix CRLF line endings (renormalize to LF) | 2026-02-14 |
 
 ---
 
