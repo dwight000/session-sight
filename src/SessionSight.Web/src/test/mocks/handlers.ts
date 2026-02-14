@@ -5,6 +5,8 @@ import { mockPatients } from '../fixtures/patients'
 import { mockSessions } from '../fixtures/sessions'
 import { mockPatientRiskTrend } from '../fixtures/riskTrend'
 import { mockPatientTimeline } from '../fixtures/timeline'
+import { mockTherapists } from '../fixtures/therapists'
+import { mockProcessingJobs } from '../fixtures/processingJobs'
 
 export const handlers = [
   http.get('/api/review/queue', () => {
@@ -95,6 +97,26 @@ export const handlers = [
       createdAt: '2025-01-03T00:00:00Z',
       updatedAt: '2025-01-03T00:00:00Z'
     })
+  }),
+
+  // Therapist handlers
+  http.get('/api/therapists', () => {
+    return HttpResponse.json(mockTherapists)
+  }),
+
+  http.post('/api/therapists', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json({
+      id: 'new-therapist-id',
+      ...body,
+      createdAt: '2025-01-03T00:00:00Z',
+      updatedAt: null,
+    })
+  }),
+
+  // Processing job handlers
+  http.get('/api/processing-jobs', () => {
+    return HttpResponse.json(mockProcessingJobs)
   }),
 
   // Upload handlers

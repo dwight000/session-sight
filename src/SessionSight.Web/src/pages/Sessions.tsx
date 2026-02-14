@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useSessions } from '../hooks/useSessions'
 import { usePatients } from '../hooks/usePatients'
 import { useCreateSession } from '../hooks/useCreateSession'
+import { useTherapists } from '../hooks/useTherapists'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { Spinner } from '../components/ui/Spinner'
@@ -9,9 +10,6 @@ import type { Session, SessionType, SessionModality } from '../types'
 
 const SESSION_TYPES: SessionType[] = ['Intake', 'Individual', 'Group', 'Family', 'Couples', 'Crisis', 'Assessment', 'Termination']
 const SESSION_MODALITIES: SessionModality[] = ['InPerson', 'TelehealthVideo', 'TelehealthPhone', 'Hybrid']
-
-// Default therapist ID - in production this would come from auth context
-const DEFAULT_THERAPIST_ID = '00000000-0000-0000-0000-000000000001'
 
 function formatDate(iso: string) {
   return new Date(iso + 'T00:00:00').toLocaleDateString()
@@ -33,10 +31,12 @@ export function Sessions() {
     patientFilter ? { patientId: patientFilter } : undefined
   )
   const { data: patients } = usePatients()
+  const { data: therapists } = useTherapists()
   const createSession = useCreateSession()
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({
     patientId: '',
+    therapistId: '',
     sessionDate: '',
     sessionType: 'Individual' as SessionType,
     modality: 'InPerson' as SessionModality,
@@ -48,13 +48,14 @@ export function Sessions() {
     createSession.mutate(
       {
         ...formData,
-        therapistId: DEFAULT_THERAPIST_ID,
+        therapistId: formData.therapistId,
       },
       {
         onSuccess: () => {
           setShowForm(false)
           setFormData({
             patientId: '',
+            therapistId: '',
             sessionDate: '',
             sessionType: 'Individual',
             modality: 'InPerson',
@@ -120,6 +121,23 @@ export function Sessions() {
                 {patients?.map((patient) => (
                   <option key={patient.id} value={patient.id}>
                     {patient.firstName} {patient.lastName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="therapistId" className="block text-sm font-medium text-gray-700">Therapist</label>
+              <select
+                id="therapistId"
+                required
+                value={formData.therapistId}
+                onChange={(e) => setFormData({ ...formData, therapistId: e.target.value })}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">Select a therapist...</option>
+                {therapists?.map((therapist) => (
+                  <option key={therapist.id} value={therapist.id}>
+                    {therapist.name}
                   </option>
                 ))}
               </select>

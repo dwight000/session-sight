@@ -47,6 +47,8 @@ builder.Services.AddScoped<SessionSight.Core.Interfaces.IPatientRepository, Sess
 builder.Services.AddScoped<SessionSight.Core.Interfaces.ISessionRepository, SessionSight.Infrastructure.Repositories.SessionRepository>();
 builder.Services.AddScoped<SessionSight.Core.Interfaces.IDocumentStorage, SessionSight.Infrastructure.Storage.AzureBlobDocumentStorage>();
 builder.Services.AddScoped<SessionSight.Core.Interfaces.IReviewRepository, SessionSight.Infrastructure.Repositories.ReviewRepository>();
+builder.Services.AddScoped<SessionSight.Core.Interfaces.ITherapistRepository, SessionSight.Infrastructure.Repositories.TherapistRepository>();
+builder.Services.AddScoped<SessionSight.Core.Interfaces.IProcessingJobRepository, SessionSight.Infrastructure.Repositories.ProcessingJobRepository>();
 
 // AI Foundry + Model Router + Agents
 builder.Services.AddSingleton<IAIFoundryClientFactory, AIFoundryClientFactory>();
