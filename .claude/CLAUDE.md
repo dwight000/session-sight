@@ -53,7 +53,7 @@ cd src/SessionSight.Web && services__api__https__0=https://localhost:7039 npx vi
 **Git workflow (always use PRs):**
 
 At the start of a new workitem:
-1. Create feature branch: `git checkout -b feature/P6-003-deploy-workflow develop`
+1. Fetch and branch from latest remote: `git fetch origin develop && git checkout -b feature/P6-003-deploy-workflow origin/develop`
 2. Make changes, commit
 3. Self-review: list 10 verifications relevant to the task, mark each ✅ or ❌. Fix any ❌ before proceeding. (e.g., all planned files changed? no unintended changes? no secrets? no debug code? edge cases? matches plan?)
 4. Update `plan/docs/BACKLOG.md`: mark task Done, update status/next-action, add to Completed Tasks table — commit

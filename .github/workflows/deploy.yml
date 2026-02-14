@@ -197,7 +197,7 @@ jobs:
       - name: Run EF Migrations
         run: |
           SQL_PASSWORD=$(az keyvault secret show \
-            --vault-name sessionsight-kv-dev \
+            --vault-name sessionsight-kv-stage \
             --name sql-admin-password \
             --query value -o tsv)
           dotnet ef database update \

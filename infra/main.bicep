@@ -39,6 +39,7 @@ param deployContainerApps bool = false
 
 var prefix = 'sessionsight'
 var isDevEnvironment = environmentName == 'dev'
+var aspnetEnvironment = environmentName == 'dev' ? 'Staging' : 'Production'
 
 // All environments share a single resource group
 var resourceGroupName = 'rg-${prefix}-dev'
@@ -276,6 +277,7 @@ module containerApps 'modules/containerApps.bicep' = if (deployContainerApps) {
     createEnvironment: isDevEnvironment
     existingEnvName: '${prefix}-dev-env'
     searchIndexName: searchIndexName
+    aspnetEnvironment: aspnetEnvironment
     // Pass Azure service endpoints (shared AI services, per-env storage)
     sqlConnectionString: 'Server=${sharedSqlServerName}.database.windows.net;Database=${sqlDatabaseName};User Id=sessionsightadmin;Password=${sqlAdminPassword};Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;'
     openaiEndpoint: openaiEndpointValue

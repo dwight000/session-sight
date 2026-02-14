@@ -34,6 +34,9 @@ param existingEnvName string = ''
 @description('Azure AI Search index name (env-specific to isolate data)')
 param searchIndexName string = 'sessionsight-sessions'
 
+@description('ASP.NET Core environment name (Staging for cloud dev, Production for stage)')
+param aspnetEnvironment string = 'Production'
+
 // === Azure service endpoints (passed from main.bicep) ===
 
 @description('SQL Server connection string')
@@ -118,7 +121,7 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
             { name: 'DocumentIntelligence__Endpoint', value: docIntelligenceEndpoint }
             { name: 'ConnectionStrings__documents', value: storageBlobEndpoint }
             // ASP.NET Core settings
-            { name: 'ASPNETCORE_ENVIRONMENT', value: 'Production' }
+            { name: 'ASPNETCORE_ENVIRONMENT', value: aspnetEnvironment }
             { name: 'ASPNETCORE_URLS', value: 'http://+:8080' }
           ]
         }
