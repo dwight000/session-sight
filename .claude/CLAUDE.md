@@ -55,10 +55,14 @@ cd src/SessionSight.Web && services__api__https__0=https://localhost:7039 npx vi
 At the start of a new workitem:
 1. Create feature branch: `git checkout -b feature/P6-003-deploy-workflow develop`
 2. Make changes, commit
-3. Run validation (below), then push: `git push -u origin feature/P6-003-deploy-workflow`
-4. Create PR: `gh pr create --base develop`
-5. Wait for user to approve and merge
-6. Never push directly to `develop` or `main`
+3. Self-review: list 10 verifications relevant to the task, mark each ✅ or ❌. Fix any ❌ before proceeding. (e.g., all planned files changed? no unintended changes? no secrets? no debug code? edge cases? matches plan?)
+4. Update `plan/docs/BACKLOG.md`: mark task Done, update status/next-action, add to Completed Tasks table — commit
+5. Run local validation (see "Before pushing" section below)
+6. Push: `git push -u origin feature/P6-003-deploy-workflow`
+7. Create PR: `gh pr create --base develop`
+8. Wait ~15 minutes, then check CI: `gh pr checks <number> --watch` or `gh run list --limit 5`. Fix any failures (CodeQL, SonarCloud, Bicep validate, etc.) locally, commit, and push again
+9. Wait for user to approve and merge
+10. Never push directly to `develop` or `main`
 
 **Before pushing (validation):**
 1. `dotnet build`
