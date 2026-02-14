@@ -82,7 +82,7 @@ public class TherapistCrudTests : IClassFixture<ApiFixture>
     [Fact]
     public async Task DeleteTherapist_ReturnsNoContent()
     {
-        var request = new { name = "Delete Me", licenseNumber = (string?)null, credentials = (string?)null, isActive = true };
+        var request = new { name = "Delete Me", licenseNumber = (string?)null, credentials = (string?)null, isActive = true }; // NOSONAR - CodeQL cs/useless-upcast: explicit null for anonymous type
         var createResponse = await _client.PostAsJsonAsync("/api/therapists", request);
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
         var id = created.GetProperty("id").GetString();

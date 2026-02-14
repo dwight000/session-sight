@@ -22,6 +22,7 @@ public class IntegrationTestBase : IAsyncLifetime
 
     public virtual Task InitializeAsync()
     {
+        // codeql[cs/local-not-disposed] - Factory is disposed in DisposeAsync() via IAsyncLifetime pattern
         Factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {

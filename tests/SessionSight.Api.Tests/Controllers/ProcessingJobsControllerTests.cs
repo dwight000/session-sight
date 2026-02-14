@@ -53,7 +53,7 @@ public class ProcessingJobsControllerTests
     public async Task GetById_WhenNotFound_ReturnsNotFound()
     {
         var id = Guid.NewGuid();
-        _mockRepo.Setup(r => r.GetByIdAsync(id)).ReturnsAsync((ProcessingJob?)null);
+        _mockRepo.Setup(r => r.GetByIdAsync(id)).ReturnsAsync((ProcessingJob?)null); // NOSONAR - CodeQL cs/useless-upcast: Moq requires explicit type for null
 
         var result = await _controller.GetById(id);
 

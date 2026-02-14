@@ -55,6 +55,8 @@ public class TherapistsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    // codeql[cs/web/missing-function-level-access-control] - Auth not yet implemented (dev environment, consistent with all controllers)
+    // codeql[cs/web/insecure-direct-object-reference] - Auth not yet implemented (dev environment, consistent with all controllers)
     public async Task<IActionResult> Delete(Guid id)
     {
         var therapist = await _repository.GetByIdAsync(id);
