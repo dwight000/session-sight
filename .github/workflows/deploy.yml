@@ -85,6 +85,8 @@ jobs:
       id-token: write
       contents: read
     steps:
+      - uses: actions/checkout@v4
+
       - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
@@ -112,6 +114,27 @@ jobs:
             --resource-group ${RG} \
             --name sessionsight-${ENV}-web \
             --image ghcr.io/${{ github.repository_owner }}/sessionsight-web:${TAG}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install EF Core tools
+        run: dotnet tool install --global dotnet-ef
+
+      - name: Run EF Migrations
+        run: |
+          ENV="${{ github.event.inputs.environment || 'dev' }}"
+          DB_NAME=$( [ "$ENV" = "dev" ] && echo "sessionsight" || echo "sessionsight-${ENV}" )
+          SQL_PASSWORD=$(az keyvault secret show \
+            --vault-name sessionsight-kv-dev \
+            --name sql-admin-password \
+            --query value -o tsv)
+          dotnet ef database update \
+            --project src/SessionSight.Infrastructure \
+            --startup-project src/SessionSight.Api \
+            --connection "Server=sessionsight-sql-dev.database.windows.net;Database=${DB_NAME};User Id=sessionsightadmin;Password=${SQL_PASSWORD};Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;"
 
       - name: Get deployment URLs
         run: |
