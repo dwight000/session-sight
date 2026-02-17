@@ -94,6 +94,7 @@ export const handlers = [
       id: 'new-session-id',
       ...body,
       hasDocument: false,
+      documentStatus: null,
       createdAt: '2025-01-03T00:00:00Z',
       updatedAt: '2025-01-03T00:00:00Z'
     })

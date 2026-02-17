@@ -9,9 +9,9 @@
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
 **Next Action**: P6-005
 
-**Last Updated**: February 16, 2026
+**Last Updated**: February 17, 2026
 
-**Milestone**: B-032/B-064/B-034/B-048 complete — Document size validation, extraction race condition fix, patient idempotency fix, and circuit breaker protection for all Azure SDK clients.
+**Milestone**: B-011/B-012/B-013 complete — Idempotent blob trigger job keys, extraction retry path (orchestrator gate fix + upsert + UI retry button), dedupe strategy closed.
 
 ---
 
@@ -81,9 +81,9 @@
 | P2-007 | Confidence scoring | M | 2 | Done | P2-004 |
 | P2-008 | Blob trigger + ExtractionOrchestrator + Doc Intelligence | XL | 2 | Done | P2-004 |
 | B-010 | Exponential backoff for Azure SDK clients (OpenAI/Search/DocIntel) | M | 2 | Done | P2-001 |
-| B-011 | Idempotent job IDs for blob trigger | M | 2 | Ready | P2-008 |
-| B-012 | Dead-letter handling for failed ingestion | M | 2 | Ready | P2-008 |
-| B-013 | Dedupe strategy blob->SQL->AI Search | M | 2 | Ready | P2-004 |
+| B-011 | Idempotent job IDs for blob trigger | M | 2 | Done | P2-008 |
+| B-012 | Dead-letter handling for failed ingestion | M | 2 | Done | P2-008 |
+| B-013 | Dedupe strategy blob->SQL->AI Search | M | 2 | Done | P2-004 |
 | B-019 | Telemetry redaction for PHI in traces | M | 2 | Ready | P1-016 |
 | B-032 | Document size validation (reject >30 pages) | M | 2 | Done | P2-008 |
 | B-033 | Internal service auth (Function->API) | M | 2 | Ready | P2-008 |
@@ -424,6 +424,9 @@
 | B-064 | Extraction trigger race condition fix (atomic TryTransitionDocumentStatusAsync) | 2026-02-16 |
 | B-034 | Patient idempotency race condition fix (GetOrCreateByExternalIdAsync with retry) | 2026-02-16 |
 | B-048 | Circuit breaker for Azure SDK clients (CircuitBreakerState + HttpPipelinePolicy + RetryPolicy) | 2026-02-16 |
+| B-011 | Idempotent job IDs for blob trigger (SHA256 job key, ProcessingJobRepository write methods, IngestionController dedup) | 2026-02-17 |
+| B-012 | Retry path for failed extractions (orchestrator gate fix, UpsertExtractionResultAsync, UI retry button + status badges) | 2026-02-17 |
+| B-013 | Dedupe strategy blob→SQL→AI Search (covered by B-011 + B-012: AI Search already idempotent, SQL upsert handles re-extraction, job key prevents duplicate sessions) | 2026-02-17 |
 
 ---
 
@@ -431,6 +434,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-17 | **B-011/B-012/B-013 complete: Pipeline reliability + UI retry button.** B-011: Added idempotent job keys to blob trigger pipeline — `ComputeJobKey(SHA256(blobPath\|eTag))` in `ProcessIncomingNoteFunction`, optional `JobKey` field on `ProcessNoteRequest`, dedup check + `CreateAsync`/`UpdateStatusAsync` in `ProcessingJobRepository`, idempotency gate in `IngestionController` (returns 202 for duplicates). B-012: Fixed broken retry path — orchestrator gate now probes DB via no-op `TryTransition(Processing→Processing)` instead of checking stale tracked entity (EF `ExecuteUpdateAsync` bypasses change tracker). Changed `SaveExtractionResultAsync` → `UpsertExtractionResultAsync` (delete-then-insert) to avoid unique constraint crash on re-extraction. Added `DocumentStatus?` to `SessionDto`/mapping. Frontend: `DocumentStatus` type, status-aware badges (No Document/Pending/Processing/Extracted/Failed), `useRetryExtraction` mutation hook, Retry button on Failed sessions. B-013: Closed — covered by B-011 + B-012 (AI Search already idempotent, SQL upsert handles re-extraction, job key prevents duplicate sessions). Note: `FixedDelayRetry` attribute removed — blob triggers don't support function-level retry (AZFW0012). Tests: 704 backend (83.3% coverage), 167 frontend, 17/17 E2E (1 flaky `overallConfidence=0` passed on retry). Files: 18 modified, 2 new. |
 | 2026-02-16 | **B-032/B-064/B-034/B-048 complete: Four functional fixes.** B-032: Added `DocumentValidationException`, pre-upload size/empty checks in `DocumentsController`, changed parser to throw `DocumentValidationException` instead of `InvalidOperationException`. B-064: Added `TryTransitionDocumentStatusAsync` (atomic `ExecuteUpdateAsync` with WHERE clause) to `SessionRepository`, used in `ExtractionController` and `ExtractionOrchestrator` to prevent concurrent extraction. Supports both Pending→Processing and Failed→Processing (retry). B-034: Added `GetOrCreateByExternalIdAsync` to `PatientRepository` with catch-and-retry on unique constraint violation, used in `IngestionController`. B-048: Created `CircuitBreakerState` (thread-safe state machine), `CircuitBreakerRegistry` (named singletons), `CircuitBreakerHttpPipelinePolicy` (Azure.Core), `CircuitBreakerRetryPolicy` (System.ClientModel), `CircuitBreakerOpenException` (→503). Wired into all 3 Azure SDK clients (OpenAI, Search, DocIntel) via new `AzureRetryDefaults` overloads. Config: 5 failures in 30s → open for 60s → half-open. Tests: 700+ passing, 83.46% coverage. |
 | 2026-02-14 | **P6-004 post-deploy verification complete.** All 6 checks passed. Health: both APIs responding (no `/health` endpoint mapped — pre-existing, not a regression — but `/api/patients` returns 200 on both). Scalar: dev 200, stage 404. CORS: dev returns `Access-Control-Allow-Origin: http://localhost:5173` on preflight, stage returns 405 with no CORS headers (middleware not active in Production). Environment identity: `az containerapp show` confirms dev=`Staging`, stage=`Production`. Functional: dev GET patients/therapists 200, POST+DELETE patient 201/204; stage GET patients/therapists 200. P6-004 fully closed. |
 | 2026-02-14 | **P6-004 complete: Environment-specific configuration.** Fixed stage deploy.yml Key Vault reference (`sessionsight-kv-dev` → `sessionsight-kv-stage`). Parameterized `ASPNETCORE_ENVIRONMENT` in Bicep (dev=`Staging`, stage=`Production`). Widened Swagger/CORS gate to include `IsStaging()`. Created `appsettings.Staging.json` (cloud dev: Information logging, request logging on) and `appsettings.Production.json` (cloud stage: Warning logging, request logging off). Added `.gitignore` exceptions for new config files. Seeded `sql-admin-password` secret into `sessionsight-kv-stage` + granted developer RBAC on stage KV. Deployed infra (both envs with `deployContainerApps=true`) and app images (both envs). Verified: dev container `ASPNETCORE_ENVIRONMENT=Staging`, stage container `ASPNETCORE_ENVIRONMENT=Production`. Also added `git fetch origin develop` to CLAUDE.md git workflow to prevent stale-branch conflicts. Remaining: post-deploy verification (Swagger, CORS, logging behavior). |
