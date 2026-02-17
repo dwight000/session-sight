@@ -1,7 +1,9 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Moq;
+using SessionSight.Agents.Services;
 using SessionSight.Api.Controllers;
 using SessionSight.Api.DTOs;
 using SessionSight.Core.Entities;
@@ -15,13 +17,44 @@ public class DocumentsControllerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepositoryMock;
     private readonly Mock<IDocumentStorage> _documentStorageMock;
+    private readonly DocumentIntelligenceOptions _docOptions;
     private readonly DocumentsController _controller;
 
     public DocumentsControllerTests()
     {
         _sessionRepositoryMock = new Mock<ISessionRepository>();
         _documentStorageMock = new Mock<IDocumentStorage>();
-        _controller = new DocumentsController(_sessionRepositoryMock.Object, _documentStorageMock.Object);
+        _docOptions = new DocumentIntelligenceOptions();
+        _controller = new DocumentsController(
+            _sessionRepositoryMock.Object,
+            _documentStorageMock.Object,
+            Options.Create(_docOptions));
+    }
+
+    [Fact]
+    public async Task UploadDocument_EmptyFile_ReturnsBadRequest()
+    {
+        var sessionId = Guid.NewGuid();
+        var file = CreateMockFile(length: 0);
+
+        var result = await _controller.UploadDocument(sessionId, file);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+        var badRequest = (BadRequestObjectResult)result.Result!;
+        badRequest.Value.Should().Be("File is empty.");
+    }
+
+    [Fact]
+    public async Task UploadDocument_FileTooLarge_ReturnsBadRequest()
+    {
+        var sessionId = Guid.NewGuid();
+        var file = CreateMockFile(length: _docOptions.MaxFileSizeBytes + 1);
+
+        var result = await _controller.UploadDocument(sessionId, file);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+        var badRequest = (BadRequestObjectResult)result.Result!;
+        ((string)badRequest.Value!).Should().Contain("exceeds maximum allowed");
     }
 
     [Fact]
@@ -167,7 +200,7 @@ public class DocumentsControllerTests
         dto.ModelUsed.Should().Be("gpt-4o");
     }
 
-    private static IFormFile CreateMockFile(string fileName = "test.pdf", string contentType = "application/pdf")
+    private static IFormFile CreateMockFile(string fileName = "test.pdf", string contentType = "application/pdf", long? length = null)
     {
         var fileMock = new Mock<IFormFile>();
         var content = new byte[] { 0x25, 0x50, 0x44, 0x46 }; // PDF magic bytes
@@ -175,7 +208,7 @@ public class DocumentsControllerTests
 
         fileMock.Setup(f => f.FileName).Returns(fileName);
         fileMock.Setup(f => f.ContentType).Returns(contentType);
-        fileMock.Setup(f => f.Length).Returns(content.Length);
+        fileMock.Setup(f => f.Length).Returns(length ?? content.Length);
         fileMock.Setup(f => f.OpenReadStream()).Returns(stream);
 
         return fileMock.Object;

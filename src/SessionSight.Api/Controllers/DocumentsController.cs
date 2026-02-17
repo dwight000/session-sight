@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using SessionSight.Agents.Services;
 using SessionSight.Api.DTOs;
 using SessionSight.Api.Mapping;
 using SessionSight.Core.Entities;
@@ -13,18 +15,27 @@ public class DocumentsController : ControllerBase
 {
     private readonly ISessionRepository _sessionRepository;
     private readonly IDocumentStorage _documentStorage;
+    private readonly DocumentIntelligenceOptions _docOptions;
 
     public DocumentsController(
         ISessionRepository sessionRepository,
-        IDocumentStorage documentStorage)
+        IDocumentStorage documentStorage,
+        IOptions<DocumentIntelligenceOptions> docOptions)
     {
         _sessionRepository = sessionRepository;
         _documentStorage = documentStorage;
+        _docOptions = docOptions.Value;
     }
 
     [HttpPost("document")]
     public async Task<ActionResult<UploadDocumentResponse>> UploadDocument(Guid sessionId, IFormFile file)
     {
+        if (file.Length == 0)
+            return BadRequest("File is empty.");
+
+        if (file.Length > _docOptions.MaxFileSizeBytes)
+            return BadRequest($"File size ({file.Length:N0} bytes) exceeds maximum allowed ({_docOptions.MaxFileSizeBytes:N0} bytes).");
+
         var session = await _sessionRepository.GetByIdAsync(sessionId);
         if (session is null) return NotFound();
 

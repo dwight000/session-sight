@@ -19,6 +19,7 @@ public class ExceptionTests
     [Theory]
     [InlineData(typeof(SchemaValidationException))]
     [InlineData(typeof(InputValidationException))]
+    [InlineData(typeof(DocumentValidationException))]
     public void Exception_InheritsFromValidationException(Type exceptionType)
     {
         var ex = (Exception)Activator.CreateInstance(exceptionType, "Test message")!;
@@ -54,5 +55,22 @@ public class ExceptionTests
         var ex = new SessionNotFoundException(id);
         ex.Message.Should().Contain(id.ToString());
         ex.Message.Should().Contain("Session");
+    }
+
+    [Fact]
+    public void CircuitBreakerOpenException_InheritsFromAzureServiceException()
+    {
+        var ex = new CircuitBreakerOpenException("openai", TimeSpan.FromSeconds(30));
+        ex.Should().BeAssignableTo<AzureServiceException>();
+    }
+
+    [Fact]
+    public void CircuitBreakerOpenException_StoresRetryAfter()
+    {
+        var retryAfter = TimeSpan.FromSeconds(45);
+        var ex = new CircuitBreakerOpenException("search", retryAfter);
+        ex.RetryAfter.Should().Be(retryAfter);
+        ex.Message.Should().Contain("search");
+        ex.Message.Should().Contain("45");
     }
 }

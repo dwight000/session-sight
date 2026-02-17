@@ -58,7 +58,7 @@ public class ExtractionControllerTests
     }
 
     [Fact]
-    public async Task TriggerExtraction_AlreadyProcessing_ReturnsConflict()
+    public async Task TriggerExtraction_TransitionFails_ReturnsConflict()
     {
         // Arrange
         var sessionId = Guid.NewGuid();
@@ -68,6 +68,9 @@ public class ExtractionControllerTests
             Document = new SessionDocument { Status = DocumentStatus.Processing }
         };
         _mockRepo.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _mockRepo.Setup(r => r.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.Pending, DocumentStatus.Processing))
+            .ReturnsAsync(false);
 
         // Act
         var result = await _controller.TriggerExtraction(sessionId, CancellationToken.None);
@@ -75,26 +78,7 @@ public class ExtractionControllerTests
         // Assert
         result.Result.Should().BeOfType<ConflictObjectResult>();
         var conflict = result.Result as ConflictObjectResult;
-        conflict!.Value.Should().Be("Extraction already in progress");
-    }
-
-    [Fact]
-    public async Task TriggerExtraction_AlreadyCompleted_ReturnsConflict()
-    {
-        // Arrange
-        var sessionId = Guid.NewGuid();
-        var session = new Session
-        {
-            Id = sessionId,
-            Document = new SessionDocument { Status = DocumentStatus.Completed }
-        };
-        _mockRepo.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
-
-        // Act
-        var result = await _controller.TriggerExtraction(sessionId, CancellationToken.None);
-
-        // Assert
-        result.Result.Should().BeOfType<ConflictObjectResult>();
+        conflict!.Value.Should().Be("Extraction already in progress or completed");
     }
 
     [Fact]
@@ -116,6 +100,9 @@ public class ExtractionControllerTests
         };
 
         _mockRepo.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _mockRepo.Setup(r => r.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.Pending, DocumentStatus.Processing))
+            .ReturnsAsync(true);
         _mockOrchestrator.Setup(o => o.ProcessSessionAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(orchestrationResult);
 
@@ -132,7 +119,7 @@ public class ExtractionControllerTests
     [Fact]
     public async Task TriggerExtraction_FailedDocument_CanRetrigger()
     {
-        // Arrange
+        // Arrange — Failed documents can transition to Processing via fallback
         var sessionId = Guid.NewGuid();
         var session = new Session
         {
@@ -147,6 +134,14 @@ public class ExtractionControllerTests
         };
 
         _mockRepo.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        // Pending → Processing fails (status is Failed, not Pending)
+        _mockRepo.Setup(r => r.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.Pending, DocumentStatus.Processing))
+            .ReturnsAsync(false);
+        // Failed → Processing succeeds
+        _mockRepo.Setup(r => r.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.Failed, DocumentStatus.Processing))
+            .ReturnsAsync(true);
         _mockOrchestrator.Setup(o => o.ProcessSessionAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(orchestrationResult);
 

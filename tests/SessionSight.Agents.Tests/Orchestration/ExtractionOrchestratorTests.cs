@@ -44,6 +44,11 @@ public class ExtractionOrchestratorTests
         _summarizer.SummarizeSessionAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<CancellationToken>())
             .Returns(new SessionSummary { OneLiner = "Test summary", ModelUsed = "gpt-4o-mini" });
 
+        // Default: atomic transition succeeds
+        _sessionRepository.TryTransitionDocumentStatusAsync(
+            Arg.Any<Guid>(), DocumentStatus.Pending, DocumentStatus.Processing)
+            .Returns(true);
+
         var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _summarizer);
         _orchestrator = new ExtractionOrchestrator(
             _documentParser,
@@ -86,6 +91,25 @@ public class ExtractionOrchestratorTests
     }
 
     [Fact]
+    public async Task ProcessSessionAsync_TransitionFails_ReturnsError()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        _sessionRepository.GetByIdAsync(sessionId).Returns(session);
+        _sessionRepository.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.Pending, DocumentStatus.Processing)
+            .Returns(false);
+
+        // Act
+        var result = await _orchestrator.ProcessSessionAsync(sessionId);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("already in progress or completed");
+    }
+
+    [Fact]
     public async Task ProcessSessionAsync_InvalidDocument_SetsFailedStatus()
     {
         // Arrange
@@ -114,7 +138,7 @@ public class ExtractionOrchestratorTests
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("Invalid document");
         // Verify document status was updated to Processing then Failed
-        await _sessionRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Processing, null);
+        await _sessionRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Pending, DocumentStatus.Processing);
         await _sessionRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Failed, null);
     }
 
@@ -221,7 +245,7 @@ public class ExtractionOrchestratorTests
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("LLM call failed");
         // Verify document status was updated to Processing then Failed
-        await _sessionRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Processing, null);
+        await _sessionRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Pending, DocumentStatus.Processing);
         await _sessionRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Failed, null);
     }
 
@@ -252,7 +276,7 @@ public class ExtractionOrchestratorTests
 
         // Assert - verify document status updates and extraction save
         // Processing status set first
-        await _sessionRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Processing, null);
+        await _sessionRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Pending, DocumentStatus.Processing);
         // Extraction result saved
         await _sessionRepository.Received().SaveExtractionResultAsync(Arg.Any<CoreEntities.ExtractionResult>());
         // Completed status set with extracted text

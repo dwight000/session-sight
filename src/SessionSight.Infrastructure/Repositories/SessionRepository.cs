@@ -111,6 +111,14 @@ public partial class SessionRepository : ISessionRepository
         await _context.SaveChangesAsync();
     }
 
+    public async Task<bool> TryTransitionDocumentStatusAsync(Guid sessionId, DocumentStatus fromStatus, DocumentStatus toStatus)
+    {
+        var rows = await _context.Documents
+            .Where(d => d.SessionId == sessionId && d.Status == fromStatus)
+            .ExecuteUpdateAsync(s => s.SetProperty(d => d.Status, toStatus));
+        return rows > 0;
+    }
+
     public async Task UpdateDocumentStatusAsync(Guid sessionId, DocumentStatus status, string? extractedText = null)
     {
         // Direct update to Document table only - avoids Session RowVersion concurrency issues

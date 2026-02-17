@@ -9,9 +9,9 @@
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
 **Next Action**: P6-005
 
-**Last Updated**: February 14, 2026
+**Last Updated**: February 16, 2026
 
-**Milestone**: P6-004 complete — Environment-specific configuration deployed and verified. Dev (Staging env): Scalar accessible, CORS active, Information logging. Stage (Production env): Scalar blocked, CORS disabled, Warning logging. Both envs healthy with functional API.
+**Milestone**: B-032/B-064/B-034/B-048 complete — Document size validation, extraction race condition fix, patient idempotency fix, and circuit breaker protection for all Azure SDK clients.
 
 ---
 
@@ -85,12 +85,12 @@
 | B-012 | Dead-letter handling for failed ingestion | M | 2 | Ready | P2-008 |
 | B-013 | Dedupe strategy blob->SQL->AI Search | M | 2 | Ready | P2-004 |
 | B-019 | Telemetry redaction for PHI in traces | M | 2 | Ready | P1-016 |
-| B-032 | Document size validation (reject >30 pages) | M | 2 | Ready | P2-008 |
+| B-032 | Document size validation (reject >30 pages) | M | 2 | Done | P2-008 |
 | B-033 | Internal service auth (Function->API) | M | 2 | Ready | P2-008 |
-| B-034 | Fix idempotency race condition (SQL MERGE with HOLDLOCK) | M | 2 | Ready | P2-008 |
+| B-034 | Fix idempotency race condition (SQL MERGE with HOLDLOCK) | M | 2 | Done | P2-008 |
 | B-035 | Synchronous AI Search indexing | M | 2 | Ready | P2-004 |
 | B-036 | Document Intelligence failure handling | M | 2 | Ready | P2-008 |
-| B-048 | Circuit breaker for Azure SDK clients (Polly or custom HttpPipelinePolicy) | M | 2 | Ready | B-010 |
+| B-048 | Circuit breaker for Azure SDK clients (Polly or custom HttpPipelinePolicy) | M | 2 | Done | B-010 |
 | B-049 | ~~Extract shared LlmResponseParser from duplicated JSON parsing in 3 agents~~ (superseded by B-056) | M | 2 | Done | P2-004 |
 | B-050 | Fix fire-and-forget scoped service lifetime in IngestionController | S | 2 | Done | P2-008 |
 | B-051 | Add patient-scoping guard to Q&A tools (cross-patient data access) | S | 2 | Done | P3-005 |
@@ -138,7 +138,7 @@
 | P4-004 | Flagged session approve/dismiss workflow | M | 4 | Done | P4-001 |
 | P4-005 | Patient/Session/Upload screens (3 pages: /patients, /sessions, /upload) | L | 4 | Done | P4-001 |
 | B-063 | Full-stack Playwright E2E tests (browser + real Aspire backend) | M | 4 | Done | P4-005 |
-| B-064 | Extraction trigger race condition fix (HOLDLOCK or optimistic concurrency) | S | 2 | Ready | - |
+| B-064 | Extraction trigger race condition fix (HOLDLOCK or optimistic concurrency) | S | 2 | Done | - |
 | B-065 | Frontend code coverage: Add Vitest coverage (v8), set 80% threshold, add to check-frontend.sh + CI | S | 4 | Done | B-059 |
 | **Phase 5: Polish & Testing** |||||
 | P5-001 | Integration tests (golden files) | L | 5 | Done | P2-005 |
@@ -420,6 +420,10 @@
 | B-075 | Fix CRLF line endings (renormalize to LF) | 2026-02-14 |
 | B-030 | Promotion model: dev→stage approval rules (branch protection + env gates + deploy.yml split) | 2026-02-14 |
 | P6-004 | Environment-specific configuration (Key Vault, ASPNETCORE_ENVIRONMENT, config files) | 2026-02-14 |
+| B-032 | Document size validation (pre-upload size check + DocumentValidationException) | 2026-02-16 |
+| B-064 | Extraction trigger race condition fix (atomic TryTransitionDocumentStatusAsync) | 2026-02-16 |
+| B-034 | Patient idempotency race condition fix (GetOrCreateByExternalIdAsync with retry) | 2026-02-16 |
+| B-048 | Circuit breaker for Azure SDK clients (CircuitBreakerState + HttpPipelinePolicy + RetryPolicy) | 2026-02-16 |
 
 ---
 
@@ -427,6 +431,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-16 | **B-032/B-064/B-034/B-048 complete: Four functional fixes.** B-032: Added `DocumentValidationException`, pre-upload size/empty checks in `DocumentsController`, changed parser to throw `DocumentValidationException` instead of `InvalidOperationException`. B-064: Added `TryTransitionDocumentStatusAsync` (atomic `ExecuteUpdateAsync` with WHERE clause) to `SessionRepository`, used in `ExtractionController` and `ExtractionOrchestrator` to prevent concurrent extraction. Supports both Pending→Processing and Failed→Processing (retry). B-034: Added `GetOrCreateByExternalIdAsync` to `PatientRepository` with catch-and-retry on unique constraint violation, used in `IngestionController`. B-048: Created `CircuitBreakerState` (thread-safe state machine), `CircuitBreakerRegistry` (named singletons), `CircuitBreakerHttpPipelinePolicy` (Azure.Core), `CircuitBreakerRetryPolicy` (System.ClientModel), `CircuitBreakerOpenException` (→503). Wired into all 3 Azure SDK clients (OpenAI, Search, DocIntel) via new `AzureRetryDefaults` overloads. Config: 5 failures in 30s → open for 60s → half-open. Tests: 700+ passing, 83.46% coverage. |
 | 2026-02-14 | **P6-004 post-deploy verification complete.** All 6 checks passed. Health: both APIs responding (no `/health` endpoint mapped — pre-existing, not a regression — but `/api/patients` returns 200 on both). Scalar: dev 200, stage 404. CORS: dev returns `Access-Control-Allow-Origin: http://localhost:5173` on preflight, stage returns 405 with no CORS headers (middleware not active in Production). Environment identity: `az containerapp show` confirms dev=`Staging`, stage=`Production`. Functional: dev GET patients/therapists 200, POST+DELETE patient 201/204; stage GET patients/therapists 200. P6-004 fully closed. |
 | 2026-02-14 | **P6-004 complete: Environment-specific configuration.** Fixed stage deploy.yml Key Vault reference (`sessionsight-kv-dev` → `sessionsight-kv-stage`). Parameterized `ASPNETCORE_ENVIRONMENT` in Bicep (dev=`Staging`, stage=`Production`). Widened Swagger/CORS gate to include `IsStaging()`. Created `appsettings.Staging.json` (cloud dev: Information logging, request logging on) and `appsettings.Production.json` (cloud stage: Warning logging, request logging off). Added `.gitignore` exceptions for new config files. Seeded `sql-admin-password` secret into `sessionsight-kv-stage` + granted developer RBAC on stage KV. Deployed infra (both envs with `deployContainerApps=true`) and app images (both envs). Verified: dev container `ASPNETCORE_ENVIRONMENT=Staging`, stage container `ASPNETCORE_ENVIRONMENT=Production`. Also added `git fetch origin develop` to CLAUDE.md git workflow to prevent stale-branch conflicts. Remaining: post-deploy verification (Swagger, CORS, logging behavior). |
 | 2026-02-14 | **P6-002 complete: Stage environment fully deployed.** Completed B-073 (PR #7: `deployContainerApps`/`ghcrToken` inputs to `infra.yml`) and B-074 (PR #7+#9: EF migrations in `deploy.yml` with `dotnet restore` fix). Merged develop→main (PRs #8, #10) triggering auto-deploy. Dev deploy: images built, containers updated, EF migrations passed (run 22011841249). Stage deploy: manual dispatch succeeded — images, containers, EF migrations all green. **Stage verified**: `/api/therapists` returns seeded data, `/api/patients` returns 200, web returns 200. **Dev 500 fix (B-076)**: `infra.yml` auto-triggered on push to main (infra/ changes), Bicep reset SQL server password to Key Vault value but container still had old password → Error 18456. Fixed manually via `az containerapp update --set-env-vars`. Added permanent fix: `infra.yml` now syncs the container connection string after every Bicep deploy. Both dev and stage verified healthy. Filed B-075 (CRLF), B-077 (managed identity for SQL — low priority). |
