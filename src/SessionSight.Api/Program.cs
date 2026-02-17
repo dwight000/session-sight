@@ -94,6 +94,8 @@ builder.Services.Configure<DocumentIntelligenceOptions>(
 builder.Services.Configure<RequestResponseLoggingOptions>(
     builder.Configuration.GetSection(RequestResponseLoggingOptions.SectionName));
 
+builder.Services.AddSingleton<CircuitBreakerRegistry>();
+
 builder.Services.AddSingleton(sp =>
 {
     var options = sp.GetRequiredService<IOptions<DocumentIntelligenceOptions>>().Value;
@@ -103,10 +105,11 @@ builder.Services.AddSingleton(sp =>
             "DocumentIntelligence:Endpoint is not configured. " +
             "Set it via user-secrets: dotnet user-secrets set \"DocumentIntelligence:Endpoint\" \"https://...\"");
     }
+    var registry = sp.GetRequiredService<CircuitBreakerRegistry>();
     return new DocumentIntelligenceClient(
         new Uri(options.Endpoint),
         new DefaultAzureCredential(),
-        AzureRetryDefaults.Configure(new DocumentIntelligenceClientOptions()));
+        AzureRetryDefaults.Configure(new DocumentIntelligenceClientOptions(), registry.Get("docIntel"), "docIntel"));
 });
 
 builder.Services.AddScoped<IDocumentParser, DocumentIntelligenceParser>();

@@ -62,18 +62,9 @@ public partial class IngestionController : ControllerBase
 
         LogProcessingNote(_logger, request.PatientId, request.FileName);
 
-        // 1. Find or create patient
-        var patient = await _patientRepository.GetByExternalIdAsync(request.PatientId);
-        if (patient is null)
-        {
-            LogCreatingPatient(_logger, request.PatientId);
-            patient = await _patientRepository.AddAsync(new Patient
-            {
-                ExternalId = request.PatientId,
-                FirstName = "Unknown",
-                LastName = "Patient"
-            });
-        }
+        // 1. Find or create patient (atomic — handles concurrent blob triggers)
+        var patient = await _patientRepository.GetOrCreateByExternalIdAsync(
+            request.PatientId, "Unknown", "Patient");
 
         // 2. Create session with document reference
         var session = new Session
@@ -134,9 +125,6 @@ public partial class IngestionController : ControllerBase
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Processing note for patient {PatientId}, file: {FileName}")]
     private static partial void LogProcessingNote(ILogger logger, string patientId, string fileName);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Creating new patient with ExternalId: {ExternalId}")]
-    private static partial void LogCreatingPatient(ILogger logger, string externalId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Created session {SessionId} for patient {PatientId}")]
     private static partial void LogCreatedSession(ILogger logger, Guid sessionId, Guid patientId);

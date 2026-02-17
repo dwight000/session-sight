@@ -4,6 +4,7 @@ using Azure.AI.DocumentIntelligence;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SessionSight.Agents.Models;
+using SessionSight.Core.Exceptions;
 
 namespace SessionSight.Agents.Services;
 
@@ -38,7 +39,7 @@ public partial class DocumentIntelligenceParser : IDocumentParser
 
         if (documentBytes.Length > _options.MaxFileSizeBytes)
         {
-            throw new InvalidOperationException(
+            throw new DocumentValidationException(
                 $"Document size ({documentBytes.Length:N0} bytes) exceeds maximum allowed ({_options.MaxFileSizeBytes:N0} bytes)");
         }
 
@@ -56,7 +57,7 @@ public partial class DocumentIntelligenceParser : IDocumentParser
         // Validate page count
         if (result.Pages.Count > _options.MaxPageCount)
         {
-            throw new InvalidOperationException(
+            throw new DocumentValidationException(
                 $"Document page count ({result.Pages.Count}) exceeds maximum allowed ({_options.MaxPageCount})");
         }
 

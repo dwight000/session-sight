@@ -18,14 +18,15 @@ public partial class AIFoundryClientFactory : IAIFoundryClientFactory
 {
     private readonly AzureOpenAIClient _openAIClient;
 
-    public AIFoundryClientFactory(IConfiguration config, ILogger<AIFoundryClientFactory> logger)
+    public AIFoundryClientFactory(IConfiguration config, ILogger<AIFoundryClientFactory> logger, CircuitBreakerRegistry circuitBreakerRegistry)
     {
         var openAIEndpointStr = config["AzureOpenAI:Endpoint"]
             ?? throw new InvalidOperationException("AzureOpenAI:Endpoint not configured");
 
         var endpoint = new Uri(openAIEndpointStr);
         var credential = new DefaultAzureCredential();
-        var options = AzureRetryDefaults.ConfigureRetryPolicy(new AzureOpenAIClientOptions(), logger);
+        var breaker = circuitBreakerRegistry.Get("openai");
+        var options = AzureRetryDefaults.ConfigureRetryPolicy(new AzureOpenAIClientOptions(), logger, breaker, "openai");
 
         _openAIClient = new AzureOpenAIClient(endpoint, credential, options);
 

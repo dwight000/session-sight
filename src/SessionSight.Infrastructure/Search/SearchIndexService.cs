@@ -25,7 +25,8 @@ public partial class SearchIndexService : ISearchIndexService
 
     public SearchIndexService(
         IOptions<SearchOptions> options,
-        ILogger<SearchIndexService> logger)
+        ILogger<SearchIndexService> logger,
+        CircuitBreakerRegistry circuitBreakerRegistry)
     {
         _options = options.Value;
         _logger = logger;
@@ -43,7 +44,8 @@ public partial class SearchIndexService : ISearchIndexService
         _isConfigured = true;
         var endpoint = new Uri(_options.Endpoint);
         var credential = new DefaultAzureCredential();
-        var clientOptions = AzureRetryDefaults.Configure(new AzureSearchClientOptions());
+        var breaker = circuitBreakerRegistry.Get("search");
+        var clientOptions = AzureRetryDefaults.Configure(new AzureSearchClientOptions(), breaker, "search");
 
         _indexClient = new SearchIndexClient(endpoint, credential, clientOptions);
         _searchClient = new SearchClient(endpoint, _options.IndexName, credential, clientOptions);
