@@ -130,14 +130,10 @@ jobs:
 
       - name: Run EF Migrations
         run: |
-          SQL_PASSWORD=$(az keyvault secret show \
-            --vault-name sessionsight-kv-dev \
-            --name sql-admin-password \
-            --query value -o tsv)
           dotnet ef database update \
             --project src/SessionSight.Infrastructure \
             --startup-project src/SessionSight.Api \
-            --connection "Server=sessionsight-sql-dev.database.windows.net;Database=sessionsight;User Id=sessionsightadmin;Password=${SQL_PASSWORD};Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;"
+            --connection "Server=sessionsight-sql-dev.database.windows.net;Database=sessionsight;Authentication=Active Directory Default;Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;"
 
       - name: Get deployment URLs
         run: |
@@ -201,14 +197,10 @@ jobs:
 
       - name: Run EF Migrations
         run: |
-          SQL_PASSWORD=$(az keyvault secret show \
-            --vault-name sessionsight-kv-stage \
-            --name sql-admin-password \
-            --query value -o tsv)
           dotnet ef database update \
             --project src/SessionSight.Infrastructure \
             --startup-project src/SessionSight.Api \
-            --connection "Server=sessionsight-sql-dev.database.windows.net;Database=sessionsight-stage;User Id=sessionsightadmin;Password=${SQL_PASSWORD};Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;"
+            --connection "Server=sessionsight-sql-dev.database.windows.net;Database=sessionsight-stage;Authentication=Active Directory Default;Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;"
 
       - name: Get deployment URLs
         run: |

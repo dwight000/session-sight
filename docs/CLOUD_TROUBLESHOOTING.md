@@ -308,40 +308,33 @@ ContainerAppConsoleLogs_CL
 - Large document causing multiple agent loops
 - Search index timeout
 
-### SQL Login Failed (Error 18456)
+### SQL Authentication Failed (Managed Identity)
 
-**Symptoms**: Logs show `Login failed for user 'sessionsightadmin'` with error number 18456.
+**Symptoms**: Logs show `Login failed` or `Authentication failed` for the container app identity.
 
-**Root cause**: SQL admin password in Container Apps env var doesn't match the actual Azure SQL Server password. This commonly happens when `infra.yml` runs a Bicep deploy that resets the SQL server password (from Key Vault) but the container app still has the old password in `ConnectionStrings__sessionsight`.
+**Root cause**: The Managed Identity user has not been provisioned in the SQL database. This happens when:
+1. First deployment — `infra.yml` creates the AAD admin but the MI user step was skipped (container app didn't exist yet)
+2. New environment — database exists but MI user was never created
 
-**Common trigger**: Pushing `infra/` changes to `main` auto-triggers `infra.yml`, which runs Bicep and updates the SQL server password to the Key Vault value. The container's connection string is not updated by Bicep when `deployContainerApps=false`.
+**Fix**: Run `infra.yml` with `deployContainerApps=true` to ensure the Container App exists, then the "Provision Managed Identity SQL users" step will create the database user.
 
-**Prevention**: As of B-076, `infra.yml` includes a "Sync SQL connection string to Container Apps" step that automatically updates the container's connection string after every Bicep deploy. This should prevent future occurrences.
-
-**Manual fix** (if sync step fails or for ad-hoc recovery):
+**Manual fix** (if `infra.yml` step fails):
 
 ```bash
-# Get the current correct password from Key Vault
-SQL_PWD=$(az keyvault secret show --vault-name sessionsight-kv-dev --name sql-admin-password --query value -o tsv)
-
-# Update the container's connection string to match
 ENV="dev"  # or "stage"
 DB_NAME=$( [ "$ENV" = "dev" ] && echo "sessionsight" || echo "sessionsight-${ENV}" )
-az containerapp update -g rg-sessionsight-dev -n sessionsight-${ENV}-api \
-  --set-env-vars "ConnectionStrings__sessionsight=Server=sessionsight-sql-dev.database.windows.net;Database=${DB_NAME};User Id=sessionsightadmin;Password=${SQL_PWD};Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;"
+API_APP="sessionsight-${ENV}-api"
+
+# Requires Azure CLI login with AAD admin credentials
+sqlcmd -S "sessionsight-sql-dev.database.windows.net" -d "${DB_NAME}" -G -C \
+  -Q "IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = '${API_APP}')
+      BEGIN
+        CREATE USER [${API_APP}] FROM EXTERNAL PROVIDER;
+        ALTER ROLE db_owner ADD MEMBER [${API_APP}];
+      END"
 ```
 
 **Verify**: `curl https://sessionsight-${ENV}-api.proudsky-5508f8b0.eastus2.azurecontainerapps.io/api/therapists` should return 200.
-
-**Old fix** (no longer needed — B-076 sync step prevents this automatically):
-
-```bash
-# Reset SQL server password to match container (before B-076, this was the manual fix)
-SQL_PWD=$(dotnet user-secrets list --project src/SessionSight.AppHost | grep sql-password | cut -d'=' -f2 | tr -d ' ')
-az sql server update -g rg-sessionsight-dev -n sessionsight-sql-dev --admin-password "$SQL_PWD"
-REVISION=$(az containerapp revision list -g rg-sessionsight-dev -n sessionsight-dev-api --query "[0].name" -o tsv)
-az containerapp revision restart -g rg-sessionsight-dev -n sessionsight-dev-api --revision $REVISION
-```
 
 ### Azure SQL Connection Timeout (Serverless Auto-Pause)
 
@@ -353,24 +346,14 @@ Connection Timeout Expired. The timeout period elapsed during the post-login pha
 
 **Root cause**: Azure SQL Serverless (free tier) auto-pauses after inactivity. First connection must "wake up" the database, taking 10-30+ seconds. Default 15s timeout is too short.
 
-**Fix**: Increase connection timeout to 60 seconds:
+**Fix**: The connection string in `infra/main.bicep` already includes `Connection Timeout=60`. If you need to update it manually:
 
 ```bash
-# Get current SQL password
-SQL_PWD=$(dotnet user-secrets list --project src/SessionSight.AppHost | grep sql-password | cut -d'=' -f2 | tr -d ' ')
-
-# Update the connection string secret with longer timeout
-NEW_CONN="Server=sessionsight-sql-dev.database.windows.net;Database=sessionsight;User Id=sessionsightadmin;Password=${SQL_PWD};Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;"
-
-az containerapp secret set -g rg-sessionsight-dev -n sessionsight-dev-api \
-  --secrets "sql-connection-string=$NEW_CONN"
-
-# Restart to apply
-az containerapp revision restart -g rg-sessionsight-dev -n sessionsight-dev-api \
-  --revision $(az containerapp revision list -g rg-sessionsight-dev -n sessionsight-dev-api --query "[0].name" -o tsv)
+az containerapp update -g rg-sessionsight-dev -n sessionsight-dev-api \
+  --set-env-vars "ConnectionStrings__sessionsight=Server=sessionsight-sql-dev.database.windows.net;Database=sessionsight;Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;"
 ```
 
-**Prevention**: The fix is now in `infra/main.bicep` (`Connection Timeout=60`).
+**Prevention**: The 60s timeout is set in `infra/main.bicep`.
 
 ### Azure OpenAI Rate Limits
 
@@ -446,37 +429,23 @@ Container Apps env vars and secrets are **safe** from normal CI/CD:
 
 If you need to run a full Bicep deployment with Container Apps:
 
-1. Ensure SQL password in Key Vault matches Azure SQL Server
-2. Add GitHub PAT to user secrets:
+1. Add GitHub PAT to user secrets:
    ```bash
    dotnet user-secrets set --project src/SessionSight.AppHost 'Parameters:ghcr-token' 'YOUR_GITHUB_PAT'
    ```
-3. Deploy with Container Apps enabled:
+2. Deploy with Container Apps enabled:
    ```bash
-   SQL_PWD=$(dotnet user-secrets list --project src/SessionSight.AppHost | grep sql-password | cut -d'=' -f2 | tr -d ' ')
    GHCR_TOKEN=$(dotnet user-secrets list --project src/SessionSight.AppHost | grep ghcr-token | cut -d'=' -f2 | tr -d ' ')
    USER_ID=$(az ad signed-in-user show --query id -o tsv)
 
    az deployment sub create --location eastus2 --template-file infra/main.bicep \
      --parameters environmentName=dev \
-     --parameters sqlAdminPassword="$SQL_PWD" \
      --parameters developerUserObjectId="$USER_ID" \
      --parameters deployContainerApps=true \
      --parameters ghcrToken="$GHCR_TOKEN"
    ```
 
-### SQL Password Sync
-
-The SQL admin password must match between:
-- Azure SQL Server (actual password)
-- Container Apps secret/env var (connection string)
-- Local user secrets (for Bicep deploys)
-
-If they get out of sync, reset the Azure SQL password:
-```bash
-SQL_PWD=$(dotnet user-secrets list --project src/SessionSight.AppHost | grep sql-password | cut -d'=' -f2 | tr -d ' ')
-az sql server update -g rg-sessionsight-dev -n sessionsight-sql-dev --admin-password "$SQL_PWD"
-```
+SQL auth uses Managed Identity — no password sync needed. The connection string contains `Authentication=Active Directory Managed Identity` with no credentials.
 
 ## Rollback Procedure
 

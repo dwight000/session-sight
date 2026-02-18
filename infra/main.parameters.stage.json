@@ -8,9 +8,6 @@
     "location": {
       "value": "eastus2"
     },
-    "sqlAdminPassword": {
-      "value": ""
-    },
     "servicePrincipalObjectId": {
       "value": ""
     }

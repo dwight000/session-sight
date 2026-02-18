@@ -237,10 +237,10 @@ Full cloud troubleshooting guide: `docs/CLOUD_TROUBLESHOOTING.md`
 **Deploy Bicep:**
 ```bash
 USER_ID=$(az ad signed-in-user show --query id -o tsv)
-SQL_PWD=$(dotnet user-secrets list --project src/SessionSight.AppHost | grep sql-password | cut -d'=' -f2 | tr -d ' ')
 az deployment sub create --location eastus2 --template-file infra/main.bicep \
-  --parameters environmentName=dev sqlAdminPassword="$SQL_PWD" developerUserObjectId=$USER_ID
+  --parameters environmentName=dev developerUserObjectId=$USER_ID
 ```
+SQL auth uses Managed Identity — no password parameter needed. Dependabot is enabled for NuGet, npm, and GitHub Actions dependencies.
 
 ---
 

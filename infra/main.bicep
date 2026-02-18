@@ -18,10 +18,6 @@ param environmentName string
 @description('Location for all resources')
 param location string = 'eastus2'
 
-@description('SQL administrator password')
-@secure()
-param sqlAdminPassword string
-
 @description('Object ID of the service principal for RBAC assignments')
 param servicePrincipalObjectId string = ''
 
@@ -49,6 +45,9 @@ var tags = {
   environment: environmentName
   managedBy: 'Bicep'
 }
+
+// SQL server requires adminPassword at creation but we use MI auth — generate a random unused value
+var sqlAdminPasswordUnused = 'P${uniqueString(subscription().subscriptionId, resourceGroupName)}!'
 
 // Per-env resource names
 var storageAccountName = '${prefix}storage${environmentName}'
@@ -121,7 +120,9 @@ module sql 'modules/sql.bicep' = {
     databaseName: sqlDatabaseName
     location: location
     tags: tags
-    adminPassword: sqlAdminPassword
+    adminPassword: sqlAdminPasswordUnused
+    aadAdminObjectId: servicePrincipalObjectId
+    aadAdminLogin: 'sessionsight-cicd-sp'
     createServer: isDevEnvironment
     enableFreeTier: isDevEnvironment
   }
@@ -279,7 +280,7 @@ module containerApps 'modules/containerApps.bicep' = if (deployContainerApps) {
     searchIndexName: searchIndexName
     aspnetEnvironment: aspnetEnvironment
     // Pass Azure service endpoints (shared AI services, per-env storage)
-    sqlConnectionString: 'Server=${sharedSqlServerName}.database.windows.net;Database=${sqlDatabaseName};User Id=sessionsightadmin;Password=${sqlAdminPassword};Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;'
+    sqlConnectionString: 'Server=${sharedSqlServerName}.database.windows.net;Database=${sqlDatabaseName};Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;'
     openaiEndpoint: openaiEndpointValue
     searchEndpoint: searchEndpointValue
     docIntelligenceEndpoint: docIntelligenceEndpointValue
