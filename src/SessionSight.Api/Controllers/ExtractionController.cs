@@ -52,14 +52,14 @@ public partial class ExtractionController : ControllerBase
             return BadRequest("Session has no document uploaded");
         }
 
-        if (session.Document.Status == DocumentStatus.Processing)
+        // Atomic transition: only one caller can move Pending/Failed → Processing
+        var transitioned = await _sessionRepository.TryTransitionDocumentStatusAsync(
+                sessionId, DocumentStatus.Pending, DocumentStatus.Processing)
+            || await _sessionRepository.TryTransitionDocumentStatusAsync(
+                sessionId, DocumentStatus.Failed, DocumentStatus.Processing);
+        if (!transitioned)
         {
-            return Conflict("Extraction already in progress");
-        }
-
-        if (session.Document.Status == DocumentStatus.Completed)
-        {
-            return Conflict("Extraction already completed. Use GET /api/sessions/{sessionId}/extraction to retrieve results.");
+            return Conflict("Extraction already in progress or completed");
         }
 
         LogTriggeringExtraction(_logger, sessionId);

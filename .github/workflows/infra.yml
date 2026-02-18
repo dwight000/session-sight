@@ -43,11 +43,40 @@ jobs:
   validate:
     name: Validate Bicep
     runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
       - name: Validate Bicep syntax
         run: az bicep build --file infra/main.bicep
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ARM Validate (dev parameters)
+        run: |
+          az deployment sub validate \
+            --location eastus2 \
+            --template-file infra/main.bicep \
+            --parameters infra/main.parameters.dev.json \
+            --parameters sqlAdminPassword='placeholder-for-validate' \
+            --parameters servicePrincipalObjectId='00000000-0000-0000-0000-000000000000'
+
+      - name: ARM Validate (stage parameters)
+        run: |
+          az deployment sub validate \
+            --location eastus2 \
+            --template-file infra/main.bicep \
+            --parameters infra/main.parameters.stage.json \
+            --parameters sqlAdminPassword='placeholder-for-validate' \
+            --parameters servicePrincipalObjectId='00000000-0000-0000-0000-000000000000'
 
   deploy:
     name: Deploy Infrastructure
@@ -200,8 +229,8 @@ jobs:
           OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
           echo "object_id=$OBJECT_ID" >> $GITHUB_OUTPUT
 
-      - name: Infrastructure What-If
-        id: whatif
+      - name: Infrastructure What-If (Dev)
+        id: whatif_dev
         run: |
           {
             echo 'output<<EOF'
@@ -215,14 +244,35 @@ jobs:
             echo 'EOF'
           } >> $GITHUB_OUTPUT
 
+      - name: Infrastructure What-If (Stage)
+        id: whatif_stage
+        run: |
+          {
+            echo 'output<<EOF'
+            az deployment sub what-if \
+              --location eastus2 \
+              --template-file infra/main.bicep \
+              --parameters infra/main.parameters.stage.json \
+              --parameters sqlAdminPassword='${{ steps.secrets.outputs.sql_password }}' \
+              --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
+              --no-pretty-print 2>&1 || true
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
       - name: Comment PR with What-If Results
         uses: actions/github-script@v7
         with:
           script: |
             const output = `### Infrastructure Changes Preview
 
+            #### Dev Environment
             \`\`\`
-            ${{ steps.whatif.outputs.output }}
+            ${{ steps.whatif_dev.outputs.output }}
+            \`\`\`
+
+            #### Stage Environment
+            \`\`\`
+            ${{ steps.whatif_stage.outputs.output }}
             \`\`\`
 
             *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;

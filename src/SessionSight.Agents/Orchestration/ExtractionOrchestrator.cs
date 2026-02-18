@@ -82,8 +82,18 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             };
         }
 
-        // Update status to Processing (direct document update to avoid Session concurrency issues)
-        await _sessionRepository.UpdateDocumentStatusAsync(sessionId, DocumentStatus.Processing);
+        // Atomic transition: only one caller can move Pending → Processing
+        var transitioned = await _sessionRepository.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.Pending, DocumentStatus.Processing);
+        if (!transitioned)
+        {
+            return new OrchestrationResult
+            {
+                Success = false,
+                SessionId = sessionId,
+                ErrorMessage = "Extraction already in progress or completed"
+            };
+        }
 
         try
         {

@@ -7,11 +7,11 @@
 ## Current Status
 
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
-**Next Action**: P6-005
+**Next Action**: P6-006
 
-**Last Updated**: February 14, 2026
+**Last Updated**: February 17, 2026
 
-**Milestone**: P6-002 complete — Stage environment fully deployed and verified. Both dev and stage have automated CI/CD with EF migrations.
+**Milestone**: P6-005/B-029/B-031 complete — GitHub release tag trigger, ARM-level infra validation with stage coverage, deployment rollback strategy.
 
 ---
 
@@ -85,12 +85,12 @@
 | B-012 | Dead-letter handling for failed ingestion | M | 2 | Ready | P2-008 |
 | B-013 | Dedupe strategy blob->SQL->AI Search | M | 2 | Ready | P2-004 |
 | B-019 | Telemetry redaction for PHI in traces | M | 2 | Ready | P1-016 |
-| B-032 | Document size validation (reject >30 pages) | M | 2 | Ready | P2-008 |
+| B-032 | Document size validation (reject >30 pages) | M | 2 | Done | P2-008 |
 | B-033 | Internal service auth (Function->API) | M | 2 | Ready | P2-008 |
-| B-034 | Fix idempotency race condition (SQL MERGE with HOLDLOCK) | M | 2 | Ready | P2-008 |
+| B-034 | Fix idempotency race condition (SQL MERGE with HOLDLOCK) | M | 2 | Done | P2-008 |
 | B-035 | Synchronous AI Search indexing | M | 2 | Ready | P2-004 |
 | B-036 | Document Intelligence failure handling | M | 2 | Ready | P2-008 |
-| B-048 | Circuit breaker for Azure SDK clients (Polly or custom HttpPipelinePolicy) | M | 2 | Ready | B-010 |
+| B-048 | Circuit breaker for Azure SDK clients (Polly or custom HttpPipelinePolicy) | M | 2 | Done | B-010 |
 | B-049 | ~~Extract shared LlmResponseParser from duplicated JSON parsing in 3 agents~~ (superseded by B-056) | M | 2 | Done | P2-004 |
 | B-050 | Fix fire-and-forget scoped service lifetime in IngestionController | S | 2 | Done | P2-008 |
 | B-051 | Add patient-scoping guard to Q&A tools (cross-patient data access) | S | 2 | Done | P3-005 |
@@ -138,7 +138,7 @@
 | P4-004 | Flagged session approve/dismiss workflow | M | 4 | Done | P4-001 |
 | P4-005 | Patient/Session/Upload screens (3 pages: /patients, /sessions, /upload) | L | 4 | Done | P4-001 |
 | B-063 | Full-stack Playwright E2E tests (browser + real Aspire backend) | M | 4 | Done | P4-005 |
-| B-064 | Extraction trigger race condition fix (HOLDLOCK or optimistic concurrency) | S | 2 | Ready | - |
+| B-064 | Extraction trigger race condition fix (HOLDLOCK or optimistic concurrency) | S | 2 | Done | - |
 | B-065 | Frontend code coverage: Add Vitest coverage (v8), set 80% threshold, add to check-frontend.sh + CI | S | 4 | Done | B-059 |
 | **Phase 5: Polish & Testing** |||||
 | P5-001 | Integration tests (golden files) | L | 5 | Done | P2-005 |
@@ -158,7 +158,7 @@
 | P6-001 | Configure dev environment (development Azure resources) | M | 6 | Done | - |
 | P6-002 | Configure stage environment (pre-production Azure resources) | M | 6 | Done | - |
 | P6-003 | GitHub Actions deploy.yml (app deployment) | M | 6 | Done | - |
-| B-029 | Infra drift checks: bicep what-if + validate | M | 6 | Ready | P1-015 |
+| B-029 | Infra drift checks: bicep what-if + validate | M | 6 | Done | P1-015 |
 | B-067 | Validate hosted cloud log ingestion (App Insights) + troubleshooting playbook and query pack | M | 6 | Done | P6-003 |
 | B-072 | Cloud database seeding (dev): Therapist FK constraint blocks session creation | S | 6 | Done | - |
 | B-073 | Add `deployContainerApps`/`ghcrToken` inputs to infra.yml workflow | S | 6 | Done | - |
@@ -168,10 +168,10 @@
 | B-077 | Switch to Managed Identity for SQL auth (eliminate password sync) | M | 6 | Ready | - |
 | B-078 | Fix nginx 413 error: add client_max_body_size for file uploads | S | 6 | Done | - |
 | B-030 | Promotion model: dev->stage approval rules | M | 6 | Done | - |
-| B-031 | Rollback strategy: keep last good artifact | M | 6 | Blocked | P6-003 |
+| B-031 | Rollback strategy: keep last good artifact | M | 6 | Done | P6-003 |
 | P6-004 | Environment-specific configuration | M | 6 | Done | P6-002 |
-| P6-005 | Create GitHub Release with SemVer tag (v1.0.0) | S | 6 | Blocked | P6-003 |
-| P6-006 | Enable Dependabot for dependency updates | S | 6 | Blocked | P6-005 |
+| P6-005 | Create GitHub Release with SemVer tag (v1.0.0) | S | 6 | Done | P6-003 |
+| P6-006 | Enable Dependabot for dependency updates | S | 6 | Ready | P6-005 |
 | P6-007 | Demo data and walkthrough | M | 6 | Blocked | P6-002 |
 
 ---
@@ -420,6 +420,13 @@
 | B-075 | Fix CRLF line endings (renormalize to LF) | 2026-02-14 |
 | B-030 | Promotion model: dev→stage approval rules (branch protection + env gates + deploy.yml split) | 2026-02-14 |
 | P6-004 | Environment-specific configuration (Key Vault, ASPNETCORE_ENVIRONMENT, config files) | 2026-02-14 |
+| B-032 | Document size validation (pre-upload size check + DocumentValidationException) | 2026-02-16 |
+| B-064 | Extraction trigger race condition fix (atomic TryTransitionDocumentStatusAsync) | 2026-02-16 |
+| B-034 | Patient idempotency race condition fix (GetOrCreateByExternalIdAsync with retry) | 2026-02-16 |
+| B-048 | Circuit breaker for Azure SDK clients (CircuitBreakerState + HttpPipelinePolicy + RetryPolicy) | 2026-02-16 |
+| P6-005 | GitHub Release tag trigger (v* tags in deploy.yml) | 2026-02-17 |
+| B-029 | Infra drift checks: ARM validate (dev + stage) + stage what-if in PR preview | 2026-02-17 |
+| B-031 | Rollback strategy: rollback_tag input, rollback job, runbook in CLOUD_TROUBLESHOOTING.md | 2026-02-17 |
 
 ---
 
@@ -427,18 +434,13 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-17 | **P6-005/B-029/B-031 complete: CI/CD hardening.** P6-005: Added `tags: ['v*']` to `deploy.yml` push trigger so GitHub releases auto-deploy. B-029: Added ARM-level validation (`az deployment sub validate`) for both dev and stage parameter files to `infra.yml` validate job; added stage what-if to PR preview job with dual-environment PR comment. B-031: Added `rollback_tag` workflow_dispatch input to `deploy.yml`, guarded build/deploy jobs to skip on rollback, added dedicated `rollback` job that updates container images without building, added rollback runbook to `docs/CLOUD_TROUBLESHOOTING.md`. Updated `.claude/CLAUDE.md` with Releases & Deployment section. |
+| 2026-02-16 | **B-032/B-064/B-034/B-048 complete: Four functional fixes.** B-032: Added `DocumentValidationException`, pre-upload size/empty checks in `DocumentsController`, changed parser to throw `DocumentValidationException` instead of `InvalidOperationException`. B-064: Added `TryTransitionDocumentStatusAsync` (atomic `ExecuteUpdateAsync` with WHERE clause) to `SessionRepository`, used in `ExtractionController` and `ExtractionOrchestrator` to prevent concurrent extraction. Supports both Pending→Processing and Failed→Processing (retry). B-034: Added `GetOrCreateByExternalIdAsync` to `PatientRepository` with catch-and-retry on unique constraint violation, used in `IngestionController`. B-048: Created `CircuitBreakerState` (thread-safe state machine), `CircuitBreakerRegistry` (named singletons), `CircuitBreakerHttpPipelinePolicy` (Azure.Core), `CircuitBreakerRetryPolicy` (System.ClientModel), `CircuitBreakerOpenException` (→503). Wired into all 3 Azure SDK clients (OpenAI, Search, DocIntel) via new `AzureRetryDefaults` overloads. Config: 5 failures in 30s → open for 60s → half-open. Tests: 700+ passing, 83.46% coverage. |
+| 2026-02-14 | **P6-004 post-deploy verification complete.** All 6 checks passed. Health: both APIs responding (no `/health` endpoint mapped — pre-existing, not a regression — but `/api/patients` returns 200 on both). Scalar: dev 200, stage 404. CORS: dev returns `Access-Control-Allow-Origin: http://localhost:5173` on preflight, stage returns 405 with no CORS headers (middleware not active in Production). Environment identity: `az containerapp show` confirms dev=`Staging`, stage=`Production`. Functional: dev GET patients/therapists 200, POST+DELETE patient 201/204; stage GET patients/therapists 200. P6-004 fully closed. |
+| 2026-02-14 | **P6-004 complete: Environment-specific configuration.** Fixed stage deploy.yml Key Vault reference (`sessionsight-kv-dev` → `sessionsight-kv-stage`). Parameterized `ASPNETCORE_ENVIRONMENT` in Bicep (dev=`Staging`, stage=`Production`). Widened Swagger/CORS gate to include `IsStaging()`. Created `appsettings.Staging.json` (cloud dev: Information logging, request logging on) and `appsettings.Production.json` (cloud stage: Warning logging, request logging off). Added `.gitignore` exceptions for new config files. Seeded `sql-admin-password` secret into `sessionsight-kv-stage` + granted developer RBAC on stage KV. Deployed infra (both envs with `deployContainerApps=true`) and app images (both envs). Verified: dev container `ASPNETCORE_ENVIRONMENT=Staging`, stage container `ASPNETCORE_ENVIRONMENT=Production`. Also added `git fetch origin develop` to CLAUDE.md git workflow to prevent stale-branch conflicts. Remaining: post-deploy verification (Swagger, CORS, logging behavior). |
 | 2026-02-14 | **P6-002 complete: Stage environment fully deployed.** Completed B-073 (PR #7: `deployContainerApps`/`ghcrToken` inputs to `infra.yml`) and B-074 (PR #7+#9: EF migrations in `deploy.yml` with `dotnet restore` fix). Merged develop→main (PRs #8, #10) triggering auto-deploy. Dev deploy: images built, containers updated, EF migrations passed (run 22011841249). Stage deploy: manual dispatch succeeded — images, containers, EF migrations all green. **Stage verified**: `/api/therapists` returns seeded data, `/api/patients` returns 200, web returns 200. **Dev 500 fix (B-076)**: `infra.yml` auto-triggered on push to main (infra/ changes), Bicep reset SQL server password to Key Vault value but container still had old password → Error 18456. Fixed manually via `az containerapp update --set-env-vars`. Added permanent fix: `infra.yml` now syncs the container connection string after every Bicep deploy. Both dev and stage verified healthy. Filed B-075 (CRLF), B-077 (managed identity for SQL — low priority). |
 | 2026-02-14 | **P6-002 stage infra deployed, app running on stale images.** Merged PR #6 (Bicep code). Set up GitHub `stage` environment + OIDC credential + secrets via CLI. Ran `infra.yml` what-if and deploy for stage — created KV (`sessionsight-kv-stage`), storage (`sessionsightstoragestage`), SQL DB (`sessionsight-stage`). Deployed Container Apps via manual `az deployment sub create` with `deployContainerApps=true` (not yet in workflow inputs — filed B-073). Ran EF migrations manually on stage DB (not yet automated — filed B-074). Search index `sessionsight-sessions-stage` created after RBAC propagation delay + container restart. Stage API and Web running, `/api/patients` returns 200. Problem: `main` is 6 commits behind `develop` — container images are pre-B-072, so `/api/therapists` returns 404. Next: merge develop→main, trigger deploy to stage. |
-| 2026-02-13 | **P6-002 Bicep code complete: Stage environment configuration.** Renamed prod→stage throughout infra. Modified `main.bicep` for resource sharing: stage shares dev's RG, SQL server, OpenAI, AI Search, Document Intelligence, AI Hub/Project, and Container Apps Environment. Stage gets its own: SQL database (`sessionsight-stage`), storage account, Key Vault, Container Apps (API + Web), and search index (`sessionsight-sessions-stage`). Modified `sql.bicep` with `createServer` param and `existing` server reference. Modified `containerApps.bicep` with `createEnvironment` param, `existingEnvName`, and `searchIndexName` env var. Updated `deploy.yml` and `infra.yml` workflows: added stage choice, hardcoded RG to `rg-sessionsight-dev`. Bicep validates cleanly. Remaining: GitHub environment setup (OIDC credential), redeploy dev infra, deploy stage infra + app. |
 | 2026-02-13 | **B-072 complete: Therapist CRUD + ProcessingJob status + EF seeding.** Added EF migration `SeedDefaultTherapist` to solve B-072 FK constraint issue. Built full Therapist CRUD: backend (repo, controller, DTOs, validators, tests) + frontend (`/therapists` page, create form, API client, hooks, 5 unit tests, smoke tests). Built ProcessingJob read-only status screen: backend (`GET /api/processing-jobs`) + frontend (`/jobs` page with 5s auto-refresh polling when active jobs exist, fixtures, tests). Replaced hardcoded `DEFAULT_THERAPIST_ID` in Sessions.tsx with therapist dropdown fetching from API. Added 2 Playwright smoke tests, 1 full-stack E2E test, 7 backend functional tests (TherapistCrudTests), 15 backend unit tests, 10 frontend unit tests. Fixed 3 test failures: Processing Jobs strict mode (cell selector), Sessions route mocking (query params), TherapistCrudTests substring bug (`[..36]` on 35-char string). Validation: 700 backend tests pass (83.34% coverage), 173 frontend tests pass (87.9% coverage), all E2E/smoke tests pass. Files: 27 new, 13 modified. |
-| 2026-02-13 | **B-067 complete: Cloud troubleshooting playbook.** Created `docs/CLOUD_TROUBLESHOOTING.md` with KQL query pack, local-to-cloud triage mapping, and common issues guide. Fixed multiple cloud deployment issues: SQL Serverless connection timeout (increased to 60s), SQL password sync (18456 errors), nginx proxy trailing slash (404 errors), env vars getting wiped (restored AzureOpenAI/Search/DocIntel endpoints). Set `minReplicas=1` for both API and Web containers to avoid cold starts. Added CI/CD configuration safety docs explaining which workflows touch Container Apps config. Created B-072 for cloud database seeding (Therapist FK constraint blocks session creation in dev). |
-| 2026-02-12 | **P6-003 complete: GitHub Actions deploy workflow + full CI/CD pipeline.** Created `deploy.yml` workflow that triggers on push to main. Builds Docker images, pushes to ghcr.io, updates Azure Container Apps. Fixed runtime issues: added Search Service Contributor role for index schema management, changed SQL connection to use SQL auth, added ICU libraries to Dockerfile for SqlClient. Ran EF migrations on cloud database. Set up ghcr.io package permissions for GITHUB_TOKEN. Verified full pipeline: feature branch → PR (CI + CodeQL gates) → merge → auto-deploy. Apps live at `sessionsight-dev-api.proudsky-5508f8b0.eastus2.azurecontainerapps.io` and `sessionsight-dev-web.proudsky-5508f8b0.eastus2.azurecontainerapps.io`. |
-| 2026-02-11 | **B-005 + B-016 complete: Load testing setup + concurrency tests.** Fixed expensive scenario which was broken (Q&A timed out with no extracted data). Implemented full pipeline: create patient → session → upload doc → extract → Q&A. Config: 2 VUs, 4 iterations, 8 min max, 6 min extraction timeout, P95 < 5 min threshold. Accounts for Azure OpenAI rate limiting (HTTP 429) with exponential backoff retries (observed up to 6 retries with 59s waits). Cost: ~$0.10/run. Cheap scenario unchanged (10 VUs, 30s, P95 < 500ms). Concurrency validated via parallel VUs hitting extraction pipeline. Updated CLAUDE.md and load-test.sh with accurate documentation. Validation: 100% checks passed (465/465), 0% failures, P95 expensive 1m49s. **Also:** Refactored `run-e2e.sh` to require explicit flag (`--backend`, `--frontend`, or `--all`) — no default mode. Updated docs (CLAUDE.md, LOCAL_DEV.md). Increased retry jitter in `AzureRetryDefaults.cs`. |
-| 2026-02-11 | **B-071 complete.** Added euphemistic language → ActiveNoPlan classification rule to both `ExtractionPrompts.cs` and `RiskPrompts.cs`. When patient uses indirect death language ("go to sleep and not wake up", "be with [deceased]") combined with preparatory behaviors (means research, giving away possessions), classify SI as at minimum ActiveNoPlan. Tightened golden file `risk-test-050_v2.json` acceptance to remove "passive" from risk_reextracted/risk_final stages. Added unit test `GetRiskReExtractionPrompt_ContainsEuphemisticLanguageRule`. Validation: 658 unit tests pass, 83% backend coverage, risk-test-050 golden case passes with tightened acceptance. |
-| 2026-02-11 | **P5-001 complete; backlog updated.** Marked P5-001 (Integration tests / golden files) as Done. Final state: 20 risk golden cases validated on risk_reextracted+risk_final stages, 5 non-risk golden cases covering 8 extraction sections (B-038), golden tests un-skipped and active. Sub-tasks B-068 (si_frequency inference rule) and B-069 (extraction timeout fix) completed previously. Unblocked B-005 (load testing), B-016 (load/concurrency), P6-001 (dev environment). Next: B-017 (safety/red-team evals). |
-| 2026-02-10 | **Risk prompt generalization and golden validation sweep.** Generalized 3 prompt rules across both `ExtractionPrompts.cs` and `RiskPrompts.cs`: (1) SI Passive principle — replaced 4 specific example phrases with "wishing for death = Passive, thoughts of causing death = ActiveNoPlan" principle; (2) resolved-SI temporal rule — explicitly resolved and currently denied SI = None (historical SI informs riskLevelOverall only); (3) HI Passive/Active distinction — Passive = fantasizing about someone's death, ActiveNoPlan = thoughts of causing harm. Added preparation/concealment escalation rule: passive SI + behavioral warning signs (sudden calm, gift-giving, denial despite evidence) = at least High. Widened golden case 008 suicidal_ideation to [passive, active_no_plan] (conservative_merge structural limitation with 82-field extractor). Added LLM Test Guidelines to CLAUDE.md. Validated 20 unique golden cases across 4 batches (54% of corpus): all pass on risk_reextracted+risk_final stages. All-stages test (5 cases) showed 4/5 pass; 1 failure (032) was clinical_extractor-only (Moderate vs High) — re-extractor and final both correct, confirming assert_stages design is sound. |
-| 2026-02-10 | **B-068 + B-069 complete.** Added `si_frequency` inference rule to both `ExtractionPrompts.cs` and `RiskPrompts.cs`: when `suicidalIdeation` is ActiveWithPlan/ActiveWithIntent but frequency is not explicitly stated, infer at least Occasional (prevents clinically implausible Rare + active-planning). Tightened golden case 005 `si_frequency` accept from `[constant, frequent, rare]` to `[constant, frequent, occasional]`. Bumped `LongClient` timeout from 5 to 7 minutes in `ApiFixture.cs` to accommodate extraction pipeline + retry delays under load. Added `RiskPromptsTests.GetRiskReExtractionPrompt_ContainsSiFrequencyInferenceRule` test. Validation: 697 unit tests pass, 83.05% backend coverage. |
-| 2026-02-10 | **P5-001 golden harness re-enabled with relaxed assertions.** Downgraded `ModelTask.Extraction` from gpt-4.1 to gpt-4.1-mini (cost reduction). Improved risk prompts: added Imminent classification criteria (ActiveWithPlan + means access + crisis response), behavioral-warning-sign vs ideation distinction, self_harm temporal anchoring, and increased `reasoning_used` to 3-5 sentences. Changed golden `assert_stages` from `["all"]` to `["risk_reextracted", "risk_final"]` across all 37 v2 files — clinical_extractor risk fields are now informational only. Widened golden accepted values for 5 genuinely ambiguous adjacent-value cases (005 si_frequency, 009 suicidal_ideation, 013 si_frequency, 018 si_frequency, 035 risk_level_overall). Increased retry base delay from 1s to 3s (~93s total window) with new `SpacedRetryPolicy` for System.ClientModel/OpenAI clients to handle 429 rate limits. Validation: 696 unit tests pass, 83% backend coverage, 15 golden cases pass across 3 batches. Added backlog items B-068 (si_frequency inference prompt rule) and B-069 (extraction timeout investigation). |
 
 ---
 

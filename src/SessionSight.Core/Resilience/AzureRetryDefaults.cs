@@ -1,4 +1,5 @@
 using Azure.Core;
+using Azure.Core.Pipeline;
 using Microsoft.Extensions.Logging;
 using System.ClientModel.Primitives;
 
@@ -36,11 +37,30 @@ public static class AzureRetryDefaults
     }
 
     /// <summary>
+    /// Applies standard retry configuration with circuit breaker to Azure.Core clients.
+    /// </summary>
+    public static T Configure<T>(T options, CircuitBreakerState breaker, string serviceName) where T : ClientOptions
+    {
+        Configure(options);
+        options.AddPolicy(new CircuitBreakerHttpPipelinePolicy(breaker, serviceName), HttpPipelinePosition.PerCall);
+        return options;
+    }
+
+    /// <summary>
     /// Applies standard retry configuration to Azure SDK clients using System.ClientModel (OpenAI, etc.).
     /// </summary>
     public static T ConfigureRetryPolicy<T>(T options, ILogger? logger = null) where T : ClientPipelineOptions
     {
         options.RetryPolicy = new SpacedRetryPolicy(MaxRetries, Delay, MaxDelay, Jitter, logger);
+        return options;
+    }
+
+    /// <summary>
+    /// Applies standard retry configuration with circuit breaker to System.ClientModel clients.
+    /// </summary>
+    public static T ConfigureRetryPolicy<T>(T options, ILogger? logger, CircuitBreakerState breaker, string serviceName) where T : ClientPipelineOptions
+    {
+        options.RetryPolicy = new CircuitBreakerRetryPolicy(MaxRetries, Delay, MaxDelay, Jitter, breaker, serviceName, logger);
         return options;
     }
 }
