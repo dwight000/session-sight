@@ -197,7 +197,7 @@ az containerapp revision list -g rg-sessionsight-dev -n sessionsight-dev-api -o 
 az containerapp update -g rg-sessionsight-dev -n sessionsight-dev-api --min-replicas 1
 ```
 
-**Note**: SessionSight is now configured with `minReplicas: 1` for both API and Web containers to avoid cold start issues and ensure reliable internal communication.
+**Note**: SessionSight is configured with `minReplicas: 0` and a 60-minute cooldown (`cooldownPeriod: 3600`). Containers scale to zero after 60 minutes of no traffic. First request after idle takes 5-15 seconds (cold start). SQL Serverless also auto-pauses after 60 minutes of inactivity.
 
 ### Web-to-API Proxy Issues (502/504 Errors)
 
@@ -219,7 +219,7 @@ curl https://sessionsight-dev-api.proudsky-5508f8b0.eastus2.azurecontainerapps.i
 
 **Solution**: The web container nginx is configured to proxy to the API's external HTTPS URL with SSL verification disabled for internal trusted traffic. If issues persist, verify:
 1. `API_URL` env var is set correctly
-2. Both containers have `minReplicas: 1`
+2. Both containers are running (check replica count — may be at 0 if idle >30 min)
 3. Nginx config includes `proxy_ssl_verify off`
 
 ### Logs Not Appearing in Log Analytics
@@ -310,13 +310,14 @@ ContainerAppConsoleLogs_CL
 
 ### SQL Authentication Failed (Managed Identity)
 
-**Symptoms**: Logs show `Login failed` or `Authentication failed` for the container app identity.
+**Symptoms**: Logs show `Login failed for user '<token-identified principal>'` (Error 18456, State 1).
 
-**Root cause**: The Managed Identity user has not been provisioned in the SQL database. This happens when:
-1. First deployment — `infra.yml` creates the AAD admin but the MI user step was skipped (container app didn't exist yet)
-2. New environment — database exists but MI user was never created
+**Root cause**: The Managed Identity database user is missing or has a stale SID. This happens when:
+1. First deployment — container app didn't exist yet when `infra.yml` ran
+2. MI user was created with the wrong GUID (object ID instead of client ID)
+3. Container app was recreated, getting a new identity
 
-**Fix**: Run `infra.yml` with `deployContainerApps=true` to ensure the Container App exists, then the "Provision Managed Identity SQL users" step will create the database user.
+**Fix**: Run `infra.yml` manually — the "Provision Managed Identity SQL users" step will drop and recreate the database user with the correct SID. Then restart the container revision.
 
 **Manual fix** (if `infra.yml` step fails):
 
@@ -324,17 +325,34 @@ ContainerAppConsoleLogs_CL
 ENV="dev"  # or "stage"
 DB_NAME=$( [ "$ENV" = "dev" ] && echo "sessionsight" || echo "sessionsight-${ENV}" )
 API_APP="sessionsight-${ENV}-api"
+RG="rg-sessionsight-dev"  # Shared RG for all environments
 
-# Requires Azure CLI login with AAD admin credentials
-sqlcmd -S "sessionsight-sql-dev.database.windows.net" -d "${DB_NAME}" -G -C \
-  -Q "IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = '${API_APP}')
-      BEGIN
-        CREATE USER [${API_APP}] FROM EXTERNAL PROVIDER;
-        ALTER ROLE db_owner ADD MEMBER [${API_APP}];
-      END"
+# Get the MI client ID (Azure SQL matches tokens by client ID, not object ID)
+MI_OBJECT_ID=$(az containerapp show -g ${RG} -n ${API_APP} --query "identity.principalId" -o tsv)
+MI_CLIENT_ID=$(az ad sp show --id "${MI_OBJECT_ID}" --query appId -o tsv)
+
+# Convert to SQL Server SID hex (mixed-endian UNIQUEIDENTIFIER format)
+SID_HEX=$(python3 -c "import uuid; print('0x' + uuid.UUID('${MI_CLIENT_ID}').bytes_le.hex().upper())")
+
+echo "objectId: ${MI_OBJECT_ID}, clientId: ${MI_CLIENT_ID}, SID: ${SID_HEX}"
+
+# Install Go-based sqlcmd if needed, then create user with explicit SID
+sqlcmd -S "sessionsight-sql-dev.database.windows.net" -d "${DB_NAME}" \
+  --authentication-method ActiveDirectoryDefault -b -V 11 \
+  -Q "IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = '${API_APP}')
+        DROP USER [${API_APP}];
+      CREATE USER [${API_APP}] WITH SID = ${SID_HEX}, TYPE = E;
+      ALTER ROLE db_owner ADD MEMBER [${API_APP}];
+      SELECT name, type_desc, sid FROM sys.database_principals WHERE name = '${API_APP}';"
+
+# Restart container to pick up new user
+REVISION=$(az containerapp revision list -g ${RG} -n ${API_APP} --query "[0].name" -o tsv)
+az containerapp revision restart -g ${RG} -n ${API_APP} --revision ${REVISION}
 ```
 
-**Verify**: `curl https://sessionsight-${ENV}-api.proudsky-5508f8b0.eastus2.azurecontainerapps.io/api/therapists` should return 200.
+**Why SID-based instead of `FROM EXTERNAL PROVIDER`?** The SQL Server does not have its own managed identity configured (no Directory Readers role), so `FROM EXTERNAL PROVIDER` fails with "Server identity is not configured." The SID-based approach bypasses Azure AD lookup entirely.
+
+**Verify**: `curl https://sessionsight-${ENV}-api.proudsky-5508f8b0.eastus2.azurecontainerapps.io/api/patients` should return 200.
 
 ### Azure SQL Connection Timeout (Serverless Auto-Pause)
 
