@@ -149,14 +149,13 @@ jobs:
           sudo add-apt-repository "$(curl -s https://packages.microsoft.com/config/ubuntu/22.04/prod.list)"
           sudo apt-get update -y && sudo apt-get install -y sqlcmd
 
-          # Create MI user for the Container App
+          # Create MI user for the Container App (drop first to resolve stale SID)
           sqlcmd -S "sessionsight-sql-dev.database.windows.net" -d "${DB_NAME}" \
             --authentication-method ActiveDirectoryDefault \
-            -Q "IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = '${API_APP}')
-                BEGIN
-                  CREATE USER [${API_APP}] FROM EXTERNAL PROVIDER;
-                  ALTER ROLE db_owner ADD MEMBER [${API_APP}];
-                END"
+            -Q "IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = '${API_APP}')
+                  DROP USER [${API_APP}];
+                CREATE USER [${API_APP}] FROM EXTERNAL PROVIDER;
+                ALTER ROLE db_owner ADD MEMBER [${API_APP}];"
 
           echo "MI user [${API_APP}] provisioned in database [${DB_NAME}]"
 
