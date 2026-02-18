@@ -303,8 +303,12 @@ SQL auth uses Managed Identity — no password parameter needed. Dependabot is e
 - Coverage reports: `coverage/` (frontend HTML), `coverage/report/` (backend)
 
 ### Cloud Deployment
-- **Azure SQL Serverless auto-pauses** — connection timeout must be 60s+ (configured in `infra/main.bicep`)
-- **Container Apps scale to zero** — first request after idle returns 404 until container starts (5-15s cold start)
+- **Azure SQL Serverless auto-pauses after 60 min** — connection timeout must be 60s+ (configured in `infra/main.bicep`)
+- **Container Apps scale to zero after 60 min idle** (`cooldownPeriod: 3600`) — first request after idle returns 404 until container starts (5-15s cold start)
+- **MI SQL auth uses client ID (appId), NOT object ID (principalId)** — `az ad sp show --id <objectId> --query appId` to get it. SID created via `python3 uuid.bytes_le` hex conversion. `FROM EXTERNAL PROVIDER` doesn't work (SQL Server has no identity/Directory Readers).
+- **Go-based sqlcmd can't parse T-SQL DECLARE/CONVERT/EXEC** — pre-compute values in bash, pass literals only
+- **sqlcmd `-b -V 11`** to catch all SQL errors (severity 15 syntax errors are missed by `-V 16`)
+- **CI SP needs `Directory.Read.All`** on Microsoft Graph for `az ad sp show` — scripted idempotently in `infra.yml`
 - **Log Analytics not yet configured** — use `az containerapp logs show --follow` for live logs
 - Full guide: `docs/CLOUD_TROUBLESHOOTING.md`
 
