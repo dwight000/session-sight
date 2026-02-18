@@ -139,25 +139,30 @@ jobs:
           API_APP="sessionsight-${ENV}-api"
 
           # Skip if Container App doesn't exist yet
-          if ! az containerapp show -g ${RG} -n ${API_APP} --query name -o tsv 2>/dev/null; then
-            echo "Container App ${API_APP} not found, skipping MI user provisioning"
+          MI_PRINCIPAL_ID=$(az containerapp show -g ${RG} -n ${API_APP} --query "identity.principalId" -o tsv 2>/dev/null || true)
+          if [ -z "$MI_PRINCIPAL_ID" ]; then
+            echo "Container App ${API_APP} not found or has no MI, skipping SQL user provisioning"
             exit 0
           fi
+          echo "Container App MI principal ID: ${MI_PRINCIPAL_ID}"
 
           # Install Go-based sqlcmd (supports ActiveDirectoryDefault auth via az login)
           curl -s https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc
           sudo add-apt-repository "$(curl -s https://packages.microsoft.com/config/ubuntu/22.04/prod.list)"
           sudo apt-get update -y && sudo apt-get install -y sqlcmd
 
-          # Create MI user for the Container App (drop first to resolve stale SID)
+          # Create MI user with explicit SID (bypasses need for SQL Server identity + Directory Readers)
+          # FROM EXTERNAL PROVIDER requires the SQL Server to have its own identity configured;
+          # using SID + TYPE = E works without that prerequisite.
           sqlcmd -S "sessionsight-sql-dev.database.windows.net" -d "${DB_NAME}" \
             --authentication-method ActiveDirectoryDefault \
             -Q "IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = '${API_APP}')
                   DROP USER [${API_APP}];
-                CREATE USER [${API_APP}] FROM EXTERNAL PROVIDER;
+                DECLARE @sid VARBINARY(16) = CAST(CAST('${MI_PRINCIPAL_ID}' AS UNIQUEIDENTIFIER) AS VARBINARY(16));
+                EXEC('CREATE USER [${API_APP}] WITH SID = ' + CONVERT(VARCHAR(MAX), @sid, 1) + ', TYPE = E');
                 ALTER ROLE db_owner ADD MEMBER [${API_APP}];"
 
-          echo "MI user [${API_APP}] provisioned in database [${DB_NAME}]"
+          echo "MI user [${API_APP}] provisioned in database [${DB_NAME}] with SID ${MI_PRINCIPAL_ID}"
 
       - name: Show Deployment Outputs
         if: github.event.inputs.mode != 'what-if'
