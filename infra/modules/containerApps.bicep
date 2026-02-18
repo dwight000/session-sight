@@ -39,8 +39,7 @@ param aspnetEnvironment string = 'Production'
 
 // === Azure service endpoints (passed from main.bicep) ===
 
-@description('SQL Server connection string')
-@secure()
+@description('SQL Server connection string (Managed Identity — no secrets)')
 param sqlConnectionString string
 
 @description('Azure OpenAI endpoint')
@@ -99,7 +98,6 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
       ]
       secrets: [
         { name: 'ghcr-token', value: ghcrToken }
-        { name: 'sql-connection-string', value: sqlConnectionString }
       ]
     }
     template: {
@@ -112,8 +110,8 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
             memory: '1Gi'
           }
           env: [
-            // Connection strings
-            { name: 'ConnectionStrings__sessionsight', secretRef: 'sql-connection-string' }
+            // Connection strings (MI auth — no secrets)
+            { name: 'ConnectionStrings__sessionsight', value: sqlConnectionString }
             // Azure service endpoints (uses managed identity for auth)
             { name: 'AzureOpenAI__Endpoint', value: openaiEndpoint }
             { name: 'AzureSearch__Endpoint', value: searchEndpoint }

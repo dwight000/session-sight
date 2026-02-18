@@ -33,6 +33,12 @@ param skuTier string = 'GeneralPurpose'
 @description('Create the SQL Server (false = reference existing shared server)')
 param createServer bool = true
 
+@description('Object ID of the AAD admin (service principal)')
+param aadAdminObjectId string = ''
+
+@description('Login name of the AAD admin')
+param aadAdminLogin string = ''
+
 // === SQL Server (conditional) ===
 
 resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = if (createServer) {
@@ -55,6 +61,19 @@ resource firewallRule 'Microsoft.Sql/servers/firewallRules@2023-08-01-preview' =
   properties: {
     startIpAddress: '0.0.0.0'
     endIpAddress: '0.0.0.0'
+  }
+}
+
+// === AAD Administrator (conditional) ===
+
+resource sqlServerAadAdmin 'Microsoft.Sql/servers/administrators@2023-08-01-preview' = if (createServer && !empty(aadAdminObjectId)) {
+  parent: sqlServer
+  name: 'ActiveDirectory'
+  properties: {
+    administratorType: 'ActiveDirectory'
+    login: aadAdminLogin
+    sid: aadAdminObjectId
+    tenantId: subscription().tenantId
   }
 }
 

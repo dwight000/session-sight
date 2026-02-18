@@ -7,11 +7,11 @@
 ## Current Status
 
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
-**Next Action**: P6-006
+**Next Action**: P6-007
 
 **Last Updated**: February 17, 2026
 
-**Milestone**: P6-005/B-029/B-031 complete — GitHub release tag trigger, ARM-level infra validation with stage coverage, deployment rollback strategy.
+**Milestone**: P6-006/B-077 complete — Dependabot enabled, SQL auth switched from password to Managed Identity.
 
 ---
 
@@ -165,13 +165,13 @@
 | B-074 | Automate EF migrations in deploy.yml (run after image update) | M | 6 | Done | - |
 | B-075 | Fix CRLF line endings in repo (renormalize to LF per .gitattributes) | S | 6 | Done | - |
 | B-076 | Sync SQL connection string after infra deploy (prevent password drift) | S | 6 | Done | - |
-| B-077 | Switch to Managed Identity for SQL auth (eliminate password sync) | M | 6 | Ready | - |
+| B-077 | Switch to Managed Identity for SQL auth (eliminate password sync) | M | 6 | Done | - |
 | B-078 | Fix nginx 413 error: add client_max_body_size for file uploads | S | 6 | Done | - |
 | B-030 | Promotion model: dev->stage approval rules | M | 6 | Done | - |
 | B-031 | Rollback strategy: keep last good artifact | M | 6 | Done | P6-003 |
 | P6-004 | Environment-specific configuration | M | 6 | Done | P6-002 |
 | P6-005 | Create GitHub Release with SemVer tag (v1.0.0) | S | 6 | Done | P6-003 |
-| P6-006 | Enable Dependabot for dependency updates | S | 6 | Ready | P6-005 |
+| P6-006 | Enable Dependabot for dependency updates | S | 6 | Done | P6-005 |
 | P6-007 | Demo data and walkthrough | M | 6 | Blocked | P6-002 |
 
 ---
@@ -427,6 +427,8 @@
 | P6-005 | GitHub Release tag trigger (v* tags in deploy.yml) | 2026-02-17 |
 | B-029 | Infra drift checks: ARM validate (dev + stage) + stage what-if in PR preview | 2026-02-17 |
 | B-031 | Rollback strategy: rollback_tag input, rollback job, runbook in CLOUD_TROUBLESHOOTING.md | 2026-02-17 |
+| P6-006 | Enable Dependabot for dependency updates (NuGet, npm, GitHub Actions) | 2026-02-17 |
+| B-077 | Switch to Managed Identity for SQL auth (eliminate password sync) | 2026-02-17 |
 
 ---
 
@@ -434,6 +436,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-17 | **P6-006/B-077 complete: Dependabot + Managed Identity for SQL.** P6-006: Created `.github/dependabot.yml` with three ecosystems (NuGet, npm, GitHub Actions) for automated dependency update PRs. B-077: Eliminated password-based SQL auth — added AAD admin to `sql.bicep`, removed `sqlAdminPassword` param from `main.bicep` (uses generated throwaway for server creation), switched connection string to `Authentication=Active Directory Managed Identity`, removed `@secure()` and secret ref from `containerApps.bicep` (plain env var), replaced Key Vault password fetch with `Active Directory Default` in `deploy.yml` EF migrations, replaced password sync step with MI user provisioning (T-SQL `CREATE USER FROM EXTERNAL PROVIDER`) in `infra.yml`, removed `sqlAdminPassword` from parameter files and all ARM validate/what-if commands. Updated `CLOUD_TROUBLESHOOTING.md` (MI-specific troubleshooting, removed SQL Password Sync section) and `CLAUDE.md` (passwordless Deploy Bicep command). |
 | 2026-02-17 | **P6-005/B-029/B-031 complete: CI/CD hardening.** P6-005: Added `tags: ['v*']` to `deploy.yml` push trigger so GitHub releases auto-deploy. B-029: Added ARM-level validation (`az deployment sub validate`) for both dev and stage parameter files to `infra.yml` validate job; added stage what-if to PR preview job with dual-environment PR comment. B-031: Added `rollback_tag` workflow_dispatch input to `deploy.yml`, guarded build/deploy jobs to skip on rollback, added dedicated `rollback` job that updates container images without building, added rollback runbook to `docs/CLOUD_TROUBLESHOOTING.md`. Updated `.claude/CLAUDE.md` with Releases & Deployment section. |
 | 2026-02-16 | **B-032/B-064/B-034/B-048 complete: Four functional fixes.** B-032: Added `DocumentValidationException`, pre-upload size/empty checks in `DocumentsController`, changed parser to throw `DocumentValidationException` instead of `InvalidOperationException`. B-064: Added `TryTransitionDocumentStatusAsync` (atomic `ExecuteUpdateAsync` with WHERE clause) to `SessionRepository`, used in `ExtractionController` and `ExtractionOrchestrator` to prevent concurrent extraction. Supports both Pending→Processing and Failed→Processing (retry). B-034: Added `GetOrCreateByExternalIdAsync` to `PatientRepository` with catch-and-retry on unique constraint violation, used in `IngestionController`. B-048: Created `CircuitBreakerState` (thread-safe state machine), `CircuitBreakerRegistry` (named singletons), `CircuitBreakerHttpPipelinePolicy` (Azure.Core), `CircuitBreakerRetryPolicy` (System.ClientModel), `CircuitBreakerOpenException` (→503). Wired into all 3 Azure SDK clients (OpenAI, Search, DocIntel) via new `AzureRetryDefaults` overloads. Config: 5 failures in 30s → open for 60s → half-open. Tests: 700+ passing, 83.46% coverage. |
 | 2026-02-14 | **P6-004 post-deploy verification complete.** All 6 checks passed. Health: both APIs responding (no `/health` endpoint mapped — pre-existing, not a regression — but `/api/patients` returns 200 on both). Scalar: dev 200, stage 404. CORS: dev returns `Access-Control-Allow-Origin: http://localhost:5173` on preflight, stage returns 405 with no CORS headers (middleware not active in Production). Environment identity: `az containerapp show` confirms dev=`Staging`, stage=`Production`. Functional: dev GET patients/therapists 200, POST+DELETE patient 201/204; stage GET patients/therapists 200. P6-004 fully closed. |
