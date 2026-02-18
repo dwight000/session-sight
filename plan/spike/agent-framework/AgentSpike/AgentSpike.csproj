@@ -12,6 +12,7 @@
   <ItemGroup>
     <PackageReference Include="Azure.AI.Agents.Persistent" />
     <PackageReference Include="Azure.AI.Projects" />
+  <PackageReference Include="Azure.Storage.Blobs" VersionOverride="12.27.0" />
   </ItemGroup>
 
 </Project>

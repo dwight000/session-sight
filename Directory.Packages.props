@@ -21,7 +21,7 @@
     <PackageVersion Include="Aspire.Hosting.NodeJs" Version="9.2.1" />
     <!-- Aspire Components (client-side) -->
     <PackageVersion Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" Version="9.2.1" />
-    <PackageVersion Include="Aspire.Azure.Storage.Blobs" Version="9.2.1" />
+    <PackageVersion Include="Aspire.Azure.Storage.Blobs" Version="13.1.1" />
     <PackageVersion Include="Azure.Search.Documents" Version="11.7.0" />
     <!-- EF Core -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.4" />
@@ -30,7 +30,7 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.4" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.4" />
     <!-- Azure Storage -->
-    <PackageVersion Include="Azure.Storage.Blobs" Version="12.24.0" />
+    <PackageVersion Include="Azure.Storage.Blobs" Version="12.27.0" />
     <!-- OpenAPI -->
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="9.0.4" />
     <!-- Validation -->
