@@ -70,6 +70,28 @@ At the start of a new workitem:
 3. `./scripts/check-frontend.sh` — frontend 83% coverage
 4. `COVERAGE_THRESHOLD=0.80 COVERAGE_THRESHOLD_PERCENT=80 COVERAGE_FORMATS=opencover,cobertura ./scripts/check-backend.sh` — mirror CI backend gate exactly
 
+**Releases & Deployment:**
+
+Releases:
+- Tags use `v*` prefix (e.g., `v1.0.0`, `v1.1.0`) — this triggers `deploy.yml` automatically
+- Create releases via GitHub UI (Releases → Create new release) or CLI: `gh release create v1.0.0 --target main`
+- Tag pushes deploy to both dev and stage (no path filter on tags)
+
+Deploy workflow (`deploy.yml`) inputs:
+- `environment`: dev or stage (default: dev)
+- `rollback_tag`: 7-char SHA to roll back to (leave empty for normal deploy)
+
+Infra workflow (`infra.yml`) inputs:
+- `environment`: dev or stage
+- `mode`: deploy or what-if
+- `deployContainerApps`: boolean (requires ghcrToken)
+- `ghcrToken`: PAT for ghcr.io
+
+Rollback:
+- Full procedure documented in `docs/CLOUD_TROUBLESHOOTING.md` under "Rollback Procedure"
+- Quick path: Actions → Deploy → Run workflow → set `rollback_tag` to the 7-char SHA from a previous good deploy
+- EF migrations are NOT reversed — image rollback only
+
 **Frontend E2E notes (`--frontend`):**
 - **Cost:** ~$0.02-0.04 per run (LLM extraction uses gpt-4.1-mini/nano)
 - **Duration:** ~2 minutes

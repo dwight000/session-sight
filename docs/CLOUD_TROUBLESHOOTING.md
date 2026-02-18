@@ -478,6 +478,73 @@ SQL_PWD=$(dotnet user-secrets list --project src/SessionSight.AppHost | grep sql
 az sql server update -g rg-sessionsight-dev -n sessionsight-sql-dev --admin-password "$SQL_PWD"
 ```
 
+## Rollback Procedure
+
+### 1. Find the Last-Good Image Tag
+
+Image tags are 7-character SHA prefixes. Find a known-good tag from any of these sources:
+
+```bash
+# From GitHub Actions deploy run history
+gh run list --workflow=deploy.yml --status=success --limit 5
+
+# From GHCR package tags
+gh api user/packages/container/sessionsight-api/versions --jq '.[].metadata.container.tags[]' | head -10
+
+# From git log (first 7 chars of each commit SHA)
+git log --oneline origin/main | head -10
+```
+
+### 2. Trigger Rollback
+
+**GitHub Actions UI:**
+1. Go to Actions → Deploy → Run workflow
+2. Set **environment** to `dev` or `stage`
+3. Set **rollback_tag** to the 7-character SHA (e.g., `abc1234`)
+4. Click **Run workflow**
+
+The rollback job skips the build entirely and directly updates the container images to the specified tag.
+
+### 3. EF Migration Caveat
+
+Image rollback does **not** reverse database schema changes. This is safe when:
+- Migrations are **additive** (new tables, new columns) — old code ignores the new schema
+- No migrations were applied between the rollback target and the current version
+
+If a **destructive migration** was applied (dropped column, renamed table), manual database work is required before the rolled-back code will function correctly.
+
+### 4. CLI Fallback
+
+If GitHub Actions is unavailable, roll back manually:
+
+```bash
+# Login
+az login
+
+# Roll back API
+az containerapp update -g rg-sessionsight-dev -n sessionsight-dev-api \
+  --image ghcr.io/dwight000/sessionsight-api:<TAG>
+
+# Roll back Web
+az containerapp update -g rg-sessionsight-dev -n sessionsight-dev-web \
+  --image ghcr.io/dwight000/sessionsight-web:<TAG>
+```
+
+Replace `dev` with `stage` for the stage environment.
+
+### 5. Verify
+
+```bash
+# Confirm image tag
+az containerapp show -g rg-sessionsight-dev -n sessionsight-dev-api \
+  --query "properties.template.containers[0].image" -o tsv
+
+# Health check
+curl https://sessionsight-dev-api.proudsky-5508f8b0.eastus2.azurecontainerapps.io/api/patients
+```
+
+---
+
 ## Quick Reference
 
 | Task | CLI Command |
