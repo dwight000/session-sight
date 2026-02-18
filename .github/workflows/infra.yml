@@ -148,24 +148,24 @@ jobs:
           echo "MI objectId: ${MI_OBJECT_ID}"
           echo "MI clientId: ${MI_CLIENT_ID}"
 
+          # Convert client ID GUID to SQL Server SID hex (mixed-endian UNIQUEIDENTIFIER format)
+          SID_HEX=$(python3 -c "import uuid; print('0x' + uuid.UUID('${MI_CLIENT_ID}').bytes_le.hex().upper())")
+          echo "SID hex: ${SID_HEX}"
+
           # Install Go-based sqlcmd (supports ActiveDirectoryDefault auth via az login)
           curl -s https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc
           sudo add-apt-repository "$(curl -s https://packages.microsoft.com/config/ubuntu/22.04/prod.list)"
           sudo apt-get update -y && sudo apt-get install -y sqlcmd
 
-          # Create MI user with explicit SID using client ID (not object ID)
-          # FROM EXTERNAL PROVIDER requires the SQL Server to have its own identity configured;
-          # using SID + TYPE = E with client ID works without that prerequisite.
+          # Create MI user with explicit SID using client ID (not object ID).
+          # Uses pre-computed hex literal to avoid Go-sqlcmd T-SQL parsing issues.
           sqlcmd -S "sessionsight-sql-dev.database.windows.net" -d "${DB_NAME}" \
-            --authentication-method ActiveDirectoryDefault -b -V 16 \
-            -Q "DECLARE @client UNIQUEIDENTIFIER = '${MI_CLIENT_ID}';
-                DECLARE @sid VARBINARY(16) = CONVERT(VARBINARY(16), @client);
-                IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = '${API_APP}')
+            --authentication-method ActiveDirectoryDefault -b -V 11 \
+            -Q "IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = '${API_APP}')
                   DROP USER [${API_APP}];
-                EXEC('CREATE USER [${API_APP}] WITH SID = ' + CONVERT(VARCHAR(34), @sid, 1) + ', TYPE = E');
+                CREATE USER [${API_APP}] WITH SID = ${SID_HEX}, TYPE = E;
                 ALTER ROLE db_owner ADD MEMBER [${API_APP}];
-                SELECT name, type_desc, CONVERT(UNIQUEIDENTIFIER, sid) AS sid_guid
-                FROM sys.database_principals WHERE name = '${API_APP}';"
+                SELECT name, type_desc, sid FROM sys.database_principals WHERE name = '${API_APP}';"
 
           echo "MI user [${API_APP}] provisioned in database [${DB_NAME}] with clientId ${MI_CLIENT_ID}"
 
