@@ -66,7 +66,6 @@ jobs:
             --location eastus2 \
             --template-file infra/main.bicep \
             --parameters infra/main.parameters.dev.json \
-            --parameters sqlAdminPassword='placeholder-for-validate' \
             --parameters servicePrincipalObjectId='00000000-0000-0000-0000-000000000000'
 
       - name: ARM Validate (stage parameters)
@@ -75,7 +74,6 @@ jobs:
             --location eastus2 \
             --template-file infra/main.bicep \
             --parameters infra/main.parameters.stage.json \
-            --parameters sqlAdminPassword='placeholder-for-validate' \
             --parameters servicePrincipalObjectId='00000000-0000-0000-0000-000000000000'
 
   deploy:
@@ -100,24 +98,6 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Get SQL Admin Password from Key Vault
-        id: secrets
-        run: |
-          # SQL password always from dev Key Vault (SQL server is shared across environments)
-          SQL_PASSWORD=$(az keyvault secret show \
-            --vault-name sessionsight-kv-dev \
-            --name sql-admin-password \
-            --query value -o tsv 2>/dev/null || echo "")
-
-          # If secret doesn't exist, generate a new one
-          if [ -z "$SQL_PASSWORD" ]; then
-            SQL_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=')
-            echo "::notice::SQL password not found in Key Vault, using generated value"
-          fi
-
-          echo "::add-mask::$SQL_PASSWORD"
-          echo "sql_password=$SQL_PASSWORD" >> $GITHUB_OUTPUT
-
       - name: Get Service Principal Object ID
         id: sp
         run: |
@@ -133,7 +113,6 @@ jobs:
             --location eastus2 \
             --template-file infra/main.bicep \
             --parameters infra/main.parameters.${ENV}.json \
-            --parameters sqlAdminPassword='${{ steps.secrets.outputs.sql_password }}' \
             --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
             --parameters deployContainerApps=${{ github.event.inputs.deployContainerApps || 'false' }} \
             --parameters ghcrToken='${{ github.event.inputs.ghcrToken }}'
@@ -147,28 +126,39 @@ jobs:
             --name "sessionsight-infra-$(date +%Y%m%d-%H%M%S)" \
             --template-file infra/main.bicep \
             --parameters infra/main.parameters.${ENV}.json \
-            --parameters sqlAdminPassword='${{ steps.secrets.outputs.sql_password }}' \
             --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
             --parameters deployContainerApps=${{ github.event.inputs.deployContainerApps || 'false' }} \
             --parameters ghcrToken='${{ github.event.inputs.ghcrToken }}'
 
-      - name: Sync SQL connection string to Container Apps
+      - name: Provision Managed Identity SQL users
         if: github.event.inputs.mode != 'what-if'
         run: |
           ENV=${{ github.event.inputs.environment || 'dev' }}
           RG="rg-sessionsight-dev"
-          SQL_PASSWORD='${{ steps.secrets.outputs.sql_password }}'
           DB_NAME=$( [ "$ENV" = "dev" ] && echo "sessionsight" || echo "sessionsight-${ENV}" )
-          CONN_STRING="Server=sessionsight-sql-dev.database.windows.net;Database=${DB_NAME};User Id=sessionsightadmin;Password=${SQL_PASSWORD};Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;"
+          API_APP="sessionsight-${ENV}-api"
 
-          # Update API container if it exists (no-op if Container Apps not deployed yet)
-          if az containerapp show -g ${RG} -n sessionsight-${ENV}-api --query name -o tsv 2>/dev/null; then
-            echo "Syncing SQL connection string to sessionsight-${ENV}-api"
-            az containerapp update -g ${RG} -n sessionsight-${ENV}-api \
-              --set-env-vars "ConnectionStrings__sessionsight=${CONN_STRING}"
-          else
-            echo "Container App sessionsight-${ENV}-api not found, skipping"
+          # Skip if Container App doesn't exist yet
+          if ! az containerapp show -g ${RG} -n ${API_APP} --query name -o tsv 2>/dev/null; then
+            echo "Container App ${API_APP} not found, skipping MI user provisioning"
+            exit 0
           fi
+
+          # Install sqlcmd
+          curl -s https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc
+          sudo add-apt-repository "$(curl -s https://packages.microsoft.com/config/ubuntu/22.04/prod.list)"
+          sudo apt-get update -y && ACCEPT_EULA=Y sudo apt-get install -y mssql-tools18 unixodbc-dev
+          export PATH="$PATH:/opt/mssql-tools18/bin"
+
+          # Create MI user for the Container App
+          sqlcmd -S "sessionsight-sql-dev.database.windows.net" -d "${DB_NAME}" -G -C \
+            -Q "IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = '${API_APP}')
+                BEGIN
+                  CREATE USER [${API_APP}] FROM EXTERNAL PROVIDER;
+                  ALTER ROLE db_owner ADD MEMBER [${API_APP}];
+                END"
+
+          echo "MI user [${API_APP}] provisioned in database [${DB_NAME}]"
 
       - name: Show Deployment Outputs
         if: github.event.inputs.mode != 'what-if'
@@ -213,16 +203,6 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Get SQL Admin Password from Key Vault
-        id: secrets
-        run: |
-          SQL_PASSWORD=$(az keyvault secret show \
-            --vault-name sessionsight-kv-dev \
-            --name sql-admin-password \
-            --query value -o tsv 2>/dev/null || echo "placeholder-for-whatif")
-          echo "::add-mask::$SQL_PASSWORD"
-          echo "sql_password=$SQL_PASSWORD" >> $GITHUB_OUTPUT
-
       - name: Get Service Principal Object ID
         id: sp
         run: |
@@ -238,7 +218,6 @@ jobs:
               --location eastus2 \
               --template-file infra/main.bicep \
               --parameters infra/main.parameters.dev.json \
-              --parameters sqlAdminPassword='${{ steps.secrets.outputs.sql_password }}' \
               --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
               --no-pretty-print 2>&1 || true
             echo 'EOF'
@@ -253,7 +232,6 @@ jobs:
               --location eastus2 \
               --template-file infra/main.bicep \
               --parameters infra/main.parameters.stage.json \
-              --parameters sqlAdminPassword='${{ steps.secrets.outputs.sql_password }}' \
               --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
               --no-pretty-print 2>&1 || true
             echo 'EOF'
