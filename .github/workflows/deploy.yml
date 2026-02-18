@@ -10,6 +10,8 @@ on:
       - 'src/SessionSight.Agents/**'
       - 'src/SessionSight.Infrastructure/**'
       - '.github/workflows/deploy.yml'
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       environment:
@@ -19,10 +21,15 @@ on:
           - dev
           - stage
         default: dev
+      rollback_tag:
+        description: 'Image tag to roll back to (e.g. abc1234). Leave empty for normal deploy.'
+        type: string
+        default: ''
 
 jobs:
   build-and-push:
     name: Build and Push Images
+    if: github.event.inputs.rollback_tag == ''
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -75,7 +82,7 @@ jobs:
   deploy-dev:
     name: Deploy to Dev
     needs: build-and-push
-    if: github.event.inputs.environment != 'stage'
+    if: github.event.inputs.rollback_tag == '' && github.event.inputs.environment != 'stage'
     runs-on: ubuntu-latest
     environment: dev
     concurrency:
@@ -146,7 +153,7 @@ jobs:
   deploy-stage:
     name: Deploy to Stage
     needs: build-and-push
-    if: github.event.inputs.environment == 'stage' || github.event_name == 'push'
+    if: github.event.inputs.rollback_tag == '' && (github.event.inputs.environment == 'stage' || github.event_name == 'push')
     runs-on: ubuntu-latest
     environment: stage
     concurrency:
@@ -213,3 +220,59 @@ jobs:
           echo "### Stage Deployment Complete" >> $GITHUB_STEP_SUMMARY
           echo "- API: https://${API_URL}" >> $GITHUB_STEP_SUMMARY
           echo "- Web: https://${WEB_URL}" >> $GITHUB_STEP_SUMMARY
+
+  rollback:
+    name: Rollback
+    if: github.event.inputs.rollback_tag != ''
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    concurrency:
+      group: deploy-${{ github.event.inputs.environment || 'dev' }}
+      cancel-in-progress: false
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Update API Container App
+        run: |
+          ENV=${{ github.event.inputs.environment || 'dev' }}
+          TAG=${{ github.event.inputs.rollback_tag }}
+          RG="rg-sessionsight-dev"
+          az containerapp update \
+            --resource-group ${RG} \
+            --name sessionsight-${ENV}-api \
+            --image ghcr.io/${{ github.repository_owner }}/sessionsight-api:${TAG}
+
+      - name: Update Web Container App
+        run: |
+          ENV=${{ github.event.inputs.environment || 'dev' }}
+          TAG=${{ github.event.inputs.rollback_tag }}
+          RG="rg-sessionsight-dev"
+          az containerapp update \
+            --resource-group ${RG} \
+            --name sessionsight-${ENV}-web \
+            --image ghcr.io/${{ github.repository_owner }}/sessionsight-web:${TAG}
+
+      - name: Rollback Summary
+        run: |
+          ENV=${{ github.event.inputs.environment || 'dev' }}
+          TAG=${{ github.event.inputs.rollback_tag }}
+          RG="rg-sessionsight-dev"
+          API_URL=$(az containerapp show -g ${RG} -n sessionsight-${ENV}-api --query properties.configuration.ingress.fqdn -o tsv)
+          WEB_URL=$(az containerapp show -g ${RG} -n sessionsight-${ENV}-web --query properties.configuration.ingress.fqdn -o tsv)
+          echo "### Rollback Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** ${ENV}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Rolled back to tag:** ${TAG}" >> $GITHUB_STEP_SUMMARY
+          echo "- API: https://${API_URL}" >> $GITHUB_STEP_SUMMARY
+          echo "- Web: https://${WEB_URL}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> **Note:** EF migrations are NOT reversed by rollback. If the rollback" >> $GITHUB_STEP_SUMMARY
+          echo "> target predates a destructive migration, manual database work may be needed." >> $GITHUB_STEP_SUMMARY
