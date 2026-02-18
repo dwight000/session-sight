@@ -73,9 +73,9 @@ At the start of a new workitem:
 **Releases & Deployment:**
 
 Releases:
-- Tags use `v*` prefix (e.g., `v1.0.0`, `v1.1.0`) — this triggers `deploy.yml` automatically
+- Tags use `v*` prefix (e.g., `v1.0.0`, `v1.1.0`) — milestones only, do NOT trigger deploys
 - Create releases via GitHub UI (Releases → Create new release) or CLI: `gh release create v1.0.0 --target main`
-- Tag pushes deploy to both dev and stage (no path filter on tags)
+- Deploys are triggered by merging to `main` (via `branches: [main]` + `paths` filter)
 
 Deploy workflow (`deploy.yml`) inputs:
 - `environment`: dev or stage (default: dev)
