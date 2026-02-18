@@ -306,6 +306,7 @@ module containerAppsOpenaiRole 'modules/openai.bicep' = if (deployContainerApps)
     deployEmbeddings: false
     cognitiveServicesUserPrincipalId: containerApps.outputs.apiPrincipalId
   }
+  dependsOn: [openaiRoleAssignment] // Prevent concurrent writes to same OpenAI resource
 }
 
 module containerAppsDocIntelRole 'modules/docintell.bicep' = if (deployContainerApps) {
@@ -317,6 +318,7 @@ module containerAppsDocIntelRole 'modules/docintell.bicep' = if (deployContainer
     tags: tags
     cognitiveServicesUserPrincipalId: containerApps.outputs.apiPrincipalId
   }
+  dependsOn: [docIntelligenceRoleAssignment] // Prevent concurrent writes to same Doc Intelligence resource
 }
 
 module containerAppsSearchRole 'modules/search.bicep' = if (deployContainerApps) {
@@ -330,6 +332,7 @@ module containerAppsSearchRole 'modules/search.bicep' = if (deployContainerApps)
     searchIndexDataContributorPrincipalId: containerApps.outputs.apiPrincipalId
     searchIndexDataContributorPrincipalType: 'ServicePrincipal'
   }
+  dependsOn: [searchRoleAssignment, searchRoleAssignmentDeveloper] // Prevent concurrent writes to same Search resource
 }
 
 module containerAppsStorageRole 'modules/storage.bicep' = if (deployContainerApps) {
