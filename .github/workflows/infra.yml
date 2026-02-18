@@ -144,14 +144,14 @@ jobs:
             exit 0
           fi
 
-          # Install sqlcmd
+          # Install Go-based sqlcmd (supports ActiveDirectoryDefault auth via az login)
           curl -s https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc
           sudo add-apt-repository "$(curl -s https://packages.microsoft.com/config/ubuntu/22.04/prod.list)"
-          sudo apt-get update -y && ACCEPT_EULA=Y sudo apt-get install -y mssql-tools18 unixodbc-dev
-          export PATH="$PATH:/opt/mssql-tools18/bin"
+          sudo apt-get update -y && sudo apt-get install -y sqlcmd
 
           # Create MI user for the Container App
-          sqlcmd -S "sessionsight-sql-dev.database.windows.net" -d "${DB_NAME}" -G -C \
+          sqlcmd -S "sessionsight-sql-dev.database.windows.net" -d "${DB_NAME}" \
+            --authentication-method ActiveDirectoryDefault \
             -Q "IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = '${API_APP}')
                 BEGIN
                   CREATE USER [${API_APP}] FROM EXTERNAL PROVIDER;
