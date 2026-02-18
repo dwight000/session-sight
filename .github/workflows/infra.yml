@@ -134,9 +134,18 @@ jobs:
         if: github.event.inputs.mode != 'what-if'
         run: |
           ENV=${{ github.event.inputs.environment || 'dev' }}
-          RG="rg-sessionsight-dev"
+          RG="rg-sessionsight-dev"  # Shared RG for all environments (per main.bicep)
+          SQL_SERVER="sessionsight-sql-dev"  # Shared SQL server for all environments
           DB_NAME=$( [ "$ENV" = "dev" ] && echo "sessionsight" || echo "sessionsight-${ENV}" )
           API_APP="sessionsight-${ENV}-api"
+
+          # Ensure CI SP has Directory.Read.All to resolve MI client ID
+          CI_APP_ID=${{ secrets.AZURE_CLIENT_ID }}
+          # Grant is idempotent — safe to run every time
+          az ad app permission add --id "${CI_APP_ID}" \
+            --api 00000003-0000-0000-c000-000000000000 \
+            --api-permissions 7ab1d382-f21e-4acd-a863-ba3e13f7da61=Role 2>/dev/null || true
+          az ad app permission admin-consent --id "${CI_APP_ID}" 2>/dev/null || true
 
           # Get MI client ID (appId) — Azure SQL matches tokens by client ID, not object ID
           MI_OBJECT_ID=$(az containerapp show -g ${RG} -n ${API_APP} --query "identity.principalId" -o tsv 2>/dev/null || true)
@@ -159,7 +168,7 @@ jobs:
 
           # Create MI user with explicit SID using client ID (not object ID).
           # Uses pre-computed hex literal to avoid Go-sqlcmd T-SQL parsing issues.
-          sqlcmd -S "sessionsight-sql-dev.database.windows.net" -d "${DB_NAME}" \
+          sqlcmd -S "${SQL_SERVER}.database.windows.net" -d "${DB_NAME}" \
             --authentication-method ActiveDirectoryDefault -b -V 11 \
             -Q "IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = '${API_APP}')
                   DROP USER [${API_APP}];

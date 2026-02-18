@@ -56,7 +56,7 @@ param storageBlobEndpoint string
 
 // === Container Apps Environment ===
 
-resource newEnv 'Microsoft.App/managedEnvironments@2023-05-01' = if (createEnvironment) {
+resource newEnv 'Microsoft.App/managedEnvironments@2024-10-02-preview' = if (createEnvironment) {
   name: '${name}-env'
   location: location
   tags: tags
@@ -65,7 +65,7 @@ resource newEnv 'Microsoft.App/managedEnvironments@2023-05-01' = if (createEnvir
   }
 }
 
-resource existingEnv 'Microsoft.App/managedEnvironments@2023-05-01' existing = if (!createEnvironment) {
+resource existingEnv 'Microsoft.App/managedEnvironments@2024-10-02-preview' existing = if (!createEnvironment) {
   name: existingEnvName
 }
 
@@ -73,7 +73,7 @@ var managedEnvId = createEnvironment ? newEnv.id : existingEnv.id
 
 // === API Container App ===
 
-resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
+resource apiApp 'Microsoft.App/containerApps@2024-10-02-preview' = {
   name: '${name}-api'
   location: location
   tags: tags
@@ -125,8 +125,10 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
         }
       ]
       scale: {
-        minReplicas: 1  // Keep at least 1 replica for reliable internal DNS + faster response
+        minReplicas: 0  // Scale to zero when idle to save costs
         maxReplicas: 3
+        cooldownPeriod: 3600  // 60 min of no traffic before scaling to zero
+        pollingInterval: 30
         rules: [
           {
             name: 'http-scale'
@@ -144,7 +146,7 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
 
 // === Web (Frontend) Container App ===
 
-resource webApp 'Microsoft.App/containerApps@2023-05-01' = {
+resource webApp 'Microsoft.App/containerApps@2024-10-02-preview' = {
   name: '${name}-web'
   location: location
   tags: tags
@@ -185,8 +187,10 @@ resource webApp 'Microsoft.App/containerApps@2023-05-01' = {
         }
       ]
       scale: {
-        minReplicas: 1  // Keep at least 1 replica for reliable response
+        minReplicas: 0  // Scale to zero when idle to save costs
         maxReplicas: 2
+        cooldownPeriod: 3600  // 60 min of no traffic before scaling to zero
+        pollingInterval: 30
         rules: [
           {
             name: 'http-scale'
