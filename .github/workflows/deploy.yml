@@ -10,8 +10,6 @@ on:
       - 'src/SessionSight.Agents/**'
       - 'src/SessionSight.Infrastructure/**'
       - '.github/workflows/deploy.yml'
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       environment:
