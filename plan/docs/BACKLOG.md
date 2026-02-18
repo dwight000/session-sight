@@ -173,7 +173,7 @@
 | P6-005 | Create GitHub Release with SemVer tag (v1.0.0) | S | 6 | Done | P6-003 |
 | P6-006 | Enable Dependabot for dependency updates | S | 6 | Done | P6-005 |
 | B-079 | Fix concurrent role assignment conflicts in Bicep (dependsOn ordering) | S | 6 | Done | - |
-| B-080 | Store ghcrToken as GitHub secret (eliminate manual input for deployContainerApps) | S | 6 | Ready | - |
+| B-080 | Store ghcrToken as GitHub secret (eliminate manual input for deployContainerApps) | S | 6 | Done | - |
 | B-081 | Review and merge Dependabot PRs (~20 pending) | M | 6 | Ready | - |
 | P6-007 | Demo data and walkthrough | M | 6 | Blocked | P6-002 |
 
@@ -456,6 +456,7 @@
 | B-031 | Rollback strategy: rollback_tag input, rollback job, runbook in CLOUD_TROUBLESHOOTING.md | 2026-02-17 |
 | P6-006 | Enable Dependabot for dependency updates (NuGet, npm, GitHub Actions) | 2026-02-17 |
 | B-077 | Switch to Managed Identity for SQL auth (eliminate password sync) | 2026-02-17 |
+| B-080 | Store ghcrToken as GitHub secret (eliminate manual input for deployContainerApps) | 2026-02-18 |
 
 ---
 

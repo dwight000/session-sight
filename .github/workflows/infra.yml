@@ -18,11 +18,11 @@ on:
           - what-if
         default: deploy
       deployContainerApps:
-        description: 'Deploy Container Apps (requires ghcrToken)'
+        description: 'Deploy Container Apps'
         type: boolean
         default: false
       ghcrToken:
-        description: 'GitHub PAT for ghcr.io (required if deployContainerApps=true)'
+        description: 'GitHub PAT for ghcr.io (optional — falls back to GHCR_TOKEN secret)'
         type: string
         default: ''
   push:
@@ -115,7 +115,7 @@ jobs:
             --parameters infra/main.parameters.${ENV}.json \
             --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
             --parameters deployContainerApps=${{ github.event.inputs.deployContainerApps || 'false' }} \
-            --parameters ghcrToken='${{ github.event.inputs.ghcrToken }}'
+            --parameters ghcrToken='${{ github.event.inputs.ghcrToken || secrets.GHCR_TOKEN }}'
 
       - name: Deploy Infrastructure
         if: github.event.inputs.mode != 'what-if'
@@ -128,7 +128,7 @@ jobs:
             --parameters infra/main.parameters.${ENV}.json \
             --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
             --parameters deployContainerApps=${{ github.event.inputs.deployContainerApps || 'false' }} \
-            --parameters ghcrToken='${{ github.event.inputs.ghcrToken }}'
+            --parameters ghcrToken='${{ github.event.inputs.ghcrToken || secrets.GHCR_TOKEN }}'
 
       - name: Provision Managed Identity SQL users
         if: github.event.inputs.mode != 'what-if'
