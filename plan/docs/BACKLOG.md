@@ -9,9 +9,9 @@
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
 **Next Action**: P6-007
 
-**Last Updated**: February 17, 2026
+**Last Updated**: February 18, 2026
 
-**Milestone**: P6-006/B-077 complete — Dependabot enabled, SQL auth switched from password to Managed Identity.
+**Milestone**: B-080 complete — ghcrToken stored as GitHub secret, no manual input needed for container app deploys.
 
 ---
 
