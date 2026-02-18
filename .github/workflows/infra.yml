@@ -210,54 +210,48 @@ jobs:
           echo "object_id=$OBJECT_ID" >> $GITHUB_OUTPUT
 
       - name: Infrastructure What-If (Dev)
-        id: whatif_dev
         run: |
-          {
-            echo 'output<<EOF'
-            az deployment sub what-if \
-              --location eastus2 \
-              --template-file infra/main.bicep \
-              --parameters infra/main.parameters.dev.json \
-              --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
-              --no-pretty-print 2>&1 || true
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
+          az deployment sub what-if \
+            --location eastus2 \
+            --template-file infra/main.bicep \
+            --parameters infra/main.parameters.dev.json \
+            --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
+            --no-pretty-print 2>&1 | tail -200 > /tmp/whatif-dev.txt || true
 
       - name: Infrastructure What-If (Stage)
-        id: whatif_stage
         run: |
-          {
-            echo 'output<<EOF'
-            az deployment sub what-if \
-              --location eastus2 \
-              --template-file infra/main.bicep \
-              --parameters infra/main.parameters.stage.json \
-              --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
-              --no-pretty-print 2>&1 || true
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
+          az deployment sub what-if \
+            --location eastus2 \
+            --template-file infra/main.bicep \
+            --parameters infra/main.parameters.stage.json \
+            --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
+            --no-pretty-print 2>&1 | tail -200 > /tmp/whatif-stage.txt || true
 
       - name: Comment PR with What-If Results
         uses: actions/github-script@v7
         with:
           script: |
-            const output = `### Infrastructure Changes Preview
+            const fs = require('fs');
+            const devOutput = fs.readFileSync('/tmp/whatif-dev.txt', 'utf8').trim();
+            const stageOutput = fs.readFileSync('/tmp/whatif-stage.txt', 'utf8').trim();
+
+            const body = `### Infrastructure Changes Preview
 
             #### Dev Environment
             \`\`\`
-            ${{ steps.whatif_dev.outputs.output }}
+            ${devOutput}
             \`\`\`
 
             #### Stage Environment
             \`\`\`
-            ${{ steps.whatif_stage.outputs.output }}
+            ${stageOutput}
             \`\`\`
 
             *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
 
-            github.rest.issues.createComment({
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: output
+              body
             });
