@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useSessions } from '../hooks/useSessions'
 import { usePatients } from '../hooks/usePatients'
@@ -6,9 +6,19 @@ import { useUploadDocument } from '../hooks/useUploadDocument'
 import { Button } from '../components/ui/Button'
 import { Spinner } from '../components/ui/Spinner'
 
+interface SampleDoc {
+  id: string
+  filename: string
+  title: string
+  description: string
+  previewText: string
+}
+
 function formatDate(iso: string) {
   return new Date(iso + 'T00:00:00').toLocaleDateString()
 }
+
+type DocSource = 'sample' | 'own'
 
 export function Upload() {
   const { data: sessions, isLoading: sessionsLoading } = useSessions({ hasDocument: false })
@@ -19,6 +29,17 @@ export function Upload() {
   const [selectedSessionId, setSelectedSessionId] = useState<string>('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploadResult, setUploadResult] = useState<{ success: boolean; sessionId?: string; error?: string } | null>(null)
+  const [docSource, setDocSource] = useState<DocSource>('sample')
+  const [samples, setSamples] = useState<SampleDoc[]>([])
+  const [expandedSample, setExpandedSample] = useState<string | null>(null)
+  const [loadingSample, setLoadingSample] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/samples/samples.json')
+      .then((r) => r.json())
+      .then((data: SampleDoc[]) => setSamples(data))
+      .catch(() => setSamples([]))
+  }, [])
 
   // Build patient name lookup
   const patientNames = new Map<string, string>()
@@ -31,6 +52,24 @@ export function Upload() {
     if (file) {
       setSelectedFile(file)
       setUploadResult(null)
+    }
+  }
+
+  async function handleUseSample(sample: SampleDoc) {
+    setLoadingSample(sample.id)
+    try {
+      const response = await fetch(`/samples/${sample.filename}`)
+      const blob = await response.blob()
+      const file = new File([blob], sample.filename, { type: 'application/pdf' })
+      setSelectedFile(file)
+      setUploadResult(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    } catch {
+      setUploadResult({ success: false, error: `Failed to load sample: ${sample.title}` })
+    } finally {
+      setLoadingSample(null)
     }
   }
 
@@ -162,21 +201,91 @@ export function Upload() {
             </p>
           </div>
 
+          {/* Document source tabs */}
           <div>
-            <label htmlFor="document-file" className="block text-sm font-medium text-gray-700">Document File</label>
-            <input
-              id="document-file"
-              ref={fileInputRef}
-              type="file"
-              required
-              accept=".pdf,.doc,.docx,.txt"
-              onChange={handleFileChange}
-              className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Supported formats: PDF, DOC, DOCX, TXT
-            </p>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Document Source</label>
+            <div className="flex rounded-md border border-gray-300 w-fit" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={docSource === 'sample'}
+                onClick={() => setDocSource('sample')}
+                className={`px-4 py-1.5 text-sm font-medium rounded-l-md ${
+                  docSource === 'sample'
+                    ? 'bg-blue-50 text-blue-700 border-r border-gray-300'
+                    : 'text-gray-500 hover:text-gray-700 border-r border-gray-300'
+                }`}
+              >
+                Sample Documents
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={docSource === 'own'}
+                onClick={() => setDocSource('own')}
+                className={`px-4 py-1.5 text-sm font-medium rounded-r-md ${
+                  docSource === 'own'
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Your Document
+              </button>
+            </div>
           </div>
+
+          {docSource === 'sample' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {samples.map((sample) => (
+                <div
+                  key={sample.id}
+                  className="rounded-md border border-gray-200 p-3 hover:border-blue-300 transition-colors"
+                >
+                  <p className="text-sm font-medium text-gray-900">{sample.title}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{sample.description}</p>
+                  {expandedSample === sample.id && (
+                    <p className="mt-2 text-xs text-gray-600 bg-gray-50 rounded p-2 whitespace-pre-wrap">
+                      {sample.previewText}...
+                    </p>
+                  )}
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedSample(expandedSample === sample.id ? null : sample.id)}
+                      className="text-xs text-gray-500 hover:text-gray-700 underline"
+                    >
+                      {expandedSample === sample.id ? 'Hide' : 'Preview'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleUseSample(sample)}
+                      disabled={loadingSample === sample.id}
+                      className="text-xs font-medium text-blue-600 hover:text-blue-800 underline"
+                    >
+                      {loadingSample === sample.id ? 'Loading...' : 'Use This'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {docSource === 'own' && (
+            <div>
+              <label htmlFor="document-file" className="block text-sm font-medium text-gray-700">Document File</label>
+              <input
+                id="document-file"
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.tiff,.bmp"
+                onChange={handleFileChange}
+                className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Supported formats: PDF, DOCX, DOC, JPG, PNG, TIFF, BMP
+              </p>
+            </div>
+          )}
 
           {selectedFile && (
             <div className="rounded-md bg-gray-50 p-3">

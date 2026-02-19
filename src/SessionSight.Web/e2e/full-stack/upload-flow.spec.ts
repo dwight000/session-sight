@@ -102,6 +102,9 @@ test.describe('Upload Flow', () => {
       expect(matchingSession).toBeTruthy()
       await sessionSelect.selectOption(matchingSession!)
 
+      // Switch to "Your Document" tab to access file input
+      await page.getByRole('tab', { name: 'Your Document' }).click()
+
       // Upload the test PDF file
       const fileInput = page.getByLabel('Document File')
       await fileInput.setInputFiles(TEST_PDF_PATH)

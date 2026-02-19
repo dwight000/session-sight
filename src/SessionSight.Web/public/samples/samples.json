@@ -1,0 +1,58 @@
+[
+  {
+    "id": "sample-nonrisk-001",
+    "filename": "sample-nonrisk-001.pdf",
+    "title": "Anxiety / CBT Session",
+    "description": "GAD with cognitive restructuring, individual session",
+    "previewText": "Session Note - March 5, 2026 Patient: Sarah Chen Therapist: Dr. Rebecca Torres, PsyD Presenting Concerns: Patient reports ongoing generalized anxiety with persistent worry about job performance and family responsibilities. Anxiety severity is moderat"
+  },
+  {
+    "id": "sample-nonrisk-002",
+    "filename": "sample-nonrisk-002.pdf",
+    "title": "Depression / Telehealth",
+    "description": "MDD with behavioral activation, psychiatrist referral",
+    "previewText": "Session Note - March 10, 2026 Patient: Marcus Williams Therapist: Dr. James Park, LCSW Presenting Concerns: Patient presents with moderate depression, reporting persistent low mood and anhedonia for the past three months. Reports that symptoms worsen"
+  },
+  {
+    "id": "sample-nonrisk-003",
+    "filename": "sample-nonrisk-003.pdf",
+    "title": "PTSD / EMDR Session",
+    "description": "Trauma processing after motor vehicle accident, SUD ratings",
+    "previewText": "Session Note - March 12, 2026 Patient: Elena Rodriguez Therapist: Dr. Amanda Foster, PhD Presenting Concerns: Patient presents with trauma-related symptoms following a motor vehicle accident eight months ago. Severity is moderate. Reports intrusive m"
+  },
+  {
+    "id": "sample-nonrisk-004",
+    "filename": "sample-nonrisk-004.pdf",
+    "title": "Substance Use / Motivational Interviewing",
+    "description": "Alcohol use disorder, harm reduction, IOP consideration",
+    "previewText": "Session Note - March 14, 2026 Patient: David Thompson Therapist: Dr. Lisa Chang, LMHC Presenting Concerns: Patient presents with alcohol use disorder, moderate severity. Reports drinking 4-6 beers daily for the past two years, with recent increase fo"
+  },
+  {
+    "id": "sample-nonrisk-005",
+    "filename": "sample-nonrisk-005.pdf",
+    "title": "Termination / Discharge",
+    "description": "Adjustment disorder resolved, relapse prevention planning",
+    "previewText": "Session Note - March 18, 2026 Patient: Jennifer Walsh Therapist: Dr. Michael Chen, PsyD Presenting Concerns: Patient originally presented with adjustment disorder related to divorce, now largely resolved. Severity is mild at this point. Concerns have"
+  },
+  {
+    "id": "sample-risk-001",
+    "filename": "sample-risk-001.pdf",
+    "title": "Active SI with Safety Plan",
+    "description": "High risk - specific plan, stockpiled means, emergency contacts",
+    "previewText": "Session Note - March 20, 2026 Patient: Rachel Morrison Therapist: Dr. Karen Abbott, LCSW Presenting Concerns: Patient presents with significant distress today. Reports thinking about suicide daily for the past two weeks. Has developed a specific plan"
+  },
+  {
+    "id": "sample-risk-010",
+    "filename": "sample-risk-010.pdf",
+    "title": "Elderly Grief, Passive SI",
+    "description": "Nuanced - wish for natural death vs active suicidality",
+    "previewText": "Session Note - March 22, 2026 Patient: Harold Jacobson Therapist: Dr. Patricia Reeves, PhD Presenting Concerns: Elderly patient discussing recent loss of spouse. Reports feeling that 'my time should come soon too' and often wishes to 'join her.' Clar"
+  },
+  {
+    "id": "sample-risk-030",
+    "filename": "sample-risk-030.pdf",
+    "title": "Intake Eval with Columbia Scale",
+    "description": "Formal screening tool, all items negative, moderate depression",
+    "previewText": "Session Note - March 25, 2026 Patient: Brian Okafor Therapist: Dr. Susan Hartley, LPC Presenting Concerns: Patient presenting for intake evaluation following referral from PCP Dr. Adams for depression symptoms. Reports depressed mood for past 2 month"
+  }
+]

@@ -13,6 +13,11 @@ namespace SessionSight.Api.Controllers;
 [Route("api/sessions/{sessionId:guid}")]
 public class DocumentsController : ControllerBase
 {
+    private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".pdf", ".docx", ".doc", ".jpg", ".jpeg", ".png", ".tiff", ".bmp"
+    };
+
     private readonly ISessionRepository _sessionRepository;
     private readonly IDocumentStorage _documentStorage;
     private readonly DocumentIntelligenceOptions _docOptions;
@@ -35,6 +40,10 @@ public class DocumentsController : ControllerBase
 
         if (file.Length > _docOptions.MaxFileSizeBytes)
             return BadRequest($"File size ({file.Length:N0} bytes) exceeds maximum allowed ({_docOptions.MaxFileSizeBytes:N0} bytes).");
+
+        var extension = Path.GetExtension(file.FileName);
+        if (string.IsNullOrEmpty(extension) || !AllowedExtensions.Contains(extension))
+            return BadRequest($"Unsupported file type '{extension}'. Allowed types: {string.Join(", ", AllowedExtensions.Order())}.");
 
         var session = await _sessionRepository.GetByIdAsync(sessionId);
         if (session is null) return NotFound();

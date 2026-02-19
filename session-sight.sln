@@ -38,6 +38,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SessionSight.BlobTrigger", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SessionSight.FunctionalTests", "tests\SessionSight.FunctionalTests\SessionSight.FunctionalTests.csproj", "{5DB018E0-3263-4AC0-BBDB-7CDEEF358F89}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SessionSight.Infrastructure.Tests", "tests\SessionSight.Infrastructure.Tests\SessionSight.Infrastructure.Tests.csproj", "{26B2D58D-B035-4ABB-879B-E94230E10D37}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -96,6 +98,10 @@ Global
 		{5DB018E0-3263-4AC0-BBDB-7CDEEF358F89}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5DB018E0-3263-4AC0-BBDB-7CDEEF358F89}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5DB018E0-3263-4AC0-BBDB-7CDEEF358F89}.Release|Any CPU.Build.0 = Release|Any CPU
+		{26B2D58D-B035-4ABB-879B-E94230E10D37}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{26B2D58D-B035-4ABB-879B-E94230E10D37}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{26B2D58D-B035-4ABB-879B-E94230E10D37}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{26B2D58D-B035-4ABB-879B-E94230E10D37}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -116,6 +122,7 @@ Global
 		{B03EFD52-CA82-40C4-8908-F38307FAAD64} = {0A9BB4DB-4868-4BF5-A8D7-71E4061FFFB3}
 		{2A393B34-CEB5-447E-964C-6F357F5E7350} = {DF2C4FAD-FAB0-4D92-9B51-F654E2ACE0D3}
 		{5DB018E0-3263-4AC0-BBDB-7CDEEF358F89} = {0A9BB4DB-4868-4BF5-A8D7-71E4061FFFB3}
+		{26B2D58D-B035-4ABB-879B-E94230E10D37} = {0A9BB4DB-4868-4BF5-A8D7-71E4061FFFB3}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A9B0662B-3B8D-4D30-A7D0-FDA567E41393}

@@ -11,7 +11,7 @@
 
 **Last Updated**: February 18, 2026
 
-**Milestone**: B-081 complete — merged 18 Dependabot PRs (npm, NuGet Aspire, GitHub Actions), closed 3 breaking changes (eslint 10, Storage.Blobs).
+**Milestone**: B-082 complete — fixed BlobNotFound (URL-decode), stuck Processing status (atomic transitions), synced file type acceptance, added sample documents to Upload page.
 
 ---
 
@@ -175,6 +175,7 @@
 | B-079 | Fix concurrent role assignment conflicts in Bicep (dependsOn ordering) | S | 6 | Done | - |
 | B-080 | Store ghcrToken as GitHub secret (eliminate manual input for deployContainerApps) | S | 6 | Done | - |
 | B-081 | Review and merge Dependabot PRs (~20 pending) | M | 6 | Done | - |
+| B-082 | Fix BlobNotFound + stuck Processing + file types + sample documents on Upload page | M | 6 | Done | - |
 | P6-007 | Demo data and walkthrough | M | 6 | Blocked | P6-002 |
 
 ---
@@ -458,6 +459,7 @@
 | B-077 | Switch to Managed Identity for SQL auth (eliminate password sync) | 2026-02-17 |
 | B-080 | Store ghcrToken as GitHub secret (eliminate manual input for deployContainerApps) | 2026-02-18 |
 | B-081 | Review and merge Dependabot PRs — 18 merged, 3 closed (eslint 10, Storage.Blobs breaking) | 2026-02-18 |
+| B-082 | Fix BlobNotFound + stuck Processing + file types + sample documents on Upload page | 2026-02-18 |
 
 ---
 
@@ -465,6 +467,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-18 | **B-082 complete: Fix BlobNotFound + stuck Processing + file types + sample documents.** Fixed 3 production bugs: (1) URL-decode blob path in `AzureBlobDocumentStorage` — filenames with spaces/parens caused BlobNotFound on extraction. (2) Replaced `UpdateDocumentStatusAsync` with `TryTransitionDocumentStatusAsync` in all 3 `ExtractionOrchestrator` failure paths — change-tracker staleness caused status stuck at Processing. (3) Removed `.txt` from frontend accept list, added backend extension allowlist (`.pdf,.docx,.doc,.jpg,.jpeg,.png,.tiff,.bmp`) with 400 BadRequest for unsupported types. Added sample documents feature: generated 8 static therapy note PDFs (5 non-risk from golden files, 3 risk notes expanded to full structured format) via `fpdf2` script. Built sample document picker on Upload page with tab toggle (Sample Documents / Your Document), card grid with preview and "Use This" buttons. New test project: `SessionSight.Infrastructure.Tests` with 8 blob path round-trip tests. Added 4 Playwright smoke tests for Upload page sample UI. Updated 3 orchestrator tests, 1 E2E test (tab click). Validation: 724 backend tests pass (83.35% coverage), frontend 5/5 gates pass (15 smoke tests), 0 warnings. |
 | 2026-02-17 | **P6-006/B-077 complete: Dependabot + Managed Identity for SQL.** P6-006: Created `.github/dependabot.yml` with three ecosystems (NuGet, npm, GitHub Actions) for automated dependency update PRs. B-077: Eliminated password-based SQL auth — added AAD admin to `sql.bicep`, removed `sqlAdminPassword` param from `main.bicep` (uses generated throwaway for server creation), switched connection string to `Authentication=Active Directory Managed Identity`, removed `@secure()` and secret ref from `containerApps.bicep` (plain env var), replaced Key Vault password fetch with `Active Directory Default` in `deploy.yml` EF migrations, replaced password sync step with MI user provisioning (T-SQL `CREATE USER FROM EXTERNAL PROVIDER`) in `infra.yml`, removed `sqlAdminPassword` from parameter files and all ARM validate/what-if commands. Updated `CLOUD_TROUBLESHOOTING.md` (MI-specific troubleshooting, removed SQL Password Sync section) and `CLAUDE.md` (passwordless Deploy Bicep command). |
 | 2026-02-17 | **P6-005/B-029/B-031 complete: CI/CD hardening.** P6-005: Added `tags: ['v*']` to `deploy.yml` push trigger so GitHub releases auto-deploy. B-029: Added ARM-level validation (`az deployment sub validate`) for both dev and stage parameter files to `infra.yml` validate job; added stage what-if to PR preview job with dual-environment PR comment. B-031: Added `rollback_tag` workflow_dispatch input to `deploy.yml`, guarded build/deploy jobs to skip on rollback, added dedicated `rollback` job that updates container images without building, added rollback runbook to `docs/CLOUD_TROUBLESHOOTING.md`. Updated `.claude/CLAUDE.md` with Releases & Deployment section. |
 | 2026-02-16 | **B-032/B-064/B-034/B-048 complete: Four functional fixes.** B-032: Added `DocumentValidationException`, pre-upload size/empty checks in `DocumentsController`, changed parser to throw `DocumentValidationException` instead of `InvalidOperationException`. B-064: Added `TryTransitionDocumentStatusAsync` (atomic `ExecuteUpdateAsync` with WHERE clause) to `SessionRepository`, used in `ExtractionController` and `ExtractionOrchestrator` to prevent concurrent extraction. Supports both Pending→Processing and Failed→Processing (retry). B-034: Added `GetOrCreateByExternalIdAsync` to `PatientRepository` with catch-and-retry on unique constraint violation, used in `IngestionController`. B-048: Created `CircuitBreakerState` (thread-safe state machine), `CircuitBreakerRegistry` (named singletons), `CircuitBreakerHttpPipelinePolicy` (Azure.Core), `CircuitBreakerRetryPolicy` (System.ClientModel), `CircuitBreakerOpenException` (→503). Wired into all 3 Azure SDK clients (OpenAI, Search, DocIntel) via new `AzureRetryDefaults` overloads. Config: 5 failures in 30s → open for 60s → half-open. Tests: 700+ passing, 83.46% coverage. |
