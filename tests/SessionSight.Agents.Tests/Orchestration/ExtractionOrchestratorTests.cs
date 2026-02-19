@@ -181,7 +181,7 @@ public class ExtractionOrchestratorTests
         result.ErrorMessage.Should().Contain("Invalid document");
         // Verify document status was updated to Processing then Failed
         await _sessionRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Pending, DocumentStatus.Processing);
-        await _sessionRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Failed, null);
+        await _sessionRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
     }
 
     [Fact]
@@ -288,7 +288,7 @@ public class ExtractionOrchestratorTests
         result.ErrorMessage.Should().Contain("LLM call failed");
         // Verify document status was updated to Processing then Failed
         await _sessionRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Pending, DocumentStatus.Processing);
-        await _sessionRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Failed, null);
+        await _sessionRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
     }
 
     [Fact]
@@ -359,7 +359,7 @@ public class ExtractionOrchestratorTests
         // Assert — pipeline fails, status set to Failed
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("Failed to parse extraction JSON");
-        await _sessionRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Failed, null);
+        await _sessionRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
         // Risk assessor should NOT run — empty extraction with defaulted risk fields is a safety risk
         await _riskAssessor.DidNotReceive().AssessAsync(
             Arg.Any<ExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>());

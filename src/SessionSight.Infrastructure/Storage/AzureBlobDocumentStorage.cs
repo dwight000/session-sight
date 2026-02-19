@@ -61,6 +61,6 @@ public class AzureBlobDocumentStorage : IDocumentStorage
         }
 
         var containerClient = _blobServiceClient.GetBlobContainerClient(ContainerName);
-        return containerClient.GetBlobClient(blobPath);
+        return containerClient.GetBlobClient(Uri.UnescapeDataString(blobPath));
     }
 }

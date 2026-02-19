@@ -6,6 +6,7 @@ import { mockPatients } from '../src/test/fixtures/patients'
 import { mockPatientTimeline } from '../src/test/fixtures/timeline'
 import { mockTherapists } from '../src/test/fixtures/therapists'
 import { mockProcessingJobs } from '../src/test/fixtures/processingJobs'
+import { mockSessions } from '../src/test/fixtures/sessions'
 
 function mockDashboardRoutes(page: import('@playwright/test').Page) {
   return Promise.all([
@@ -214,6 +215,108 @@ test('Processing Jobs page shows job table', async ({ page }) => {
   await expect(table.getByRole('cell', { name: 'Completed' })).toBeVisible()
   await expect(table.getByRole('cell', { name: 'Processing' })).toBeVisible()
   await expect(table.getByRole('cell', { name: 'Failed' })).toBeVisible()
+})
+
+const mockSamplesJson = [
+  {
+    id: 'sample-nonrisk-001',
+    filename: 'sample-nonrisk-001.pdf',
+    title: 'Anxiety / CBT Session',
+    description: 'GAD with cognitive restructuring, individual session',
+    previewText: 'Session Note - March 5, 2026 Patient: Sarah Chen...',
+  },
+  {
+    id: 'sample-risk-001',
+    filename: 'sample-risk-001.pdf',
+    title: 'Active SI with Safety Plan',
+    description: 'High risk - specific plan, stockpiled means, emergency contacts',
+    previewText: 'Session Note - March 20, 2026 Patient: Rachel Morrison...',
+  },
+]
+
+function mockUploadRoutes(page: import('@playwright/test').Page) {
+  return Promise.all([
+    page.route('**/api/sessions?*', (route) =>
+      route.fulfill({ json: mockSessions }),
+    ),
+    page.route('**/api/sessions', (route) => {
+      if (route.request().url().includes('?')) {
+        return route.fulfill({ json: mockSessions })
+      }
+      return route.fulfill({ json: mockSessions })
+    }),
+    page.route('**/api/patients', (route) =>
+      route.fulfill({ json: mockPatients }),
+    ),
+    page.route('**/samples/samples.json', (route) =>
+      route.fulfill({ json: mockSamplesJson }),
+    ),
+    page.route('**/samples/*.pdf', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/pdf',
+        body: Buffer.from('%PDF-1.4 fake'),
+      }),
+    ),
+  ])
+}
+
+test('Upload page shows sample document cards by default', async ({ page }) => {
+  await mockUploadRoutes(page)
+  await page.goto('/upload')
+
+  await expect(page.getByRole('heading', { name: 'Upload Session Note' })).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Sample Documents' })).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Your Document' })).toBeVisible()
+
+  // Sample cards should be visible by default
+  await expect(page.getByText('Anxiety / CBT Session')).toBeVisible()
+  await expect(page.getByText('Active SI with Safety Plan')).toBeVisible()
+})
+
+test('Upload page sample card preview toggles', async ({ page }) => {
+  await mockUploadRoutes(page)
+  await page.goto('/upload')
+
+  await expect(page.getByText('Anxiety / CBT Session')).toBeVisible()
+
+  // Click Preview on first card
+  await page.getByText('Preview').first().click()
+  await expect(page.getByText('Session Note - March 5, 2026')).toBeVisible()
+
+  // Click Hide to collapse
+  await page.getByText('Hide').first().click()
+  await expect(page.getByText('Session Note - March 5, 2026')).not.toBeVisible()
+})
+
+test('Upload page Use This sets selected file', async ({ page }) => {
+  await mockUploadRoutes(page)
+  await page.goto('/upload')
+
+  await expect(page.getByText('Anxiety / CBT Session')).toBeVisible()
+
+  // Click Use This on first card
+  await page.getByText('Use This').first().click()
+
+  // Should show selected file info
+  await expect(page.getByText(/Selected file:.*sample-nonrisk-001\.pdf/)).toBeVisible()
+})
+
+test('Upload page Your Document tab shows file input', async ({ page }) => {
+  await mockUploadRoutes(page)
+  await page.goto('/upload')
+
+  await expect(page.getByRole('heading', { name: 'Upload Session Note' })).toBeVisible()
+
+  // File input should NOT be visible on Sample Documents tab
+  await expect(page.getByLabel('Document File')).not.toBeVisible()
+
+  // Switch to Your Document tab
+  await page.getByRole('tab', { name: 'Your Document' }).click()
+
+  // File input should now be visible
+  await expect(page.getByLabel('Document File')).toBeVisible()
+  await expect(page.getByText('Supported formats: PDF, DOCX, DOC, JPG, PNG, TIFF, BMP')).toBeVisible()
 })
 
 test('Sessions form includes therapist dropdown', async ({ page }) => {
