@@ -158,7 +158,7 @@ public partial class IngestionController : ControllerBase
                         var jobRepo = failScope.ServiceProvider.GetRequiredService<IProcessingJobRepository>();
                         await jobRepo.UpdateStatusAsync(jobKey, JobStatus.Failed);
                     }
-                    catch (Exception updateEx)
+                    catch (DbUpdateException updateEx)
                     {
                         LogJobStatusUpdateFailed(_logger, updateEx, jobKey);
                     }
