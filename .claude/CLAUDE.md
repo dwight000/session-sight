@@ -50,6 +50,11 @@ cd src/SessionSight.Web && services__api__https__0=https://localhost:7039 npx vi
    - `./scripts/run-e2e.sh --frontend` — full-stack Playwright
    - `./scripts/run-e2e.sh --all` — both
 
+**Merge strategy (enforced by convention):**
+- **feature→develop**: Squash merge (clean single commit per feature)
+- **develop→main**: Merge commit (preserves parent link so future PRs show only new commits)
+- **main→develop**: Auto back-merge via `.github/workflows/back-merge.yml` after each push to main
+
 **Git workflow (always use PRs):**
 
 At the start of a new workitem:

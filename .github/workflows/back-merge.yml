@@ -1,0 +1,27 @@
+name: Back-merge main → develop
+on:
+  push:
+    branches: [main]
+jobs:
+  back-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Merge main into develop
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout develop
+          git merge origin/main --no-edit || {
+            git merge --abort
+            gh pr create --base develop --head main \
+              --title "chore: Back-merge main into develop (conflicts)" \
+              --body "Auto back-merge failed due to conflicts. Please resolve manually."
+            exit 0
+          }
+          git push origin develop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
