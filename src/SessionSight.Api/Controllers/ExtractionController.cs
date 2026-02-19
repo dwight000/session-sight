@@ -64,7 +64,10 @@ public partial class ExtractionController : ControllerBase
 
         LogTriggeringExtraction(_logger, sessionId);
 
-        var result = await _orchestrator.ProcessSessionAsync(sessionId, ct);
+        // Use a dedicated timeout instead of the HTTP request's CancellationToken.
+        // The extraction pipeline should run to completion even if the client disconnects.
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        var result = await _orchestrator.ProcessSessionAsync(sessionId, cts.Token);
 
         if (!result.Success)
         {

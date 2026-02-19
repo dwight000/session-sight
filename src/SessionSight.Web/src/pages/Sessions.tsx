@@ -49,6 +49,7 @@ export function Sessions() {
   const { data: therapists } = useTherapists()
   const createSession = useCreateSession()
   const retryMutation = useRetryExtraction()
+  const [retryingSessionId, setRetryingSessionId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({
     patientId: '',
@@ -272,9 +273,14 @@ export function Sessions() {
                               variant="secondary"
                               className="px-2 py-0.5 text-xs"
                               disabled={retryMutation.isPending}
-                              onClick={() => retryMutation.mutate(session.id)}
+                              onClick={() => {
+                                setRetryingSessionId(session.id)
+                                retryMutation.mutate(session.id, {
+                                  onSettled: () => setRetryingSessionId(null),
+                                })
+                              }}
                             >
-                              {retryMutation.isPending ? 'Retrying...' : 'Retry'}
+                              {retryingSessionId === session.id && retryMutation.isPending ? 'Retrying...' : 'Retry'}
                             </Button>
                           )}
                         </span>
