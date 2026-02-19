@@ -121,7 +121,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             if (!intakeResult.IsValidTherapyNote)
             {
                 LogDocumentValidationFailed(_logger, intakeResult.ValidationError);
-                await _sessionRepository.UpdateDocumentStatusAsync(sessionId, DocumentStatus.Failed);
+                await _sessionRepository.TryTransitionDocumentStatusAsync(
+                    sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
 
                 return new OrchestrationResult
                 {
@@ -144,7 +145,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             if (extractionResult.Errors.Any(e => e.Contains("Failed to parse extraction JSON", StringComparison.Ordinal)))
             {
                 LogExtractionParseFailed(_logger, sessionId);
-                await _sessionRepository.UpdateDocumentStatusAsync(sessionId, DocumentStatus.Failed);
+                await _sessionRepository.TryTransitionDocumentStatusAsync(
+                    sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
                 return new OrchestrationResult
                 {
                     Success = false,
@@ -240,10 +242,12 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             stopwatch.Stop();
             LogExtractionFailed(_logger, ex, sessionId);
 
-            // Update document status to Failed (direct update avoids concurrency issues)
+            // Atomic transition avoids change-tracker staleness (UpdateDocumentStatusAsync
+            // can silently fail if the tracked entity is stale from an earlier ExecuteUpdateAsync).
             try
             {
-                await _sessionRepository.UpdateDocumentStatusAsync(sessionId, DocumentStatus.Failed);
+                await _sessionRepository.TryTransitionDocumentStatusAsync(
+                    sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
             }
             catch (Exception updateEx)
             {

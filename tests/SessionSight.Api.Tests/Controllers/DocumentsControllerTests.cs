@@ -57,6 +57,23 @@ public class DocumentsControllerTests
         ((string)badRequest.Value!).Should().Contain("exceeds maximum allowed");
     }
 
+    [Theory]
+    [InlineData("note.txt")]
+    [InlineData("note.xml")]
+    [InlineData("note.html")]
+    [InlineData("note")]
+    public async Task UploadDocument_UnsupportedFileType_ReturnsBadRequest(string fileName)
+    {
+        var sessionId = Guid.NewGuid();
+        var file = CreateMockFile(fileName: fileName);
+
+        var result = await _controller.UploadDocument(sessionId, file);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+        var badRequest = (BadRequestObjectResult)result.Result!;
+        ((string)badRequest.Value!).Should().Contain("Unsupported file type");
+    }
+
     [Fact]
     public async Task UploadDocument_SessionNotFound_ReturnsNotFound()
     {
