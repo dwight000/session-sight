@@ -71,6 +71,10 @@ test.describe('Upload Flow', () => {
       expect(matchingOption).toBeTruthy()
       await patientSelect.selectOption(matchingOption!)
 
+      // Select E2E therapist (created by run-e2e.sh setup)
+      const therapistSelect = page.getByLabel('Therapist')
+      await therapistSelect.selectOption({ index: 1 })
+
       await page.getByLabel('Session Date').fill('2026-01-15')
       await page.getByLabel('Session Type').selectOption('Individual')
       await page.getByLabel('Modality').selectOption('InPerson')
@@ -82,7 +86,7 @@ test.describe('Upload Flow', () => {
       // Verify session appears in the table with "No Document" badge
       // Look in the table body specifically to avoid matching dropdowns
       const table = page.locator('table')
-      await expect(table.getByText(fullName)).toBeVisible()
+      await expect(table.getByText(fullName)).toBeVisible({ timeout: 6000 })
       await expect(table.getByText('No Document').first()).toBeVisible()
     })
 
@@ -135,7 +139,7 @@ test.describe('Upload Flow', () => {
       await expect(page.getByRole('heading', { name: fullName })).toBeVisible()
     })
 
-    // 5. Verify the session now shows as "Uploaded" in sessions list
+    // 5. Verify the session now shows as "Extracted" in sessions list
     await test.step('Verify session has document', async () => {
       await page.goto('/sessions')
 
@@ -146,9 +150,9 @@ test.describe('Upload Flow', () => {
       const table = page.locator('table')
       await expect(table.getByText(fullName)).toBeVisible({ timeout: 10000 })
 
-      // Verify the session now shows "Uploaded" badge in the same row
+      // Verify the session now shows "Extracted" badge (extraction completed)
       const row = table.locator('tr', { has: page.getByText(fullName) })
-      await expect(row.getByText('Uploaded')).toBeVisible()
+      await expect(row.getByText('Extracted')).toBeVisible()
     })
 
     // 6. Verify timeline page renders for the created patient
@@ -166,32 +170,58 @@ test.describe('Upload Flow', () => {
     })
   })
 
-  test('upload shows error for invalid file', async ({ page }) => {
-    // This test verifies the UI handles errors gracefully
-    // It doesn't actually test the backend validation (no LLM cost)
+  test('upload button disabled without file selected', async ({ page }) => {
+    // Create own patient + session so this test never depends on leftover data
+    const timestamp = Date.now()
+    const firstName = 'E2E'
+    const lastName = `NoFile${timestamp}`
+    const fullName = `${firstName} ${lastName}`
 
+    // Create patient
+    await page.goto('/patients')
+    await expect(page.getByRole('heading', { name: 'Patients' })).toBeVisible()
+    await page.getByRole('button', { name: 'Add Patient' }).click()
+    await page.getByLabel('First Name').fill(firstName)
+    await page.getByLabel('Last Name').fill(lastName)
+    await page.getByLabel('Date of Birth').fill('1990-01-15')
+    await page.getByLabel('External ID').fill(`E2E-NF-${timestamp}`)
+    await page.getByRole('button', { name: 'Create Patient' }).click()
+    await expect(page.getByText(fullName)).toBeVisible()
+
+    // Create session
+    await page.goto('/sessions')
+    await expect(page.getByRole('heading', { name: 'Sessions' })).toBeVisible()
+    await page.getByRole('button', { name: 'Add Session' }).click()
+
+    const patientSelect = page.getByLabel('Patient')
+    const options = await patientSelect.locator('option').allTextContents()
+    const matchingOption = options.find((opt) => opt.includes(fullName))
+    expect(matchingOption).toBeTruthy()
+    await patientSelect.selectOption(matchingOption!)
+
+    const therapistSelect = page.getByLabel('Therapist')
+    await therapistSelect.selectOption({ index: 1 })
+
+    await page.getByLabel('Session Date').fill('2026-01-15')
+    await page.getByLabel('Session Type').selectOption('Individual')
+    await page.getByLabel('Modality').selectOption('InPerson')
+    await page.getByLabel('Session Number').fill('1')
+    await page.getByRole('button', { name: 'Create Session' }).click()
+
+    const table = page.locator('table')
+    await expect(table.getByText(fullName)).toBeVisible({ timeout: 6000 })
+
+    // Navigate to upload and select our session
     await page.goto('/upload')
+    await expect(page.getByRole('heading', { name: 'Upload Session Note' })).toBeVisible()
 
-    // If there are no sessions available, we can't test upload
-    const noSessionsMessage = page.getByText('No sessions available for upload')
-    if (await noSessionsMessage.isVisible()) {
-      test.skip()
-      return
-    }
+    const sessionSelect = page.getByLabel('Select Session')
+    const sessionOptions = await sessionSelect.locator('option').allTextContents()
+    const matchingSession = sessionOptions.find((opt) => opt.includes(fullName))
+    expect(matchingSession).toBeTruthy()
+    await sessionSelect.selectOption(matchingSession!)
 
-    // Select any available session
-    const selectSession = page.getByLabel('Select Session')
-    const options = await selectSession.locator('option').all()
-    if (options.length <= 1) {
-      // Only the placeholder option exists
-      test.skip()
-      return
-    }
-
-    // Select the first real session
-    await selectSession.selectOption({ index: 1 })
-
-    // Try to submit without a file (should be disabled)
+    // Verify submit button is disabled without a file
     const submitButton = page.getByRole('button', { name: 'Upload & Extract' })
     await expect(submitButton).toBeDisabled()
   })

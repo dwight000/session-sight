@@ -13,6 +13,7 @@ public record SessionDto(
     int? DurationMinutes,
     int SessionNumber,
     bool HasDocument,
+    DocumentStatus? DocumentStatus,
     DateTime CreatedAt,
     DateTime UpdatedAt);
 

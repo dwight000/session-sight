@@ -17,5 +17,6 @@ public interface ISessionRepository
     Task UpdateDocumentStatusAsync(Guid sessionId, DocumentStatus status, string? extractedText = null);
     Task<bool> TryTransitionDocumentStatusAsync(Guid sessionId, DocumentStatus fromStatus, DocumentStatus toStatus);
     Task SaveExtractionResultAsync(ExtractionResult extraction);
+    Task UpsertExtractionResultAsync(ExtractionResult extraction);
     Task UpdateExtractionSummaryAsync(Guid extractionId, string summaryJson);
 }

@@ -91,14 +91,18 @@ public class ExtractionOrchestratorTests
     }
 
     [Fact]
-    public async Task ProcessSessionAsync_TransitionFails_ReturnsError()
+    public async Task ProcessSessionAsync_TransitionFails_NotProcessing_ReturnsError()
     {
-        // Arrange
+        // Arrange — status is Completed, both probes fail
         var sessionId = Guid.NewGuid();
         var session = CreateTestSession(sessionId);
         _sessionRepository.GetByIdAsync(sessionId).Returns(session);
         _sessionRepository.TryTransitionDocumentStatusAsync(
             sessionId, DocumentStatus.Pending, DocumentStatus.Processing)
+            .Returns(false);
+        // Processing→Processing probe also fails (status is Completed in DB)
+        _sessionRepository.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.Processing, DocumentStatus.Processing)
             .Returns(false);
 
         // Act
@@ -107,6 +111,44 @@ public class ExtractionOrchestratorTests
         // Assert
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("already in progress or completed");
+    }
+
+    [Fact]
+    public async Task ProcessSessionAsync_StatusAlreadyProcessing_Proceeds()
+    {
+        // Arrange — simulates ExtractionController retry: caller already transitioned Failed→Processing.
+        // Pending→Processing fails, but Processing→Processing probe succeeds.
+        var sessionId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        var parsedDoc = CreateTestParsedDocument();
+        var intakeResult = CreateTestIntakeResult(parsedDoc);
+        var extractionResult = CreateTestExtractionResult();
+        var riskResult = CreateTestRiskResult();
+
+        _sessionRepository.GetByIdAsync(sessionId).Returns(session);
+        _sessionRepository.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.Pending, DocumentStatus.Processing)
+            .Returns(false);
+        // Processing→Processing probe succeeds (DB status is Processing)
+        _sessionRepository.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.Processing, DocumentStatus.Processing)
+            .Returns(true);
+        _documentStorage.DownloadAsync(Arg.Any<string>()).Returns(new MemoryStream());
+        _documentParser.ParseAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(parsedDoc);
+        _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
+            .Returns(intakeResult);
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+            .Returns(extractionResult);
+        _riskAssessor.AssessAsync(Arg.Any<ExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(riskResult);
+
+        // Act
+        var result = await _orchestrator.ProcessSessionAsync(sessionId);
+
+        // Assert — pipeline proceeds successfully
+        result.Success.Should().BeTrue();
+        result.SessionId.Should().Be(sessionId);
     }
 
     [Fact]
@@ -277,8 +319,8 @@ public class ExtractionOrchestratorTests
         // Assert - verify document status updates and extraction save
         // Processing status set first
         await _sessionRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Pending, DocumentStatus.Processing);
-        // Extraction result saved
-        await _sessionRepository.Received().SaveExtractionResultAsync(Arg.Any<CoreEntities.ExtractionResult>());
+        // Extraction result upserted
+        await _sessionRepository.Received().UpsertExtractionResultAsync(Arg.Any<CoreEntities.ExtractionResult>());
         // Completed status set with extracted text
         await _sessionRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Completed, Arg.Any<string>());
     }

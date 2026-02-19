@@ -35,9 +35,36 @@ describe('Sessions page', () => {
   it('shows document status badges', async () => {
     renderSessions()
     await waitFor(() => {
-      expect(screen.getByText('Uploaded')).toBeInTheDocument()
+      expect(screen.getByText('Extracted')).toBeInTheDocument()
       expect(screen.getByText('No Document')).toBeInTheDocument()
+      expect(screen.getByText('Failed')).toBeInTheDocument()
     })
+  })
+
+  it('shows retry button for failed sessions', async () => {
+    renderSessions()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument()
+    })
+  })
+
+  it('retry button calls extraction API', async () => {
+    let capturedSessionId = ''
+    server.use(
+      http.post('/api/extraction/:sessionId', ({ params }) => {
+        capturedSessionId = params.sessionId as string
+        return HttpResponse.json({ success: true, extractionId: 'new-id' })
+      }),
+    )
+
+    renderSessions()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument()
+    })
+
+    await userEvent.click(screen.getByRole('button', { name: /retry/i }))
+
+    await waitFor(() => expect(capturedSessionId).toBe('s3'))
   })
 
   it('shows add session form when clicking Add Session', async () => {
