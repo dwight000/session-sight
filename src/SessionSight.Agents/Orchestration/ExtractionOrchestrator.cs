@@ -82,17 +82,26 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             };
         }
 
-        // Atomic transition: only one caller can move Pending → Processing
+        // Atomic transition: only one caller can move Pending → Processing.
+        // If transition fails, probe the DB to check if status is already Processing
+        // (e.g. ExtractionController retry set Failed→Processing before calling us).
+        // NOTE: can't use session.Document.Status — tracked entity may be stale after
+        // caller's ExecuteUpdateAsync bypassed the EF change tracker.
         var transitioned = await _sessionRepository.TryTransitionDocumentStatusAsync(
             sessionId, DocumentStatus.Pending, DocumentStatus.Processing);
         if (!transitioned)
         {
-            return new OrchestrationResult
+            var alreadyProcessing = await _sessionRepository.TryTransitionDocumentStatusAsync(
+                sessionId, DocumentStatus.Processing, DocumentStatus.Processing);
+            if (!alreadyProcessing)
             {
-                Success = false,
-                SessionId = sessionId,
-                ErrorMessage = "Extraction already in progress or completed"
-            };
+                return new OrchestrationResult
+                {
+                    Success = false,
+                    SessionId = sessionId,
+                    ErrorMessage = "Extraction already in progress or completed"
+                };
+            }
         }
 
         try
@@ -295,8 +304,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                 : null
         };
 
-        // Direct insert avoids Session RowVersion concurrency issues
-        await _sessionRepository.SaveExtractionResultAsync(entity);
+        // Upsert handles re-extraction after retry (deletes old extraction if exists)
+        await _sessionRepository.UpsertExtractionResultAsync(entity);
 
         return entity;
     }

@@ -3,10 +3,11 @@ import { useSessions } from '../hooks/useSessions'
 import { usePatients } from '../hooks/usePatients'
 import { useCreateSession } from '../hooks/useCreateSession'
 import { useTherapists } from '../hooks/useTherapists'
+import { useRetryExtraction } from '../hooks/useRetryExtraction'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { Spinner } from '../components/ui/Spinner'
-import type { Session, SessionType, SessionModality } from '../types'
+import type { Session, SessionType, SessionModality, DocumentStatus } from '../types'
 
 const SESSION_TYPES: SessionType[] = ['Intake', 'Individual', 'Group', 'Family', 'Couples', 'Crisis', 'Assessment', 'Termination']
 const SESSION_MODALITIES: SessionModality[] = ['InPerson', 'TelehealthVideo', 'TelehealthPhone', 'Hybrid']
@@ -25,6 +26,20 @@ function formatModality(modality: SessionModality): string {
   }
 }
 
+function getDocumentBadge(session: Session): { label: string; variant: string } {
+  if (!session.hasDocument) {
+    return { label: 'No Document', variant: 'pending' }
+  }
+  const status: DocumentStatus | null = session.documentStatus
+  switch (status) {
+    case 'Pending': return { label: 'Pending', variant: 'pending' }
+    case 'Processing': return { label: 'Processing', variant: 'warning' }
+    case 'Completed': return { label: 'Extracted', variant: 'approved' }
+    case 'Failed': return { label: 'Failed', variant: 'danger' }
+    default: return { label: 'Uploaded', variant: 'approved' }
+  }
+}
+
 export function Sessions() {
   const [patientFilter, setPatientFilter] = useState<string>('')
   const { data: sessions, isLoading, error } = useSessions(
@@ -33,6 +48,7 @@ export function Sessions() {
   const { data: patients } = usePatients()
   const { data: therapists } = useTherapists()
   const createSession = useCreateSession()
+  const retryMutation = useRetryExtraction()
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({
     patientId: '',
@@ -224,7 +240,7 @@ export function Sessions() {
                 <th className="px-4 py-3">Type</th>
                 <th className="px-4 py-3">Modality</th>
                 <th className="px-4 py-3">#</th>
-                <th className="px-4 py-3">Document</th>
+                <th className="px-4 py-3">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -246,9 +262,24 @@ export function Sessions() {
                     {session.sessionNumber}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
-                    <Badge variant={session.hasDocument ? 'approved' : 'pending'}>
-                      {session.hasDocument ? 'Uploaded' : 'No Document'}
-                    </Badge>
+                    {(() => {
+                      const badge = getDocumentBadge(session)
+                      return (
+                        <span className="inline-flex items-center gap-2">
+                          <Badge variant={badge.variant}>{badge.label}</Badge>
+                          {session.documentStatus === 'Failed' && (
+                            <Button
+                              variant="secondary"
+                              className="px-2 py-0.5 text-xs"
+                              disabled={retryMutation.isPending}
+                              onClick={() => retryMutation.mutate(session.id)}
+                            >
+                              {retryMutation.isPending ? 'Retrying...' : 'Retry'}
+                            </Button>
+                          )}
+                        </span>
+                      )
+                    })()}
                   </td>
                 </tr>
               ))}

@@ -9,9 +9,9 @@
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
 **Next Action**: P6-007
 
-**Last Updated**: February 17, 2026
+**Last Updated**: February 18, 2026
 
-**Milestone**: P6-006/B-077 complete — Dependabot enabled, SQL auth switched from password to Managed Identity.
+**Milestone**: B-081 complete — merged 18 Dependabot PRs (npm, NuGet Aspire, GitHub Actions), closed 3 breaking changes (eslint 10, Storage.Blobs).
 
 ---
 
@@ -172,6 +172,9 @@
 | P6-004 | Environment-specific configuration | M | 6 | Done | P6-002 |
 | P6-005 | Create GitHub Release with SemVer tag (v1.0.0) | S | 6 | Done | P6-003 |
 | P6-006 | Enable Dependabot for dependency updates | S | 6 | Done | P6-005 |
+| B-079 | Fix concurrent role assignment conflicts in Bicep (dependsOn ordering) | S | 6 | Done | - |
+| B-080 | Store ghcrToken as GitHub secret (eliminate manual input for deployContainerApps) | S | 6 | Done | - |
+| B-081 | Review and merge Dependabot PRs (~20 pending) | M | 6 | Done | - |
 | P6-007 | Demo data and walkthrough | M | 6 | Blocked | P6-002 |
 
 ---
@@ -256,6 +259,30 @@
       VALUES ('00000000-0000-0000-0000-000000000001', 'Test Therapist', 'LIC-001', 'PhD', 1, GETUTCDATE())
   ```
 - **Acceptance**: Cloud environment allows creating patients and sessions without FK errors; extraction pipeline can be tested end-to-end.
+
+### B-080 Details (Store ghcrToken as GitHub Secret)
+- **Problem**: Running `infra.yml` with `deployContainerApps=true` requires manually passing a GitHub PAT via the `ghcrToken` workflow input. The token lives in Azure Key Vault (`sessionsight-kv-dev`, secret name `ghcr-token`) but must be copy-pasted into the workflow dispatch UI each time. This is error-prone and blocks automation.
+- **Current flow**: `ghcrToken` is a `workflow_dispatch` string input → passed to Bicep → stored as container app secret `ghcr-token` → used by container runtime to pull images from `ghcr.io/dwight000/`.
+- **Proposed fix**:
+  1. Add `GHCR_TOKEN` as a GitHub repository secret (Settings → Secrets → Actions)
+  2. Update `infra.yml` to use `${{ secrets.GHCR_TOKEN }}` as default when `ghcrToken` input is empty
+  3. Keep the input as an override for rotation scenarios
+- **Code change** (`.github/workflows/infra.yml`):
+  ```yaml
+  # In deploy step, replace:
+  --parameters ghcrToken='${{ github.event.inputs.ghcrToken }}'
+  # With:
+  --parameters ghcrToken='${{ github.event.inputs.ghcrToken || secrets.GHCR_TOKEN }}'
+  ```
+- **Token value**: `az keyvault secret show --vault-name sessionsight-kv-dev --name ghcr-token --query value -o tsv`
+- **Token scope**: `read:packages` on `ghcr.io`
+- **Acceptance**: `infra.yml` with `deployContainerApps=true` succeeds without manually providing `ghcrToken` input.
+
+### B-081 Details (Review and Merge Dependabot PRs)
+- **Problem**: ~20 Dependabot PRs opened automatically after P6-006 enabled Dependabot. These cover NuGet, npm, and GitHub Actions dependency updates.
+- **Approach**: Review each PR for breaking changes, run CI, merge in batches. Some may have conflicts if they touch the same lock files.
+- **Risk**: Major version bumps (e.g., Aspire 9.x → 13.x) may require code changes. Minor/patch bumps are usually safe.
+- **Acceptance**: All Dependabot PRs merged or closed with justification. CI green on develop after merging.
 
 ### B-075 Details (CRLF Line Ending Fix)
 - **Problem**: Several files in the repo were committed with CRLF line endings while `.gitattributes` specifies `eol=lf`. This causes phantom diffs that persist through `git reset --hard`, `git stash`, and `git checkout`, making branch switches and merges difficult.
@@ -429,6 +456,8 @@
 | B-031 | Rollback strategy: rollback_tag input, rollback job, runbook in CLOUD_TROUBLESHOOTING.md | 2026-02-17 |
 | P6-006 | Enable Dependabot for dependency updates (NuGet, npm, GitHub Actions) | 2026-02-17 |
 | B-077 | Switch to Managed Identity for SQL auth (eliminate password sync) | 2026-02-17 |
+| B-080 | Store ghcrToken as GitHub secret (eliminate manual input for deployContainerApps) | 2026-02-18 |
+| B-081 | Review and merge Dependabot PRs — 18 merged, 3 closed (eslint 10, Storage.Blobs breaking) | 2026-02-18 |
 
 ---
 

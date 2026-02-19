@@ -25,7 +25,13 @@ public record ProcessNoteRequest(
     /// <summary>
     /// Original filename.
     /// </summary>
-    string FileName
+    string FileName,
+
+    /// <summary>
+    /// Deterministic idempotency key: SHA256(blobPath + "|" + eTag).
+    /// Prevents duplicate session creation from at-least-once blob triggers.
+    /// </summary>
+    string? JobKey = null
 );
 
 /// <summary>

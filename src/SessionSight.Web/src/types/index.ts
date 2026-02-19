@@ -19,6 +19,7 @@ export interface CreatePatientRequest {
 // Session types
 export type SessionType = 'Intake' | 'Individual' | 'Group' | 'Family' | 'Couples' | 'Crisis' | 'Assessment' | 'Termination'
 export type SessionModality = 'InPerson' | 'TelehealthVideo' | 'TelehealthPhone' | 'Hybrid'
+export type DocumentStatus = 'Pending' | 'Processing' | 'Completed' | 'Failed'
 
 export interface Session {
   id: string
@@ -30,6 +31,7 @@ export interface Session {
   durationMinutes: number | null
   sessionNumber: number
   hasDocument: boolean
+  documentStatus: DocumentStatus | null
   createdAt: string
   updatedAt: string
 }

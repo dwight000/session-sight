@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using Azure.Storage.Blobs;
 using Microsoft.Azure.Functions.Worker;
@@ -78,6 +80,11 @@ public partial class ProcessIncomingNoteFunction
             // 4. Parse session date from filename
             var sessionDate = ParseDateFromFileName(fileName);
 
+            // 4b. Compute deterministic job key for idempotency
+            var blobPath = $"incoming/{patientId}/{fileName}";
+            var eTag = properties.Value.ETag.ToString();
+            var jobKey = ComputeJobKey(blobPath, eTag);
+
             // 5. Call the API to process the note
             var httpClient = _httpClientFactory.CreateClient("SessionSightApi");
 
@@ -85,7 +92,8 @@ public partial class ProcessIncomingNoteFunction
                 PatientId: patientId,
                 BlobUri: processingUri,
                 SessionDate: sessionDate,
-                FileName: fileName
+                FileName: fileName,
+                JobKey: jobKey
             );
 
             var response = await httpClient.PostAsJsonAsync("/api/ingestion/process", request);
@@ -211,6 +219,13 @@ public partial class ProcessIncomingNoteFunction
     [GeneratedRegex(@"\d{8}")]
     private static partial Regex DatePatternNoDashes();
 
+    private static string ComputeJobKey(string blobPath, string eTag)
+    {
+        var input = $"{blobPath}|{eTag}";
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(input));
+        return Convert.ToHexStringLower(hash);
+    }
+
     /// <summary>
     /// Request DTO matching the API endpoint.
     /// </summary>
@@ -218,7 +233,8 @@ public partial class ProcessIncomingNoteFunction
         string PatientId,
         string BlobUri,
         DateOnly SessionDate,
-        string FileName
+        string FileName,
+        string? JobKey = null
     );
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Processing blob: {PatientId}/{FileName}")]

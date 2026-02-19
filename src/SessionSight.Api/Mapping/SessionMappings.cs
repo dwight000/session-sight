@@ -10,6 +10,7 @@ public static class SessionMappings
             session.SessionDate, session.SessionType, session.Modality,
             session.DurationMinutes, session.SessionNumber,
             session.Document is not null,
+            session.Document?.Status,
             session.CreatedAt, session.UpdatedAt);
 
     public static Session ToEntity(this CreateSessionRequest request) =>

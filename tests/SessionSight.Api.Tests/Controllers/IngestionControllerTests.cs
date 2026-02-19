@@ -15,6 +15,7 @@ public class IngestionControllerTests
 {
     private readonly Mock<IPatientRepository> _mockPatientRepo;
     private readonly Mock<ISessionRepository> _mockSessionRepo;
+    private readonly Mock<IProcessingJobRepository> _mockProcessingJobRepo;
     private readonly Mock<IServiceScopeFactory> _mockScopeFactory;
     private readonly Mock<ILogger<IngestionController>> _mockLogger;
     private readonly IngestionController _controller;
@@ -23,21 +24,25 @@ public class IngestionControllerTests
     {
         _mockPatientRepo = new Mock<IPatientRepository>();
         _mockSessionRepo = new Mock<ISessionRepository>();
+        _mockProcessingJobRepo = new Mock<IProcessingJobRepository>();
         _mockScopeFactory = new Mock<IServiceScopeFactory>();
         _mockLogger = new Mock<ILogger<IngestionController>>();
 
-        // Wire up scope factory -> scope -> service provider -> orchestrator
+        // Wire up scope factory -> scope -> service provider -> orchestrator + job repo
         var mockScope = new Mock<IServiceScope>();
         var mockServiceProvider = new Mock<IServiceProvider>();
         var mockOrchestrator = new Mock<IExtractionOrchestrator>();
         mockServiceProvider.Setup(p => p.GetService(typeof(IExtractionOrchestrator)))
             .Returns(mockOrchestrator.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(IProcessingJobRepository)))
+            .Returns(_mockProcessingJobRepo.Object);
         mockScope.Setup(s => s.ServiceProvider).Returns(mockServiceProvider.Object);
         _mockScopeFactory.Setup(f => f.CreateScope()).Returns(mockScope.Object);
 
         _controller = new IngestionController(
             _mockPatientRepo.Object,
             _mockSessionRepo.Object,
+            _mockProcessingJobRepo.Object,
             _mockScopeFactory.Object,
             _mockLogger.Object);
     }
@@ -269,5 +274,91 @@ public class IngestionControllerTests
         var result = await _controller.ProcessNote(request, CancellationToken.None);
 
         result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task ProcessNote_DuplicateJobKey_Returns202WithoutCreatingSession()
+    {
+        // Arrange
+        var jobKey = "abc123def456";
+        var request = new ProcessNoteRequest(
+            PatientId: "P12345",
+            BlobUri: "https://storage/blob/note.pdf",
+            SessionDate: DateOnly.FromDateTime(DateTime.Today),
+            FileName: "note.pdf",
+            JobKey: jobKey
+        );
+
+        _mockProcessingJobRepo.Setup(r => r.GetByJobKeyAsync(jobKey))
+            .ReturnsAsync(new ProcessingJob { Id = Guid.NewGuid(), JobKey = jobKey });
+
+        // Act
+        var result = await _controller.ProcessNote(request, CancellationToken.None);
+
+        // Assert — returns 202 but does NOT create a session
+        result.Result.Should().BeOfType<AcceptedResult>();
+        var accepted = result.Result as AcceptedResult;
+        var response = accepted!.Value as ProcessNoteResponse;
+        response!.Message.Should().Contain("Already processed");
+        _mockSessionRepo.Verify(r => r.AddAsync(It.IsAny<Session>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ProcessNote_ValidJobKey_CreatesProcessingJob()
+    {
+        // Arrange
+        var jobKey = "newjobkey123";
+        var patient = new Patient { Id = Guid.NewGuid(), ExternalId = "P12345" };
+        var request = new ProcessNoteRequest(
+            PatientId: "P12345",
+            BlobUri: "https://storage/blob/note.pdf",
+            SessionDate: DateOnly.FromDateTime(DateTime.Today),
+            FileName: "note.pdf",
+            JobKey: jobKey
+        );
+
+        _mockProcessingJobRepo.Setup(r => r.GetByJobKeyAsync(jobKey))
+            .ReturnsAsync(null as ProcessingJob);
+        _mockProcessingJobRepo.Setup(r => r.CreateAsync(It.IsAny<ProcessingJob>()))
+            .ReturnsAsync((ProcessingJob j) => j);
+        _mockPatientRepo.Setup(r => r.GetOrCreateByExternalIdAsync("P12345", "Unknown", "Patient"))
+            .ReturnsAsync(patient);
+        _mockSessionRepo.Setup(r => r.AddAsync(It.IsAny<Session>()))
+            .ReturnsAsync((Session s) => { s.Id = Guid.NewGuid(); return s; });
+
+        // Act
+        var result = await _controller.ProcessNote(request, CancellationToken.None);
+
+        // Assert
+        result.Result.Should().BeOfType<AcceptedResult>();
+        _mockProcessingJobRepo.Verify(r => r.CreateAsync(It.Is<ProcessingJob>(j => j.JobKey == jobKey)), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessNote_EmptyJobKey_SkipsIdempotencyCheck()
+    {
+        // Arrange
+        var patient = new Patient { Id = Guid.NewGuid(), ExternalId = "P12345" };
+        var request = new ProcessNoteRequest(
+            PatientId: "P12345",
+            BlobUri: "https://storage/blob/note.pdf",
+            SessionDate: DateOnly.FromDateTime(DateTime.Today),
+            FileName: "note.pdf",
+            JobKey: null
+        );
+
+        _mockPatientRepo.Setup(r => r.GetOrCreateByExternalIdAsync("P12345", "Unknown", "Patient"))
+            .ReturnsAsync(patient);
+        _mockSessionRepo.Setup(r => r.AddAsync(It.IsAny<Session>()))
+            .ReturnsAsync((Session s) => { s.Id = Guid.NewGuid(); return s; });
+
+        // Act
+        var result = await _controller.ProcessNote(request, CancellationToken.None);
+
+        // Assert — session created, no job key check
+        result.Result.Should().BeOfType<AcceptedResult>();
+        _mockProcessingJobRepo.Verify(r => r.GetByJobKeyAsync(It.IsAny<string>()), Times.Never);
+        _mockProcessingJobRepo.Verify(r => r.CreateAsync(It.IsAny<ProcessingJob>()), Times.Never);
+        _mockSessionRepo.Verify(r => r.AddAsync(It.IsAny<Session>()), Times.Once);
     }
 }

@@ -18,11 +18,11 @@ on:
           - what-if
         default: deploy
       deployContainerApps:
-        description: 'Deploy Container Apps (requires ghcrToken)'
+        description: 'Deploy Container Apps'
         type: boolean
         default: false
       ghcrToken:
-        description: 'GitHub PAT for ghcr.io (required if deployContainerApps=true)'
+        description: 'GitHub PAT for ghcr.io (optional — falls back to GHCR_TOKEN secret)'
         type: string
         default: ''
   push:
@@ -48,7 +48,7 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Validate Bicep syntax
         run: az bicep build --file infra/main.bicep
@@ -89,7 +89,7 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Azure Login (OIDC)
         uses: azure/login@v2
@@ -115,7 +115,7 @@ jobs:
             --parameters infra/main.parameters.${ENV}.json \
             --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
             --parameters deployContainerApps=${{ github.event.inputs.deployContainerApps || 'false' }} \
-            --parameters ghcrToken='${{ github.event.inputs.ghcrToken }}'
+            --parameters ghcrToken='${{ github.event.inputs.ghcrToken || secrets.GHCR_TOKEN }}'
 
       - name: Deploy Infrastructure
         if: github.event.inputs.mode != 'what-if'
@@ -128,7 +128,7 @@ jobs:
             --parameters infra/main.parameters.${ENV}.json \
             --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
             --parameters deployContainerApps=${{ github.event.inputs.deployContainerApps || 'false' }} \
-            --parameters ghcrToken='${{ github.event.inputs.ghcrToken }}'
+            --parameters ghcrToken='${{ github.event.inputs.ghcrToken || secrets.GHCR_TOKEN }}'
 
       - name: Provision Managed Identity SQL users
         if: github.event.inputs.mode != 'what-if'
@@ -212,7 +212,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Azure Login (OIDC)
         uses: azure/login@v2
@@ -246,7 +246,7 @@ jobs:
             --no-pretty-print 2>&1 | tail -200 > /tmp/whatif-stage.txt || true
 
       - name: Comment PR with What-If Results
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');

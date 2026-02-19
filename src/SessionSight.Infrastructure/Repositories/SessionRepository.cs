@@ -150,6 +150,18 @@ public partial class SessionRepository : ISessionRepository
         await _context.SaveChangesAsync();
     }
 
+    public async Task UpsertExtractionResultAsync(ExtractionResult extraction)
+    {
+        // Delete existing extraction for this session (if any) then insert new one.
+        // Handles re-extraction after Failed status without unique constraint violation.
+        await _context.Extractions
+            .Where(e => e.SessionId == extraction.SessionId)
+            .ExecuteDeleteAsync();
+
+        _context.Extractions.Add(extraction);
+        await _context.SaveChangesAsync();
+    }
+
     public async Task<IEnumerable<Session>> GetByPatientIdInDateRangeAsync(Guid patientId, DateOnly? startDate, DateOnly? endDate)
     {
         var query = _context.Sessions

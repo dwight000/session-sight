@@ -45,7 +45,7 @@ internal static class ExtractionSchemaGenerator
                 // ExtractedField<T> — get T
                 var valueType = GetValueTypeDescription(field.PropertyType);
                 var comma = j < fields.Length - 1 ? "," : "";
-                sb.Append(CultureInfo.InvariantCulture, $"    \"{fieldName}\": {{ \"value\": {valueType}, \"confidence\": 0.0, \"source\": null }}{comma}\n");
+                sb.Append(CultureInfo.InvariantCulture, $"    \"{fieldName}\": {{ \"value\": {valueType}, \"confidence\": 0.85, \"source\": null }}{comma}\n");
             }
 
             var sectionComma = i < sectionProps.Length - 1 ? "," : "";

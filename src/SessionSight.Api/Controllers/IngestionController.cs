@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SessionSight.Agents.Orchestration;
 using SessionSight.Api.DTOs;
 using SessionSight.Core.Entities;
@@ -16,17 +17,20 @@ public partial class IngestionController : ControllerBase
 {
     private readonly IPatientRepository _patientRepository;
     private readonly ISessionRepository _sessionRepository;
+    private readonly IProcessingJobRepository _processingJobRepository;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<IngestionController> _logger;
 
     public IngestionController(
         IPatientRepository patientRepository,
         ISessionRepository sessionRepository,
+        IProcessingJobRepository processingJobRepository,
         IServiceScopeFactory scopeFactory,
         ILogger<IngestionController> logger)
     {
         _patientRepository = patientRepository;
         _sessionRepository = sessionRepository;
+        _processingJobRepository = processingJobRepository;
         _scopeFactory = scopeFactory;
         _logger = logger;
     }
@@ -62,6 +66,20 @@ public partial class IngestionController : ControllerBase
 
         LogProcessingNote(_logger, request.PatientId, request.FileName);
 
+        // 0. Idempotency check: if job key was provided and already exists, return 202 (no-op)
+        if (!string.IsNullOrEmpty(request.JobKey))
+        {
+            var existingJob = await _processingJobRepository.GetByJobKeyAsync(request.JobKey);
+            if (existingJob is not null)
+            {
+                LogDuplicateJobKey(_logger, request.JobKey);
+                return Accepted(new ProcessNoteResponse(
+                    Guid.Empty,
+                    "Already processed (duplicate job key)"
+                ));
+            }
+        }
+
         // 1. Find or create patient (atomic — handles concurrent blob triggers)
         var patient = await _patientRepository.GetOrCreateByExternalIdAsync(
             request.PatientId, "Unknown", "Patient");
@@ -85,6 +103,31 @@ public partial class IngestionController : ControllerBase
         session = await _sessionRepository.AddAsync(session);
         LogCreatedSession(_logger, session.Id, patient.Id);
 
+        // 2b. Record processing job for idempotency (if job key provided)
+        var jobKey = request.JobKey;
+        if (!string.IsNullOrEmpty(jobKey))
+        {
+            try
+            {
+                await _processingJobRepository.CreateAsync(new ProcessingJob
+                {
+                    JobKey = jobKey,
+                    Status = JobStatus.Processing
+                });
+            }
+            catch (DbUpdateException)
+            {
+                // Unique constraint race — another request created the job between our check and insert.
+                // Return 202 to signal success to the blob function (no duplicate session created
+                // because session creation above is harmless — the extraction won't duplicate).
+                LogDuplicateJobKey(_logger, jobKey);
+                return Accepted(new ProcessNoteResponse(
+                    session.Id,
+                    "Already processed (duplicate job key)"
+                ));
+            }
+        }
+
         // 3. Trigger extraction asynchronously (fire-and-forget)
         // Use IServiceScopeFactory to create a fresh DI scope that outlives this HTTP request
         _ = Task.Run(async () =>
@@ -94,12 +137,32 @@ public partial class IngestionController : ControllerBase
                 using var scope = _scopeFactory.CreateScope();
                 var orchestrator = scope.ServiceProvider.GetRequiredService<IExtractionOrchestrator>();
                 LogStartingBackgroundExtraction(_logger, session.Id);
-                await orchestrator.ProcessSessionAsync(session.Id, CancellationToken.None);
+                var result = await orchestrator.ProcessSessionAsync(session.Id, CancellationToken.None);
                 LogBackgroundExtractionCompleted(_logger, session.Id);
+
+                if (!string.IsNullOrEmpty(jobKey))
+                {
+                    var jobRepo = scope.ServiceProvider.GetRequiredService<IProcessingJobRepository>();
+                    await jobRepo.UpdateStatusAsync(jobKey, result.Success ? JobStatus.Completed : JobStatus.Failed);
+                }
             }
             catch (Exception ex)
             {
                 LogBackgroundExtractionFailed(_logger, ex, session.Id);
+
+                if (!string.IsNullOrEmpty(jobKey))
+                {
+                    try
+                    {
+                        using var failScope = _scopeFactory.CreateScope();
+                        var jobRepo = failScope.ServiceProvider.GetRequiredService<IProcessingJobRepository>();
+                        await jobRepo.UpdateStatusAsync(jobKey, JobStatus.Failed);
+                    }
+                    catch (DbUpdateException updateEx)
+                    {
+                        LogJobStatusUpdateFailed(_logger, updateEx, jobKey);
+                    }
+                }
             }
         }, CancellationToken.None);
 
@@ -137,4 +200,10 @@ public partial class IngestionController : ControllerBase
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Background extraction failed for session {SessionId}")]
     private static partial void LogBackgroundExtractionFailed(ILogger logger, Exception ex, Guid sessionId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Duplicate job key detected, skipping: {JobKey}")]
+    private static partial void LogDuplicateJobKey(ILogger logger, string jobKey);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to update job status for key {JobKey}")]
+    private static partial void LogJobStatusUpdateFailed(ILogger logger, Exception exception, string jobKey);
 }
