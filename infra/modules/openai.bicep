@@ -27,16 +27,16 @@ param deployGpt41 bool = true
 param deployEmbeddings bool = true
 
 @description('GPT-4.1-mini deployment capacity (TPM in thousands)')
-param gpt41MiniCapacity int = 10
+param gpt41MiniCapacity int = 50
 
 @description('GPT-4.1-nano deployment capacity (TPM in thousands)')
-param gpt41NanoCapacity int = 10
+param gpt41NanoCapacity int = 50
 
 @description('GPT-4.1 deployment capacity (TPM in thousands)')
-param gpt41Capacity int = 10
+param gpt41Capacity int = 50
 
 @description('Embeddings deployment capacity (TPM in thousands)')
-param embeddingsCapacity int = 10
+param embeddingsCapacity int = 50
 
 @description('Principal ID to grant Cognitive Services User role (e.g., AI Project managed identity)')
 param cognitiveServicesUserPrincipalId string = ''
