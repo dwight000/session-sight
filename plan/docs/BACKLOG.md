@@ -176,11 +176,32 @@
 | B-080 | Store ghcrToken as GitHub secret (eliminate manual input for deployContainerApps) | S | 6 | Done | - |
 | B-081 | Review and merge Dependabot PRs (~20 pending) | M | 6 | Done | - |
 | B-082 | Fix BlobNotFound + stuck Processing + file types + sample documents on Upload page | M | 6 | Done | - |
+| B-083 | Bump Azure OpenAI TPM, decouple extraction from HTTP lifecycle, fix retry UI, enable /health | S | 6 | In Progress | - |
+| B-084 | Move extraction to background queue (decouple from HTTP request thread) | L | 6 | Backlog | - |
 | P6-007 | Demo data and walkthrough | M | 6 | Blocked | P6-002 |
 
 ---
 
 ## Task Detail Notes
+
+### B-084 Details (Background Extraction Queue)
+
+**Problem:** The extraction pipeline (intake → clinical extractor → risk assessor → summarizer → embedding) takes 30-120+ seconds. Currently it runs synchronously inside the HTTP POST `/api/extraction/{sessionId}` request thread. This causes:
+1. **Client disconnect kills extraction** — if the user navigates away, the browser aborts the fetch, ASP.NET Core fires `HttpContext.RequestAborted`, and the CancellationToken propagates through the entire LLM pipeline, canceling mid-flight. B-083 works around this with `CancellationToken.None` but the extraction still blocks the HTTP thread.
+2. **HTTP timeout risk** — long extractions risk hitting proxy/ingress/Kestrel timeouts (Container Apps default 240s, but Azure OpenAI retries can push total time past that).
+3. **Thread starvation** — each extraction holds a Kestrel thread for 60-120s, limiting concurrent request capacity.
+4. **No retry on infrastructure failure** — if the container restarts mid-extraction, the work is lost. A queue provides at-least-once delivery.
+
+**Proposed architecture:**
+- **POST `/api/extraction/{id}`** becomes fire-and-forget: transitions status to Processing, enqueues message, returns 202 Accepted immediately
+- **Azure Storage Queue** (already provisioned via Aspire) holds extraction jobs
+- **Background worker** (`IHostedService` or Azure Functions queue trigger) dequeues and runs the pipeline with its own CancellationToken/timeout
+- **Frontend polls** `GET /api/sessions/{id}/extraction` on an interval (or uses SignalR) to show progress
+- **Retry:** Queue visibility timeout handles transient failures; poison queue for permanent failures
+
+**Scope:** API controller change, new queue worker service, frontend polling UI, remove synchronous extraction path.
+
+**Dependencies:** None (Azure Storage Queue already available in Aspire setup).
 
 ### B-046 Details (Local Logging Baseline)
 - Scope: Configure API host logging so local debugging does not depend on temporary DIAG_LOG hacks.
