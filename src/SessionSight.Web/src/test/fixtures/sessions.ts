@@ -11,6 +11,7 @@ export const mockSessions: Session[] = [
     durationMinutes: 50,
     sessionNumber: 1,
     hasDocument: false,
+    documentStatus: null,
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z'
   },
@@ -24,7 +25,22 @@ export const mockSessions: Session[] = [
     durationMinutes: 50,
     sessionNumber: 2,
     hasDocument: true,
+    documentStatus: 'Completed',
     createdAt: '2025-01-02T00:00:00Z',
     updatedAt: '2025-01-02T00:00:00Z'
+  },
+  {
+    id: 's3',
+    patientId: 'p1',
+    therapistId: 't1',
+    sessionDate: '2025-01-29',
+    sessionType: 'Individual',
+    modality: 'InPerson',
+    durationMinutes: 50,
+    sessionNumber: 3,
+    hasDocument: true,
+    documentStatus: 'Failed',
+    createdAt: '2025-01-03T00:00:00Z',
+    updatedAt: '2025-01-03T00:00:00Z'
   }
 ]

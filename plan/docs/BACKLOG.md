@@ -11,7 +11,7 @@
 
 **Last Updated**: February 18, 2026
 
-**Milestone**: B-080 complete — ghcrToken stored as GitHub secret, no manual input needed for container app deploys.
+**Milestone**: B-081 complete — merged 18 Dependabot PRs (npm, NuGet Aspire, GitHub Actions), closed 3 breaking changes (eslint 10, Storage.Blobs).
 
 ---
 
@@ -174,7 +174,7 @@
 | P6-006 | Enable Dependabot for dependency updates | S | 6 | Done | P6-005 |
 | B-079 | Fix concurrent role assignment conflicts in Bicep (dependsOn ordering) | S | 6 | Done | - |
 | B-080 | Store ghcrToken as GitHub secret (eliminate manual input for deployContainerApps) | S | 6 | Done | - |
-| B-081 | Review and merge Dependabot PRs (~20 pending) | M | 6 | Ready | - |
+| B-081 | Review and merge Dependabot PRs (~20 pending) | M | 6 | Done | - |
 | P6-007 | Demo data and walkthrough | M | 6 | Blocked | P6-002 |
 
 ---
@@ -457,6 +457,7 @@
 | P6-006 | Enable Dependabot for dependency updates (NuGet, npm, GitHub Actions) | 2026-02-17 |
 | B-077 | Switch to Managed Identity for SQL auth (eliminate password sync) | 2026-02-17 |
 | B-080 | Store ghcrToken as GitHub secret (eliminate manual input for deployContainerApps) | 2026-02-18 |
+| B-081 | Review and merge Dependabot PRs — 18 merged, 3 closed (eslint 10, Storage.Blobs breaking) | 2026-02-18 |
 
 ---
 

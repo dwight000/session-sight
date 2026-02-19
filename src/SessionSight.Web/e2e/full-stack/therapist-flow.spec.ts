@@ -52,8 +52,9 @@ test.describe('Therapist CRUD Flow', () => {
       expect(matchingPatient).toBeTruthy()
       await patientSelect.selectOption(matchingPatient!)
 
-      // Select therapist
+      // Select therapist (wait for options to load from API)
       const therapistSelect = page.getByLabel('Therapist')
+      await expect(therapistSelect.locator('option', { hasText: therapistName })).toBeAttached({ timeout: 5000 })
       const therapistOptions = await therapistSelect.locator('option').allTextContents()
       const matchingTherapist = therapistOptions.find((opt) => opt.includes(therapistName))
       expect(matchingTherapist).toBeTruthy()
