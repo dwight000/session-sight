@@ -7,6 +7,7 @@ import { mockPatientTimeline } from '../src/test/fixtures/timeline'
 import { mockTherapists } from '../src/test/fixtures/therapists'
 import { mockProcessingJobs } from '../src/test/fixtures/processingJobs'
 import { mockSessions } from '../src/test/fixtures/sessions'
+import { mockQAResponse } from '../src/test/fixtures/qa'
 
 function mockDashboardRoutes(page: import('@playwright/test').Page) {
   return Promise.all([
@@ -346,4 +347,45 @@ test('Sessions form includes therapist dropdown', async ({ page }) => {
   const options = await therapistSelect.locator('option').allTextContents()
   expect(options).toContain('Default Therapist')
   expect(options).toContain('Dr. Jane Wilson')
+})
+
+function mockQARoutes(page: import('@playwright/test').Page) {
+  return Promise.all([
+    page.route('**/api/patients', (route) =>
+      route.fulfill({ json: mockPatients }),
+    ),
+    page.route('**/api/qa/patient/**', (route) =>
+      route.fulfill({ json: mockQAResponse }),
+    ),
+  ])
+}
+
+test('Q&A page shows heading and patient selector', async ({ page }) => {
+  await mockQARoutes(page)
+  await page.goto('/qa')
+
+  await expect(page.getByRole('heading', { name: 'Q&A' })).toBeVisible()
+  await expect(page.getByLabel('Patient')).toBeVisible()
+  await expect(page.getByLabel('Question')).toBeVisible()
+})
+
+test('Q&A page submits question and shows answer', async ({ page }) => {
+  let capturedBody: Record<string, unknown> | null = null
+  await page.route('**/api/patients', (route) =>
+    route.fulfill({ json: mockPatients }),
+  )
+  await page.route('**/api/qa/patient/**', async (route) => {
+    capturedBody = route.request().postDataJSON() as Record<string, unknown>
+    await route.fulfill({ json: mockQAResponse })
+  })
+
+  await page.goto('/qa')
+
+  await page.getByLabel('Patient').selectOption('p1')
+  await page.getByLabel('Question').fill('What concerns were discussed?')
+  await page.getByRole('button', { name: 'Ask' }).click()
+
+  await expect(page.getByText('The patient discussed anxiety')).toBeVisible()
+  await expect(page.getByText('View session')).toBeVisible()
+  expect(capturedBody).toEqual({ question: 'What concerns were discussed?' })
 })

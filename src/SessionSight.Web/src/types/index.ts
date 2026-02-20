@@ -180,6 +180,26 @@ export interface CreateTherapistRequest {
   isActive: boolean
 }
 
+// Q&A types
+export interface QASourceCitation {
+  sessionId: string
+  sessionDate: string
+  sessionType: string | null
+  summary: string | null
+  relevanceScore: number
+}
+
+export interface QAResponse {
+  question: string
+  answer: string
+  sources: QASourceCitation[]
+  confidence: number
+  modelUsed: string
+  warning: string | null
+  toolCallCount: number
+  generatedAt: string
+}
+
 // Processing job types
 export type JobStatus = 'Pending' | 'Processing' | 'Completed' | 'Failed'
 
