@@ -7,6 +7,7 @@ import { mockPatientRiskTrend } from '../fixtures/riskTrend'
 import { mockPatientTimeline } from '../fixtures/timeline'
 import { mockTherapists } from '../fixtures/therapists'
 import { mockProcessingJobs } from '../fixtures/processingJobs'
+import { mockQAResponse } from '../fixtures/qa'
 
 export const handlers = [
   http.get('/api/review/queue', () => {
@@ -136,5 +137,10 @@ export const handlers = [
       success: true,
       extractionId: 'new-extraction-id'
     })
+  }),
+
+  // Q&A handler
+  http.post('/api/qa/patient/:patientId', () => {
+    return HttpResponse.json(mockQAResponse)
   }),
 ]

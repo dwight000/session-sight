@@ -9,6 +9,7 @@ const links = [
   { to: '/jobs', label: 'Jobs' },
   { to: '/upload', label: 'Upload' },
   { to: '/review', label: 'Review Queue' },
+  { to: '/qa', label: 'Q&A' },
 ]
 
 export function MobileNav() {
