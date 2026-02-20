@@ -1,4 +1,4 @@
-import type { PracticeSummary } from '../../types'
+import type { PracticeSummary, SessionSummary } from '../../types'
 
 export const mockPracticeSummary: PracticeSummary = {
   period: { start: '2024-12-20', end: '2025-01-19' },
@@ -30,6 +30,17 @@ export const mockPracticeSummary: PracticeSummary = {
     { intervention: 'CBT', count: 45 },
     { intervention: 'Mindfulness', count: 30 },
   ],
+  generatedAt: '2025-01-19T12:00:00Z',
+}
+
+export const mockSessionSummary: SessionSummary = {
+  sessionId: 'sess-001',
+  oneLiner: 'Patient reported reduced anxiety following CBT intervention.',
+  keyPoints: 'Cognitive restructuring techniques applied successfully.',
+  interventionsUsed: ['CBT', 'Mindfulness'],
+  nextSessionFocus: 'Continue exposure therapy exercises.',
+  riskFlags: null,
+  modelUsed: 'gpt-4.1-mini',
   generatedAt: '2025-01-19T12:00:00Z',
 }
 

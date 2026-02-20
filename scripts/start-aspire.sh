@@ -28,6 +28,13 @@ LOG_ROOT="/tmp/sessionsight"
 API_LOG_DIR="$LOG_ROOT/api"
 
 export PATH="/home/dwight/virtualenvs/my_venv/bin:$PATH"
+
+# Check Azure CLI login — required for LLM endpoints (Q&A, extraction, summarization)
+if ! az account show > /dev/null 2>&1; then
+    echo -e "\033[0;33m[WARN]\033[0m Azure CLI not logged in. LLM features (Q&A, extraction, regeneration) will fail."
+    echo -e "\033[0;33m[WARN]\033[0m Run: az login"
+fi
+
 mkdir -p "$LOG_ROOT/aspire" "$LOG_ROOT/vite" "$API_LOG_DIR"
 
 # Clean up any existing processes

@@ -82,6 +82,7 @@ builder.Services.AddScoped<SearchSessionsTool>();
 builder.Services.AddScoped<GetSessionDetailTool>();
 builder.Services.AddScoped<GetPatientTimelineTool>();
 builder.Services.AddScoped<AggregateMetricsTool>();
+builder.Services.AddScoped<CompareSessionsTool>();
 
 // RiskAssessor configuration
 builder.Services.Configure<RiskAssessorOptions>(

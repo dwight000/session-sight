@@ -191,6 +191,47 @@ describe('SessionDetail', () => {
     })
   })
 
+  it('shows regenerate button in summary card', async () => {
+    renderSessionDetail()
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /regenerate/i })).toBeInTheDocument()
+    })
+  })
+
+  it('calls regenerate API on click', async () => {
+    const user = userEvent.setup()
+    let capturedUrl = ''
+
+    server.use(
+      http.get('/api/summary/session/:sessionId', ({ request }) => {
+        capturedUrl = request.url
+        return HttpResponse.json({
+          sessionId: 'sess-001',
+          oneLiner: 'Regenerated summary',
+          keyPoints: 'Updated',
+          interventionsUsed: [],
+          nextSessionFocus: 'Updated focus',
+          riskFlags: null,
+          modelUsed: 'gpt-4.1-mini',
+          generatedAt: '2025-01-19T13:00:00Z',
+        })
+      }),
+    )
+
+    renderSessionDetail()
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /regenerate/i })).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: /regenerate/i }))
+
+    await waitFor(() => {
+      expect(capturedUrl).toContain('regenerate=true')
+    })
+  })
+
   it('shows review history entries', async () => {
     renderSessionDetail()
 
@@ -204,5 +245,13 @@ describe('SessionDetail', () => {
         expect(screen.getByText(rev.notes)).toBeInTheDocument()
       }
     }
+  })
+
+  it('shows delete document button when extraction data exists', async () => {
+    renderSessionDetail()
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /delete document/i })).toBeInTheDocument()
+    })
   })
 })

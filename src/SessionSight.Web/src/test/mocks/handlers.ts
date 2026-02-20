@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import { mockReviewQueue, mockReviewDetail, mockReviewStats } from '../fixtures/review'
-import { mockPracticeSummary } from '../fixtures/summary'
+import { mockPracticeSummary, mockSessionSummary } from '../fixtures/summary'
 import { mockPatients } from '../fixtures/patients'
 import { mockSessions } from '../fixtures/sessions'
 import { mockPatientRiskTrend } from '../fixtures/riskTrend'
@@ -28,6 +28,10 @@ export const handlers = [
 
   http.get('/api/summary/practice', () => {
     return HttpResponse.json(mockPracticeSummary)
+  }),
+
+  http.get('/api/summary/session/:sessionId', () => {
+    return HttpResponse.json(mockSessionSummary)
   }),
 
   http.get('/api/summary/patient/:patientId/risk-trend', ({ params }) => {
@@ -122,6 +126,10 @@ export const handlers = [
   }),
 
   // Upload handlers
+  http.delete('/api/sessions/:sessionId/document', () => {
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   http.post('/api/sessions/:sessionId/document', () => {
     return HttpResponse.json({
       documentId: 'new-doc-id',

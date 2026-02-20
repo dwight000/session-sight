@@ -194,7 +194,8 @@ gh run view <run-id> --log-failed
 **Common issues:**
 | Issue | Fix |
 |-------|-----|
-| "401/credential" errors | `az login`, verify Cognitive Services User role |
+| "401/credential" errors | `az login`, verify Cognitive Services User role. `start-dev.sh`/`start-aspire.sh` warn on startup if not logged in. |
+| Q&A/extraction/regeneration hangs | Azure CLI not on API PATH → LLM calls fail with `CredentialUnavailableException`. Both start scripts now export venv PATH and warn if `az login` needed. |
 | Port conflicts | `pkill -f SessionSight` |
 | codex sandbox `Permission denied` binding localhost ports during `run-e2e` | Re-run `./scripts/run-e2e.sh ...` with escalated permissions so AppHost can bind local endpoints |
 | "403 Forbidden" on search | Deploy Bicep with `developerUserObjectId` parameter |
@@ -315,6 +316,9 @@ SQL auth uses Managed Identity — no password parameter needed. Dependabot is e
 - **CI SP needs `Directory.Read.All`** on Microsoft Graph for `az ad sp show` — scripted idempotently in `infra.yml`
 - **Log Analytics not yet configured** — use `az containerapp logs show --follow` for live logs
 - Full guide: `docs/CLOUD_TROUBLESHOOTING.md`
+
+### Local Dev
+- **`start-dev.sh` must export venv PATH** — without it, `az` isn't found and `DefaultAzureCredential` fails for all LLM endpoints (Q&A, extraction, summarization, regeneration). Both `start-dev.sh` and `start-aspire.sh` now export `PATH="/home/dwight/virtualenvs/my_venv/bin:$PATH"` and warn if `az account show` fails.
 
 ### Git Workflow
 - **Check for post-merge commits on feature branches** — if a PR is merged but additional commits are pushed to the branch afterward, those commits never land on the target branch. Audit with: `git log origin/develop..origin/<branch> --oneline`

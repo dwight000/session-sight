@@ -56,6 +56,7 @@ test('Dashboard shows stats', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
   await expect(page.getByText('87')).toBeVisible()
   await expect(page.getByText('24', { exact: true })).toBeVisible()
+  await expect(page.getByText('Top Interventions')).toBeVisible()
 })
 
 test('Review Queue shows patient names', async ({ page }) => {
@@ -73,6 +74,7 @@ test('Session Detail shows patient and risk section', async ({ page }) => {
 
   await expect(page.getByText('Alice Johnson')).toBeVisible()
   await expect(page.getByRole('button', { name: /Risk Assessment/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /regenerate/i })).toBeVisible()
 })
 
 test('Session Detail approve action submits approved review payload', async ({ page }) => {

@@ -24,6 +24,14 @@ LOG_ROOT="/tmp/sessionsight"
 ASPIRE_LOG="$LOG_ROOT/aspire/aspire-e2e.log"
 API_LOG_DIR="$LOG_ROOT/api"
 
+export PATH="/home/dwight/virtualenvs/my_venv/bin:$PATH"
+
+# Check Azure CLI login — required for LLM endpoints (Q&A, extraction, summarization)
+if ! az account show > /dev/null 2>&1; then
+    echo -e "\033[0;33m[WARN]\033[0m Azure CLI not logged in. LLM features (Q&A, extraction, regeneration) will fail."
+    echo -e "\033[0;33m[WARN]\033[0m Run: az login"
+fi
+
 # shellcheck disable=SC2317 # Functions are called dynamically
 log() { local msg="$1"; echo -e "\033[0;32m[DEV]\033[0m $msg"; return 0; }
 error() { local msg="$1"; echo -e "\033[0;31m[DEV]\033[0m $msg" >&2; return 0; }

@@ -28,6 +28,7 @@ public partial class QAAgent : IQAAgent
     private readonly GetSessionDetailTool _getSessionDetailTool;
     private readonly GetPatientTimelineTool _getPatientTimelineTool;
     private readonly AggregateMetricsTool _aggregateMetricsTool;
+    private readonly CompareSessionsTool _compareSessionsTool;
     private readonly ILogger<QAAgent> _logger;
 
     internal const int MaxContextSessions = 10;
@@ -49,6 +50,7 @@ public partial class QAAgent : IQAAgent
         GetSessionDetailTool getSessionDetailTool,
         GetPatientTimelineTool getPatientTimelineTool,
         AggregateMetricsTool aggregateMetricsTool,
+        CompareSessionsTool compareSessionsTool,
         ILogger<QAAgent> logger)
 #pragma warning restore S107
     {
@@ -61,6 +63,7 @@ public partial class QAAgent : IQAAgent
         _getSessionDetailTool = getSessionDetailTool;
         _getPatientTimelineTool = getPatientTimelineTool;
         _aggregateMetricsTool = aggregateMetricsTool;
+        _compareSessionsTool = compareSessionsTool;
         _logger = logger;
     }
 
@@ -200,13 +203,15 @@ public partial class QAAgent : IQAAgent
             // Scope tools to the requested patient to prevent cross-patient data access
             _searchSessionsTool.RequiredPatientId = patientId;
             _getSessionDetailTool.AllowedPatientId = patientId;
+            _compareSessionsTool.AllowedPatientId = patientId;
 
             IAgentTool[] tools =
             [
                 _searchSessionsTool,
                 _getSessionDetailTool,
                 _getPatientTimelineTool,
-                _aggregateMetricsTool
+                _aggregateMetricsTool,
+                _compareSessionsTool
             ];
 
             var loopResult = await _agentLoopRunner.RunAsync(chatClient, messages, tools, temperature: 0.2f, ct: ct);

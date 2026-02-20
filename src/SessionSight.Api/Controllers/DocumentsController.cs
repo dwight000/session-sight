@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SessionSight.Agents.Services;
 using SessionSight.Api.DTOs;
@@ -6,12 +7,13 @@ using SessionSight.Api.Mapping;
 using SessionSight.Core.Entities;
 using SessionSight.Core.Enums;
 using SessionSight.Core.Interfaces;
+using SessionSight.Infrastructure.Search;
 
 namespace SessionSight.Api.Controllers;
 
 [ApiController]
 [Route("api/sessions/{sessionId:guid}")]
-public class DocumentsController : ControllerBase
+public partial class DocumentsController : ControllerBase
 {
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -20,15 +22,21 @@ public class DocumentsController : ControllerBase
 
     private readonly ISessionRepository _sessionRepository;
     private readonly IDocumentStorage _documentStorage;
+    private readonly ISearchIndexService _searchIndexService;
+    private readonly ILogger<DocumentsController> _logger;
     private readonly DocumentIntelligenceOptions _docOptions;
 
     public DocumentsController(
         ISessionRepository sessionRepository,
         IDocumentStorage documentStorage,
+        ISearchIndexService searchIndexService,
+        ILogger<DocumentsController> logger,
         IOptions<DocumentIntelligenceOptions> docOptions)
     {
         _sessionRepository = sessionRepository;
         _documentStorage = documentStorage;
+        _searchIndexService = searchIndexService;
+        _logger = logger;
         _docOptions = docOptions.Value;
     }
 
@@ -85,4 +93,33 @@ public class DocumentsController : ControllerBase
 
         return Ok(session.Extraction.ToDto());
     }
+
+    [HttpDelete("document")]
+    public async Task<IActionResult> DeleteDocument(Guid sessionId)
+    {
+        var session = await _sessionRepository.GetByIdAsync(sessionId);
+        if (session is null) return NotFound();
+        if (session.Document is null) return NotFound("No document found for this session.");
+
+        // Delete blob
+        await _documentStorage.DeleteAsync(session.Document.BlobUri);
+
+        // Delete from search index (best-effort)
+        try
+        {
+            await _searchIndexService.DeleteDocumentAsync(sessionId.ToString());
+        }
+        catch (Exception ex)
+        {
+            LogSearchIndexDeleteFailed(_logger, ex, sessionId);
+        }
+
+        // Delete from database (extraction + document)
+        await _sessionRepository.DeleteDocumentAsync(sessionId);
+
+        return NoContent();
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to delete search index entry for session {SessionId}")]
+    private static partial void LogSearchIndexDeleteFailed(ILogger logger, Exception exception, Guid sessionId);
 }
