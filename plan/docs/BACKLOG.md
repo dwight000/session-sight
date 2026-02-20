@@ -7,11 +7,11 @@
 ## Current Status
 
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
-**Next Action**: B-086 (Patient longitudinal summary) or P6-007 (Demo walkthrough)
+**Next Action**: B-090 (Document validation review-routing) or P6-007 (Demo walkthrough)
 
 **Last Updated**: February 20, 2026
 
-**Milestone**: B-093 complete — 5 of 9 gap audit items done (B-085, B-087, B-088, B-089, B-093). Remaining: B-086, B-090, B-091, B-092.
+**Milestone**: B-086 complete — 6 of 9 gap audit items done (B-085, B-086, B-087, B-088, B-089, B-093). Remaining: B-090, B-091, B-092.
 
 ---
 
@@ -181,7 +181,7 @@
 | P6-007 | Demo data and walkthrough | M | 6 | Ready | - |
 | **Gap Audit Items (B-085–B-093)** |||||
 | B-085 | Q&A Chat UI (patient-scoped clinical Q&A page) | L | 4 | Done | - |
-| B-086 | Patient longitudinal summary on timeline page | M | 4 | Ready | - |
+| B-086 | Patient longitudinal summary on timeline page | M | 4 | Done | - |
 | B-087 | Practice summary diagnosis/intervention breakdown on Dashboard | S | 4 | Done | - |
 | B-088 | Session summary regeneration button on SessionDetail | S | 4 | Done | - |
 | B-089 | Delete/replace uploaded document | S | 4 | Done | - |
@@ -656,6 +656,7 @@
 | B-088 | Session summary regeneration button on SessionDetail | 2026-02-20 |
 | B-089 | Delete/replace uploaded document (backend DELETE endpoint + frontend button) | 2026-02-20 |
 | B-093 | Compare sessions tool for QA agent (side-by-side session comparison) | 2026-02-20 |
+| B-086 | Patient longitudinal summary on timeline page | 2026-02-20 |
 
 ---
 
@@ -663,6 +664,7 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-20 | **B-086 complete: Patient longitudinal summary on timeline page.** Frontend-only change — `GET /api/summary/patient/{id}` already existed but was never called. Added `PatientSummary` + `GoalProgress` types to `types/index.ts`, `getPatientSummary()` API function in `api/summary.ts`, `usePatientSummary` query hook, and summary card panel on `PatientTimeline.tsx` between stats bar and session list. Panel shows progress narrative, mood trend badge, effective interventions, recurring themes, goal progress, risk trend summary, and recommended focus. Loading spinner during fetch, hidden on 404 (patients with no extraction data). Tests: 202 frontend unit (7 new: 3 hook, 2 API, 2 page), 17 Playwright smoke (patient summary route mock added). |
 | 2026-02-20 | **B-087/088/089/093 complete: 4 quick wins from gap audit.** B-087: Top Interventions horizontal bar chart card on Dashboard (frontend-only, renders `topInterventions[]` from existing `PracticeSummary` API). B-088: Session summary regenerate/generate button on SessionDetail — new `api/sessionSummary.ts`, `useRegenerateSessionSummary` hook, button shows "Generate Summary" when no summary exists. B-089: Full-stack delete document — backend `DELETE /api/sessions/{id}/document` (blob + search index + DB), frontend red "Delete Document" button with `window.confirm`, `useDeleteDocument` hook. B-093: `CompareSessionsTool` for QA agent — compares 2+ sessions across mood, risk, interventions with change summary; registered in DI, added to agentic loop with `AllowedPatientId` guard, prompt updated. Also fixed `start-dev.sh` missing venv PATH export (caused `az` not found → LLM endpoints hang) and added `az login` warning to both start scripts. Tests: 726 backend (including 4 CompareSessionsTool + 3 DocumentsController delete), 195 frontend (including 7 new hook/page tests), 17 Playwright smoke (2 new assertions). PR #76. |
 | 2026-02-19 | **B-085 complete + Gap audit: 9 new backlog items (B-085–B-093) + 3 stale blocker fixes + B-083 closed.** B-085: Q&A Chat UI page with patient selector, chat-style message history, source citations, loading states, clear button. PR #75 merged. Ran three audits: (1) Backend capabilities with no frontend consumer — found Q&A Chat UI, patient summary, practice breakdown, session regen, delete/replace doc. (2) Specs vs backlog — found missing tickets for doc validation review-routing, RAG eval harness, SLO measurement; stale blockers on P6-007/P5-003/B-015. (3) Implementation vs design — confirmed summarizer tools gap (2 of 3 already exist in `AggregateMetricsTool`, only `compare_sessions` is new); document validation review-routing signals already in Azure SDK response but discarded. Fixed stale blockers: P6-007 Ready (P6-002 done), P5-003 Ready (P1-019 done), B-015 Ready (P1-004 done). Marked B-083 Done (commits d899432, d55d466, ca108cb). Added note to B-035 re: dependency on B-085 for user visibility. |
 | 2026-02-18 | **B-082 complete: Fix BlobNotFound + stuck Processing + file types + sample documents.** Fixed 3 production bugs: (1) URL-decode blob path in `AzureBlobDocumentStorage` — filenames with spaces/parens caused BlobNotFound on extraction. (2) Replaced `UpdateDocumentStatusAsync` with `TryTransitionDocumentStatusAsync` in all 3 `ExtractionOrchestrator` failure paths — change-tracker staleness caused status stuck at Processing. (3) Removed `.txt` from frontend accept list, added backend extension allowlist (`.pdf,.docx,.doc,.jpg,.jpeg,.png,.tiff,.bmp`) with 400 BadRequest for unsupported types. Added sample documents feature: generated 8 static therapy note PDFs (5 non-risk from golden files, 3 risk notes expanded to full structured format) via `fpdf2` script. Built sample document picker on Upload page with tab toggle (Sample Documents / Your Document), card grid with preview and "Use This" buttons. New test project: `SessionSight.Infrastructure.Tests` with 8 blob path round-trip tests. Added 4 Playwright smoke tests for Upload page sample UI. Updated 3 orchestrator tests, 1 E2E test (tab click). Validation: 724 backend tests pass (83.35% coverage), frontend 5/5 gates pass (15 smoke tests), 0 warnings. |

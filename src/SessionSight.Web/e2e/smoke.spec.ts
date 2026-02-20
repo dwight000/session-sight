@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { mockPracticeSummary } from '../src/test/fixtures/summary'
+import { mockPatientSummary, mockPracticeSummary } from '../src/test/fixtures/summary'
 import { mockReviewStats, mockReviewQueue, mockReviewDetail } from '../src/test/fixtures/review'
 import { mockPatientRiskTrend } from '../src/test/fixtures/riskTrend'
 import { mockPatients } from '../src/test/fixtures/patients'
@@ -45,6 +45,9 @@ function mockPatientTimelineRoutes(page: import('@playwright/test').Page) {
     ),
     page.route('**/api/summary/patient/**/timeline**', (route) =>
       route.fulfill({ json: mockPatientTimeline }),
+    ),
+    page.route(/\/api\/summary\/patient\/[^/]+(\?|$)/, (route) =>
+      route.fulfill({ json: mockPatientSummary }),
     ),
   ])
 }

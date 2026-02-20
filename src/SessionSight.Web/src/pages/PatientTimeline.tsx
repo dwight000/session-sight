@@ -2,12 +2,21 @@ import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { usePatient } from '../hooks/usePatient'
 import { usePatientTimeline } from '../hooks/usePatientTimeline'
+import { usePatientSummary } from '../hooks/usePatientSummary'
 import { Card } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Spinner } from '../components/ui/Spinner'
 import { RiskBadge } from '../components/ui/RiskBadge'
 import type { ReviewStatus } from '../types'
+
+const moodTrendVariant: Record<string, string> = {
+  Improving: 'approved',
+  Stable: 'default',
+  Declining: 'warning',
+  Variable: 'pending',
+  InsufficientData: 'default',
+}
 
 const statusVariant: Record<ReviewStatus, string> = {
   NotFlagged: 'default',
@@ -56,6 +65,12 @@ export function PatientTimeline() {
     isLoading: timelineLoading,
     error: timelineError,
   } = usePatientTimeline(patientId, appliedStartDate, appliedEndDate)
+
+  const {
+    data: summary,
+    isLoading: summaryLoading,
+    error: summaryError,
+  } = usePatientSummary(patientId, appliedStartDate, appliedEndDate)
 
   if (!patientId) {
     return (
@@ -149,6 +164,76 @@ export function PatientTimeline() {
           )}
           {timeline.hasEscalation && <Badge variant="warning">Escalation detected</Badge>}
         </div>
+      )}
+
+      {summaryLoading && (
+        <Card>
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Spinner /> Loading patient summary...
+          </div>
+        </Card>
+      )}
+
+      {!summaryLoading && !summaryError && summary && (
+        <Card>
+          <h3 className="mb-3 text-lg font-semibold text-gray-900">Longitudinal Summary</h3>
+
+          <p className="mb-4 text-sm text-gray-700">{summary.progressNarrative}</p>
+
+          <div className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <p className="mb-1 text-xs font-medium text-gray-500">Mood Trend</p>
+              <Badge variant={moodTrendVariant[summary.moodTrend] ?? 'default'}>{summary.moodTrend}</Badge>
+            </div>
+
+            {summary.effectiveInterventions.length > 0 && (
+              <div>
+                <p className="mb-1 text-xs font-medium text-gray-500">Effective Interventions</p>
+                <ul className="list-inside list-disc text-gray-700">
+                  {summary.effectiveInterventions.map((i) => (
+                    <li key={i}>{i}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {summary.recurringThemes.length > 0 && (
+              <div>
+                <p className="mb-1 text-xs font-medium text-gray-500">Recurring Themes</p>
+                <div className="flex flex-wrap gap-1">
+                  {summary.recurringThemes.map((t) => (
+                    <Badge key={t}>{t}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {summary.goalProgress.length > 0 && (
+              <div>
+                <p className="mb-1 text-xs font-medium text-gray-500">Goal Progress</p>
+                <ul className="list-inside list-disc text-gray-700">
+                  {summary.goalProgress.map((g) => (
+                    <li key={g.goal}>{g.goal}: {g.status}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {summary.riskTrendSummary && (
+              <div>
+                <p className="mb-1 text-xs font-medium text-gray-500">Risk Trend</p>
+                <p className="text-gray-700">{summary.riskTrendSummary}</p>
+              </div>
+            )}
+
+            {summary.recommendedFocus && (
+              <div>
+                <p className="mb-1 text-xs font-medium text-gray-500">Recommended Focus</p>
+                <p className="text-gray-700">{summary.recommendedFocus}</p>
+              </div>
+            )}
+          </div>
+        </Card>
       )}
 
       {entries.length === 0 ? (

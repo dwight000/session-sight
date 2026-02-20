@@ -1,5 +1,5 @@
 import { fetchApi } from './client'
-import type { PracticeSummary } from '../types'
+import type { PatientSummary, PracticeSummary } from '../types'
 import type { PatientRiskTrend } from '../types/riskTrend'
 import type { PatientTimeline } from '../types/timeline'
 
@@ -7,6 +7,17 @@ export function getPracticeSummary(startDate: string, endDate: string): Promise<
   return fetchApi<PracticeSummary>(
     `/api/summary/practice?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
   )
+}
+
+export function getPatientSummary(patientId: string, startDate?: string, endDate?: string): Promise<PatientSummary> {
+  const qs = new URLSearchParams()
+  if (startDate) qs.set('startDate', startDate)
+  if (endDate) qs.set('endDate', endDate)
+  const query = qs.toString()
+
+  const baseUrl = `/api/summary/patient/${encodeURIComponent(patientId)}`
+  const url = query ? `${baseUrl}?${query}` : baseUrl
+  return fetchApi<PatientSummary>(url)
 }
 
 export function getPatientRiskTrend(patientId: string, startDate: string, endDate: string): Promise<PatientRiskTrend> {
