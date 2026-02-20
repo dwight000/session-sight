@@ -10,6 +10,8 @@ using SessionSight.Core.Entities;
 using SessionSight.Core.Enums;
 using SessionSight.Core.Interfaces;
 using SessionSight.Core.Schema;
+using SessionSight.Infrastructure.Search;
+using Microsoft.Extensions.Logging;
 
 namespace SessionSight.Api.Tests.Controllers;
 
@@ -17,6 +19,7 @@ public class DocumentsControllerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepositoryMock;
     private readonly Mock<IDocumentStorage> _documentStorageMock;
+    private readonly Mock<ISearchIndexService> _searchIndexServiceMock;
     private readonly DocumentIntelligenceOptions _docOptions;
     private readonly DocumentsController _controller;
 
@@ -24,10 +27,13 @@ public class DocumentsControllerTests
     {
         _sessionRepositoryMock = new Mock<ISessionRepository>();
         _documentStorageMock = new Mock<IDocumentStorage>();
+        _searchIndexServiceMock = new Mock<ISearchIndexService>();
         _docOptions = new DocumentIntelligenceOptions();
         _controller = new DocumentsController(
             _sessionRepositoryMock.Object,
             _documentStorageMock.Object,
+            _searchIndexServiceMock.Object,
+            new Mock<ILogger<DocumentsController>>().Object,
             Options.Create(_docOptions));
     }
 
@@ -215,6 +221,52 @@ public class DocumentsControllerTests
         dto.Id.Should().Be(extractionId);
         dto.SessionId.Should().Be(sessionId);
         dto.ModelUsed.Should().Be("gpt-4o");
+    }
+
+    [Fact]
+    public async Task DeleteDocument_SessionNotFound_ReturnsNotFound()
+    {
+        var sessionId = Guid.NewGuid();
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId))
+            .ReturnsAsync((Session?)null);
+
+        var result = await _controller.DeleteDocument(sessionId);
+
+        result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Fact]
+    public async Task DeleteDocument_NoDocument_ReturnsNotFound()
+    {
+        var sessionId = Guid.NewGuid();
+        var session = new Session { Id = sessionId, Document = null };
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId))
+            .ReturnsAsync(session);
+
+        var result = await _controller.DeleteDocument(sessionId);
+
+        result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task DeleteDocument_WithDocument_DeletesAndReturnsNoContent()
+    {
+        var sessionId = Guid.NewGuid();
+        var blobUri = "https://storage.blob.core.windows.net/docs/test.pdf";
+        var session = new Session
+        {
+            Id = sessionId,
+            Document = new SessionDocument { Id = Guid.NewGuid(), BlobUri = blobUri }
+        };
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId))
+            .ReturnsAsync(session);
+
+        var result = await _controller.DeleteDocument(sessionId);
+
+        result.Should().BeOfType<NoContentResult>();
+        _documentStorageMock.Verify(s => s.DeleteAsync(blobUri), Times.Once);
+        _searchIndexServiceMock.Verify(s => s.DeleteDocumentAsync(sessionId.ToString(), It.IsAny<CancellationToken>()), Times.Once);
+        _sessionRepositoryMock.Verify(r => r.DeleteDocumentAsync(sessionId), Times.Once);
     }
 
     private static IFormFile CreateMockFile(string fileName = "test.pdf", string contentType = "application/pdf", long? length = null)

@@ -19,6 +19,17 @@ export async function uploadDocument(sessionId: string, file: File): Promise<Upl
   return res.json()
 }
 
+export async function deleteDocument(sessionId: string): Promise<void> {
+  const res = await fetch(`/api/sessions/${sessionId}/document`, {
+    method: 'DELETE',
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Delete failed (${res.status}): ${text}`)
+  }
+}
+
 export interface ExtractionResult {
   success: boolean
   errorMessage?: string

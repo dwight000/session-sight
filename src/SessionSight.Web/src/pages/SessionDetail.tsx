@@ -1,7 +1,9 @@
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useReviewDetail } from '../hooks/useReviewDetail'
 import { useSubmitReview } from '../hooks/useSubmitReview'
+import { useRegenerateSessionSummary } from '../hooks/useRegenerateSessionSummary'
+import { useDeleteDocument } from '../hooks/useDeleteDocument'
 import { Card } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -166,6 +168,9 @@ function ReviewActionPanel({ sessionId, currentStatus }: { sessionId: string; cu
 export function SessionDetail() {
   const { sessionId } = useParams<{ sessionId: string }>()
   const { data, isLoading, error } = useReviewDetail(sessionId!)
+  const regenerate = useRegenerateSessionSummary(sessionId!)
+  const deleteDoc = useDeleteDocument(sessionId!)
+  const navigate = useNavigate()
 
   if (isLoading) return <Spinner />
 
@@ -213,9 +218,18 @@ export function SessionDetail() {
       </div>
 
       {/* Summary panel */}
-      {summary && (
+      {summary ? (
         <Card>
-          <h3 className="mb-2 text-sm font-medium text-gray-700">Session Summary</h3>
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-medium text-gray-700">Session Summary</h3>
+            <Button
+              variant="secondary"
+              onClick={() => regenerate.mutate()}
+              disabled={regenerate.isPending}
+            >
+              {regenerate.isPending ? 'Regenerating...' : 'Regenerate'}
+            </Button>
+          </div>
           <p className="text-sm text-gray-900">{summary.oneLiner}</p>
           {summary.keyPoints && (
             <div className="mt-3">
@@ -250,6 +264,20 @@ export function SessionDetail() {
               </div>
             </div>
           )}
+        </Card>
+      ) : (
+        <Card>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium text-gray-700">Session Summary</h3>
+            <Button
+              variant="secondary"
+              onClick={() => regenerate.mutate()}
+              disabled={regenerate.isPending}
+            >
+              {regenerate.isPending ? 'Generating...' : 'Generate Summary'}
+            </Button>
+          </div>
+          <p className="mt-2 text-sm text-gray-400">No summary available.</p>
         </Card>
       )}
 
@@ -300,6 +328,25 @@ export function SessionDetail() {
 
       {/* Review action */}
       <ReviewActionPanel sessionId={sessionId!} currentStatus={data.reviewStatus} />
+
+      {/* Delete document */}
+      {(data.summaryJson || data.data) && (
+        <div className="flex justify-end">
+          <Button
+            variant="danger"
+            disabled={deleteDoc.isPending}
+            onClick={() => {
+              if (window.confirm('Delete this document and its extraction? This cannot be undone.')) {
+                deleteDoc.mutate(undefined, {
+                  onSuccess: () => navigate('/upload'),
+                })
+              }
+            }}
+          >
+            {deleteDoc.isPending ? 'Deleting...' : 'Delete Document'}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
