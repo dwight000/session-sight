@@ -16,7 +16,9 @@ public class TherapistConfiguration : IEntityTypeConfiguration<Therapist>
         builder.HasData(new Therapist
         {
             Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
-            Name = "Default Therapist",
+            Name = "Dr. Sarah Mitchell",
+            LicenseNumber = "LPC-2024-0847",
+            Credentials = "PhD, LPC",
             IsActive = true,
             CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
         });
