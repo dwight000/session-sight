@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getPatientRiskTrend, getPatientTimeline, getPracticeSummary } from '../../src/api/summary'
+import { getPatientRiskTrend, getPatientSummary, getPatientTimeline, getPracticeSummary } from '../../src/api/summary'
 import * as client from '../../src/api/client'
 
 describe('summary API', () => {
@@ -53,5 +53,23 @@ describe('summary API', () => {
     await getPatientTimeline('pat/001')
 
     expect(spy).toHaveBeenCalledWith('/api/summary/patient/pat%2F001/timeline')
+  })
+
+  it('getPatientSummary builds URL with optional dates', async () => {
+    const spy = vi.spyOn(client, 'fetchApi').mockResolvedValue({})
+
+    await getPatientSummary('pat/001', '2025-01-01', '2025-01-31')
+
+    expect(spy).toHaveBeenCalledWith(
+      '/api/summary/patient/pat%2F001?startDate=2025-01-01&endDate=2025-01-31',
+    )
+  })
+
+  it('getPatientSummary omits query string when no dates provided', async () => {
+    const spy = vi.spyOn(client, 'fetchApi').mockResolvedValue({})
+
+    await getPatientSummary('pat/001')
+
+    expect(spy).toHaveBeenCalledWith('/api/summary/patient/pat%2F001')
   })
 })

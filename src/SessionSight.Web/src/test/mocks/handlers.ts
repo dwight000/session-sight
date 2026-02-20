@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import { mockReviewQueue, mockReviewDetail, mockReviewStats } from '../fixtures/review'
-import { mockPracticeSummary, mockSessionSummary } from '../fixtures/summary'
+import { mockPatientSummary, mockPracticeSummary, mockSessionSummary } from '../fixtures/summary'
 import { mockPatients } from '../fixtures/patients'
 import { mockSessions } from '../fixtures/sessions'
 import { mockPatientRiskTrend } from '../fixtures/riskTrend'
@@ -44,6 +44,13 @@ export const handlers = [
   http.get('/api/summary/patient/:patientId/timeline', ({ params }) => {
     return HttpResponse.json({
       ...mockPatientTimeline,
+      patientId: params.patientId,
+    })
+  }),
+
+  http.get('/api/summary/patient/:patientId', ({ params }) => {
+    return HttpResponse.json({
+      ...mockPatientSummary,
       patientId: params.patientId,
     })
   }),

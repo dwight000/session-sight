@@ -1,4 +1,4 @@
-import type { PracticeSummary, SessionSummary } from '../../types'
+import type { PatientSummary, PracticeSummary, SessionSummary } from '../../types'
 
 export const mockPracticeSummary: PracticeSummary = {
   period: { start: '2024-12-20', end: '2025-01-19' },
@@ -40,6 +40,24 @@ export const mockSessionSummary: SessionSummary = {
   interventionsUsed: ['CBT', 'Mindfulness'],
   nextSessionFocus: 'Continue exposure therapy exercises.',
   riskFlags: null,
+  modelUsed: 'gpt-4.1-mini',
+  generatedAt: '2025-01-19T12:00:00Z',
+}
+
+export const mockPatientSummary: PatientSummary = {
+  patientId: 'p1',
+  period: { start: '2024-07-20', end: '2025-01-19' },
+  sessionCount: 5,
+  progressNarrative: 'Patient has shown steady improvement in anxiety management over the past 6 months.',
+  moodTrend: 'Improving',
+  recurringThemes: ['Anxiety', 'Work stress', 'Sleep issues'],
+  goalProgress: [
+    { goal: 'Reduce anxiety frequency', status: 'On track' },
+    { goal: 'Improve sleep hygiene', status: 'Partial progress' },
+  ],
+  effectiveInterventions: ['CBT', 'Mindfulness', 'Progressive muscle relaxation'],
+  recommendedFocus: 'Continue exposure therapy and sleep schedule consistency.',
+  riskTrendSummary: 'Risk has remained low throughout the treatment period.',
   modelUsed: 'gpt-4.1-mini',
   generatedAt: '2025-01-19T12:00:00Z',
 }

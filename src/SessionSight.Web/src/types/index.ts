@@ -125,6 +125,26 @@ export interface FlaggedPatientSummary {
   flagReason: string
 }
 
+export interface GoalProgress {
+  goal: string
+  status: string
+}
+
+export interface PatientSummary {
+  patientId: string
+  period: { start: string; end: string }
+  sessionCount: number
+  progressNarrative: string
+  moodTrend: 'Improving' | 'Stable' | 'Declining' | 'Variable' | 'InsufficientData'
+  recurringThemes: string[]
+  goalProgress: GoalProgress[]
+  effectiveInterventions: string[]
+  recommendedFocus: string
+  riskTrendSummary: string
+  modelUsed: string
+  generatedAt: string
+}
+
 export interface SessionSummary {
   sessionId: string
   oneLiner: string
