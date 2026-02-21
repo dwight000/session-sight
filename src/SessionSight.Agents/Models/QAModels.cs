@@ -24,6 +24,27 @@ public class QAResponse
     public string? Warning { get; set; }
     public int ToolCallCount { get; set; }
     public DateTime GeneratedAt { get; set; }
+    public QADiagnostics? Diagnostics { get; set; }
+}
+
+/// <summary>
+/// Debug diagnostics for a Q&amp;A response — always populated, no config flag needed.
+/// </summary>
+public class QADiagnostics
+{
+    public bool IsComplex { get; set; }
+    public string? Reasoning { get; set; }
+    public int SearchResultCount { get; set; }
+    public List<QAToolCallEntry> ToolCalls { get; set; } = [];
+}
+
+/// <summary>
+/// A single tool invocation recorded during a Q&amp;A agentic loop.
+/// </summary>
+public class QAToolCallEntry
+{
+    public string ToolName { get; set; } = string.Empty;
+    public bool Succeeded { get; set; }
 }
 
 /// <summary>

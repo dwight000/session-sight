@@ -11,7 +11,7 @@
 
 **Last Updated**: February 20, 2026
 
-**Milestone**: P6-007 complete — demo data seeding with 8 patients + full extraction pipeline. 6 of 9 gap audit items done (B-085, B-086, B-087, B-088, B-089, B-093). Remaining: B-090, B-091, B-092.
+**Milestone**: P6-007 complete — demo data seeding with 8 patients + full extraction pipeline. 7 of 9 gap audit items done (B-085, B-086, B-087, B-088, B-089, B-091, B-093). Remaining: B-090, B-092.
 
 ---
 
@@ -186,7 +186,7 @@
 | B-088 | Session summary regeneration button on SessionDetail | S | 4 | Done | - |
 | B-089 | Delete/replace uploaded document | S | 4 | Done | - |
 | B-090 | Document validation review-routing (handwriting, OCR confidence, language) | M | 2 | Ready | - |
-| B-091 | RAG eval harness (precision@5, human eval record) | M | 5 | Ready | - |
+| B-091 | RAG eval harness (precision@5, human eval record) | M | 5 | Done | - |
 | B-092 | Phase 2 SLO measurement (latency, F1, cost-per-note) | S | 5 | Ready | - |
 | B-093 | Compare sessions tool for QA agent | S | 3 | Done | - |
 
@@ -657,6 +657,7 @@
 | B-089 | Delete/replace uploaded document (backend DELETE endpoint + frontend button) | 2026-02-20 |
 | B-093 | Compare sessions tool for QA agent (side-by-side session comparison) | 2026-02-20 |
 | B-086 | Patient longitudinal summary on timeline page | 2026-02-20 |
+| B-091 | RAG eval harness — 20 golden QA cases, QADiagnostics, ToolCallTrace, precision@5 | 2026-02-20 |
 
 ---
 

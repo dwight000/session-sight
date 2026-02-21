@@ -25,7 +25,8 @@ public static class QAPrompts
         {
           "answer": "Your clinical answer here, citing session dates",
           "confidence": 0.85,
-          "citedSessionIds": ["session-id-1", "session-id-2"]
+          "citedSessionIds": ["session-id-1", "session-id-2"],
+          "reasoning": "Brief explanation of why this answer was given based on the data"
         }
 
         Confidence scale:
@@ -48,7 +49,7 @@ public static class QAPrompts
         {{contextSessions}}
         ---
 
-        Remember: Return JSON with "answer", "confidence", and "citedSessionIds" fields.
+        Remember: Return JSON with "answer", "confidence", "citedSessionIds", and "reasoning" fields.
         Only cite sessions that are directly relevant to your answer.
         """;
 
@@ -101,7 +102,8 @@ public static class QAPrompts
         {
           "answer": "Your clinical answer here, citing session dates",
           "confidence": 0.85,
-          "citedSessionIds": ["session-id-1", "session-id-2"]
+          "citedSessionIds": ["session-id-1", "session-id-2"],
+          "reasoning": "Brief explanation of why this answer was given based on the data"
         }
         """;
 
@@ -114,6 +116,6 @@ public static class QAPrompts
 
         Question: {{question}}
 
-        Remember: Return your final answer as JSON with "answer", "confidence", and "citedSessionIds" fields.
+        Remember: Return your final answer as JSON with "answer", "confidence", "citedSessionIds", and "reasoning" fields.
         """;
 }

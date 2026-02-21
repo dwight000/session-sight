@@ -59,6 +59,7 @@ public partial class AgentLoopRunner
     {
 #pragma warning restore S3776
         var toolCallCount = 0;
+        var trace = new List<ToolCallEntry>();
         var toolArray = tools as IAgentTool[] ?? tools.ToArray();
         var toolList = toolArray.ToChatTools().ToList();
 
@@ -76,7 +77,8 @@ public partial class AgentLoopRunner
                     LogToolCallLimitHit(_logger, MaxToolCalls);
                     return AgentLoopResult.Partial(
                         $"Tool limit ({MaxToolCalls}) exceeded - extraction incomplete",
-                        toolCallCount);
+                        toolCallCount,
+                        trace);
                 }
 
                 var options = new ChatCompletionOptions();
@@ -110,9 +112,10 @@ public partial class AgentLoopRunner
                     var tasks = completion.ToolCalls.Select(tc => ExecuteToolCallAsync(toolArray, tc, linkedToken));
                     var results = await Task.WhenAll(tasks);
 
-                    // Add tool results to conversation
-                    foreach (var (id, result) in results)
+                    // Record trace entries and add tool results to conversation
+                    foreach (var (id, result, toolName) in results)
                     {
+                        trace.Add(new ToolCallEntry(toolName, result.Success));
                         messages.Add(new ToolChatMessage(id, result.Data?.ToString() ?? string.Empty));
                     }
 
@@ -123,14 +126,15 @@ public partial class AgentLoopRunner
                 if (completion.FinishReason == ChatFinishReason.Stop)
                 {
                     var content = completion.Content.Count > 0 ? completion.Content[0].Text : "";
-                    return AgentLoopResult.Complete(content, toolCallCount);
+                    return AgentLoopResult.Complete(content, toolCallCount, trace);
                 }
 
                 // Unexpected finish reason
                 LogUnexpectedFinishReason(_logger, completion.FinishReason);
                 return AgentLoopResult.Partial(
                     $"Unexpected completion: {completion.FinishReason}",
-                    toolCallCount);
+                    toolCallCount,
+                    trace);
             }
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
@@ -138,11 +142,12 @@ public partial class AgentLoopRunner
             LogLoopTimeout(_logger, LoopTimeout.TotalMinutes, toolCallCount);
             return AgentLoopResult.Partial(
                 $"Agent loop timed out after {LoopTimeout.TotalMinutes} minutes",
-                toolCallCount);
+                toolCallCount,
+                trace);
         }
     }
 
-    private async Task<(string Id, ToolResult Result)> ExecuteToolCallAsync(
+    private async Task<(string Id, ToolResult Result, string ToolName)> ExecuteToolCallAsync(
         IEnumerable<IAgentTool> tools,
         ChatToolCall toolCall,
         CancellationToken ct)
@@ -151,11 +156,11 @@ public partial class AgentLoopRunner
         if (tool is null)
         {
             LogUnknownToolRequested(_logger, toolCall.FunctionName);
-            return (toolCall.Id, ToolResult.Error($"Unknown tool: {toolCall.FunctionName}"));
+            return (toolCall.Id, ToolResult.Error($"Unknown tool: {toolCall.FunctionName}"), toolCall.FunctionName);
         }
 
         LogExecutingTool(_logger, toolCall.FunctionName);
-        return (toolCall.Id, await tool.ExecuteAsync(toolCall.FunctionArguments, ct));
+        return (toolCall.Id, await tool.ExecuteAsync(toolCall.FunctionArguments, ct), toolCall.FunctionName);
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Agent hit tool call limit of {Limit}")]
