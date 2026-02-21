@@ -28,6 +28,7 @@ public partial class QAAgent : IQAAgent
     private readonly GetSessionDetailTool _getSessionDetailTool;
     private readonly GetPatientTimelineTool _getPatientTimelineTool;
     private readonly AggregateMetricsTool _aggregateMetricsTool;
+    private readonly CompareSessionsTool _compareSessionsTool;
     private readonly ILogger<QAAgent> _logger;
 
     internal const int MaxContextSessions = 10;
@@ -49,6 +50,7 @@ public partial class QAAgent : IQAAgent
         GetSessionDetailTool getSessionDetailTool,
         GetPatientTimelineTool getPatientTimelineTool,
         AggregateMetricsTool aggregateMetricsTool,
+        CompareSessionsTool compareSessionsTool,
         ILogger<QAAgent> logger)
 #pragma warning restore S107
     {
@@ -61,6 +63,7 @@ public partial class QAAgent : IQAAgent
         _getSessionDetailTool = getSessionDetailTool;
         _getPatientTimelineTool = getPatientTimelineTool;
         _aggregateMetricsTool = aggregateMetricsTool;
+        _compareSessionsTool = compareSessionsTool;
         _logger = logger;
     }
 
@@ -74,15 +77,17 @@ public partial class QAAgent : IQAAgent
         var isComplex = await ClassifyComplexityAsync(question, ct);
         LogComplexityClassified(_logger, isComplex ? "complex" : "simple");
 
+        var diagnostics = new QADiagnostics { IsComplex = isComplex };
+
         if (isComplex)
         {
-            return await AnswerComplexAsync(question, patientId, ct);
+            return await AnswerComplexAsync(question, patientId, diagnostics, ct);
         }
 
-        return await AnswerSimpleAsync(question, patientId, ct);
+        return await AnswerSimpleAsync(question, patientId, diagnostics, ct);
     }
 
-    private async Task<QAResponse> AnswerSimpleAsync(string question, Guid patientId, CancellationToken ct)
+    private async Task<QAResponse> AnswerSimpleAsync(string question, Guid patientId, QADiagnostics diagnostics, CancellationToken ct)
     {
         // Embed the question
         var queryVector = await _embeddingService.GenerateEmbeddingAsync(question, ct);
@@ -99,13 +104,15 @@ public partial class QAAgent : IQAAgent
         if (searchResults.Count == 0)
         {
             LogNoSearchResults(_logger, patientId);
+            diagnostics.SearchResultCount = 0;
             return new QAResponse
             {
                 Question = question,
                 Answer = "I don't have session data to answer this question. No indexed sessions were found for this patient.",
                 Confidence = 0,
                 ModelUsed = _modelRouter.SelectModel(ModelTask.QASimple),
-                GeneratedAt = DateTime.UtcNow
+                GeneratedAt = DateTime.UtcNow,
+                Diagnostics = diagnostics
             };
         }
 
@@ -132,6 +139,8 @@ public partial class QAAgent : IQAAgent
                 RelevanceScore = r.Score ?? 0
             })
             .ToList();
+
+        diagnostics.SearchResultCount = resultsList.Count;
 
         // Select model and call LLM
         var modelName = _modelRouter.SelectModel(ModelTask.QASimple);
@@ -163,6 +172,9 @@ public partial class QAAgent : IQAAgent
             qaResponse.Warning = warning;
             qaResponse.GeneratedAt = DateTime.UtcNow;
 
+            diagnostics.Reasoning = ParseReasoning(content);
+            qaResponse.Diagnostics = diagnostics;
+
             LogQACompleted(_logger, patientId, qaResponse.Confidence);
             return qaResponse;
         }
@@ -178,12 +190,13 @@ public partial class QAAgent : IQAAgent
                 Sources = sources,
                 ModelUsed = modelName,
                 Warning = warning,
-                GeneratedAt = DateTime.UtcNow
+                GeneratedAt = DateTime.UtcNow,
+                Diagnostics = diagnostics
             };
         }
     }
 
-    private async Task<QAResponse> AnswerComplexAsync(string question, Guid patientId, CancellationToken ct)
+    private async Task<QAResponse> AnswerComplexAsync(string question, Guid patientId, QADiagnostics diagnostics, CancellationToken ct)
     {
         var modelName = _modelRouter.SelectModel(ModelTask.QAComplex);
 
@@ -200,13 +213,15 @@ public partial class QAAgent : IQAAgent
             // Scope tools to the requested patient to prevent cross-patient data access
             _searchSessionsTool.RequiredPatientId = patientId;
             _getSessionDetailTool.AllowedPatientId = patientId;
+            _compareSessionsTool.AllowedPatientId = patientId;
 
             IAgentTool[] tools =
             [
                 _searchSessionsTool,
                 _getSessionDetailTool,
                 _getPatientTimelineTool,
-                _aggregateMetricsTool
+                _aggregateMetricsTool,
+                _compareSessionsTool
             ];
 
             var loopResult = await _agentLoopRunner.RunAsync(chatClient, messages, tools, temperature: 0.2f, ct: ct);
@@ -227,6 +242,12 @@ public partial class QAAgent : IQAAgent
             // Build sources from citedSessionIds in the parsed response
             BuildAgenticSources(qaResponse, loopResult.Content ?? string.Empty);
 
+            diagnostics.Reasoning = ParseReasoning(loopResult.Content ?? string.Empty);
+            diagnostics.ToolCalls = loopResult.ToolCallTrace
+                .Select(t => new QAToolCallEntry { ToolName = t.ToolName, Succeeded = t.Succeeded })
+                .ToList();
+            qaResponse.Diagnostics = diagnostics;
+
             LogQACompleted(_logger, patientId, qaResponse.Confidence);
             return qaResponse;
         }
@@ -240,7 +261,8 @@ public partial class QAAgent : IQAAgent
                 Answer = "An error occurred while generating the answer. Please try again.",
                 Confidence = 0,
                 ModelUsed = modelName,
-                GeneratedAt = DateTime.UtcNow
+                GeneratedAt = DateTime.UtcNow,
+                Diagnostics = diagnostics
             };
         }
     }
@@ -269,6 +291,27 @@ public partial class QAAgent : IQAAgent
         {
             // Sources remain empty if parsing fails
         }
+    }
+
+    private static string? ParseReasoning(string content)
+    {
+        try
+        {
+            var json = SummarizerAgent.ExtractJson(content);
+            var parsed = JsonSerializer.Deserialize<JsonElement>(json, JsonOptions);
+
+            if (parsed.TryGetProperty("reasoning", out var reasoning) &&
+                reasoning.ValueKind == JsonValueKind.String)
+            {
+                return reasoning.GetString();
+            }
+        }
+        catch (JsonException)
+        {
+            // Reasoning is best-effort
+        }
+
+        return null;
     }
 
     private async Task<bool> ClassifyComplexityAsync(string question, CancellationToken ct)

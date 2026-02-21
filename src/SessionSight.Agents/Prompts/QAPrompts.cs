@@ -25,7 +25,8 @@ public static class QAPrompts
         {
           "answer": "Your clinical answer here, citing session dates",
           "confidence": 0.85,
-          "citedSessionIds": ["session-id-1", "session-id-2"]
+          "citedSessionIds": ["session-id-1", "session-id-2"],
+          "reasoning": "Brief explanation of why this answer was given based on the data"
         }
 
         Confidence scale:
@@ -48,7 +49,7 @@ public static class QAPrompts
         {{contextSessions}}
         ---
 
-        Remember: Return JSON with "answer", "confidence", and "citedSessionIds" fields.
+        Remember: Return JSON with "answer", "confidence", "citedSessionIds", and "reasoning" fields.
         Only cite sessions that are directly relevant to your answer.
         """;
 
@@ -79,13 +80,15 @@ public static class QAPrompts
         - get_session_detail: Get detailed extraction data for a specific session. Use when you need full clinical details.
         - get_patient_timeline: Get chronological timeline with risk/mood changes. Use for trend questions.
         - aggregate_metrics: Compute metrics (mood_trend, session_count, intervention_frequency, risk_distribution, diagnosis_history). Use for statistical/aggregate questions.
+        - compare_sessions: Compare two or more sessions side-by-side. Use when asked to compare, contrast, or show differences between sessions.
 
         Strategy:
         1. Start with search_sessions to find relevant sessions
         2. Use get_session_detail to drill into specific sessions if needed
         3. Use get_patient_timeline for questions about changes over time
         4. Use aggregate_metrics for statistical or trend questions
-        5. Synthesize findings into a clear clinical answer
+        5. Use compare_sessions when comparing specific sessions
+        6. Synthesize findings into a clear clinical answer
 
         Rules:
         1. ONLY answer using information retrieved through tools
@@ -99,7 +102,8 @@ public static class QAPrompts
         {
           "answer": "Your clinical answer here, citing session dates",
           "confidence": 0.85,
-          "citedSessionIds": ["session-id-1", "session-id-2"]
+          "citedSessionIds": ["session-id-1", "session-id-2"],
+          "reasoning": "Brief explanation of why this answer was given based on the data"
         }
         """;
 
@@ -112,6 +116,6 @@ public static class QAPrompts
 
         Question: {{question}}
 
-        Remember: Return your final answer as JSON with "answer", "confidence", and "citedSessionIds" fields.
+        Remember: Return your final answer as JSON with "answer", "confidence", "citedSessionIds", and "reasoning" fields.
         """;
 }

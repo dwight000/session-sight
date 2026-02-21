@@ -86,6 +86,33 @@ describe('Dashboard', () => {
     })
   })
 
+  it('displays top interventions card', async () => {
+    renderWithProviders(<Dashboard />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Top Interventions')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText(mockPracticeSummary.topInterventions[0].intervention)).toBeInTheDocument()
+    expect(screen.getByText(String(mockPracticeSummary.topInterventions[0].count))).toBeInTheDocument()
+  })
+
+  it('hides interventions card when empty', async () => {
+    server.use(
+      http.get('/api/summary/practice', () => {
+        return HttpResponse.json({ ...mockPracticeSummary, topInterventions: [] })
+      }),
+    )
+
+    renderWithProviders(<Dashboard />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Dashboard')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText('No intervention data available.')).toBeInTheDocument()
+  })
+
   it('shows spinner during loading', () => {
     // MSW will delay response, so spinner appears immediately
     server.use(

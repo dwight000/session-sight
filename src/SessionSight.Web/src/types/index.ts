@@ -125,6 +125,26 @@ export interface FlaggedPatientSummary {
   flagReason: string
 }
 
+export interface GoalProgress {
+  goal: string
+  status: string
+}
+
+export interface PatientSummary {
+  patientId: string
+  period: { start: string; end: string }
+  sessionCount: number
+  progressNarrative: string
+  moodTrend: 'Improving' | 'Stable' | 'Declining' | 'Variable' | 'InsufficientData'
+  recurringThemes: string[]
+  goalProgress: GoalProgress[]
+  effectiveInterventions: string[]
+  recommendedFocus: string
+  riskTrendSummary: string
+  modelUsed: string
+  generatedAt: string
+}
+
 export interface SessionSummary {
   sessionId: string
   oneLiner: string
@@ -178,6 +198,26 @@ export interface CreateTherapistRequest {
   licenseNumber?: string
   credentials?: string
   isActive: boolean
+}
+
+// Q&A types
+export interface QASourceCitation {
+  sessionId: string
+  sessionDate: string
+  sessionType: string | null
+  summary: string | null
+  relevanceScore: number
+}
+
+export interface QAResponse {
+  question: string
+  answer: string
+  sources: QASourceCitation[]
+  confidence: number
+  modelUsed: string
+  warning: string | null
+  toolCallCount: number
+  generatedAt: string
 }
 
 // Processing job types

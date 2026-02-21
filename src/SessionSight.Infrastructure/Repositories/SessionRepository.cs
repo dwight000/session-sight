@@ -207,6 +207,19 @@ public partial class SessionRepository : ISessionRepository
             .AsNoTracking()
             .ToListAsync();
 
+    public async Task DeleteDocumentAsync(Guid sessionId)
+    {
+        // Delete extraction first (depends on session, not document, but logically tied)
+        await _context.Extractions
+            .Where(e => e.SessionId == sessionId)
+            .ExecuteDeleteAsync();
+
+        // Delete document
+        await _context.Documents
+            .Where(d => d.SessionId == sessionId)
+            .ExecuteDeleteAsync();
+    }
+
     public async Task UpdateExtractionSummaryAsync(Guid extractionId, string summaryJson)
     {
         var extraction = await _context.Extractions.FindAsync(extractionId);

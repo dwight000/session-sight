@@ -6,6 +6,7 @@ import { server } from '../../src/test/mocks/server'
 import { renderWithProviders } from '../../src/test/render'
 import { PatientTimeline } from '../../src/pages/PatientTimeline'
 import { mockPatientTimeline } from '../../src/test/fixtures/timeline'
+import { mockPatientSummary } from '../../src/test/fixtures/summary'
 
 function renderPatientTimeline(patientId = 'p1') {
   return renderWithProviders(
@@ -31,6 +32,38 @@ describe('PatientTimeline', () => {
     expect(screen.getByText('Session 1 · Individual')).toBeInTheDocument()
     expect(screen.getByText('Session 3 · Crisis')).toBeInTheDocument()
     expect(screen.getAllByText('Review →').length).toBeGreaterThan(0)
+  })
+
+  it('renders patient longitudinal summary panel', async () => {
+    renderPatientTimeline()
+
+    await waitFor(() => {
+      expect(screen.getByText('Longitudinal Summary')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText(mockPatientSummary.progressNarrative)).toBeInTheDocument()
+    expect(screen.getByText('Improving')).toBeInTheDocument()
+    expect(screen.getByText('CBT')).toBeInTheDocument()
+    expect(screen.getByText('Anxiety')).toBeInTheDocument()
+    expect(screen.getByText('Reduce anxiety frequency: On track')).toBeInTheDocument()
+    expect(screen.getByText(mockPatientSummary.riskTrendSummary)).toBeInTheDocument()
+    expect(screen.getByText(mockPatientSummary.recommendedFocus)).toBeInTheDocument()
+  })
+
+  it('hides summary panel when endpoint returns 404', async () => {
+    server.use(
+      http.get('/api/summary/patient/:patientId', () => {
+        return new HttpResponse(null, { status: 404 })
+      }),
+    )
+
+    renderPatientTimeline()
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Patient Timeline' })).toBeInTheDocument()
+    })
+
+    expect(screen.queryByText('Longitudinal Summary')).not.toBeInTheDocument()
   })
 
   it('renders empty state when no sessions are returned', async () => {

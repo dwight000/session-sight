@@ -150,6 +150,34 @@ export function Dashboard() {
         </Card>
       )}
 
+      {/* Top interventions */}
+      {summary?.topInterventions && summary.topInterventions.length > 0 ? (
+        <Card>
+          <h3 className="mb-3 text-sm font-medium text-gray-700">Top Interventions</h3>
+          <div className="space-y-2">
+            {summary.topInterventions.map((item) => (
+              <div key={item.intervention} className="flex items-center gap-3">
+                <span className="w-32 truncate text-sm text-gray-700" title={item.intervention}>{item.intervention}</span>
+                <div className="flex-1">
+                  <div
+                    className="h-5 rounded bg-blue-500"
+                    style={{ width: `${(item.count / summary.topInterventions[0].count) * 100}%` }}
+                  />
+                </div>
+                <span className="w-8 text-right text-xs text-gray-500">{item.count}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : (
+        summary && (
+          <Card>
+            <h3 className="mb-3 text-sm font-medium text-gray-700">Top Interventions</h3>
+            <p className="text-sm text-gray-400">No intervention data available.</p>
+          </Card>
+        )
+      )}
+
       {/* Flagged patients */}
       <Card>
         <h3 className="mb-4 text-sm font-medium text-gray-700">Flagged Patients</h3>

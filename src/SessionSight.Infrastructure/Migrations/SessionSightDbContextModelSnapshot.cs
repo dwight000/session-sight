@@ -344,8 +344,10 @@ namespace SessionSight.Infrastructure.Migrations
                         {
                             Id = new Guid("00000000-0000-0000-0000-000000000001"),
                             CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Credentials = "PhD, LPC",
                             IsActive = true,
-                            Name = "Default Therapist"
+                            LicenseNumber = "LPC-2024-0847",
+                            Name = "Dr. Sarah Mitchell"
                         });
                 });
 

@@ -7,11 +7,11 @@
 ## Current Status
 
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
-**Next Action**: P6-007
+**Next Action**: B-090 (Document validation review-routing)
 
-**Last Updated**: February 18, 2026
+**Last Updated**: February 20, 2026
 
-**Milestone**: B-082 complete — fixed BlobNotFound (URL-decode), stuck Processing status (atomic transitions), synced file type acceptance, added sample documents to Upload page.
+**Milestone**: P6-007 complete — demo data seeding with 8 patients + full extraction pipeline. 7 of 9 gap audit items done (B-085, B-086, B-087, B-088, B-089, B-091, B-093). Remaining: B-090, B-092.
 
 ---
 
@@ -88,7 +88,7 @@
 | B-032 | Document size validation (reject >30 pages) | M | 2 | Done | P2-008 |
 | B-033 | Internal service auth (Function->API) | M | 2 | Ready | P2-008 |
 | B-034 | Fix idempotency race condition (SQL MERGE with HOLDLOCK) | M | 2 | Done | P2-008 |
-| B-035 | Synchronous AI Search indexing | M | 2 | Ready | P2-004 |
+| B-035 | Synchronous AI Search indexing (user-visible after B-085) | M | 2 | Ready | P2-004 |
 | B-036 | Document Intelligence failure handling | M | 2 | Ready | P2-008 |
 | B-048 | Circuit breaker for Azure SDK clients (Polly or custom HttpPipelinePolicy) | M | 2 | Done | B-010 |
 | B-049 | ~~Extract shared LlmResponseParser from duplicated JSON parsing in 3 agents~~ (superseded by B-056) | M | 2 | Done | P2-004 |
@@ -143,10 +143,10 @@
 | **Phase 5: Polish & Testing** |||||
 | P5-001 | Integration tests (golden files) | L | 5 | Done | P2-005 |
 | P5-002 | Data flow diagrams (document->agent->DB) | M | 5 | Blocked | B-004 |
-| P5-003 | API usage examples | S | 5 | Blocked | P1-019 |
+| P5-003 | API usage examples | S | 5 | Ready | - |
 | B-004 | Architecture diagrams (Mermaid) | M | 5 | Blocked | P2-010 |
 | B-005 | Load testing setup | M | 5 | Done | - |
-| B-015 | Contract tests for API DTOs | M | 5 | Blocked | P1-004 |
+| B-015 | Contract tests for API DTOs | M | 5 | Ready | - |
 | B-016 | Load/concurrency tests | M | 5 | Done | B-005 |
 | B-070 | Merge redundant E2E extraction tests into shared collection fixture | S | 5 | Done | - |
 | B-017 | Safety/red-team evals (14 adversarial golden files) | L | 5 | Done | P2-005 |
@@ -176,13 +176,182 @@
 | B-080 | Store ghcrToken as GitHub secret (eliminate manual input for deployContainerApps) | S | 6 | Done | - |
 | B-081 | Review and merge Dependabot PRs (~20 pending) | M | 6 | Done | - |
 | B-082 | Fix BlobNotFound + stuck Processing + file types + sample documents on Upload page | M | 6 | Done | - |
-| B-083 | Bump Azure OpenAI TPM, decouple extraction from HTTP lifecycle, fix retry UI, enable /health | S | 6 | In Progress | - |
+| B-083 | Bump Azure OpenAI TPM, decouple extraction from HTTP lifecycle, fix retry UI, enable /health | S | 6 | Done | - |
 | B-084 | Move extraction to background queue (decouple from HTTP request thread) | L | 6 | Backlog | - |
-| P6-007 | Demo data and walkthrough | M | 6 | Blocked | P6-002 |
+| P6-007 | Demo data and walkthrough | M | 6 | Done | - |
+| **Gap Audit Items (B-085–B-093)** |||||
+| B-085 | Q&A Chat UI (patient-scoped clinical Q&A page) | L | 4 | Done | - |
+| B-086 | Patient longitudinal summary on timeline page | M | 4 | Done | - |
+| B-087 | Practice summary diagnosis/intervention breakdown on Dashboard | S | 4 | Done | - |
+| B-088 | Session summary regeneration button on SessionDetail | S | 4 | Done | - |
+| B-089 | Delete/replace uploaded document | S | 4 | Done | - |
+| B-090 | Document validation review-routing (handwriting, OCR confidence, language) | M | 2 | Ready | - |
+| B-091 | RAG eval harness (precision@5, human eval record) | M | 5 | Done | - |
+| B-092 | Phase 2 SLO measurement (latency, F1, cost-per-note) | S | 5 | Ready | - |
+| B-093 | Compare sessions tool for QA agent | S | 3 | Done | - |
 
 ---
 
 ## Task Detail Notes
+
+### B-085 Details (Q&A Chat UI)
+
+**Problem:** The QAAgent with 4 agentic tools (`SearchSessionsTool`, `GetSessionDetailTool`, `GetPatientTimelineTool`, `AggregateMetricsTool`) and hybrid vector+keyword search is the most technically complex backend subsystem — but has zero frontend consumer. The only way to use it is via `curl POST /api/qa/patient/{patientId}`. Discovered during gap audit (2026-02-19).
+
+**Scope:**
+- New `/qa` route and page component with patient selector dropdown (reuse `usePatients` hook) and chat-style message input
+- Frontend API client (`api/qa.ts`) calling `POST /api/qa/patient/{patientId}` with body `{ question }`
+- `useAskQuestion` mutation hook following existing `useMutation` + `invalidateQueries` pattern
+- Answer display with cited source sessions (response includes `answer`, `sources[]`, `complexity`, `model`)
+- Loading state appropriate for 5-30s agent processing time
+- Sidebar nav link (add `{ to: '/qa', label: 'Q&A' }` to `Sidebar.tsx` links array)
+- Unit tests (component + hook) + Playwright smoke test
+
+**Existing infra to reuse:**
+- `fetchApi` pattern from `api/client.ts`
+- `usePatients` hook for patient selector dropdown
+- `<Card>`, `<Spinner>`, `<Badge>` UI components
+- TanStack React Query `useMutation` pattern (see `useCreatePatient` for reference)
+
+**Files:** New `src/SessionSight.Web/src/api/qa.ts`, new `src/SessionSight.Web/src/hooks/useAskQuestion.ts`, new `src/SessionSight.Web/src/pages/QA.tsx`, `src/SessionSight.Web/src/App.tsx` (add route), `src/SessionSight.Web/src/components/layout/Sidebar.tsx` (add nav link).
+
+**Acceptance:** User selects patient, types question, sees RAG-grounded answer with source citations. Smoke test verifies route loads and input renders.
+
+### B-086 Details (Patient Longitudinal Summary on Timeline Page)
+
+**Problem:** `GET /api/summary/patient/{id}` returns a `PatientSummary` with `progressNarrative`, `moodTrend`, `effectiveInterventions`, `ongoingConcerns`, and `recommendations` — the most clinically valuable longitudinal insight. But `PatientTimeline.tsx` never calls this endpoint. The page jumps straight from a date filter into raw session cards with no synthesized overview. Discovered during gap audit (2026-02-19).
+
+**Scope:**
+- New API client function `getPatientSummary(patientId)` in `api/summary.ts`
+- New `usePatientSummary` query hook (`queryKey: ['patientSummary', patientId]`)
+- Summary card/panel at top of `PatientTimeline.tsx`, above the session list, showing:
+  - Progress narrative (prose block)
+  - Mood trend badge
+  - Effective interventions list
+  - Ongoing concerns
+  - Recommendations
+- Loading/error states following existing `isLoading → <Spinner />`, `error → red div` pattern
+
+**Files:** `src/SessionSight.Web/src/api/summary.ts`, new hook file, `src/SessionSight.Web/src/pages/PatientTimeline.tsx`.
+
+**Acceptance:** PatientTimeline page shows longitudinal summary panel above session cards. Panel gracefully handles patients with no extraction data.
+
+### B-087 Details (Practice Summary Breakdown on Dashboard)
+
+**Problem:** `Dashboard.tsx` already fetches `PracticeSummary` via `usePracticeSummary`, but only renders 5 of the available fields (`totalSessions`, `totalPatients`, `averageSessionsPerPatient`, `riskDistribution`, `flaggedPatients`). Three additional fields are fetched and discarded: `topInterventions[]`, `sessionsRequiringReview`, `generatedAt`. Discovered during gap audit (2026-02-19).
+
+**Scope:**
+- Add `sessionsRequiringReview` as a stat card (e.g., "Pending Review" count) on Dashboard
+- Add `topInterventions[]` as a table or bar chart showing intervention frequency breakdown
+- No backend changes — data already in the API response type
+
+**Files:** `src/SessionSight.Web/src/pages/Dashboard.tsx`, possibly a new chart/table component.
+
+**Acceptance:** Dashboard shows intervention frequency breakdown and pending review count alongside existing stats.
+
+### B-088 Details (Session Summary Regeneration Button)
+
+**Problem:** `GET /api/summary/session/{id}?regenerate=true` supports on-demand summary regeneration via the `SummaryController`, but `SessionDetail.tsx` reads the stored `summaryJson` from the review DTO (`data.summaryJson`) and parses it inline. There is no way for a supervisor to refresh a stale or poor-quality summary from the UI. Discovered during gap audit (2026-02-19).
+
+**Scope:**
+- API client function `getSessionSummary(sessionId, regenerate?)` in `api/summary.ts`
+- "Regenerate Summary" button on `SessionDetail.tsx` with loading state
+- On click: call `GET /api/summary/session/{id}?regenerate=true`, replace displayed summary with fresh result
+
+**Files:** `src/SessionSight.Web/src/api/summary.ts`, `src/SessionSight.Web/src/pages/SessionDetail.tsx`.
+
+**Acceptance:** Supervisor clicks regenerate, sees loading spinner, then updated summary replaces the old one.
+
+### B-089 Details (Delete/Replace Uploaded Document)
+
+**Problem:** No `DELETE` endpoint exists for session documents. If a user uploads the wrong file to a session, it is permanent — there is no way to remove it and re-upload. The only option is to create a new session entirely. Discovered during gap audit (2026-02-19).
+
+**Scope:**
+- Backend `DELETE /api/sessions/{sessionId}/document` endpoint in `DocumentsController`
+  - Remove blob via `IDocumentStorage.DeleteAsync`
+  - Reset or delete `SessionDocument` record
+  - Reset extraction result if one exists (set `ExtractionResult` to null, status back to Pending)
+- Add `DeleteAsync(string blobUri)` to `IDocumentStorage` / `AzureBlobDocumentStorage`
+- Frontend delete button on session detail or upload flow
+- Backend unit tests + frontend tests
+
+**Files:** `src/SessionSight.Api/Controllers/DocumentsController.cs`, `src/SessionSight.Core/Interfaces/IDocumentStorage.cs`, `src/SessionSight.Infrastructure/Storage/AzureBlobDocumentStorage.cs`, frontend session/upload pages.
+
+**Acceptance:** User can delete a wrongly-uploaded document and upload the correct one. Extraction state is properly reset.
+
+### B-090 Details (Document Validation Review-Routing)
+
+**Problem:** Phase 2 spec describes flagging documents for review when: (1) handwriting >30% of content, (2) OCR confidence <70% average, (3) non-English content detected. None of these checks were implemented. The Azure Document Intelligence `AnalyzeResult` already returns all three signals in the existing API response — `result.Styles[].IsHandwritten` + `Confidence`, `result.Languages[].Locale` + `Confidence`, and per-word confidence scores — but `DocumentIntelligenceParser` discards them. No additional Azure API calls are needed. Discovered during gap audit (2026-02-19).
+
+**Scope:**
+- Enrich `ParsedDocumentMetadata` with new properties:
+  - `HandwritingPercentage` (float) — ratio of handwritten text spans to total
+  - `DetectedLanguages` (list) — language locales with confidence scores
+  - `MinPageConfidence` (float) — lowest per-page average word confidence
+- In `DocumentIntelligenceParser.ParseAsync`:
+  - Read `result.Styles` where `IsHandwritten == true`, compute handwriting span ratio
+  - Read `result.Languages` for locale detection
+  - Compute per-page word confidence distribution (not just overall average)
+- In `ExtractionOrchestrator`, after parsing check thresholds:
+  - Handwriting > 30% → set `RequiresReview = true` with reason
+  - MinPageConfidence < 0.70 → set `RequiresReview = true` with reason
+  - Primary language not English → set `RequiresReview = true` with reason
+- Pipeline continues normally (process but flag)
+
+**Files:** `src/SessionSight.Agents/Services/DocumentIntelligenceParser.cs`, `src/SessionSight.Agents/Models/ParsedDocument.cs`, `src/SessionSight.Agents/Orchestration/ExtractionOrchestrator.cs`.
+
+**Acceptance:** A handwritten document, low-OCR document, or non-English document triggers `RequiresReview` flag and appears in the review queue with the appropriate reason. Existing non-flagged documents are unaffected.
+
+### B-091 Details (RAG Eval Harness)
+
+**Problem:** Phase 3 spec promises `precision@5 > 0.80` and human eval of 20 test queries. PROJECT_PLAN SLO table claims measurable performance targets. No test infrastructure or recorded results exist. The spec references `dotnet test --filter "Category=RAGEval"` as a verification command — this filter matches nothing. Discovered during gap audit (2026-02-19).
+
+**Scope:**
+- New golden file directory `plan/data/synthetic/golden-files/qa-eval/` with 20 labeled Q&A cases
+- Each case: `{ question, note_content, expected_answer_keywords[], expected_source_fields[], complexity }`
+- New `GoldenQACaseProvider` extending `GoldenCaseProviderBase` patterns (reuse `FindRepositoryRoot`, `SelectDeterministicSubset`, mode parsing, `GOLDEN_MODE`/`GOLDEN_FILTER` env vars)
+- New `GoldenQAEvalTests` class with `[Trait("Category", "Functional")]`
+- Each test: create patient → upload note (via `GoldenTestHelpers.CreatePdfDocument`) → extract (via `LongClient`) → call `POST /api/qa/patient/{id}` → assert answer contains expected keywords, sources reference correct sessions
+- Compute and log precision@5 and answer relevance in test output
+
+**Existing infra to reuse:** `GoldenCaseProviderBase` (root finder, deterministic subset, mode parsing), `GoldenTestHelpers.CreatePdfDocument` (in-memory PDF from text), `ApiFixture` (Client + LongClient), `ExtractionAssertions` match modes (`ContainsAny`, `AnyKeyword`), `SharedExtractionFixture` pattern.
+
+**Files:** New `tests/SessionSight.FunctionalTests/GoldenQAEvalTests.cs`, new `Fixtures/GoldenQACaseProvider.cs`, new `plan/data/synthetic/golden-files/qa-eval/*.json`.
+
+**Acceptance:** `./scripts/run-e2e.sh --filter "GoldenQAEvalTests"` runs 20 Q&A evals. Precision@5 and answer relevance metrics are computed and reported in test output.
+
+### B-092 Details (Phase 2 SLO Measurement)
+
+**Problem:** Phase 2 spec promises three SLOs: (1) extraction P95 latency < 30s, (2) extraction F1 > 0.85, (3) cost per note < $0.50. No measurement infrastructure exists anywhere. These are listed in the PROJECT_PLAN.md success criteria table but have no evidence backing them. Discovered during gap audit (2026-02-19).
+
+**Scope:**
+- Document measurement methodology for each SLO
+- (1) **Latency**: Add `Stopwatch` timing to E2E extraction tests, log P95 across golden file runs. Alternatively parse from Serilog API logs (`/tmp/sessionsight/api/`).
+- (2) **F1**: Compute from golden file pass/fail rates. The 74-field E2E assertions already run — aggregate pass/fail into precision/recall/F1 per field category.
+- (3) **Cost**: Estimate from Azure OpenAI token usage (available in response headers `x-ratelimit-remaining-tokens` or via Azure portal cost analysis). Could be a script that parses API logs for token counts.
+- Record baseline values in a results section (either in test output or a doc).
+
+**Files:** Potentially `tests/SessionSight.FunctionalTests/` (timing additions), `docs/SLO_BASELINES.md` or similar for recorded values.
+
+**Acceptance:** Each SLO has a documented measurement method and a recorded baseline value that can be referenced from the PROJECT_PLAN.
+
+### B-093 Details (Compare Sessions Tool for QA Agent)
+
+**Problem:** The agent-tool-callbacks spec listed 3 summarizer tools: `get_mood_trend`, `identify_effective_interventions`, and `compare_sessions`. Audit found the first two already exist as metrics in `AggregateMetricsTool` (`mood_trend` and `intervention_frequency`). But `compare_sessions` — structured diff between any two specific sessions by ID — has no equivalent. `GetPatientTimelineTool` shows adjacent session deltas but doesn't support arbitrary two-session comparison. Discovered during gap audit (2026-02-19).
+
+**Scope:**
+- New `CompareSessionsTool : IAgentTool` in `src/SessionSight.Agents/Tools/`
+- Input schema: `{ sessionIdA: string, sessionIdB: string }`
+- Behavior: fetch both sessions via `ISessionRepository.GetByIdAsync`, produce structured diff across key fields (mood score, risk level, interventions used, diagnosis, progress rating, presenting concern)
+- Register as `Scoped` in `Program.cs` DI
+- Add to QA agent's explicit tool list in `QAAgent.cs`
+- Unit tests following `GetSessionDetailTool` test patterns
+
+**Existing patterns to follow:** `GetSessionDetailTool` (fetch by ID, return structured data), `IAgentTool` interface with `BinaryData InputSchema`, `ToolResult.Error()` for invalid inputs.
+
+**Files:** New `src/SessionSight.Agents/Tools/CompareSessionsTool.cs`, `src/SessionSight.Api/Program.cs` (DI), `src/SessionSight.Agents/Agents/QAAgent.cs` (tool list), new test file.
+
+**Acceptance:** QA agent can answer "How did session X compare to session Y?" using the tool. Unit test verifies diff output structure.
 
 ### B-084 Details (Background Extraction Queue)
 
@@ -481,6 +650,14 @@
 | B-080 | Store ghcrToken as GitHub secret (eliminate manual input for deployContainerApps) | 2026-02-18 |
 | B-081 | Review and merge Dependabot PRs — 18 merged, 3 closed (eslint 10, Storage.Blobs breaking) | 2026-02-18 |
 | B-082 | Fix BlobNotFound + stuck Processing + file types + sample documents on Upload page | 2026-02-18 |
+| B-083 | Bump Azure OpenAI TPM, decouple extraction from HTTP lifecycle, fix retry UI, enable /health | 2026-02-18 |
+| B-085 | Q&A Chat UI (patient-scoped clinical Q&A page with chat history, source citations) | 2026-02-19 |
+| B-087 | Top Interventions horizontal bar chart card on Dashboard | 2026-02-20 |
+| B-088 | Session summary regeneration button on SessionDetail | 2026-02-20 |
+| B-089 | Delete/replace uploaded document (backend DELETE endpoint + frontend button) | 2026-02-20 |
+| B-093 | Compare sessions tool for QA agent (side-by-side session comparison) | 2026-02-20 |
+| B-086 | Patient longitudinal summary on timeline page | 2026-02-20 |
+| B-091 | RAG eval harness — 20 golden QA cases, QADiagnostics, ToolCallTrace, precision@5 | 2026-02-20 |
 
 ---
 
@@ -488,6 +665,9 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-20 | **B-086 complete: Patient longitudinal summary on timeline page.** Frontend-only change — `GET /api/summary/patient/{id}` already existed but was never called. Added `PatientSummary` + `GoalProgress` types to `types/index.ts`, `getPatientSummary()` API function in `api/summary.ts`, `usePatientSummary` query hook, and summary card panel on `PatientTimeline.tsx` between stats bar and session list. Panel shows progress narrative, mood trend badge, effective interventions, recurring themes, goal progress, risk trend summary, and recommended focus. Loading spinner during fetch, hidden on 404 (patients with no extraction data). Tests: 202 frontend unit (7 new: 3 hook, 2 API, 2 page), 17 Playwright smoke (patient summary route mock added). |
+| 2026-02-20 | **B-087/088/089/093 complete: 4 quick wins from gap audit.** B-087: Top Interventions horizontal bar chart card on Dashboard (frontend-only, renders `topInterventions[]` from existing `PracticeSummary` API). B-088: Session summary regenerate/generate button on SessionDetail — new `api/sessionSummary.ts`, `useRegenerateSessionSummary` hook, button shows "Generate Summary" when no summary exists. B-089: Full-stack delete document — backend `DELETE /api/sessions/{id}/document` (blob + search index + DB), frontend red "Delete Document" button with `window.confirm`, `useDeleteDocument` hook. B-093: `CompareSessionsTool` for QA agent — compares 2+ sessions across mood, risk, interventions with change summary; registered in DI, added to agentic loop with `AllowedPatientId` guard, prompt updated. Also fixed `start-dev.sh` missing venv PATH export (caused `az` not found → LLM endpoints hang) and added `az login` warning to both start scripts. Tests: 726 backend (including 4 CompareSessionsTool + 3 DocumentsController delete), 195 frontend (including 7 new hook/page tests), 17 Playwright smoke (2 new assertions). PR #76. |
+| 2026-02-19 | **B-085 complete + Gap audit: 9 new backlog items (B-085–B-093) + 3 stale blocker fixes + B-083 closed.** B-085: Q&A Chat UI page with patient selector, chat-style message history, source citations, loading states, clear button. PR #75 merged. Ran three audits: (1) Backend capabilities with no frontend consumer — found Q&A Chat UI, patient summary, practice breakdown, session regen, delete/replace doc. (2) Specs vs backlog — found missing tickets for doc validation review-routing, RAG eval harness, SLO measurement; stale blockers on P6-007/P5-003/B-015. (3) Implementation vs design — confirmed summarizer tools gap (2 of 3 already exist in `AggregateMetricsTool`, only `compare_sessions` is new); document validation review-routing signals already in Azure SDK response but discarded. Fixed stale blockers: P6-007 Ready (P6-002 done), P5-003 Ready (P1-019 done), B-015 Ready (P1-004 done). Marked B-083 Done (commits d899432, d55d466, ca108cb). Added note to B-035 re: dependency on B-085 for user visibility. |
 | 2026-02-18 | **B-082 complete: Fix BlobNotFound + stuck Processing + file types + sample documents.** Fixed 3 production bugs: (1) URL-decode blob path in `AzureBlobDocumentStorage` — filenames with spaces/parens caused BlobNotFound on extraction. (2) Replaced `UpdateDocumentStatusAsync` with `TryTransitionDocumentStatusAsync` in all 3 `ExtractionOrchestrator` failure paths — change-tracker staleness caused status stuck at Processing. (3) Removed `.txt` from frontend accept list, added backend extension allowlist (`.pdf,.docx,.doc,.jpg,.jpeg,.png,.tiff,.bmp`) with 400 BadRequest for unsupported types. Added sample documents feature: generated 8 static therapy note PDFs (5 non-risk from golden files, 3 risk notes expanded to full structured format) via `fpdf2` script. Built sample document picker on Upload page with tab toggle (Sample Documents / Your Document), card grid with preview and "Use This" buttons. New test project: `SessionSight.Infrastructure.Tests` with 8 blob path round-trip tests. Added 4 Playwright smoke tests for Upload page sample UI. Updated 3 orchestrator tests, 1 E2E test (tab click). Validation: 724 backend tests pass (83.35% coverage), frontend 5/5 gates pass (15 smoke tests), 0 warnings. |
 | 2026-02-17 | **P6-006/B-077 complete: Dependabot + Managed Identity for SQL.** P6-006: Created `.github/dependabot.yml` with three ecosystems (NuGet, npm, GitHub Actions) for automated dependency update PRs. B-077: Eliminated password-based SQL auth — added AAD admin to `sql.bicep`, removed `sqlAdminPassword` param from `main.bicep` (uses generated throwaway for server creation), switched connection string to `Authentication=Active Directory Managed Identity`, removed `@secure()` and secret ref from `containerApps.bicep` (plain env var), replaced Key Vault password fetch with `Active Directory Default` in `deploy.yml` EF migrations, replaced password sync step with MI user provisioning (T-SQL `CREATE USER FROM EXTERNAL PROVIDER`) in `infra.yml`, removed `sqlAdminPassword` from parameter files and all ARM validate/what-if commands. Updated `CLOUD_TROUBLESHOOTING.md` (MI-specific troubleshooting, removed SQL Password Sync section) and `CLAUDE.md` (passwordless Deploy Bicep command). |
 | 2026-02-17 | **P6-005/B-029/B-031 complete: CI/CD hardening.** P6-005: Added `tags: ['v*']` to `deploy.yml` push trigger so GitHub releases auto-deploy. B-029: Added ARM-level validation (`az deployment sub validate`) for both dev and stage parameter files to `infra.yml` validate job; added stage what-if to PR preview job with dual-environment PR comment. B-031: Added `rollback_tag` workflow_dispatch input to `deploy.yml`, guarded build/deploy jobs to skip on rollback, added dedicated `rollback` job that updates container images without building, added rollback runbook to `docs/CLOUD_TROUBLESHOOTING.md`. Updated `.claude/CLAUDE.md` with Releases & Deployment section. |
@@ -496,6 +676,7 @@
 | 2026-02-14 | **P6-004 complete: Environment-specific configuration.** Fixed stage deploy.yml Key Vault reference (`sessionsight-kv-dev` → `sessionsight-kv-stage`). Parameterized `ASPNETCORE_ENVIRONMENT` in Bicep (dev=`Staging`, stage=`Production`). Widened Swagger/CORS gate to include `IsStaging()`. Created `appsettings.Staging.json` (cloud dev: Information logging, request logging on) and `appsettings.Production.json` (cloud stage: Warning logging, request logging off). Added `.gitignore` exceptions for new config files. Seeded `sql-admin-password` secret into `sessionsight-kv-stage` + granted developer RBAC on stage KV. Deployed infra (both envs with `deployContainerApps=true`) and app images (both envs). Verified: dev container `ASPNETCORE_ENVIRONMENT=Staging`, stage container `ASPNETCORE_ENVIRONMENT=Production`. Also added `git fetch origin develop` to CLAUDE.md git workflow to prevent stale-branch conflicts. Remaining: post-deploy verification (Swagger, CORS, logging behavior). |
 | 2026-02-14 | **P6-002 complete: Stage environment fully deployed.** Completed B-073 (PR #7: `deployContainerApps`/`ghcrToken` inputs to `infra.yml`) and B-074 (PR #7+#9: EF migrations in `deploy.yml` with `dotnet restore` fix). Merged develop→main (PRs #8, #10) triggering auto-deploy. Dev deploy: images built, containers updated, EF migrations passed (run 22011841249). Stage deploy: manual dispatch succeeded — images, containers, EF migrations all green. **Stage verified**: `/api/therapists` returns seeded data, `/api/patients` returns 200, web returns 200. **Dev 500 fix (B-076)**: `infra.yml` auto-triggered on push to main (infra/ changes), Bicep reset SQL server password to Key Vault value but container still had old password → Error 18456. Fixed manually via `az containerapp update --set-env-vars`. Added permanent fix: `infra.yml` now syncs the container connection string after every Bicep deploy. Both dev and stage verified healthy. Filed B-075 (CRLF), B-077 (managed identity for SQL — low priority). |
 | 2026-02-14 | **P6-002 stage infra deployed, app running on stale images.** Merged PR #6 (Bicep code). Set up GitHub `stage` environment + OIDC credential + secrets via CLI. Ran `infra.yml` what-if and deploy for stage — created KV (`sessionsight-kv-stage`), storage (`sessionsightstoragestage`), SQL DB (`sessionsight-stage`). Deployed Container Apps via manual `az deployment sub create` with `deployContainerApps=true` (not yet in workflow inputs — filed B-073). Ran EF migrations manually on stage DB (not yet automated — filed B-074). Search index `sessionsight-sessions-stage` created after RBAC propagation delay + container restart. Stage API and Web running, `/api/patients` returns 200. Problem: `main` is 6 commits behind `develop` — container images are pre-B-072, so `/api/therapists` returns 404. Next: merge develop→main, trigger deploy to stage. |
+| 2026-02-20 | **P6-007 complete: Demo data seeding.** Updated EF therapist seed data from "Default Therapist" to "Dr. Sarah Mitchell" (PhD, LPC, license LPC-2024-0847) with auto-generated UpdateData migration. Overhauled `start-dev.sh`: removed dead SQL INSERT step (EF migration handles it), replaced 2-patient seed with conditional 8-patient full-extraction pipeline. Guard: `GET /api/patients` — skips if >= 3 patients exist (fresh DB = 0 seeds, old seed = 2 re-seeds, already seeded = 8 skips). Creates 8 patients matching the existing sample PDFs (Sarah Chen/anxiety, Marcus Williams/depression, Elena Rodriguez/PTSD, David Thompson/substance use, Jennifer Walsh/termination, Rachel Morrison/active SI, Harold Jacobson/elderly grief, Brian Okafor/intake eval). Sequential create+upload (~10s), then parallel extraction (~5-8 min, ~$0.24 one-time). Updated startup banner with therapist name and all 8 demo patient descriptions. |
 | 2026-02-13 | **B-072 complete: Therapist CRUD + ProcessingJob status + EF seeding.** Added EF migration `SeedDefaultTherapist` to solve B-072 FK constraint issue. Built full Therapist CRUD: backend (repo, controller, DTOs, validators, tests) + frontend (`/therapists` page, create form, API client, hooks, 5 unit tests, smoke tests). Built ProcessingJob read-only status screen: backend (`GET /api/processing-jobs`) + frontend (`/jobs` page with 5s auto-refresh polling when active jobs exist, fixtures, tests). Replaced hardcoded `DEFAULT_THERAPIST_ID` in Sessions.tsx with therapist dropdown fetching from API. Added 2 Playwright smoke tests, 1 full-stack E2E test, 7 backend functional tests (TherapistCrudTests), 15 backend unit tests, 10 frontend unit tests. Fixed 3 test failures: Processing Jobs strict mode (cell selector), Sessions route mocking (query params), TherapistCrudTests substring bug (`[..36]` on 35-char string). Validation: 700 backend tests pass (83.34% coverage), 173 frontend tests pass (87.9% coverage), all E2E/smoke tests pass. Files: 27 new, 13 modified. |
 
 ---

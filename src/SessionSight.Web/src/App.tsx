@@ -10,6 +10,7 @@ import { Sessions } from './pages/Sessions'
 import { Upload } from './pages/Upload'
 import { Therapists } from './pages/Therapists'
 import { ProcessingJobs } from './pages/ProcessingJobs'
+import { QA } from './pages/QA'
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/upload" element={<Upload />} />
         <Route path="/review" element={<ReviewQueue />} />
         <Route path="/review/session/:sessionId" element={<SessionDetail />} />
+        <Route path="/qa" element={<QA />} />
       </Route>
     </Routes>
   )

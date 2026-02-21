@@ -1,12 +1,13 @@
 import { http, HttpResponse } from 'msw'
 import { mockReviewQueue, mockReviewDetail, mockReviewStats } from '../fixtures/review'
-import { mockPracticeSummary } from '../fixtures/summary'
+import { mockPatientSummary, mockPracticeSummary, mockSessionSummary } from '../fixtures/summary'
 import { mockPatients } from '../fixtures/patients'
 import { mockSessions } from '../fixtures/sessions'
 import { mockPatientRiskTrend } from '../fixtures/riskTrend'
 import { mockPatientTimeline } from '../fixtures/timeline'
 import { mockTherapists } from '../fixtures/therapists'
 import { mockProcessingJobs } from '../fixtures/processingJobs'
+import { mockQAResponse } from '../fixtures/qa'
 
 export const handlers = [
   http.get('/api/review/queue', () => {
@@ -29,6 +30,10 @@ export const handlers = [
     return HttpResponse.json(mockPracticeSummary)
   }),
 
+  http.get('/api/summary/session/:sessionId', () => {
+    return HttpResponse.json(mockSessionSummary)
+  }),
+
   http.get('/api/summary/patient/:patientId/risk-trend', ({ params }) => {
     return HttpResponse.json({
       ...mockPatientRiskTrend,
@@ -39,6 +44,13 @@ export const handlers = [
   http.get('/api/summary/patient/:patientId/timeline', ({ params }) => {
     return HttpResponse.json({
       ...mockPatientTimeline,
+      patientId: params.patientId,
+    })
+  }),
+
+  http.get('/api/summary/patient/:patientId', ({ params }) => {
+    return HttpResponse.json({
+      ...mockPatientSummary,
       patientId: params.patientId,
     })
   }),
@@ -121,6 +133,10 @@ export const handlers = [
   }),
 
   // Upload handlers
+  http.delete('/api/sessions/:sessionId/document', () => {
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   http.post('/api/sessions/:sessionId/document', () => {
     return HttpResponse.json({
       documentId: 'new-doc-id',
@@ -136,5 +152,10 @@ export const handlers = [
       success: true,
       extractionId: 'new-extraction-id'
     })
+  }),
+
+  // Q&A handler
+  http.post('/api/qa/patient/:patientId', () => {
+    return HttpResponse.json(mockQAResponse)
   }),
 ]
