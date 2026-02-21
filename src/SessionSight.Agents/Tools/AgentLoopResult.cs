@@ -19,19 +19,19 @@ public class AgentLoopResult
 
     public static AgentLoopResult Complete(string content, int toolCallCount = 0,
         IReadOnlyList<ToolCallEntry>? toolCallTrace = null) => new()
-    {
-        IsComplete = true,
-        Content = content,
-        ToolCallCount = toolCallCount,
-        ToolCallTrace = toolCallTrace ?? []
-    };
+        {
+            IsComplete = true,
+            Content = content,
+            ToolCallCount = toolCallCount,
+            ToolCallTrace = toolCallTrace ?? []
+        };
 
     public static AgentLoopResult Partial(string reason, int toolCallCount = 0,
         IReadOnlyList<ToolCallEntry>? toolCallTrace = null) => new()
-    {
-        IsComplete = false,
-        PartialReason = reason,
-        ToolCallCount = toolCallCount,
-        ToolCallTrace = toolCallTrace ?? []
-    };
+        {
+            IsComplete = false,
+            PartialReason = reason,
+            ToolCallCount = toolCallCount,
+            ToolCallTrace = toolCallTrace ?? []
+        };
 }
