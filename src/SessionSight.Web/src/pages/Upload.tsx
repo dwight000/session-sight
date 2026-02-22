@@ -5,6 +5,7 @@ import { usePatients } from '../hooks/usePatients'
 import { useUploadDocument } from '../hooks/useUploadDocument'
 import { Button } from '../components/ui/Button'
 import { Spinner } from '../components/ui/Spinner'
+import { ExtractionPipelineView } from '../components/extraction/ExtractionPipelineView'
 
 interface SampleDoc {
   id: string
@@ -33,6 +34,7 @@ export function Upload() {
   const [samples, setSamples] = useState<SampleDoc[]>([])
   const [expandedSample, setExpandedSample] = useState<string | null>(null)
   const [loadingSample, setLoadingSample] = useState<string | null>(null)
+  const [processingSessionId, setProcessingSessionId] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/samples/samples.json')
@@ -78,10 +80,12 @@ export function Upload() {
     if (!selectedSessionId || !selectedFile) return
 
     setUploadResult(null)
+    setProcessingSessionId(selectedSessionId)
     uploadDocument.mutate(
       { sessionId: selectedSessionId, file: selectedFile },
       {
         onSuccess: (result) => {
+          setProcessingSessionId(null)
           if (result.success) {
             setUploadResult({ success: true, sessionId: selectedSessionId })
             setSelectedSessionId('')
@@ -94,6 +98,7 @@ export function Upload() {
           }
         },
         onError: (error) => {
+          setProcessingSessionId(null)
           setUploadResult({ success: false, error: (error as Error).message })
         },
       }
@@ -311,18 +316,10 @@ export function Upload() {
             </Button>
           </div>
 
-          {uploadDocument.isPending && (
-            <div className="rounded-md bg-blue-50 p-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <Spinner className="h-5 w-5 text-blue-500" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-blue-800">
-                    Uploading and extracting document... This may take up to 2 minutes.
-                  </p>
-                </div>
-              </div>
+          {uploadDocument.isPending && processingSessionId && (
+            <div className="rounded-md border border-blue-200 bg-blue-50/30 p-4">
+              <p className="mb-3 text-sm font-medium text-blue-800">Extraction Pipeline</p>
+              <ExtractionPipelineView sessionId={processingSessionId} isLive={true} />
             </div>
           )}
         </form>
