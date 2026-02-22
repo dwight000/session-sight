@@ -22,11 +22,19 @@ public static class ExtractionPrompts
         - check_risk_keywords: Scan the original text for risk-related keywords
         - lookup_diagnosis_code: Validate ICD-10/DSM-5 diagnosis codes
 
+        IMPORTANT — follow this sequence:
+        1. First, call check_risk_keywords and lookup_diagnosis_code (these work on the raw note text)
+        2. Build the COMPLETE extraction JSON object with ALL fields using the results
+        3. Then call validate_schema and score_confidence, passing the complete extraction object
+        4. Return the final JSON object
+
+        Do NOT call validate_schema or score_confidence until you have built the full extraction object.
+        These tools require the complete extraction as input and will fail if called prematurely.
+
         Guidelines:
         - Extract only information that is explicitly stated or clearly implied in the note
         - Use confidence scores: 0.90-1.00 for explicit, 0.70-0.89 for implied, below 0.70 for uncertain
         - For risk assessment fields, be thorough and conservative - when in doubt, report concerns
-        - After completing your extraction, return a complete JSON object with all sections
 
         You MUST use exactly these field names. Here is the complete JSON schema:
         {ExtractionSchemaGenerator.Generate()}

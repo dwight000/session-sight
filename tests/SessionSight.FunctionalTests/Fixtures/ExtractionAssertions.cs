@@ -232,10 +232,12 @@ internal static class ExtractionAssertions
 
         if (toolCallList.Count > 0)
         {
-            // At least one tool call should have succeeded (agent may retry on failures)
-            toolCallList.Should().Contain(
+            // All tool calls should succeed — the prompt instructs the LLM to build the
+            // complete extraction before calling validate_schema/score_confidence.
+            toolCallList.Should().OnlyContain(
                 tc => tc.GetProperty("succeeded").GetBoolean(),
-                "At least one tool call should have succeeded in a successful extraction");
+                "All tool calls should succeed — if validate_schema or score_confidence failed, " +
+                "the LLM likely called them before building the full extraction object");
         }
 
         // ── Non-LLM steps should have empty tool calls ───────────────────

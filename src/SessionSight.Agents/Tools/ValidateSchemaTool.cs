@@ -1,20 +1,16 @@
 using System.Text.Json;
 using SessionSight.Agents.Validation;
-using SessionSight.Core.Schema;
 
 namespace SessionSight.Agents.Tools;
 
 /// <summary>
 /// Tool that validates a clinical extraction against the schema.
 /// Wraps <see cref="ISchemaValidator"/>.
+/// Uses <see cref="LlmExtractionParser"/> to handle LLM-generated JSON
+/// that cannot be directly deserialized to <c>ClinicalExtraction</c>.
 /// </summary>
 public class ValidateSchemaTool : IAgentTool
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
     private readonly ISchemaValidator _validator;
 
     public ValidateSchemaTool(ISchemaValidator validator)
@@ -43,14 +39,20 @@ public class ValidateSchemaTool : IAgentTool
     {
         try
         {
-            var wrapper = JsonSerializer.Deserialize<ValidateSchemaInput>(input.ToStream(), JsonOptions);
-
-            if (wrapper?.Extraction is null)
+            using var doc = JsonDocument.Parse(input.ToStream());
+            if (!doc.RootElement.TryGetProperty("extraction", out var extractionElement) ||
+                extractionElement.ValueKind != JsonValueKind.Object)
             {
                 return Task.FromResult(ToolResult.Error("Missing required 'extraction' parameter"));
             }
 
-            var result = _validator.Validate(wrapper.Extraction);
+            var extraction = LlmExtractionParser.ParseFromElement(extractionElement);
+            if (extraction is null)
+            {
+                return Task.FromResult(ToolResult.Error("Could not parse extraction object"));
+            }
+
+            var result = _validator.Validate(extraction);
 
             return Task.FromResult(ToolResult.Ok(new ValidateSchemaOutput
             {
@@ -68,11 +70,6 @@ public class ValidateSchemaTool : IAgentTool
             return Task.FromResult(ToolResult.Error($"Invalid JSON input: {ex.Message}"));
         }
     }
-}
-
-internal sealed class ValidateSchemaInput
-{
-    public ClinicalExtraction? Extraction { get; set; }
 }
 
 internal sealed class ValidateSchemaOutput

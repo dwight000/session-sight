@@ -1,20 +1,16 @@
 using System.Text.Json;
 using SessionSight.Agents.Validation;
-using SessionSight.Core.Schema;
 
 namespace SessionSight.Agents.Tools;
 
 /// <summary>
 /// Tool that calculates confidence scores for a clinical extraction.
 /// Wraps <see cref="ConfidenceCalculator"/>.
+/// Uses <see cref="LlmExtractionParser"/> to handle LLM-generated JSON
+/// that cannot be directly deserialized to <c>ClinicalExtraction</c>.
 /// </summary>
 public class ScoreConfidenceTool : IAgentTool
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
     public string Name => "score_confidence";
 
     public string Description => "Calculate confidence scores for a clinical extraction. Returns overall confidence score and list of any low-confidence fields.";
@@ -40,17 +36,29 @@ public class ScoreConfidenceTool : IAgentTool
     {
         try
         {
-            var request = JsonSerializer.Deserialize<ScoreConfidenceInput>(input.ToStream(), JsonOptions);
-
-            if (request?.Extraction is null)
+            using var doc = JsonDocument.Parse(input.ToStream());
+            if (!doc.RootElement.TryGetProperty("extraction", out var extractionElement) ||
+                extractionElement.ValueKind != JsonValueKind.Object)
             {
                 return Task.FromResult(ToolResult.Error("Missing required 'extraction' parameter"));
             }
 
-            var threshold = request.Threshold ?? 0.7;
-            var overallConfidence = ConfidenceCalculator.Calculate(request.Extraction);
-            var lowConfidenceFields = ConfidenceCalculator.GetLowConfidenceFields(request.Extraction, threshold);
-            var hasLowConfidenceRiskFields = ConfidenceCalculator.HasLowConfidenceRiskFields(request.Extraction);
+            var extraction = LlmExtractionParser.ParseFromElement(extractionElement);
+            if (extraction is null)
+            {
+                return Task.FromResult(ToolResult.Error("Could not parse extraction object"));
+            }
+
+            var threshold = 0.7;
+            if (doc.RootElement.TryGetProperty("threshold", out var thresholdElement) &&
+                thresholdElement.ValueKind == JsonValueKind.Number)
+            {
+                threshold = thresholdElement.GetDouble();
+            }
+
+            var overallConfidence = ConfidenceCalculator.Calculate(extraction);
+            var lowConfidenceFields = ConfidenceCalculator.GetLowConfidenceFields(extraction, threshold);
+            var hasLowConfidenceRiskFields = ConfidenceCalculator.HasLowConfidenceRiskFields(extraction);
 
             return Task.FromResult(ToolResult.Ok(new ScoreConfidenceOutput
             {
@@ -65,12 +73,6 @@ public class ScoreConfidenceTool : IAgentTool
             return Task.FromResult(ToolResult.Error($"Invalid JSON input: {ex.Message}"));
         }
     }
-}
-
-internal sealed class ScoreConfidenceInput
-{
-    public ClinicalExtraction? Extraction { get; set; }
-    public double? Threshold { get; set; }
 }
 
 internal sealed class ScoreConfidenceOutput

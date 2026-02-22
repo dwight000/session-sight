@@ -114,7 +114,8 @@ public class ExtractionOrchestratorStepTests
 
         await _orchestrator.ProcessSessionAsync(sessionId);
 
-        await _stepRepository.Received(6).SaveStepAsync(Arg.Any<ExtractionStep>(), Arg.Any<CancellationToken>());
+        // 12 saves: each step is saved twice (Running at start + Succeeded/Failed at end)
+        await _stepRepository.Received(12).SaveStepAsync(Arg.Any<ExtractionStep>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -127,9 +128,12 @@ public class ExtractionOrchestratorStepTests
 
         await _orchestrator.ProcessSessionAsync(sessionId);
 
-        savedSteps.Should().HaveCount(6);
-        savedSteps.Select(s => s.StepOrder).Should().BeEquivalentTo([1, 2, 3, 4, 5, 6]);
-        savedSteps.Select(s => s.StepName).Should().BeEquivalentTo([
+        // 12 saves: Running + Completed for each of 6 steps
+        savedSteps.Should().HaveCount(12);
+        // Deduplicate by Id (same entity saved twice — object is mutated between saves)
+        var distinctSteps = savedSteps.DistinctBy(s => s.Id).ToList();
+        distinctSteps.Select(s => s.StepOrder).Should().BeEquivalentTo([1, 2, 3, 4, 5, 6]);
+        distinctSteps.Select(s => s.StepName).Should().BeEquivalentTo([
             ExtractionStepName.DocumentParse,
             ExtractionStepName.Intake,
             ExtractionStepName.ClinicalExtract,
