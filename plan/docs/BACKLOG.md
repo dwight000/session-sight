@@ -472,7 +472,7 @@
 **Reusable component: `<ExtractionPipelineView>`**
 - Takes `sessionId` as prop
 - Two modes determined automatically:
-  - **Live mode** (during processing): polls `GET /api/sessions/{id}/extraction/steps` every 2 seconds (faster than the existing 5s polling on ProcessingJobs page — justified because pipeline steps complete every 3-8 seconds and the response payload is small; 2s gives near-real-time feel without excessive load). Steps appear one by one as they complete. Current step shows spinner/pulse animation. Polling stops when all steps complete or pipeline fails.
+  - **Live mode** (during processing): polls `GET /api/sessions/{id}/extraction/steps` every 2 seconds. **Important:** the full response with LLM traces can be ~85KB — consider stripping traces/tool I/O from the polling DTO or adding a `?detail=false` query param to keep payloads lightweight during polling. Steps appear one by one as they complete (steps are only persisted after completion — no `Running` state is visible via the API, so "currently running" is inferred from the gap between the last completed step order and the expected 6). Polling stops when **document status** reaches `Completed` or `Failed` (do NOT rely on step count — step saves are best-effort and may silently fail, resulting in fewer than 6 persisted steps even on a successful extraction).
   - **Historical mode** (after completion): single fetch, all steps rendered as completed/failed. No polling.
 - No screen flicker — React Query structural sharing ensures only changed data triggers re-renders
 
@@ -482,14 +482,14 @@
 |---|------|------|-------------------------------------------|
 | 1 | Reading Document | doc/scan | "3 pages · 97% OCR confidence" |
 | 2 | Validating | checkmark/shield | "SOAP note · Jan 15 2026 · ~450 words" |
-| 3 | Extracting Clinical Data | brain/magnifier | "82 fields · 91% confidence · 5 tool calls" |
+| 3 | Extracting Clinical Data | brain/magnifier | "{fieldCount} fields · {confidence}% confidence · {toolCallCount} tool calls" |
 | 4 | Safety Assessment | shield/alert | "Risk: Low · No flags" or "Risk: Moderate · 2 discrepancies" |
 | 5 | Generating Summary | document/pen | One-liner summary preview |
 | 6 | Indexing & Saving | database/search | "Searchable via Q&A · Done" |
 
 **Progressive disclosure (default to medium, expand for more):**
-- **Collapsed:** Icon + step name + status badge (success/failed/in-progress) + duration
-- **Medium (default):** Above + result summary one-liner + model used + token count + estimated cost
+- **Collapsed:** Icon + step name + status badge (Succeeded/Failed/Running) + duration
+- **Medium (default):** Above + result summary one-liner + model used + token count + estimated cost (cost computed client-side from token counts + model pricing — `EstimatedCostUsd` column exists but is not populated server-side)
 - **Expanded:** Above + full result details + tool calls with sub-steps (for step 3) + LLM reasoning (for step 4) + field-level details
 - **Deep expand:** Full prompt and response text from ExtractionLlmTraces (if available/enabled)
 
@@ -515,9 +515,12 @@
 
 **API hook:**
 - `useExtractionSteps(sessionId)` — React Query hook
-- `refetchInterval: 2000` when live (any step InProgress or not all steps present)
-- Disabled when all steps complete
+- `refetchInterval: 2000` when live (document status is `Processing`)
+- Disabled when document status reaches `Completed` or `Failed` (do NOT use step count — step saves are best-effort)
 - Returns typed step data with nested tool calls and optional LLM traces
+- `ResultSummaryJson` is a raw JSON string with different shapes per step — frontend must parse and switch on `stepName` to render (see B-095 implementation notes for per-step shapes)
+- Step status enum values: `Running`, `Succeeded`, `Failed`, `Skipped`
+- Tool calls may be 0 even on successful extraction (LLM non-determinism — the agent loop can produce results without calling tools)
 
 **Files:**
 - New `src/SessionSight.Web/src/components/extraction/ExtractionPipelineView.tsx` — reusable component
@@ -547,6 +550,15 @@
 - Blocked by B-095 (Pipeline Step Instrumentation) — needs the stored data and API endpoint
 - B-096 (Confidence heatmap, risk merge viz, source attribution) builds on top of this component
 - B-084 (Resilient Extraction Pipeline) may change how extraction is triggered (background queue → 202 Accepted), but this component's interface (poll an endpoint, show steps) remains the same — just the trigger changes
+
+**B-095 implementation notes (actual API shape):**
+- Endpoint: `GET /api/sessions/{sessionId}/extraction/steps`
+- Response: `{ extractionId, steps: [{ id, stepName, status, stepOrder, startedAt, completedAt, durationMs, modelUsed, inputTokens, outputTokens, totalTokens, resultSummaryJson, errorMessage, toolCalls: [...], llmTraces: [...] }] }`
+- Tool calls include `inputJson`/`outputJson` (full I/O); LLM traces include `promptText`/`responseText` (full prompts) — these are large and should be stripped for polling
+- LLM traces are config-gated via `PipelineDiagnostics:StoreLlmTraces` (false in production, true in dev) — traces array will be empty in production unless enabled
+- `ResultSummaryJson` shapes per step: Step 1 `{ pageCount, ocrConfidence, fileSizeBytes }`, Step 2 `{ isValid, documentType, sessionDate, language, estimatedWordCount }`, Step 3 `{ fieldCount, overallConfidence, toolCallCount, lowConfidenceFields[] }`, Step 4 `{ riskLevel, requiresReview, discrepancyCount, guardrailApplied, reviewReasons[], fieldDecisions[] }`, Step 5 `{ oneLiner, interventionsUsed[] }`, Step 6 `{ indexed }` or `{ indexed: false, error }`
+- Tool calls and LLM traces are returned in deterministic order: `OrderBy(LoopRound).ThenBy(CalledAt)`
+- `CalledAt` timestamps on tool calls and traces are approximate (computed as `step.StartedAt + durationMs`, not actual wall-clock)
 
 ### B-096 Details (Extraction Detail Polish — Confidence Heatmap, Risk Merge Viz, Source Attribution)
 
