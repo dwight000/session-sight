@@ -23,7 +23,8 @@ public static class ExtractionResultMappings
             s.TotalTokens,
             s.ResultSummaryJson,
             s.ErrorMessage,
-            s.ToolCalls.Select(tc => new ExtractionToolCallDto(
+            s.ToolCalls.OrderBy(tc => tc.LoopRound).ThenBy(tc => tc.CalledAt)
+                .Select(tc => new ExtractionToolCallDto(
                 tc.ToolName,
                 tc.LoopRound,
                 tc.Succeeded,
@@ -32,7 +33,8 @@ public static class ExtractionResultMappings
                 tc.InputJson,
                 tc.OutputJson
             )).ToList(),
-            s.LlmTraces.Select(lt => new ExtractionLlmTraceDto(
+            s.LlmTraces.OrderBy(lt => lt.LoopRound).ThenBy(lt => lt.CalledAt)
+                .Select(lt => new ExtractionLlmTraceDto(
                 lt.ModelUsed,
                 lt.LoopRound,
                 lt.InputTokens,

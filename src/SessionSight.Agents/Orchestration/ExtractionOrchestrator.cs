@@ -114,21 +114,22 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             }
         }
 
-        // Early creation: upsert clears any old extraction + cascaded steps, then inserts placeholder
         var extractionId = Guid.NewGuid();
-        var placeholder = new SessionSight.Core.Entities.ExtractionResult
-        {
-            Id = extractionId,
-            SessionId = session.Id,
-            SchemaVersion = "1.0.0",
-            ModelUsed = string.Empty,
-            ExtractedAt = DateTime.UtcNow,
-            Data = new Core.Schema.ClinicalExtraction()
-        };
-        await _sessionRepository.UpsertExtractionResultAsync(placeholder);
 
         try
         {
+            // Early creation: upsert clears any old extraction + cascaded steps, then inserts placeholder.
+            // Inside try so upsert failure sets doc status to Failed (not stuck at Processing).
+            var placeholder = new SessionSight.Core.Entities.ExtractionResult
+            {
+                Id = extractionId,
+                SessionId = session.Id,
+                SchemaVersion = "1.0.0",
+                ModelUsed = string.Empty,
+                ExtractedAt = DateTime.UtcNow,
+                Data = new Core.Schema.ClinicalExtraction()
+            };
+            await _sessionRepository.UpsertExtractionResultAsync(placeholder);
             // Step 1: Download blob and parse with Document Intelligence
             var step1 = BeginStep(extractionId, ExtractionStepName.DocumentParse, 1, "azure-doc-intel");
             var sw1 = Stopwatch.StartNew();
