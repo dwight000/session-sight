@@ -28,7 +28,20 @@ public static class ExtractionResultMappings
                 tc.LoopRound,
                 tc.Succeeded,
                 tc.DurationMs,
-                tc.CalledAt
+                tc.CalledAt,
+                tc.InputJson,
+                tc.OutputJson
+            )).ToList(),
+            s.LlmTraces.Select(lt => new ExtractionLlmTraceDto(
+                lt.ModelUsed,
+                lt.LoopRound,
+                lt.InputTokens,
+                lt.OutputTokens,
+                lt.TotalTokens,
+                lt.DurationMs,
+                lt.PromptText,
+                lt.ResponseText,
+                lt.CalledAt
             )).ToList()
         )).ToList());
 

@@ -1,3 +1,4 @@
+using SessionSight.Agents.Tools;
 using SessionSight.Core.Enums;
 using SessionSight.Core.Schema;
 
@@ -61,4 +62,5 @@ public class RiskAssessmentResult
     public int InputTokens { get; set; }
     public int OutputTokens { get; set; }
     public int TotalTokens { get; set; }
+    public IReadOnlyList<LlmCallTrace> LlmTraces { get; set; } = [];
 }

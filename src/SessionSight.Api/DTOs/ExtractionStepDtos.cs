@@ -18,11 +18,25 @@ public record ExtractionStepDto(
     int TotalTokens,
     string? ResultSummaryJson,
     string? ErrorMessage,
-    IReadOnlyList<ExtractionToolCallDto> ToolCalls);
+    IReadOnlyList<ExtractionToolCallDto> ToolCalls,
+    IReadOnlyList<ExtractionLlmTraceDto> LlmTraces);
 
 public record ExtractionToolCallDto(
     string ToolName,
     int LoopRound,
     bool Succeeded,
     long DurationMs,
+    DateTime CalledAt,
+    string? InputJson,
+    string? OutputJson);
+
+public record ExtractionLlmTraceDto(
+    string ModelUsed,
+    int LoopRound,
+    int InputTokens,
+    int OutputTokens,
+    int TotalTokens,
+    long DurationMs,
+    string? PromptText,
+    string? ResponseText,
     DateTime CalledAt);

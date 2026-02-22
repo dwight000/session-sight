@@ -74,7 +74,9 @@ public partial class SummarizerAgent : ISummarizerAgent
                 ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
             };
 
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             var response = await chatClient.CompleteChatAsync(messages, options, ct);
+            sw.Stop();
             var content = response.Value.Content[0].Text;
 
             var summary = ParseSessionSummary(content);
@@ -88,6 +90,19 @@ public partial class SummarizerAgent : ISummarizerAgent
                 summary.OutputTokens = response.Value.Usage.OutputTokenCount;
                 summary.TotalTokens = response.Value.Usage.TotalTokenCount;
             }
+
+            summary.LlmTraces =
+            [
+                new Tools.LlmCallTrace(
+                    PromptText: prompt,
+                    ResponseText: content,
+                    ModelUsed: modelName,
+                    LoopRound: 0,
+                    InputTokens: summary.InputTokens,
+                    OutputTokens: summary.OutputTokens,
+                    TotalTokens: summary.TotalTokens,
+                    DurationMs: sw.ElapsedMilliseconds)
+            ];
 
             LogSessionSummaryCompleted(_logger, extraction.SessionId);
             return summary;

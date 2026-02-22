@@ -45,6 +45,195 @@ internal static class ExtractionAssertions
             $"Extraction schema should include '{fieldName}'");
     }
 
+    internal static async Task AssertExtractionSteps(HttpClient client, Guid sessionId)
+    {
+        var response = await client.GetAsync($"/api/sessions/{sessionId}/extraction/steps");
+        response.StatusCode.Should().Be(HttpStatusCode.OK, "Steps endpoint should return 200 OK");
+
+        var dto = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+
+        dto.GetProperty("extractionId").GetGuid().Should().NotBeEmpty(
+            "Response should include the extraction ID");
+
+        var steps = dto.GetProperty("steps");
+        steps.GetArrayLength().Should().Be(6, "Pipeline has 6 steps");
+
+        var stepList = steps.EnumerateArray().ToList();
+
+        // ── Global assertions across all 6 steps ──────────────────────────
+
+        // Every step should have a unique non-empty Id
+        var stepIds = stepList.Select(s => s.GetProperty("id").GetGuid()).ToList();
+        stepIds.Should().OnlyHaveUniqueItems("Each step should have a unique ID");
+        stepIds.Should().NotContain(Guid.Empty, "Step IDs should not be empty");
+
+        // All steps should have succeeded
+        stepList.Should().OnlyContain(
+            s => s.GetProperty("status").GetString() == "Succeeded",
+            "All pipeline steps should succeed");
+
+        // No errors on succeeded steps
+        foreach (var step in stepList)
+        {
+            var hasError = step.TryGetProperty("errorMessage", out var em)
+                           && em.ValueKind != JsonValueKind.Null
+                           && !string.IsNullOrEmpty(em.GetString());
+            hasError.Should().BeFalse(
+                $"Step {step.GetProperty("stepName").GetString()} succeeded — should have no error message");
+        }
+
+        // All steps should have positive duration
+        stepList.Should().OnlyContain(
+            s => s.GetProperty("durationMs").GetInt64() > 0,
+            "All steps should have measurable duration");
+
+        // Step order should be 1-6
+        var stepOrders = stepList.Select(s => s.GetProperty("stepOrder").GetInt32()).ToList();
+        stepOrders.Should().BeEquivalentTo([1, 2, 3, 4, 5, 6],
+            "Steps should be ordered 1-6");
+
+        // Step names should match pipeline order exactly
+        var expectedNames = new[] { "DocumentParse", "Intake", "ClinicalExtract", "RiskAssess", "Summarize", "SearchIndex" };
+        var actualNames = stepList.OrderBy(s => s.GetProperty("stepOrder").GetInt32())
+            .Select(s => s.GetProperty("stepName").GetString()).ToList();
+        actualNames.Should().BeEquivalentTo(expectedNames,
+            "Step names should match the 6 pipeline stages in order");
+
+        // StartedAt should be a real timestamp (not default)
+        var minValidTime = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        stepList.Should().OnlyContain(
+            s => s.GetProperty("startedAt").GetDateTime() > minValidTime,
+            "StartedAt should be a real timestamp");
+
+        // CompletedAt should be non-null for all succeeded steps
+        foreach (var step in stepList)
+        {
+            step.TryGetProperty("completedAt", out var ca).Should().BeTrue(
+                $"Step {step.GetProperty("stepName").GetString()} should have CompletedAt");
+            ca.ValueKind.Should().NotBe(JsonValueKind.Null,
+                $"Step {step.GetProperty("stepName").GetString()} CompletedAt should not be null");
+            ca.GetDateTime().Should().BeAfter(minValidTime,
+                $"Step {step.GetProperty("stepName").GetString()} CompletedAt should be a real timestamp");
+        }
+
+        // ResultSummaryJson should be present and valid JSON for all steps
+        foreach (var step in stepList)
+        {
+            var name = step.GetProperty("stepName").GetString();
+            if (step.TryGetProperty("resultSummaryJson", out var rsj) && rsj.ValueKind == JsonValueKind.String)
+            {
+                var json = rsj.GetString()!;
+                var parsed = JsonDocument.Parse(json);
+                parsed.Should().NotBeNull($"Step {name} resultSummaryJson should be valid JSON");
+            }
+        }
+
+        // ── Model names per step ──────────────────────────────────────────
+
+        var stepsByOrder = stepList.OrderBy(s => s.GetProperty("stepOrder").GetInt32()).ToList();
+
+        // Step 1 (DocumentParse): uses Azure Document Intelligence
+        stepsByOrder[0].GetProperty("modelUsed").GetString().Should().Be("azure-doc-intel",
+            "DocumentParse step uses Azure Document Intelligence");
+
+        // Steps 2-5 (LLM steps): model should contain "gpt-4.1" (nano or mini)
+        for (int i = 1; i <= 4; i++)
+        {
+            var model = stepsByOrder[i].GetProperty("modelUsed").GetString();
+            model.Should().Contain("gpt-4.1",
+                $"Step {i + 1} ({expectedNames[i]}) should use a gpt-4.1 model");
+        }
+
+        // Step 6 (SearchIndex): uses embedding model
+        stepsByOrder[5].GetProperty("modelUsed").GetString().Should().Be("text-embedding-3-large",
+            "SearchIndex step uses text-embedding-3-large");
+
+        // ── Token usage for LLM steps (2-5) ──────────────────────────────
+
+        var llmSteps = stepsByOrder.Skip(1).Take(4).ToList();
+
+        llmSteps.Should().OnlyContain(
+            s => s.GetProperty("inputTokens").GetInt32() > 0,
+            "LLM steps should report input token usage");
+
+        llmSteps.Should().OnlyContain(
+            s => s.GetProperty("outputTokens").GetInt32() > 0,
+            "LLM steps should report output token usage");
+
+        llmSteps.Should().OnlyContain(
+            s => s.GetProperty("totalTokens").GetInt32() > 0,
+            "LLM steps should report total token usage");
+
+        // Total should be >= input + output (some APIs include cached/other tokens)
+        foreach (var step in llmSteps)
+        {
+            var input = step.GetProperty("inputTokens").GetInt32();
+            var output = step.GetProperty("outputTokens").GetInt32();
+            var total = step.GetProperty("totalTokens").GetInt32();
+            var name = step.GetProperty("stepName").GetString();
+            total.Should().BeGreaterOrEqualTo(input + output,
+                $"Step {name}: TotalTokens ({total}) should be >= InputTokens ({input}) + OutputTokens ({output})");
+        }
+
+        // Non-LLM steps (1 and 6) should have zero tokens
+        stepsByOrder[0].GetProperty("totalTokens").GetInt32().Should().Be(0,
+            "DocumentParse is not an LLM step — no tokens");
+        stepsByOrder[5].GetProperty("totalTokens").GetInt32().Should().Be(0,
+            "SearchIndex embedding step does not track tokens at step level");
+
+        // ── Step 1 (DocumentParse) ResultSummaryJson structure ────────────
+
+        var step1Summary = JsonDocument.Parse(
+            stepsByOrder[0].GetProperty("resultSummaryJson").GetString()!);
+        step1Summary.RootElement.TryGetProperty("pageCount", out var pc).Should().BeTrue(
+            "DocumentParse summary should include pageCount");
+        pc.GetInt32().Should().BeGreaterThan(0, "PDF should have at least 1 page");
+
+        // ── Step 2 (Intake) ResultSummaryJson structure ───────────────────
+
+        var step2Summary = JsonDocument.Parse(
+            stepsByOrder[1].GetProperty("resultSummaryJson").GetString()!);
+        step2Summary.RootElement.GetProperty("isValid").GetBoolean().Should().BeTrue(
+            "Intake should validate document as a valid therapy note");
+
+        // ── Step 3 (ClinicalExtract) tool calls ──────────────────────────
+
+        var extractStep = stepsByOrder[2];
+        var toolCalls = extractStep.GetProperty("toolCalls");
+        toolCalls.GetArrayLength().Should().BeGreaterOrEqualTo(1,
+            "ClinicalExtract agent loop should produce at least one tool call");
+
+        foreach (var tc in toolCalls.EnumerateArray())
+        {
+            tc.GetProperty("toolName").GetString().Should().NotBeNullOrWhiteSpace(
+                "Tool call should have a name");
+            tc.GetProperty("loopRound").GetInt32().Should().BeGreaterOrEqualTo(0,
+                "LoopRound should be non-negative");
+            tc.GetProperty("succeeded").GetBoolean().Should().BeTrue(
+                "All tool calls in a successful extraction should have succeeded");
+            tc.GetProperty("durationMs").GetInt64().Should().BeGreaterOrEqualTo(0,
+                "Tool call duration should be non-negative");
+            tc.GetProperty("calledAt").GetDateTime().Should().BeAfter(minValidTime,
+                "Tool call CalledAt should be a real timestamp");
+        }
+
+        // ── Step 3 (ClinicalExtract) ResultSummaryJson structure ─────────
+
+        var step3Summary = JsonDocument.Parse(
+            extractStep.GetProperty("resultSummaryJson").GetString()!);
+        step3Summary.RootElement.GetProperty("fieldCount").GetInt32().Should().BeGreaterThan(0,
+            "ClinicalExtract should report extracted field count");
+        step3Summary.RootElement.TryGetProperty("overallConfidence", out _).Should().BeTrue(
+            "ClinicalExtract should report overall confidence");
+
+        // ── Non-LLM steps should have empty tool calls ───────────────────
+
+        stepsByOrder[0].GetProperty("toolCalls").GetArrayLength().Should().Be(0,
+            "DocumentParse should have no tool calls");
+        stepsByOrder[5].GetProperty("toolCalls").GetArrayLength().Should().Be(0,
+            "SearchIndex should have no tool calls");
+    }
+
     internal static async Task AssertExtractionFields(HttpClient client, Guid sessionId)
     {
         var getResponse = await client.GetAsync($"/api/sessions/{sessionId}/extraction");

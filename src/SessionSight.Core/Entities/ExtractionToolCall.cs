@@ -9,6 +9,8 @@ public class ExtractionToolCall
     public bool Succeeded { get; set; }
     public long DurationMs { get; set; }
     public DateTime CalledAt { get; set; }
+    public string? InputJson { get; set; }
+    public string? OutputJson { get; set; }
 
     public ExtractionStep Step { get; set; } = null!;
 }

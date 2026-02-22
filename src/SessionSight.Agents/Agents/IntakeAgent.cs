@@ -72,7 +72,9 @@ public partial class IntakeAgent : IIntakeAgent
             ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
         };
 
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         var response = await chatClient.CompleteChatAsync(messages, options, cancellationToken);
+        sw.Stop();
         var content = response.Value.Content[0].Text;
 
         var result = ParseResponse(content, document, modelName);
@@ -83,6 +85,19 @@ public partial class IntakeAgent : IIntakeAgent
             result.OutputTokens = response.Value.Usage.OutputTokenCount;
             result.TotalTokens = response.Value.Usage.TotalTokenCount;
         }
+
+        result.LlmTraces =
+        [
+            new Tools.LlmCallTrace(
+                PromptText: IntakePrompts.BuildUserPrompt(document),
+                ResponseText: content,
+                ModelUsed: modelName,
+                LoopRound: 0,
+                InputTokens: result.InputTokens,
+                OutputTokens: result.OutputTokens,
+                TotalTokens: result.TotalTokens,
+                DurationMs: sw.ElapsedMilliseconds)
+        ];
 
         return result;
     }

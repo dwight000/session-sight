@@ -140,7 +140,8 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
                 InputTokens = loopResult.InputTokens,
                 OutputTokens = loopResult.OutputTokens,
                 TotalTokens = loopResult.TotalTokens,
-                ToolCallTrace = loopResult.ToolCallTrace
+                ToolCallTrace = loopResult.ToolCallTrace,
+                LlmTraces = loopResult.LlmTraces
             };
         }
 
@@ -176,7 +177,8 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
             InputTokens = loopResult.InputTokens,
             OutputTokens = loopResult.OutputTokens,
             TotalTokens = loopResult.TotalTokens,
-            ToolCallTrace = loopResult.ToolCallTrace
+            ToolCallTrace = loopResult.ToolCallTrace,
+            LlmTraces = loopResult.LlmTraces
         };
     }
 

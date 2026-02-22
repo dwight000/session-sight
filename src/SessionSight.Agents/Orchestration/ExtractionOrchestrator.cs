@@ -33,9 +33,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
     private readonly IDocumentStorage _documentStorage;
     private readonly ISessionIndexingService _sessionIndexingService;
     // Used by LLM trace gating (B-095 future)
-#pragma warning disable S4487 // Reserved for StoreLlmTraces gating
     private readonly PipelineDiagnosticsOptions _diagOptions;
-#pragma warning restore S4487
     private readonly ILogger<ExtractionOrchestrator> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -200,6 +198,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                         estimatedWordCount = intakeResult.Metadata.EstimatedWordCount
                     }, JsonOptions);
                 }
+
+                PopulateLlmTraces(step2, intakeResult.LlmTraces);
             }
             catch (Exception ex)
             {
@@ -256,7 +256,9 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                         LoopRound = tc.LoopRound,
                         Succeeded = tc.Succeeded,
                         DurationMs = tc.DurationMs,
-                        CalledAt = step3.StartedAt.AddMilliseconds(tc.DurationMs)
+                        CalledAt = step3.StartedAt.AddMilliseconds(tc.DurationMs),
+                        InputJson = tc.InputJson,
+                        OutputJson = tc.OutputJson
                     });
                 }
 
@@ -277,6 +279,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                     toolCallCount = extractionResult.ToolCallCount,
                     lowConfidenceFields = extractionResult.LowConfidenceFields
                 }, JsonOptions);
+
+                PopulateLlmTraces(step3, extractionResult.LlmTraces);
             }
             catch (Exception ex)
             {
@@ -332,10 +336,14 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                     fieldDecisions = riskResult.Diagnostics.Decisions.Select(d => new
                     {
                         d.Field,
+                        d.OriginalValue,
+                        d.ReExtractedValue,
                         d.FinalValue,
                         d.RuleApplied
                     })
                 }, JsonOptions);
+
+                PopulateLlmTraces(step4, riskResult.LlmTraces);
             }
             catch (Exception ex)
             {
@@ -381,6 +389,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                     oneLiner = sessionSummary.OneLiner,
                     interventionsUsed = sessionSummary.InterventionsUsed
                 }, JsonOptions);
+
+                PopulateLlmTraces(step5, sessionSummary.LlmTraces);
             }
             catch (Exception ex)
             {
@@ -522,6 +532,30 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         catch (Exception ex)
         {
             LogStepSaveError(_logger, ex, step.StepName, step.ExtractionId);
+        }
+    }
+
+    private void PopulateLlmTraces(ExtractionStep step, IReadOnlyList<Tools.LlmCallTrace> traces)
+    {
+        if (!_diagOptions.StoreLlmTraces || traces.Count == 0)
+            return;
+
+        foreach (var trace in traces)
+        {
+            step.LlmTraces.Add(new ExtractionLlmTrace
+            {
+                Id = Guid.NewGuid(),
+                StepId = step.Id,
+                ModelUsed = trace.ModelUsed,
+                LoopRound = trace.LoopRound,
+                InputTokens = trace.InputTokens,
+                OutputTokens = trace.OutputTokens,
+                TotalTokens = trace.TotalTokens,
+                DurationMs = trace.DurationMs,
+                PromptText = trace.PromptText,
+                ResponseText = trace.ResponseText,
+                CalledAt = step.StartedAt.AddMilliseconds(trace.DurationMs)
+            });
         }
     }
 

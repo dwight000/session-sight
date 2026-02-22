@@ -74,4 +74,87 @@ public class AgentLoopRunnerTokenTests
         result.ToolCallTrace[1].LoopRound.Should().Be(1);
         result.ToolCallTrace[2].Succeeded.Should().BeFalse();
     }
+
+    [Fact]
+    public void ToolCallEntry_WithInputOutputJson_PreservesValues()
+    {
+        var entry = new ToolCallEntry("ValidateSchema", true, 0, 50,
+            """{"schema":"clinical"}""", """{"valid":true}""");
+
+        entry.InputJson.Should().Contain("clinical");
+        entry.OutputJson.Should().Contain("valid");
+    }
+
+    [Fact]
+    public void ToolCallEntry_DefaultInputOutputJson_AreNull()
+    {
+        var entry = new ToolCallEntry("TestTool", true);
+
+        entry.InputJson.Should().BeNull();
+        entry.OutputJson.Should().BeNull();
+    }
+
+    [Fact]
+    public void LlmCallTrace_PreservesAllFields()
+    {
+        var trace = new LlmCallTrace(
+            "Extract metadata from document",
+            """{"isValid":true}""",
+            "gpt-4.1-nano",
+            LoopRound: 0,
+            InputTokens: 200,
+            OutputTokens: 100,
+            TotalTokens: 300,
+            DurationMs: 450);
+
+        trace.PromptText.Should().Contain("Extract metadata");
+        trace.ResponseText.Should().Contain("isValid");
+        trace.ModelUsed.Should().Be("gpt-4.1-nano");
+        trace.LoopRound.Should().Be(0);
+        trace.InputTokens.Should().Be(200);
+        trace.OutputTokens.Should().Be(100);
+        trace.TotalTokens.Should().Be(300);
+        trace.DurationMs.Should().Be(450);
+    }
+
+    [Fact]
+    public void Complete_WithLlmTraces_PreservesTraces()
+    {
+        var llmTraces = new List<LlmCallTrace>
+        {
+            new("prompt1", "response1", "gpt-4.1-mini", 0, 100, 50, 150, 200),
+            new("prompt2", "response2", "gpt-4.1-mini", 1, 80, 40, 120, 180)
+        };
+
+        var result = AgentLoopResult.Complete("done",
+            inputTokens: 180, outputTokens: 90, totalTokens: 270,
+            llmTraces: llmTraces);
+
+        result.LlmTraces.Should().HaveCount(2);
+        result.LlmTraces[0].LoopRound.Should().Be(0);
+        result.LlmTraces[1].LoopRound.Should().Be(1);
+    }
+
+    [Fact]
+    public void Complete_DefaultLlmTraces_IsEmpty()
+    {
+        var result = AgentLoopResult.Complete("done");
+
+        result.LlmTraces.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Partial_WithLlmTraces_PreservesTraces()
+    {
+        var llmTraces = new List<LlmCallTrace>
+        {
+            new("prompt", "response", "gpt-4.1-mini", 0, 100, 50, 150, 200)
+        };
+
+        var result = AgentLoopResult.Partial("timeout",
+            inputTokens: 100, outputTokens: 50, totalTokens: 150,
+            llmTraces: llmTraces);
+
+        result.LlmTraces.Should().HaveCount(1);
+    }
 }

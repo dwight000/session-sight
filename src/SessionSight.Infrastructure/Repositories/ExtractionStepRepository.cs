@@ -24,6 +24,7 @@ public class ExtractionStepRepository : IExtractionStepRepository
     {
         return await _context.ExtractionSteps
             .Include(s => s.ToolCalls)
+            .Include(s => s.LlmTraces)
             .Where(s => s.ExtractionId == extractionId)
             .OrderBy(s => s.StepOrder)
             .AsNoTracking()

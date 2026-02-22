@@ -169,4 +169,127 @@ public class ExtractionStepMappingTests
         dto.ExtractionId.Should().Be(extractionId);
         dto.Steps.Should().BeEmpty();
     }
+
+    [Fact]
+    public void ToStepsDto_MapsToolCallInputOutputJson()
+    {
+        var extractionId = Guid.NewGuid();
+        var stepId = Guid.NewGuid();
+
+        var steps = new List<ExtractionStep>
+        {
+            new()
+            {
+                Id = stepId,
+                ExtractionId = extractionId,
+                StepName = ExtractionStepName.ClinicalExtract,
+                Status = ExtractionStepStatus.Succeeded,
+                StepOrder = 3,
+                StartedAt = DateTime.UtcNow,
+                DurationMs = 2000,
+                ModelUsed = "gpt-4.1-mini",
+                ToolCalls = new List<ExtractionToolCall>
+                {
+                    new()
+                    {
+                        Id = Guid.NewGuid(),
+                        StepId = stepId,
+                        ToolName = "ValidateSchema",
+                        LoopRound = 0,
+                        Succeeded = true,
+                        DurationMs = 50,
+                        CalledAt = DateTime.UtcNow,
+                        InputJson = """{"schema":"clinical"}""",
+                        OutputJson = """{"valid":true}"""
+                    }
+                }
+            }
+        };
+
+        var dto = ((IReadOnlyList<ExtractionStep>)steps).ToStepsDto(extractionId);
+
+        dto.Steps[0].ToolCalls[0].InputJson.Should().Contain("clinical");
+        dto.Steps[0].ToolCalls[0].OutputJson.Should().Contain("valid");
+    }
+
+    [Fact]
+    public void ToStepsDto_MapsLlmTraces()
+    {
+        var extractionId = Guid.NewGuid();
+        var stepId = Guid.NewGuid();
+        var calledAt = DateTime.UtcNow;
+
+        var steps = new List<ExtractionStep>
+        {
+            new()
+            {
+                Id = stepId,
+                ExtractionId = extractionId,
+                StepName = ExtractionStepName.Intake,
+                Status = ExtractionStepStatus.Succeeded,
+                StepOrder = 2,
+                StartedAt = DateTime.UtcNow,
+                DurationMs = 500,
+                ModelUsed = "gpt-4.1-nano",
+                ToolCalls = new List<ExtractionToolCall>(),
+                LlmTraces = new List<ExtractionLlmTrace>
+                {
+                    new()
+                    {
+                        Id = Guid.NewGuid(),
+                        StepId = stepId,
+                        ModelUsed = "gpt-4.1-nano",
+                        LoopRound = 0,
+                        InputTokens = 200,
+                        OutputTokens = 100,
+                        TotalTokens = 300,
+                        DurationMs = 450,
+                        PromptText = "Extract metadata from this document...",
+                        ResponseText = """{"isValid":true}""",
+                        CalledAt = calledAt
+                    }
+                }
+            }
+        };
+
+        var dto = ((IReadOnlyList<ExtractionStep>)steps).ToStepsDto(extractionId);
+
+        dto.Steps[0].LlmTraces.Should().HaveCount(1);
+        var trace = dto.Steps[0].LlmTraces[0];
+        trace.ModelUsed.Should().Be("gpt-4.1-nano");
+        trace.LoopRound.Should().Be(0);
+        trace.InputTokens.Should().Be(200);
+        trace.OutputTokens.Should().Be(100);
+        trace.TotalTokens.Should().Be(300);
+        trace.DurationMs.Should().Be(450);
+        trace.PromptText.Should().Contain("Extract metadata");
+        trace.ResponseText.Should().Contain("isValid");
+        trace.CalledAt.Should().Be(calledAt);
+    }
+
+    [Fact]
+    public void ToStepsDto_EmptyLlmTraces_ReturnsEmptyList()
+    {
+        var extractionId = Guid.NewGuid();
+        var steps = new List<ExtractionStep>
+        {
+            new()
+            {
+                Id = Guid.NewGuid(),
+                ExtractionId = extractionId,
+                StepName = ExtractionStepName.DocumentParse,
+                Status = ExtractionStepStatus.Succeeded,
+                StepOrder = 1,
+                StartedAt = DateTime.UtcNow,
+                DurationMs = 1000,
+                ModelUsed = "azure-doc-intel",
+                ToolCalls = new List<ExtractionToolCall>(),
+                LlmTraces = new List<ExtractionLlmTrace>()
+            }
+        };
+
+        var dto = ((IReadOnlyList<ExtractionStep>)steps).ToStepsDto(extractionId);
+
+        dto.Steps[0].LlmTraces.Should().BeEmpty();
+    }
 }

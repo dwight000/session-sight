@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using SessionSight.Agents.Tools;
 using SessionSight.Core.Schema;
 
 namespace SessionSight.Agents.Models;
@@ -30,6 +31,7 @@ public sealed class RiskReExtractionResponse
     public int InputTokens { get; set; }
     public int OutputTokens { get; set; }
     public int TotalTokens { get; set; }
+    public IReadOnlyList<LlmCallTrace> LlmTraces { get; set; } = [];
 }
 
 internal sealed class RiskCriteriaEnvelope

@@ -53,6 +53,7 @@ public class ExtractionResult
     public int OutputTokens { get; set; }
     public int TotalTokens { get; set; }
     public IReadOnlyList<ToolCallEntry> ToolCallTrace { get; set; } = [];
+    public IReadOnlyList<LlmCallTrace> LlmTraces { get; set; } = [];
 
     /// <summary>
     /// Whether the extraction completed successfully.

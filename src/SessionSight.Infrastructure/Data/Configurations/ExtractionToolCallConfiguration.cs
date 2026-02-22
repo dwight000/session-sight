@@ -16,6 +16,8 @@ public class ExtractionToolCallConfiguration : IEntityTypeConfiguration<Extracti
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.Property(e => e.ToolName).HasMaxLength(200).IsRequired();
+        builder.Property(e => e.InputJson).HasColumnType("nvarchar(max)");
+        builder.Property(e => e.OutputJson).HasColumnType("nvarchar(max)");
 
         builder.HasIndex(e => e.StepId);
     }

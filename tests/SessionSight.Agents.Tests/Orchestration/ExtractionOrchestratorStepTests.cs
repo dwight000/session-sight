@@ -309,4 +309,96 @@ public class ExtractionOrchestratorStepTests
         await _sessionRepository.Received(1).UpdateExtractionResultAsync(
             Arg.Is<CoreEntities.ExtractionResult>(e => e.SessionId == sessionId));
     }
+
+    [Fact]
+    public async Task StoreLlmTraces_Enabled_PopulatesLlmTracesOnSteps()
+    {
+        var sessionId = Guid.NewGuid();
+        SetupFullPipeline(sessionId);
+
+        // Setup agents to return LlmTraces
+        _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
+            .Returns(new IntakeResult
+            {
+                IsValidTherapyNote = true,
+                ModelUsed = "gpt-4.1-nano",
+                InputTokens = 100,
+                OutputTokens = 50,
+                TotalTokens = 150,
+                LlmTraces = [new SessionSight.Agents.Tools.LlmCallTrace("prompt", "response", "gpt-4.1-nano", 0, 100, 50, 150, 200)],
+                Metadata = new ExtractedMetadata { DocumentType = "Session Note", Language = "en" }
+            });
+
+        // Create orchestrator with StoreLlmTraces enabled
+        var diagOptions = Options.Create(new PipelineDiagnosticsOptions { StoreLlmTraces = true });
+        var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _summarizer);
+        var logger = Substitute.For<ILogger<ExtractionOrchestrator>>();
+        var orchestrator = new ExtractionOrchestrator(
+            _documentParser, agents, _sessionRepository, _stepRepository,
+            _documentStorage, _sessionIndexingService, diagOptions, logger);
+
+        var savedSteps = new List<ExtractionStep>();
+        await _stepRepository.SaveStepAsync(Arg.Do<ExtractionStep>(s => savedSteps.Add(s)), Arg.Any<CancellationToken>());
+
+        await orchestrator.ProcessSessionAsync(sessionId);
+
+        var intakeStep = savedSteps.First(s => s.StepName == ExtractionStepName.Intake);
+        intakeStep.LlmTraces.Should().HaveCount(1);
+        intakeStep.LlmTraces.First().ModelUsed.Should().Be("gpt-4.1-nano");
+        intakeStep.LlmTraces.First().PromptText.Should().Be("prompt");
+        intakeStep.LlmTraces.First().ResponseText.Should().Be("response");
+    }
+
+    [Fact]
+    public async Task StoreLlmTraces_Disabled_NoLlmTracesOnSteps()
+    {
+        var sessionId = Guid.NewGuid();
+        SetupFullPipeline(sessionId);
+
+        // Default orchestrator has StoreLlmTraces = false
+        _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
+            .Returns(new IntakeResult
+            {
+                IsValidTherapyNote = true,
+                ModelUsed = "gpt-4.1-nano",
+                LlmTraces = [new SessionSight.Agents.Tools.LlmCallTrace("prompt", "response", "gpt-4.1-nano", 0, 100, 50, 150, 200)],
+                Metadata = new ExtractedMetadata { DocumentType = "Session Note", Language = "en" }
+            });
+
+        var savedSteps = new List<ExtractionStep>();
+        await _stepRepository.SaveStepAsync(Arg.Do<ExtractionStep>(s => savedSteps.Add(s)), Arg.Any<CancellationToken>());
+
+        await _orchestrator.ProcessSessionAsync(sessionId);
+
+        var intakeStep = savedSteps.First(s => s.StepName == ExtractionStepName.Intake);
+        intakeStep.LlmTraces.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ToolCalls_IncludeInputOutputJson()
+    {
+        var sessionId = Guid.NewGuid();
+        SetupFullPipeline(sessionId);
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+            .Returns(new AgentExtractionResult
+            {
+                Data = new ClinicalExtraction(),
+                ModelsUsed = ["gpt-4.1-mini"],
+                ToolCallCount = 1,
+                ToolCallTrace =
+                [
+                    new SessionSight.Agents.Tools.ToolCallEntry("ValidateSchema", true, 0, 50,
+                        """{"schema":"clinical"}""", """{"valid":true}""")
+                ]
+            });
+
+        var savedSteps = new List<ExtractionStep>();
+        await _stepRepository.SaveStepAsync(Arg.Do<ExtractionStep>(s => savedSteps.Add(s)), Arg.Any<CancellationToken>());
+
+        await _orchestrator.ProcessSessionAsync(sessionId);
+
+        var extractStep = savedSteps.First(s => s.StepName == ExtractionStepName.ClinicalExtract);
+        extractStep.ToolCalls.First().InputJson.Should().Contain("clinical");
+        extractStep.ToolCalls.First().OutputJson.Should().Contain("valid");
+    }
 }
