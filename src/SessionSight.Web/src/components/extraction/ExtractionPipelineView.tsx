@@ -1,6 +1,6 @@
 import type { ExtractionStep, ExtractionStepName } from '../../types/extractionSteps'
 import { useExtractionSteps } from '../../hooks/useExtractionSteps'
-import { STEP_ORDER } from './stepConfig'
+import { STEP_ORDER, STEP_DISPLAY_NAMES } from './stepConfig'
 import { ExtractionStepCard } from './ExtractionStepCard'
 
 interface ExtractionPipelineViewProps {
@@ -45,8 +45,17 @@ export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipeline
     ? STEP_ORDER[completedCount]
     : null
 
+  // Progress label for live mode
+  const totalSteps = STEP_ORDER.length
+  const progressLabel = isLive
+    ? `${completedCount}/${totalSteps}${currentStepName ? ` \u2014 ${STEP_DISPLAY_NAMES[currentStepName]}` : ''}`
+    : null
+
   return (
     <div className="space-y-2">
+      {progressLabel && (
+        <p className="text-xs font-medium text-blue-700 tabular-nums">{progressLabel}</p>
+      )}
       {pipelineCrashed && (
         <div className="rounded-md bg-red-50 border border-red-200 p-3">
           <p className="text-sm font-medium text-red-800">
@@ -60,7 +69,8 @@ export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipeline
           stepName={name}
           step={stepMap.get(name)}
           isCurrentStep={name === currentStepName}
-          defaultExpanded={!isLive}
+          defaultExpanded={true}
+          showSubSectionsOpen={isLive}
         />
       ))}
     </div>

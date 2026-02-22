@@ -28,6 +28,7 @@ export function Upload() {
   const uploadDocument = useUploadDocument()
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const pipelineRef = useRef<HTMLDivElement>(null)
 
   const [selectedSessionId, setSelectedSessionId] = useState<string>('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -44,6 +45,13 @@ export function Upload() {
       .then((data: SampleDoc[]) => setSamples(data))
       .catch(() => setSamples([]))
   }, [])
+
+  // Scroll pipeline into view when it appears
+  useEffect(() => {
+    if (processingSessionId) {
+      pipelineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [processingSessionId])
 
   // Build patient name lookup
   const patientNames = new Map<string, string>()
@@ -120,6 +128,14 @@ export function Upload() {
           Upload a therapy note document for processing. The note will be analyzed and extracted automatically.
         </p>
       </div>
+
+      {/* Pipeline view — above the form when active */}
+      {processingSessionId && (
+        <div ref={pipelineRef} className="rounded-md border border-blue-200 bg-blue-50/30 p-4">
+          <p className="mb-3 text-sm font-medium text-blue-800">Extraction Pipeline</p>
+          <ExtractionPipelineView sessionId={processingSessionId} isLive={true} />
+        </div>
+      )}
 
       {uploadResult?.success && (
         <div className="rounded-md bg-green-50 p-4">
@@ -320,14 +336,6 @@ export function Upload() {
           </div>
 
         </form>
-      )}
-
-      {/* Pipeline view — stays visible after completion so user can review steps */}
-      {processingSessionId && (
-        <div className="rounded-md border border-blue-200 bg-blue-50/30 p-4">
-          <p className="mb-3 text-sm font-medium text-blue-800">Extraction Pipeline</p>
-          <ExtractionPipelineView sessionId={processingSessionId} isLive={true} />
-        </div>
       )}
     </div>
   )

@@ -24,6 +24,11 @@ describe('ToolCallSection', () => {
     await user.click(screen.getByText('Tool Calls (1)'))
     expect(screen.getByText('ExtractMoodTool')).toBeInTheDocument()
   })
+
+  it('starts open when defaultOpen is true', () => {
+    render(<ToolCallSection toolCalls={[mockToolCall]} defaultOpen={true} />)
+    expect(screen.getByText('ExtractMoodTool')).toBeInTheDocument()
+  })
 })
 
 describe('ToolCallItem', () => {
@@ -52,6 +57,11 @@ describe('LlmTraceSection', () => {
 
     expect(screen.getByText('LLM Traces (1)')).toBeInTheDocument()
     await user.click(screen.getByText('LLM Traces (1)'))
+    expect(screen.getByText('150 in / 80 out')).toBeInTheDocument()
+  })
+
+  it('starts open when defaultOpen is true', () => {
+    render(<LlmTraceSection traces={[mockLlmTrace]} defaultOpen={true} />)
     expect(screen.getByText('150 in / 80 out')).toBeInTheDocument()
   })
 })

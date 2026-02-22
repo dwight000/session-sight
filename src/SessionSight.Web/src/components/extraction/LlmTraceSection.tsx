@@ -4,10 +4,11 @@ import { LlmTraceItem } from './LlmTraceItem'
 
 interface LlmTraceSectionProps {
   traces: ExtractionLlmTrace[]
+  defaultOpen?: boolean
 }
 
-export function LlmTraceSection({ traces }: LlmTraceSectionProps) {
-  const [open, setOpen] = useState(false)
+export function LlmTraceSection({ traces, defaultOpen = false }: LlmTraceSectionProps) {
+  const [open, setOpen] = useState(defaultOpen)
 
   if (traces.length === 0) return null
 

@@ -1,1 +1,22 @@
 @import "tailwindcss";
+
+@theme {
+  --animate-shimmer: shimmer 1.8s ease-in-out infinite;
+  --animate-fade-in: fadeIn 0.3s ease-out both;
+  --animate-pulse-border: pulseBorder 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseBorder {
+  0%, 100% { border-left-color: oklch(0.707 0.165 254.624); }
+  50%      { border-left-color: oklch(0.546 0.245 262.881); }
+}

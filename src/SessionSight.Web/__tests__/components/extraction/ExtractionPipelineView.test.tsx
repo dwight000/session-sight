@@ -47,4 +47,18 @@ describe('ExtractionPipelineView', () => {
       expect(screen.getByText('Running...')).toBeInTheDocument()
     })
   })
+
+  it('shows progress label in live mode with partial data', async () => {
+    server.use(
+      http.get('/api/sessions/:sessionId/extraction/steps', () => {
+        return HttpResponse.json(mockExtractionStepsPartial)
+      }),
+    )
+
+    renderWithProviders(<ExtractionPipelineView sessionId="sess-001" isLive={true} />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/2\/6/)).toBeInTheDocument()
+    })
+  })
 })

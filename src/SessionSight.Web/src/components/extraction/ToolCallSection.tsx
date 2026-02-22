@@ -4,10 +4,11 @@ import { ToolCallItem } from './ToolCallItem'
 
 interface ToolCallSectionProps {
   toolCalls: ExtractionToolCall[]
+  defaultOpen?: boolean
 }
 
-export function ToolCallSection({ toolCalls }: ToolCallSectionProps) {
-  const [open, setOpen] = useState(false)
+export function ToolCallSection({ toolCalls, defaultOpen = false }: ToolCallSectionProps) {
+  const [open, setOpen] = useState(defaultOpen)
 
   if (toolCalls.length === 0) return null
 

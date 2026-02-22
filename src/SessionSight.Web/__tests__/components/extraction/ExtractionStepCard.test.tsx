@@ -10,9 +10,18 @@ describe('ExtractionStepCard', () => {
       <ExtractionStepCard stepName="DocumentParse" step={undefined} isCurrentStep={false} defaultExpanded={false} />,
     )
     expect(screen.getByText('Document Parse')).toBeInTheDocument()
-    // Button should be disabled for pending
+    // Pending cards are clickable (show placeholder when expanded)
     const btn = screen.getByRole('button')
-    expect(btn).toBeDisabled()
+    expect(btn).not.toBeDisabled()
+  })
+
+  it('shows placeholder grid when pending and expanded', () => {
+    render(
+      <ExtractionStepCard stepName="DocumentParse" step={undefined} isCurrentStep={false} defaultExpanded={true} />,
+    )
+    expect(screen.getByText('Duration:')).toBeInTheDocument()
+    expect(screen.getByText('Tokens:')).toBeInTheDocument()
+    expect(screen.getAllByText('--').length).toBeGreaterThanOrEqual(3)
   })
 
   it('renders running state with spinner text', () => {
