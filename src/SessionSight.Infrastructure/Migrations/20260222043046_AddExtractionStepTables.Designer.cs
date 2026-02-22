@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SessionSight.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using SessionSight.Infrastructure.Data;
 namespace SessionSight.Infrastructure.Migrations
 {
     [DbContext(typeof(SessionSightDbContext))]
-    partial class SessionSightDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260222043046_AddExtractionStepTables")]
+    partial class AddExtractionStepTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -226,14 +229,8 @@ namespace SessionSight.Infrastructure.Migrations
                     b.Property<long>("DurationMs")
                         .HasColumnType("bigint");
 
-                    b.Property<string>("InputJson")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<int>("LoopRound")
                         .HasColumnType("int");
-
-                    b.Property<string>("OutputJson")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid>("StepId")
                         .HasColumnType("uniqueidentifier");

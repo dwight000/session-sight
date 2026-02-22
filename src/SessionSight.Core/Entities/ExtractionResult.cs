@@ -67,4 +67,5 @@ public class ExtractionResult
     public string? RiskFieldDecisionsJson { get; set; }
 
     public ICollection<SupervisorReview> Reviews { get; set; } = new List<SupervisorReview>();
+    public ICollection<ExtractionStep> Steps { get; set; } = new List<ExtractionStep>();
 }

@@ -72,10 +72,34 @@ public partial class IntakeAgent : IIntakeAgent
             ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
         };
 
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         var response = await chatClient.CompleteChatAsync(messages, options, cancellationToken);
+        sw.Stop();
         var content = response.Value.Content[0].Text;
 
-        return ParseResponse(content, document, modelName);
+        var result = ParseResponse(content, document, modelName);
+
+        if (response.Value.Usage is not null)
+        {
+            result.InputTokens = response.Value.Usage.InputTokenCount;
+            result.OutputTokens = response.Value.Usage.OutputTokenCount;
+            result.TotalTokens = response.Value.Usage.TotalTokenCount;
+        }
+
+        result.LlmTraces =
+        [
+            new Tools.LlmCallTrace(
+                PromptText: IntakePrompts.BuildUserPrompt(document),
+                ResponseText: content,
+                ModelUsed: modelName,
+                LoopRound: 0,
+                InputTokens: result.InputTokens,
+                OutputTokens: result.OutputTokens,
+                TotalTokens: result.TotalTokens,
+                DurationMs: sw.ElapsedMilliseconds)
+        ];
+
+        return result;
     }
 
     internal static IntakeResult ParseResponse(string content, ParsedDocument document, string modelName)

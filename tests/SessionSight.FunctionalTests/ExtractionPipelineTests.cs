@@ -183,6 +183,12 @@ public class ExtractionPipelineTests : IClassFixture<ApiFixture>
 
         await ExtractionAssertions.AssertExtractionFields(_client, sessionId);
 
+        // ── Section 2b: Extraction Step Instrumentation (B-095) ──────────
+        // Verifies per-step persistence: 6 steps with timing, token usage,
+        // and tool call traces. Reuses the extraction above (zero extra cost).
+
+        await ExtractionAssertions.AssertExtractionSteps(_client, sessionId);
+
         // ── Section 3: Q&A over Extracted Session ───────────────────────
         // Originally: QATests.QA_AnswersQuestionAboutExtractedSession
         // Merged here to share the extraction (~$0.03 saved per run).

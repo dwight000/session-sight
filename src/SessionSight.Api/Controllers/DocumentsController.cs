@@ -21,6 +21,7 @@ public partial class DocumentsController : ControllerBase
     };
 
     private readonly ISessionRepository _sessionRepository;
+    private readonly IExtractionStepRepository _stepRepository;
     private readonly IDocumentStorage _documentStorage;
     private readonly ISearchIndexService _searchIndexService;
     private readonly ILogger<DocumentsController> _logger;
@@ -28,12 +29,14 @@ public partial class DocumentsController : ControllerBase
 
     public DocumentsController(
         ISessionRepository sessionRepository,
+        IExtractionStepRepository stepRepository,
         IDocumentStorage documentStorage,
         ISearchIndexService searchIndexService,
         ILogger<DocumentsController> logger,
         IOptions<DocumentIntelligenceOptions> docOptions)
     {
         _sessionRepository = sessionRepository;
+        _stepRepository = stepRepository;
         _documentStorage = documentStorage;
         _searchIndexService = searchIndexService;
         _logger = logger;
@@ -92,6 +95,17 @@ public partial class DocumentsController : ControllerBase
         if (session.Extraction is null) return NotFound("No extraction result found for this session.");
 
         return Ok(session.Extraction.ToDto());
+    }
+
+    [HttpGet("extraction/steps")]
+    public async Task<ActionResult<ExtractionStepsResponseDto>> GetExtractionSteps(Guid sessionId)
+    {
+        var session = await _sessionRepository.GetByIdAsync(sessionId);
+        if (session is null) return NotFound();
+        if (session.Extraction is null) return NotFound("No extraction result found for this session.");
+
+        var steps = await _stepRepository.GetStepsByExtractionIdAsync(session.Extraction.Id);
+        return Ok(steps.ToStepsDto(session.Extraction.Id));
     }
 
     [HttpDelete("document")]

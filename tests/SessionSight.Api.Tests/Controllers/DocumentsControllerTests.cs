@@ -18,6 +18,7 @@ namespace SessionSight.Api.Tests.Controllers;
 public class DocumentsControllerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepositoryMock;
+    private readonly Mock<IExtractionStepRepository> _stepRepositoryMock;
     private readonly Mock<IDocumentStorage> _documentStorageMock;
     private readonly Mock<ISearchIndexService> _searchIndexServiceMock;
     private readonly DocumentIntelligenceOptions _docOptions;
@@ -26,11 +27,13 @@ public class DocumentsControllerTests
     public DocumentsControllerTests()
     {
         _sessionRepositoryMock = new Mock<ISessionRepository>();
+        _stepRepositoryMock = new Mock<IExtractionStepRepository>();
         _documentStorageMock = new Mock<IDocumentStorage>();
         _searchIndexServiceMock = new Mock<ISearchIndexService>();
         _docOptions = new DocumentIntelligenceOptions();
         _controller = new DocumentsController(
             _sessionRepositoryMock.Object,
+            _stepRepositoryMock.Object,
             _documentStorageMock.Object,
             _searchIndexServiceMock.Object,
             new Mock<ILogger<DocumentsController>>().Object,

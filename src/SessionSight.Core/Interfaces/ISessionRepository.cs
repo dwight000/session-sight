@@ -19,5 +19,6 @@ public interface ISessionRepository
     Task SaveExtractionResultAsync(ExtractionResult extraction);
     Task UpsertExtractionResultAsync(ExtractionResult extraction);
     Task UpdateExtractionSummaryAsync(Guid extractionId, string summaryJson);
+    Task UpdateExtractionResultAsync(ExtractionResult extraction);
     Task DeleteDocumentAsync(Guid sessionId);
 }

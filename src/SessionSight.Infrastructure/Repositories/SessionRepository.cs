@@ -160,6 +160,11 @@ public partial class SessionRepository : ISessionRepository
 
         _context.Extractions.Add(extraction);
         await _context.SaveChangesAsync();
+
+        // Detach the placeholder so its empty Steps collection doesn't interfere
+        // with EF change detection during subsequent step saves. The final update
+        // uses ExecuteUpdateAsync which bypasses the change tracker entirely.
+        _context.Entry(extraction).State = EntityState.Detached;
     }
 
     public async Task<IEnumerable<Session>> GetByPatientIdInDateRangeAsync(Guid patientId, DateOnly? startDate, DateOnly? endDate)
@@ -218,6 +223,34 @@ public partial class SessionRepository : ISessionRepository
         await _context.Documents
             .Where(d => d.SessionId == sessionId)
             .ExecuteDeleteAsync();
+    }
+
+    public async Task UpdateExtractionResultAsync(ExtractionResult extraction)
+    {
+        // Use ExecuteUpdateAsync to update only scalar columns via raw SQL,
+        // bypassing the change tracker entirely. This prevents EF relationship fixup
+        // from orphaning/deleting the ExtractionStep and ExtractionToolCall child rows
+        // that were already committed during the pipeline by TrySaveStepAsync.
+        await _context.Extractions
+            .Where(e => e.Id == extraction.Id)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(e => e.SchemaVersion, extraction.SchemaVersion)
+                .SetProperty(e => e.ModelUsed, extraction.ModelUsed)
+                .SetProperty(e => e.OverallConfidence, extraction.OverallConfidence)
+                .SetProperty(e => e.RequiresReview, extraction.RequiresReview)
+                .SetProperty(e => e.ReviewStatus, extraction.ReviewStatus)
+                .SetProperty(e => e.ReviewReasons, extraction.ReviewReasons)
+                .SetProperty(e => e.ExtractedAt, extraction.ExtractedAt)
+                .SetProperty(e => e.Data, extraction.Data)
+                .SetProperty(e => e.SummaryJson, extraction.SummaryJson)
+                .SetProperty(e => e.GuardrailApplied, extraction.GuardrailApplied)
+                .SetProperty(e => e.HomicidalGuardrailApplied, extraction.HomicidalGuardrailApplied)
+                .SetProperty(e => e.HomicidalGuardrailReason, extraction.HomicidalGuardrailReason)
+                .SetProperty(e => e.SelfHarmGuardrailApplied, extraction.SelfHarmGuardrailApplied)
+                .SetProperty(e => e.SelfHarmGuardrailReason, extraction.SelfHarmGuardrailReason)
+                .SetProperty(e => e.CriteriaValidationAttempts, extraction.CriteriaValidationAttempts)
+                .SetProperty(e => e.DiscrepancyCount, extraction.DiscrepancyCount)
+                .SetProperty(e => e.RiskFieldDecisionsJson, extraction.RiskFieldDecisionsJson));
     }
 
     public async Task UpdateExtractionSummaryAsync(Guid extractionId, string summaryJson)
