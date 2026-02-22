@@ -316,13 +316,15 @@ export function Upload() {
             </Button>
           </div>
 
-          {uploadDocument.isPending && processingSessionId && (
-            <div className="rounded-md border border-blue-200 bg-blue-50/30 p-4">
-              <p className="mb-3 text-sm font-medium text-blue-800">Extraction Pipeline</p>
-              <ExtractionPipelineView sessionId={processingSessionId} isLive={true} />
-            </div>
-          )}
         </form>
+      )}
+
+      {/* Pipeline view — outside the form so it survives session list refetches */}
+      {uploadDocument.isPending && processingSessionId && (
+        <div className="rounded-md border border-blue-200 bg-blue-50/30 p-4">
+          <p className="mb-3 text-sm font-medium text-blue-800">Extraction Pipeline</p>
+          <ExtractionPipelineView sessionId={processingSessionId} isLive={true} />
+        </div>
       )}
     </div>
   )
