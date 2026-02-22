@@ -69,6 +69,7 @@ public class ExtractionStepMappingTests
                 StepName = ExtractionStepName.ClinicalExtract,
                 Status = ExtractionStepStatus.Succeeded,
                 StepOrder = 3,
+                EstimatedCostUsd = 0.018m,
                 StartedAt = DateTime.UtcNow,
                 DurationMs = 2000,
                 ModelUsed = "gpt-4.1-mini",
@@ -103,7 +104,12 @@ public class ExtractionStepMappingTests
         dto.Steps[0].ToolCalls.Should().HaveCount(2);
         dto.Steps[0].ToolCalls[0].ToolName.Should().Be("ValidateSchema");
         dto.Steps[0].ToolCalls[0].LoopRound.Should().Be(0);
+        dto.Steps[0].ToolCalls[0].Succeeded.Should().BeTrue();
+        dto.Steps[0].ToolCalls[0].DurationMs.Should().Be(50);
+        dto.Steps[0].ToolCalls[0].CalledAt.Should().Be(calledAt);
         dto.Steps[0].ToolCalls[1].LoopRound.Should().Be(1);
+        dto.Steps[0].StartedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+        dto.Steps[0].CompletedAt.Should().BeNull();
     }
 
     [Fact]
