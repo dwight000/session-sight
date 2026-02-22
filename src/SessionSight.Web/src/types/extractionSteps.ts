@@ -56,19 +56,19 @@ export interface ExtractionStepsResponse {
 // Per-step result summary shapes (parsed from resultSummaryJson)
 export interface DocumentParseResult {
   pageCount: number
-  fileSizeKb: number
+  fileSizeBytes: number
   ocrConfidence: number
 }
 
 export interface IntakeResult {
-  isValidSessionNote: boolean
-  wordCount: number
-  noteType: string
+  isValid: boolean
+  estimatedWordCount: number
+  documentType: string
 }
 
 export interface ClinicalExtractResult {
   fieldCount: number
-  averageConfidence: number
+  overallConfidence: number
   toolCallCount: number
 }
 

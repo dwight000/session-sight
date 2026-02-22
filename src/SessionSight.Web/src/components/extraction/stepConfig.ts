@@ -50,16 +50,17 @@ export function formatResultSummary(stepName: ExtractionStepName, json: string |
     switch (stepName) {
       case 'DocumentParse': {
         const r = JSON.parse(json) as DocumentParseResult
-        return `${r.pageCount} pages, ${r.fileSizeKb} KB, OCR ${Math.round(r.ocrConfidence * 100)}%`
+        const kb = Math.round(r.fileSizeBytes / 1024)
+        return `${r.pageCount} pages, ${kb} KB, OCR ${Math.round(r.ocrConfidence * 100)}%`
       }
       case 'Intake': {
         const r = JSON.parse(json) as IntakeResult
-        const validity = r.isValidSessionNote ? 'Valid Session Note' : 'Invalid'
-        return `${validity} — ${r.wordCount} words`
+        const validity = r.isValid ? 'Valid Session Note' : 'Invalid'
+        return `${validity} — ${r.estimatedWordCount} words`
       }
       case 'ClinicalExtract': {
         const r = JSON.parse(json) as ClinicalExtractResult
-        return `${r.fieldCount} fields, ${Math.round(r.averageConfidence * 100)}% confidence, ${r.toolCallCount} tool calls`
+        return `${r.fieldCount} fields, ${Math.round(r.overallConfidence * 100)}% confidence, ${r.toolCallCount} tool calls`
       }
       case 'RiskAssess': {
         const r = JSON.parse(json) as RiskAssessResult

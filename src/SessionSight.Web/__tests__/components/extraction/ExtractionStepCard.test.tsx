@@ -68,7 +68,7 @@ describe('ExtractionStepCard', () => {
 
   it('shows result summary on header for completed step', () => {
     const step = makeStep('DocumentParse', 0, {
-      resultSummaryJson: '{"pageCount":2,"fileSizeKb":44,"ocrConfidence":0.99}',
+      resultSummaryJson: '{"pageCount":2,"fileSizeBytes":45056,"ocrConfidence":0.99}',
     })
     render(
       <ExtractionStepCard stepName="DocumentParse" step={step} isCurrentStep={false} defaultExpanded={false} />,
