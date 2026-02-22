@@ -30,6 +30,10 @@ public class IntakeResult
     /// The model used for this intake (e.g., "gpt-4o-mini").
     /// </summary>
     public string ModelUsed { get; set; } = string.Empty;
+
+    public int InputTokens { get; set; }
+    public int OutputTokens { get; set; }
+    public int TotalTokens { get; set; }
 }
 
 /// <summary>

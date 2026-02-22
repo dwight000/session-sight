@@ -44,6 +44,10 @@ public class SessionSummary
     /// When this summary was generated.
     /// </summary>
     public DateTime GeneratedAt { get; set; }
+
+    public int InputTokens { get; set; }
+    public int OutputTokens { get; set; }
+    public int TotalTokens { get; set; }
 }
 
 /// <summary>

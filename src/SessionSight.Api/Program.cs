@@ -47,6 +47,7 @@ builder.Services.AddScoped<SessionSight.Core.Interfaces.IPatientRepository, Sess
 builder.Services.AddScoped<SessionSight.Core.Interfaces.ISessionRepository, SessionSight.Infrastructure.Repositories.SessionRepository>();
 builder.Services.AddScoped<SessionSight.Core.Interfaces.IDocumentStorage, SessionSight.Infrastructure.Storage.AzureBlobDocumentStorage>();
 builder.Services.AddScoped<SessionSight.Core.Interfaces.IReviewRepository, SessionSight.Infrastructure.Repositories.ReviewRepository>();
+builder.Services.AddScoped<SessionSight.Core.Interfaces.IExtractionStepRepository, SessionSight.Infrastructure.Repositories.ExtractionStepRepository>();
 builder.Services.AddScoped<SessionSight.Core.Interfaces.ITherapistRepository, SessionSight.Infrastructure.Repositories.TherapistRepository>();
 builder.Services.AddScoped<SessionSight.Core.Interfaces.IProcessingJobRepository, SessionSight.Infrastructure.Repositories.ProcessingJobRepository>();
 
@@ -87,6 +88,10 @@ builder.Services.AddScoped<CompareSessionsTool>();
 // RiskAssessor configuration
 builder.Services.Configure<RiskAssessorOptions>(
     builder.Configuration.GetSection(RiskAssessorOptions.SectionName));
+
+// Pipeline diagnostics configuration
+builder.Services.Configure<PipelineDiagnosticsOptions>(
+    builder.Configuration.GetSection(PipelineDiagnosticsOptions.SectionName));
 
 // Document Intelligence configuration
 builder.Services.Configure<DocumentIntelligenceOptions>(

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SessionSight.Agents.Agents;
 using SessionSight.Agents.Models;
 using SessionSight.Agents.Services;
@@ -28,8 +29,13 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
     private readonly IDocumentParser _documentParser;
     private readonly ExtractionAgents _agents;
     private readonly ISessionRepository _sessionRepository;
+    private readonly IExtractionStepRepository _stepRepository;
     private readonly IDocumentStorage _documentStorage;
     private readonly ISessionIndexingService _sessionIndexingService;
+    // Used by LLM trace gating (B-095 future)
+#pragma warning disable S4487 // Reserved for StoreLlmTraces gating
+    private readonly PipelineDiagnosticsOptions _diagOptions;
+#pragma warning restore S4487
     private readonly ILogger<ExtractionOrchestrator> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -41,20 +47,26 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         IDocumentParser documentParser,
         ExtractionAgents agents,
         ISessionRepository sessionRepository,
+        IExtractionStepRepository stepRepository,
         IDocumentStorage documentStorage,
         ISessionIndexingService sessionIndexingService,
+        IOptions<PipelineDiagnosticsOptions> diagOptions,
         ILogger<ExtractionOrchestrator> logger)
     {
         _documentParser = documentParser;
         _agents = agents;
         _sessionRepository = sessionRepository;
+        _stepRepository = stepRepository;
         _documentStorage = documentStorage;
         _sessionIndexingService = sessionIndexingService;
+        _diagOptions = diagOptions.Value;
         _logger = logger;
     }
 
+#pragma warning disable S3776 // Cognitive complexity - orchestrator has sequential pipeline steps
     public async Task<OrchestrationResult> ProcessSessionAsync(Guid sessionId, CancellationToken ct = default)
     {
+#pragma warning restore S3776
         var stopwatch = Stopwatch.StartNew();
         var modelsUsed = new List<string>();
 
@@ -104,19 +116,101 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             }
         }
 
+        // Early creation: upsert clears any old extraction + cascaded steps, then inserts placeholder
+        var extractionId = Guid.NewGuid();
+        var placeholder = new SessionSight.Core.Entities.ExtractionResult
+        {
+            Id = extractionId,
+            SessionId = session.Id,
+            SchemaVersion = "1.0.0",
+            ModelUsed = string.Empty,
+            ExtractedAt = DateTime.UtcNow,
+            Data = new Core.Schema.ClinicalExtraction()
+        };
+        await _sessionRepository.UpsertExtractionResultAsync(placeholder);
+
         try
         {
             // Step 1: Download blob and parse with Document Intelligence
-            LogDownloadingDocument(_logger, session.Document.BlobUri);
-            await using var stream = await _documentStorage.DownloadAsync(session.Document.BlobUri);
-            var parsedDoc = await _documentParser.ParseAsync(stream, session.Document.OriginalFileName, ct);
+            var step1 = BeginStep(extractionId, ExtractionStepName.DocumentParse, 1, "azure-doc-intel");
+            var sw1 = Stopwatch.StartNew();
+            ParsedDocument parsedDoc;
+            try
+            {
+                LogDownloadingDocument(_logger, session.Document.BlobUri);
+                await using var stream = await _documentStorage.DownloadAsync(session.Document.BlobUri);
+                parsedDoc = await _documentParser.ParseAsync(stream, session.Document.OriginalFileName, ct);
+                sw1.Stop();
 
-            LogDocumentParsed(_logger, parsedDoc.Metadata.PageCount, parsedDoc.Metadata.ExtractionConfidence);
+                CompleteStep(step1, sw1.ElapsedMilliseconds);
+                step1.ResultSummaryJson = JsonSerializer.Serialize(new
+                {
+                    pageCount = parsedDoc.Metadata.PageCount,
+                    ocrConfidence = parsedDoc.Metadata.ExtractionConfidence,
+                    fileSizeBytes = parsedDoc.Metadata.FileSizeBytes
+                }, JsonOptions);
+
+                LogDocumentParsed(_logger, parsedDoc.Metadata.PageCount, parsedDoc.Metadata.ExtractionConfidence);
+            }
+            catch (Exception ex)
+            {
+                sw1.Stop();
+                FailStep(step1, sw1.ElapsedMilliseconds, ex.Message);
+                throw;
+            }
+            finally
+            {
+                await TrySaveStepAsync(step1);
+            }
 
             // Step 2: Intake Agent - metadata extraction and validation
-            LogRunningIntakeAgent(_logger);
-            var intakeResult = await _agents.Intake.ProcessAsync(parsedDoc, ct);
-            modelsUsed.Add(intakeResult.ModelUsed);
+            var step2 = BeginStep(extractionId, ExtractionStepName.Intake, 2, string.Empty);
+            var sw2 = Stopwatch.StartNew();
+            IntakeResult intakeResult;
+            try
+            {
+                LogRunningIntakeAgent(_logger);
+                intakeResult = await _agents.Intake.ProcessAsync(parsedDoc, ct);
+                sw2.Stop();
+                modelsUsed.Add(intakeResult.ModelUsed);
+                step2.ModelUsed = intakeResult.ModelUsed;
+                step2.InputTokens = intakeResult.InputTokens;
+                step2.OutputTokens = intakeResult.OutputTokens;
+                step2.TotalTokens = intakeResult.TotalTokens;
+
+                if (!intakeResult.IsValidTherapyNote)
+                {
+                    FailStep(step2, sw2.ElapsedMilliseconds, intakeResult.ValidationError ?? "Invalid document");
+                    step2.ResultSummaryJson = JsonSerializer.Serialize(new
+                    {
+                        isValid = false,
+                        documentType = intakeResult.Metadata.DocumentType,
+                        validationError = intakeResult.ValidationError
+                    }, JsonOptions);
+                }
+                else
+                {
+                    CompleteStep(step2, sw2.ElapsedMilliseconds);
+                    step2.ResultSummaryJson = JsonSerializer.Serialize(new
+                    {
+                        isValid = true,
+                        documentType = intakeResult.Metadata.DocumentType,
+                        sessionDate = intakeResult.Metadata.SessionDate?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+                        language = intakeResult.Metadata.Language,
+                        estimatedWordCount = intakeResult.Metadata.EstimatedWordCount
+                    }, JsonOptions);
+                }
+            }
+            catch (Exception ex)
+            {
+                sw2.Stop();
+                FailStep(step2, sw2.ElapsedMilliseconds, ex.Message);
+                throw;
+            }
+            finally
+            {
+                await TrySaveStepAsync(step2);
+            }
 
             if (!intakeResult.IsValidTherapyNote)
             {
@@ -135,13 +229,66 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             }
 
             // Step 3: Clinical Extractor - schema extraction
-            LogRunningClinicalExtractor(_logger);
-            var extractionResult = await _agents.Extractor.ExtractAsync(intakeResult, ct);
-            extractionResult.SessionId = sessionId.ToString("D", System.Globalization.CultureInfo.InvariantCulture);
-            modelsUsed.AddRange(extractionResult.ModelsUsed);
+            var step3 = BeginStep(extractionId, ExtractionStepName.ClinicalExtract, 3, string.Empty);
+            var sw3 = Stopwatch.StartNew();
+            AgentExtractionResult extractionResult;
+            try
+            {
+                LogRunningClinicalExtractor(_logger);
+                extractionResult = await _agents.Extractor.ExtractAsync(intakeResult, ct);
+                sw3.Stop();
+                extractionResult.SessionId = sessionId.ToString("D", System.Globalization.CultureInfo.InvariantCulture);
+                modelsUsed.AddRange(extractionResult.ModelsUsed);
 
-            // Fail pipeline on JSON parse failure — empty extraction with defaulted risk fields
-            // is a safety false-negative (all risk = None/Low when data is actually unknown)
+                step3.ModelUsed = string.Join(", ", extractionResult.ModelsUsed.Distinct());
+                step3.InputTokens = extractionResult.InputTokens;
+                step3.OutputTokens = extractionResult.OutputTokens;
+                step3.TotalTokens = extractionResult.TotalTokens;
+
+                // Populate tool calls from extraction trace
+                foreach (var tc in extractionResult.ToolCallTrace)
+                {
+                    step3.ToolCalls.Add(new ExtractionToolCall
+                    {
+                        Id = Guid.NewGuid(),
+                        StepId = step3.Id,
+                        ToolName = tc.ToolName,
+                        LoopRound = tc.LoopRound,
+                        Succeeded = tc.Succeeded,
+                        DurationMs = tc.DurationMs,
+                        CalledAt = step3.StartedAt.AddMilliseconds(tc.DurationMs)
+                    });
+                }
+
+                // Fail pipeline on JSON parse failure
+                if (extractionResult.Errors.Any(e => e.Contains("Failed to parse extraction JSON", StringComparison.Ordinal)))
+                {
+                    FailStep(step3, sw3.ElapsedMilliseconds, "Failed to parse extraction JSON from agent response");
+                }
+                else
+                {
+                    CompleteStep(step3, sw3.ElapsedMilliseconds);
+                }
+
+                step3.ResultSummaryJson = JsonSerializer.Serialize(new
+                {
+                    fieldCount = CountExtractedFields(extractionResult),
+                    overallConfidence = extractionResult.OverallConfidence,
+                    toolCallCount = extractionResult.ToolCallCount,
+                    lowConfidenceFields = extractionResult.LowConfidenceFields
+                }, JsonOptions);
+            }
+            catch (Exception ex)
+            {
+                sw3.Stop();
+                FailStep(step3, sw3.ElapsedMilliseconds, ex.Message);
+                throw;
+            }
+            finally
+            {
+                await TrySaveStepAsync(step3);
+            }
+
             if (extractionResult.Errors.Any(e => e.Contains("Failed to parse extraction JSON", StringComparison.Ordinal)))
             {
                 LogExtractionParseFailed(_logger, sessionId);
@@ -158,12 +305,50 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             }
 
             // Step 4: Risk Assessor - safety validation
-            LogRunningRiskAssessor(_logger);
-            var riskResult = await _agents.RiskAssessor.AssessAsync(
-                extractionResult, parsedDoc.MarkdownContent, ct);
-            modelsUsed.Add(riskResult.ModelUsed);
+            var step4 = BeginStep(extractionId, ExtractionStepName.RiskAssess, 4, string.Empty);
+            var sw4 = Stopwatch.StartNew();
+            RiskAssessmentResult riskResult;
+            try
+            {
+                LogRunningRiskAssessor(_logger);
+                riskResult = await _agents.RiskAssessor.AssessAsync(
+                    extractionResult, parsedDoc.MarkdownContent, ct);
+                sw4.Stop();
+                modelsUsed.Add(riskResult.ModelUsed);
 
-            // Step 5: Merge risk assessment into extraction result
+                step4.ModelUsed = riskResult.ModelUsed;
+                step4.InputTokens = riskResult.InputTokens;
+                step4.OutputTokens = riskResult.OutputTokens;
+                step4.TotalTokens = riskResult.TotalTokens;
+
+                CompleteStep(step4, sw4.ElapsedMilliseconds);
+                step4.ResultSummaryJson = JsonSerializer.Serialize(new
+                {
+                    riskLevel = riskResult.DeterminedRiskLevel.ToString(),
+                    requiresReview = riskResult.RequiresReview,
+                    discrepancyCount = riskResult.Discrepancies.Count,
+                    guardrailApplied = (riskResult.Diagnostics.HomicidalGuardrailApplied || riskResult.Diagnostics.SelfHarmGuardrailApplied),
+                    reviewReasons = riskResult.ReviewReasons,
+                    fieldDecisions = riskResult.Diagnostics.Decisions.Select(d => new
+                    {
+                        d.Field,
+                        d.FinalValue,
+                        d.RuleApplied
+                    })
+                }, JsonOptions);
+            }
+            catch (Exception ex)
+            {
+                sw4.Stop();
+                FailStep(step4, sw4.ElapsedMilliseconds, ex.Message);
+                throw;
+            }
+            finally
+            {
+                await TrySaveStepAsync(step4);
+            }
+
+            // Merge risk assessment into extraction result
             if (riskResult.RequiresReview)
             {
                 extractionResult.RequiresReview = true;
@@ -172,40 +357,76 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                     extractionResult.LowConfidenceFields.Add($"Risk: {reason}");
                 }
             }
-
-            // Replace the risk assessment section with the final validated version
             extractionResult.Data.RiskAssessment = riskResult.FinalExtraction;
 
-            // Step 5.5: Generate session summary
-            LogRunningSummarizer(_logger);
+            // Step 5: Generate session summary
+            var step5 = BeginStep(extractionId, ExtractionStepName.Summarize, 5, string.Empty);
+            var sw5 = Stopwatch.StartNew();
             SessionSummary? sessionSummary = null;
             try
             {
+                LogRunningSummarizer(_logger);
                 sessionSummary = await _agents.Summarizer.SummarizeSessionAsync(extractionResult, ct);
+                sw5.Stop();
                 modelsUsed.Add(sessionSummary.ModelUsed);
+
+                step5.ModelUsed = sessionSummary.ModelUsed;
+                step5.InputTokens = sessionSummary.InputTokens;
+                step5.OutputTokens = sessionSummary.OutputTokens;
+                step5.TotalTokens = sessionSummary.TotalTokens;
+
+                CompleteStep(step5, sw5.ElapsedMilliseconds);
+                step5.ResultSummaryJson = JsonSerializer.Serialize(new
+                {
+                    oneLiner = sessionSummary.OneLiner,
+                    interventionsUsed = sessionSummary.InterventionsUsed
+                }, JsonOptions);
             }
             catch (Exception ex)
             {
+                sw5.Stop();
+                FailStep(step5, sw5.ElapsedMilliseconds, ex.Message);
                 LogSummarizerError(_logger, ex, sessionId);
-                // Summary generation failure is non-fatal - continue with extraction save
+                // Summary generation failure is non-fatal - continue
+            }
+            finally
+            {
+                await TrySaveStepAsync(step5);
             }
 
-            // Step 5.6: Index session for search (embedding + search index)
+            // Step 6: Index session for search (embedding + search index)
+            var step6 = BeginStep(extractionId, ExtractionStepName.SearchIndex, 6, "text-embedding-3-large");
+            var sw6 = Stopwatch.StartNew();
             try
             {
                 LogIndexingStarted(_logger, sessionId);
                 await _sessionIndexingService.IndexSessionAsync(session, extractionResult, sessionSummary, ct);
+                sw6.Stop();
+                CompleteStep(step6, sw6.ElapsedMilliseconds);
+                step6.ResultSummaryJson = JsonSerializer.Serialize(new { indexed = true }, JsonOptions);
                 LogIndexingCompleted(_logger, sessionId);
             }
             catch (Exception ex)
             {
+                sw6.Stop();
+                FailStep(step6, sw6.ElapsedMilliseconds, ex.Message);
+                step6.ResultSummaryJson = JsonSerializer.Serialize(new
+                {
+                    indexed = false,
+                    errorReason = Truncate(ex.Message, 500)
+                }, JsonOptions);
                 LogIndexingError(_logger, ex, sessionId);
-                // Indexing failure is non-fatal - continue with extraction save
+                // Indexing failure is non-fatal - continue
+            }
+            finally
+            {
+                await TrySaveStepAsync(step6);
             }
 
-            // Step 6: Save to database
-            var savedExtraction = await SaveExtractionAsync(
+            // Final save: update the placeholder row (preserves step rows)
+            await SaveExtractionAsync(
                 session,
+                extractionId,
                 extractionResult,
                 modelsUsed,
                 sessionSummary,
@@ -223,7 +444,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             {
                 Success = true,
                 SessionId = sessionId,
-                ExtractionId = savedExtraction.Id,
+                ExtractionId = extractionId,
                 RequiresReview = extractionResult.RequiresReview,
                 ModelsUsed = modelsUsed,
                 ElapsedMilliseconds = stopwatch.ElapsedMilliseconds,
@@ -242,8 +463,6 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             stopwatch.Stop();
             LogExtractionFailed(_logger, ex, sessionId);
 
-            // Atomic transition avoids change-tracker staleness (UpdateDocumentStatusAsync
-            // can silently fail if the tracked entity is stale from an earlier ExecuteUpdateAsync).
             try
             {
                 await _sessionRepository.TryTransitionDocumentStatusAsync(
@@ -265,22 +484,64 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         }
     }
 
-    private async Task<SessionSight.Core.Entities.ExtractionResult> SaveExtractionAsync(
+    private static ExtractionStep BeginStep(Guid extractionId, ExtractionStepName stepName, int order, string model)
+    {
+        return new ExtractionStep
+        {
+            Id = Guid.NewGuid(),
+            ExtractionId = extractionId,
+            StepName = stepName,
+            Status = ExtractionStepStatus.Running,
+            StepOrder = order,
+            StartedAt = DateTime.UtcNow,
+            ModelUsed = model
+        };
+    }
+
+    private static void CompleteStep(ExtractionStep step, long durationMs)
+    {
+        step.Status = ExtractionStepStatus.Succeeded;
+        step.CompletedAt = DateTime.UtcNow;
+        step.DurationMs = durationMs;
+    }
+
+    private static void FailStep(ExtractionStep step, long durationMs, string error)
+    {
+        step.Status = ExtractionStepStatus.Failed;
+        step.CompletedAt = DateTime.UtcNow;
+        step.DurationMs = durationMs;
+        step.ErrorMessage = Truncate(error, 2000);
+    }
+
+    private async Task TrySaveStepAsync(ExtractionStep step)
+    {
+        try
+        {
+            await _stepRepository.SaveStepAsync(step);
+        }
+        catch (Exception ex)
+        {
+            LogStepSaveError(_logger, ex, step.StepName, step.ExtractionId);
+        }
+    }
+
+    private async Task SaveExtractionAsync(
         Session session,
+        Guid extractionId,
         AgentExtractionResult agentResult,
         List<string> modelsUsed,
         SessionSummary? sessionSummary,
         RiskDiagnostics? riskDiagnostics,
         RiskAssessmentResult? riskResult = null)
     {
-        // Convert agent result to entity
         var reviewReasons = agentResult.LowConfidenceFields
             .Where(f => f.StartsWith("Risk:", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
+        // Load the placeholder and update in place to preserve step rows
         var entity = new SessionSight.Core.Entities.ExtractionResult
         {
-            Id = Guid.NewGuid(),
+            Id = extractionId,
             SessionId = session.Id,
             SchemaVersion = "1.0.0",
             ModelUsed = string.Join(", ", modelsUsed.Distinct()),
@@ -308,10 +569,48 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                 : null
         };
 
-        // Upsert handles re-extraction after retry (deletes old extraction if exists)
-        await _sessionRepository.UpsertExtractionResultAsync(entity);
+        await _sessionRepository.UpdateExtractionResultAsync(entity);
+    }
 
-        return entity;
+    private static int CountExtractedFields(AgentExtractionResult result)
+    {
+        if (result.Data is null) return 0;
+
+        var count = 0;
+        var sectionProperties = typeof(Core.Schema.ClinicalExtraction).GetProperties()
+            .Where(p => p.PropertyType.GetProperties().Any(sp =>
+                sp.PropertyType.IsGenericType &&
+                sp.PropertyType.GetGenericTypeDefinition() == typeof(Core.Schema.ExtractedField<>)));
+
+        foreach (var sectionProp in sectionProperties)
+        {
+            var section = sectionProp.GetValue(result.Data);
+            if (section is null) continue;
+
+            var fieldProps = section.GetType().GetProperties()
+                .Where(p => p.PropertyType.IsGenericType &&
+                            p.PropertyType.GetGenericTypeDefinition() == typeof(Core.Schema.ExtractedField<>));
+
+            foreach (var fieldProp in fieldProps)
+            {
+                var field = fieldProp.GetValue(section);
+                if (field is null) continue;
+
+                var confidenceProp = field.GetType().GetProperty("Confidence");
+                if (confidenceProp?.GetValue(field) is double confidence && confidence > 0)
+                {
+                    count++;
+                }
+            }
+        }
+
+        return count;
+    }
+
+    private static string Truncate(string? text, int maxLength)
+    {
+        if (string.IsNullOrEmpty(text)) return string.Empty;
+        return text.Length <= maxLength ? text : text[..maxLength];
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Starting extraction for session {SessionId}")]
@@ -361,4 +660,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to update document status to Failed for session {SessionId}")]
     private static partial void LogStatusUpdateFailed(ILogger logger, Exception exception, Guid sessionId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to save step {StepName} for extraction {ExtractionId}")]
+    private static partial void LogStepSaveError(ILogger logger, Exception exception, ExtractionStepName stepName, Guid extractionId);
 }

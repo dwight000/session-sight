@@ -82,6 +82,13 @@ public partial class SummarizerAgent : ISummarizerAgent
             summary.ModelUsed = modelName;
             summary.GeneratedAt = DateTime.UtcNow;
 
+            if (response.Value.Usage is not null)
+            {
+                summary.InputTokens = response.Value.Usage.InputTokenCount;
+                summary.OutputTokens = response.Value.Usage.OutputTokenCount;
+                summary.TotalTokens = response.Value.Usage.TotalTokenCount;
+            }
+
             LogSessionSummaryCompleted(_logger, extraction.SessionId);
             return summary;
         }

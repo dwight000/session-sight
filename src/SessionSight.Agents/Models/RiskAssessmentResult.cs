@@ -57,4 +57,8 @@ public class RiskAssessmentResult
     /// Structured diagnostic details for risk-field decisions.
     /// </summary>
     public RiskDiagnostics Diagnostics { get; set; } = new();
+
+    public int InputTokens { get; set; }
+    public int OutputTokens { get; set; }
+    public int TotalTokens { get; set; }
 }

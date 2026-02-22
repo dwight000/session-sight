@@ -96,6 +96,9 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
             criteriaUsed = reExtracted.CriteriaUsed;
             reasoningUsed = reExtracted.ReasoningUsed;
             criteriaValidationAttemptsUsed = Math.Max(1, reExtracted.CriteriaValidationAttemptsUsed);
+            result.InputTokens = reExtracted.InputTokens;
+            result.OutputTokens = reExtracted.OutputTokens;
+            result.TotalTokens = reExtracted.TotalTokens;
         }
         catch (Exception ex)
         {
@@ -178,6 +181,13 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         var parsed = ParseRiskResponseWithCriteria(content)
             ?? throw new InvalidOperationException("Failed to parse risk re-extraction response");
         parsed.CriteriaValidationAttemptsUsed = 1;
+
+        if (response.Value.Usage is not null)
+        {
+            parsed.InputTokens = response.Value.Usage.InputTokenCount;
+            parsed.OutputTokens = response.Value.Usage.OutputTokenCount;
+            parsed.TotalTokens = response.Value.Usage.TotalTokenCount;
+        }
 
         return parsed;
     }

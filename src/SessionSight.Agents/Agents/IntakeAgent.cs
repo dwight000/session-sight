@@ -75,7 +75,16 @@ public partial class IntakeAgent : IIntakeAgent
         var response = await chatClient.CompleteChatAsync(messages, options, cancellationToken);
         var content = response.Value.Content[0].Text;
 
-        return ParseResponse(content, document, modelName);
+        var result = ParseResponse(content, document, modelName);
+
+        if (response.Value.Usage is not null)
+        {
+            result.InputTokens = response.Value.Usage.InputTokenCount;
+            result.OutputTokens = response.Value.Usage.OutputTokenCount;
+            result.TotalTokens = response.Value.Usage.TotalTokenCount;
+        }
+
+        return result;
     }
 
     internal static IntakeResult ParseResponse(string content, ParsedDocument document, string modelName)

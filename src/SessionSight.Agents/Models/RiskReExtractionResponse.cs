@@ -26,6 +26,10 @@ public sealed class RiskReExtractionResponse
     /// Number of model attempts used to obtain a criteria-valid response.
     /// </summary>
     public int CriteriaValidationAttemptsUsed { get; set; } = 1;
+
+    public int InputTokens { get; set; }
+    public int OutputTokens { get; set; }
+    public int TotalTokens { get; set; }
 }
 
 internal sealed class RiskCriteriaEnvelope

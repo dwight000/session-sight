@@ -220,6 +220,12 @@ public partial class SessionRepository : ISessionRepository
             .ExecuteDeleteAsync();
     }
 
+    public async Task UpdateExtractionResultAsync(ExtractionResult extraction)
+    {
+        _context.Extractions.Update(extraction);
+        await _context.SaveChangesAsync();
+    }
+
     public async Task UpdateExtractionSummaryAsync(Guid extractionId, string summaryJson)
     {
         var extraction = await _context.Extractions.FindAsync(extractionId);

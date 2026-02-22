@@ -7,11 +7,11 @@
 ## Current Status
 
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
-**Next Action**: B-095 (Pipeline step instrumentation)
+**Next Action**: B-094 (Live extraction progress UI)
 
 **Last Updated**: February 21, 2026
 
-**Milestone**: P6-007 complete — demo data seeding with 8 patients + full extraction pipeline. 7 of 9 gap audit items done (B-085, B-086, B-087, B-088, B-089, B-091, B-093). Remaining: B-090, B-092. New pipeline observability track added: B-095 → B-094 → B-096. B-084 expanded to merge B-012 + B-035 (resilient extraction pipeline).
+**Milestone**: B-095 complete — pipeline step instrumentation with per-step persistence, token tracking, tool call traces, and GET /api/sessions/{id}/extraction/steps endpoint. B-094 unblocked.
 
 ---
 
@@ -190,8 +190,8 @@
 | B-092 | Phase 2 SLO measurement (latency, F1, cost-per-note) | S | 5 | Ready | - |
 | B-093 | Compare sessions tool for QA agent | S | 3 | Done | - |
 | **Pipeline Observability (B-094–B-096)** |||||
-| B-094 | Live extraction progress UI — step-by-step pipeline visualization | L | 4 | Blocked | B-095 |
-| B-095 | Pipeline step instrumentation — persist per-step extraction diagnostics | XL | 2 | Ready | - |
+| B-094 | Live extraction progress UI — step-by-step pipeline visualization | L | 4 | Ready | - |
+| B-095 | Pipeline step instrumentation — persist per-step extraction diagnostics | XL | 2 | Done | - |
 | B-096 | Extraction detail polish — confidence heatmap, risk merge viz, source attribution | M | 4 | Blocked | B-094 |
 
 ---
@@ -986,6 +986,7 @@ Both paths call the same `ExtractionOrchestrator.ProcessSessionAsync()`. The blo
 | B-093 | Compare sessions tool for QA agent (side-by-side session comparison) | 2026-02-20 |
 | B-086 | Patient longitudinal summary on timeline page | 2026-02-20 |
 | B-091 | RAG eval harness — 20 golden QA cases, QADiagnostics, ToolCallTrace, precision@5 | 2026-02-20 |
+| B-095 | Pipeline step instrumentation — per-step persistence, token tracking, tool call traces, GET steps endpoint | 2026-02-22 |
 
 ---
 

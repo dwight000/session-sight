@@ -43,12 +43,12 @@ echo "Generating coverage report..."
 # - Azure SDK pipeline policies (CircuitBreakerHttpPipelinePolicy, CircuitBreakerRetryPolicy)
 # - OpenAI SDK wrapper (AgentLoopRunner)
 # - Azure Functions (ProcessIncomingNoteFunction)
-# - EF Core infrastructure (SessionSightDbContext, SessionRepository, PatientRepository, DependencyInjection)
+# - EF Core infrastructure (SessionSightDbContext, SessionRepository, PatientRepository, ExtractionStepRepository, DependencyInjection)
 dotnet reportgenerator \
     -reports:"coverage/**/coverage.cobertura.xml" \
     -targetdir:coverage/report \
     -reporttypes:Cobertura,Html \
-    -filefilters:"-**/Migrations/**;-**/AIFoundryClientFactory.cs;-**/DocumentIntelligenceParser.cs;-**/AzureBlobDocumentStorage.cs;-**/AgentLoopRunner.cs;-**/DependencyInjection.cs;-**/SessionSightDbContext.cs;-**/SessionRepository.cs;-**/PatientRepository.cs;-**/ReviewRepository.cs;-**/ProcessIncomingNoteFunction.cs;-**/SearchIndexService.cs;-**/SearchIndexInitializer.cs;-**/EmbeddingService.cs;-**/CircuitBreakerHttpPipelinePolicy.cs;-**/CircuitBreakerRetryPolicy.cs;-**/obj/**"
+    -filefilters:"-**/Migrations/**;-**/AIFoundryClientFactory.cs;-**/DocumentIntelligenceParser.cs;-**/AzureBlobDocumentStorage.cs;-**/AgentLoopRunner.cs;-**/DependencyInjection.cs;-**/SessionSightDbContext.cs;-**/SessionRepository.cs;-**/PatientRepository.cs;-**/ReviewRepository.cs;-**/ExtractionStepRepository.cs;-**/ProcessIncomingNoteFunction.cs;-**/SearchIndexService.cs;-**/SearchIndexInitializer.cs;-**/EmbeddingService.cs;-**/CircuitBreakerHttpPipelinePolicy.cs;-**/CircuitBreakerRetryPolicy.cs;-**/obj/**"
 
 # Check threshold
 COVERAGE=$(grep -oP 'line-rate="\K[^"]+' coverage/report/Cobertura.xml | head -1)
