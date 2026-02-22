@@ -697,4 +697,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to save step {StepName} for extraction {ExtractionId}")]
     private static partial void LogStepSaveError(ILogger logger, Exception exception, ExtractionStepName stepName, Guid extractionId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Step {StepName} save diagnostic: ToolCalls={StepToolCallCount}, LlmTraces={StepLlmTraceCount}, ResultTrace={ResultTraceCount}")]
+    private static partial void LogStepDiagnostic(ILogger logger, ExtractionStepName stepName, int stepToolCallCount, int stepLlmTraceCount, int resultTraceCount);
 }

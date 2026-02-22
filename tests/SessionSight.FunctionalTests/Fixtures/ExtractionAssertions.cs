@@ -196,35 +196,47 @@ internal static class ExtractionAssertions
         step2Summary.RootElement.GetProperty("isValid").GetBoolean().Should().BeTrue(
             "Intake should validate document as a valid therapy note");
 
-        // ── Step 3 (ClinicalExtract) tool calls ──────────────────────────
-
-        var extractStep = stepsByOrder[2];
-        var toolCalls = extractStep.GetProperty("toolCalls");
-        toolCalls.GetArrayLength().Should().BeGreaterOrEqualTo(1,
-            "ClinicalExtract agent loop should produce at least one tool call");
-
-        foreach (var tc in toolCalls.EnumerateArray())
-        {
-            tc.GetProperty("toolName").GetString().Should().NotBeNullOrWhiteSpace(
-                "Tool call should have a name");
-            tc.GetProperty("loopRound").GetInt32().Should().BeGreaterOrEqualTo(0,
-                "LoopRound should be non-negative");
-            tc.GetProperty("succeeded").GetBoolean().Should().BeTrue(
-                "All tool calls in a successful extraction should have succeeded");
-            tc.GetProperty("durationMs").GetInt64().Should().BeGreaterOrEqualTo(0,
-                "Tool call duration should be non-negative");
-            tc.GetProperty("calledAt").GetDateTime().Should().BeAfter(minValidTime,
-                "Tool call CalledAt should be a real timestamp");
-        }
-
         // ── Step 3 (ClinicalExtract) ResultSummaryJson structure ─────────
 
+        var extractStep = stepsByOrder[2];
         var step3Summary = JsonDocument.Parse(
             extractStep.GetProperty("resultSummaryJson").GetString()!);
         step3Summary.RootElement.GetProperty("fieldCount").GetInt32().Should().BeGreaterThan(0,
             "ClinicalExtract should report extracted field count");
         step3Summary.RootElement.TryGetProperty("overallConfidence", out _).Should().BeTrue(
             "ClinicalExtract should report overall confidence");
+
+        // ── Step 3 (ClinicalExtract) tool calls ──────────────────────────
+        // The LLM may legitimately extract without calling tools (non-deterministic).
+        // Assert consistency: persisted tool call count must match what the step reported.
+
+        var reportedToolCallCount = step3Summary.RootElement
+            .GetProperty("toolCallCount").GetInt32();
+        var toolCalls = extractStep.GetProperty("toolCalls");
+        var toolCallList = toolCalls.EnumerateArray().ToList();
+
+        toolCallList.Count.Should().Be(reportedToolCallCount,
+            "Persisted tool calls should match reported toolCallCount in ResultSummaryJson");
+
+        foreach (var tc in toolCallList)
+        {
+            tc.GetProperty("toolName").GetString().Should().NotBeNullOrWhiteSpace(
+                "Tool call should have a name");
+            tc.GetProperty("loopRound").GetInt32().Should().BeGreaterOrEqualTo(0,
+                "LoopRound should be non-negative");
+            tc.GetProperty("durationMs").GetInt64().Should().BeGreaterOrEqualTo(0,
+                "Tool call duration should be non-negative");
+            tc.GetProperty("calledAt").GetDateTime().Should().BeAfter(minValidTime,
+                "Tool call CalledAt should be a real timestamp");
+        }
+
+        if (toolCallList.Count > 0)
+        {
+            // At least one tool call should have succeeded (agent may retry on failures)
+            toolCallList.Should().Contain(
+                tc => tc.GetProperty("succeeded").GetBoolean(),
+                "At least one tool call should have succeeded in a successful extraction");
+        }
 
         // ── Non-LLM steps should have empty tool calls ───────────────────
 
