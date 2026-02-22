@@ -111,7 +111,11 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
                 LowConfidenceFields = [loopResult.PartialReason ?? "Extraction incomplete"],
                 ModelsUsed = [modelName],
                 Errors = [$"Partial extraction: {loopResult.PartialReason}"],
-                ToolCallCount = loopResult.ToolCallCount
+                ToolCallCount = loopResult.ToolCallCount,
+                InputTokens = loopResult.InputTokens,
+                OutputTokens = loopResult.OutputTokens,
+                TotalTokens = loopResult.TotalTokens,
+                ToolCallTrace = loopResult.ToolCallTrace
             };
         }
 
@@ -132,7 +136,12 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
                 RequiresReview = true,
                 Errors = ["Failed to parse extraction JSON from agent response"],
                 ModelsUsed = [modelName],
-                ToolCallCount = loopResult.ToolCallCount
+                ToolCallCount = loopResult.ToolCallCount,
+                InputTokens = loopResult.InputTokens,
+                OutputTokens = loopResult.OutputTokens,
+                TotalTokens = loopResult.TotalTokens,
+                ToolCallTrace = loopResult.ToolCallTrace,
+                LlmTraces = loopResult.LlmTraces
             };
         }
 
@@ -164,7 +173,12 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
             LowConfidenceFields = lowConfidenceFields,
             ModelsUsed = [modelName],
             Errors = validationResult.Errors.Select(e => e.Message).ToList(),
-            ToolCallCount = loopResult.ToolCallCount
+            ToolCallCount = loopResult.ToolCallCount,
+            InputTokens = loopResult.InputTokens,
+            OutputTokens = loopResult.OutputTokens,
+            TotalTokens = loopResult.TotalTokens,
+            ToolCallTrace = loopResult.ToolCallTrace,
+            LlmTraces = loopResult.LlmTraces
         };
     }
 

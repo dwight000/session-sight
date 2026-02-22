@@ -96,6 +96,10 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
             criteriaUsed = reExtracted.CriteriaUsed;
             reasoningUsed = reExtracted.ReasoningUsed;
             criteriaValidationAttemptsUsed = Math.Max(1, reExtracted.CriteriaValidationAttemptsUsed);
+            result.InputTokens = reExtracted.InputTokens;
+            result.OutputTokens = reExtracted.OutputTokens;
+            result.TotalTokens = reExtracted.TotalTokens;
+            result.LlmTraces = reExtracted.LlmTraces;
         }
         catch (Exception ex)
         {
@@ -173,11 +177,33 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
             ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
         };
 
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         var response = await chatClient.CompleteChatAsync(messages, options, ct);
+        sw.Stop();
         var content = response.Value.Content[0].Text;
         var parsed = ParseRiskResponseWithCriteria(content)
             ?? throw new InvalidOperationException("Failed to parse risk re-extraction response");
         parsed.CriteriaValidationAttemptsUsed = 1;
+
+        if (response.Value.Usage is not null)
+        {
+            parsed.InputTokens = response.Value.Usage.InputTokenCount;
+            parsed.OutputTokens = response.Value.Usage.OutputTokenCount;
+            parsed.TotalTokens = response.Value.Usage.TotalTokenCount;
+        }
+
+        parsed.LlmTraces =
+        [
+            new Tools.LlmCallTrace(
+                PromptText: prompt,
+                ResponseText: content,
+                ModelUsed: modelName,
+                LoopRound: 0,
+                InputTokens: parsed.InputTokens,
+                OutputTokens: parsed.OutputTokens,
+                TotalTokens: parsed.TotalTokens,
+                DurationMs: sw.ElapsedMilliseconds)
+        ];
 
         return parsed;
     }

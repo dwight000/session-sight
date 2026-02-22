@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using SessionSight.Agents.Agents;
@@ -23,6 +24,7 @@ public class ExtractionOrchestratorTests
     private readonly IRiskAssessorAgent _riskAssessor;
     private readonly ISummarizerAgent _summarizer;
     private readonly ISessionRepository _sessionRepository;
+    private readonly IExtractionStepRepository _stepRepository;
     private readonly IDocumentStorage _documentStorage;
     private readonly ISessionIndexingService _sessionIndexingService;
     private readonly ILogger<ExtractionOrchestrator> _logger;
@@ -36,6 +38,7 @@ public class ExtractionOrchestratorTests
         _riskAssessor = Substitute.For<IRiskAssessorAgent>();
         _summarizer = Substitute.For<ISummarizerAgent>();
         _sessionRepository = Substitute.For<ISessionRepository>();
+        _stepRepository = Substitute.For<IExtractionStepRepository>();
         _documentStorage = Substitute.For<IDocumentStorage>();
         _sessionIndexingService = Substitute.For<ISessionIndexingService>();
         _logger = Substitute.For<ILogger<ExtractionOrchestrator>>();
@@ -50,12 +53,15 @@ public class ExtractionOrchestratorTests
             .Returns(true);
 
         var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _summarizer);
+        var diagOptions = Options.Create(new PipelineDiagnosticsOptions());
         _orchestrator = new ExtractionOrchestrator(
             _documentParser,
             agents,
             _sessionRepository,
+            _stepRepository,
             _documentStorage,
             _sessionIndexingService,
+            diagOptions,
             _logger);
     }
 

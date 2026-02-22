@@ -1,3 +1,4 @@
+using SessionSight.Agents.Tools;
 using SessionSight.Core.Schema;
 
 namespace SessionSight.Agents.Models;
@@ -47,6 +48,12 @@ public class ExtractionResult
     /// Number of tool calls made by the agent during extraction.
     /// </summary>
     public int ToolCallCount { get; set; }
+
+    public int InputTokens { get; set; }
+    public int OutputTokens { get; set; }
+    public int TotalTokens { get; set; }
+    public IReadOnlyList<ToolCallEntry> ToolCallTrace { get; set; } = [];
+    public IReadOnlyList<LlmCallTrace> LlmTraces { get; set; } = [];
 
     /// <summary>
     /// Whether the extraction completed successfully.

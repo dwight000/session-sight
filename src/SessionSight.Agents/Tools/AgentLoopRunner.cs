@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
 
@@ -60,8 +61,13 @@ public partial class AgentLoopRunner
 #pragma warning restore S3776
         var toolCallCount = 0;
         var trace = new List<ToolCallEntry>();
+        var llmTraces = new List<LlmCallTrace>();
         var toolArray = tools as IAgentTool[] ?? tools.ToArray();
         var toolList = toolArray.ToChatTools().ToList();
+        var loopRound = 0;
+        var totalInputTokens = 0;
+        var totalOutputTokens = 0;
+        var totalTotalTokens = 0;
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(LoopTimeout);
@@ -78,7 +84,9 @@ public partial class AgentLoopRunner
                     return AgentLoopResult.Partial(
                         $"Tool limit ({MaxToolCalls}) exceeded - extraction incomplete",
                         toolCallCount,
-                        trace);
+                        trace,
+                        totalInputTokens, totalOutputTokens, totalTotalTokens,
+                        llmTraces);
                 }
 
                 var options = new ChatCompletionOptions();
@@ -95,8 +103,36 @@ public partial class AgentLoopRunner
                     options.Tools.Add(tool);
                 }
 
+                var llmSw = Stopwatch.StartNew();
                 var response = await chatClient.CompleteChatAsync(messages, options, linkedToken);
+                llmSw.Stop();
                 var completion = response.Value;
+
+                // Accumulate token usage
+                var roundInputTokens = 0;
+                var roundOutputTokens = 0;
+                var roundTotalTokens = 0;
+                if (completion.Usage is not null)
+                {
+                    roundInputTokens = completion.Usage.InputTokenCount;
+                    roundOutputTokens = completion.Usage.OutputTokenCount;
+                    roundTotalTokens = completion.Usage.TotalTokenCount;
+                    totalInputTokens += roundInputTokens;
+                    totalOutputTokens += roundOutputTokens;
+                    totalTotalTokens += roundTotalTokens;
+                }
+
+                // Capture LLM trace for this round
+                var responseText = completion.Content.Count > 0 ? completion.Content[0].Text : null;
+                llmTraces.Add(new LlmCallTrace(
+                    PromptText: SerializeMessagesForTrace(messages),
+                    ResponseText: responseText,
+                    ModelUsed: completion.Model ?? string.Empty,
+                    LoopRound: loopRound,
+                    InputTokens: roundInputTokens,
+                    OutputTokens: roundOutputTokens,
+                    TotalTokens: roundTotalTokens,
+                    DurationMs: llmSw.ElapsedMilliseconds));
 
                 // Add assistant message to conversation
                 messages.Add(new AssistantChatMessage(completion));
@@ -108,17 +144,19 @@ public partial class AgentLoopRunner
 
                     LogAgentToolCalls(_logger, completion.ToolCalls.Count, toolCallCount);
 
-                    // Execute tools in parallel
-                    var tasks = completion.ToolCalls.Select(tc => ExecuteToolCallAsync(toolArray, tc, linkedToken));
+                    // Execute tools in parallel with timing
+                    var tasks = completion.ToolCalls.Select(tc => ExecuteToolCallAsync(toolArray, tc, loopRound, linkedToken));
                     var results = await Task.WhenAll(tasks);
 
                     // Record trace entries and add tool results to conversation
-                    foreach (var (id, result, toolName) in results)
+                    foreach (var (id, result, toolName, round, durationMs, inputJson) in results)
                     {
-                        trace.Add(new ToolCallEntry(toolName, result.Success));
-                        messages.Add(new ToolChatMessage(id, result.Data?.ToString() ?? string.Empty));
+                        var outputJson = result.Data?.ToString();
+                        trace.Add(new ToolCallEntry(toolName, result.Success, round, durationMs, inputJson, outputJson));
+                        messages.Add(new ToolChatMessage(id, outputJson ?? string.Empty));
                     }
 
+                    loopRound++;
                     continue;
                 }
 
@@ -126,7 +164,9 @@ public partial class AgentLoopRunner
                 if (completion.FinishReason == ChatFinishReason.Stop)
                 {
                     var content = completion.Content.Count > 0 ? completion.Content[0].Text : "";
-                    return AgentLoopResult.Complete(content, toolCallCount, trace);
+                    return AgentLoopResult.Complete(content, toolCallCount, trace,
+                        totalInputTokens, totalOutputTokens, totalTotalTokens,
+                        llmTraces);
                 }
 
                 // Unexpected finish reason
@@ -134,7 +174,9 @@ public partial class AgentLoopRunner
                 return AgentLoopResult.Partial(
                     $"Unexpected completion: {completion.FinishReason}",
                     toolCallCount,
-                    trace);
+                    trace,
+                    totalInputTokens, totalOutputTokens, totalTotalTokens,
+                    llmTraces);
             }
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
@@ -143,24 +185,59 @@ public partial class AgentLoopRunner
             return AgentLoopResult.Partial(
                 $"Agent loop timed out after {LoopTimeout.TotalMinutes} minutes",
                 toolCallCount,
-                trace);
+                trace,
+                totalInputTokens, totalOutputTokens, totalTotalTokens,
+                llmTraces);
         }
     }
 
-    private async Task<(string Id, ToolResult Result, string ToolName)> ExecuteToolCallAsync(
+    private async Task<(string Id, ToolResult Result, string ToolName, int LoopRound, long DurationMs, string? InputJson)> ExecuteToolCallAsync(
         IEnumerable<IAgentTool> tools,
         ChatToolCall toolCall,
+        int loopRound,
         CancellationToken ct)
     {
+        var inputJson = toolCall.FunctionArguments.ToString();
         var tool = tools.FirstOrDefault(t => t.Name == toolCall.FunctionName);
         if (tool is null)
         {
             LogUnknownToolRequested(_logger, toolCall.FunctionName);
-            return (toolCall.Id, ToolResult.Error($"Unknown tool: {toolCall.FunctionName}"), toolCall.FunctionName);
+            return (toolCall.Id, ToolResult.Error($"Unknown tool: {toolCall.FunctionName}"), toolCall.FunctionName, loopRound, 0, inputJson);
         }
 
         LogExecutingTool(_logger, toolCall.FunctionName);
-        return (toolCall.Id, await tool.ExecuteAsync(toolCall.FunctionArguments, ct), toolCall.FunctionName);
+        var sw = Stopwatch.StartNew();
+        var result = await tool.ExecuteAsync(toolCall.FunctionArguments, ct);
+        sw.Stop();
+        return (toolCall.Id, result, toolCall.FunctionName, loopRound, sw.ElapsedMilliseconds, inputJson);
+    }
+
+    private static string SerializeMessagesForTrace(List<ChatMessage> messages)
+    {
+        var parts = new List<string>();
+        foreach (var msg in messages)
+        {
+            switch (msg)
+            {
+                case SystemChatMessage sys:
+                    parts.Add($"[SYSTEM]\n{string.Join("\n", sys.Content.Where(p => p.Text is not null).Select(p => p.Text))}");
+                    break;
+                case UserChatMessage usr:
+                    parts.Add($"[USER]\n{string.Join("\n", usr.Content.Where(p => p.Text is not null).Select(p => p.Text))}");
+                    break;
+                case AssistantChatMessage asst:
+                    var text = string.Join("\n", asst.Content.Where(p => p.Text is not null).Select(p => p.Text));
+                    var toolCallNames = asst.ToolCalls.Count > 0
+                        ? $"\n[Tool Calls: {string.Join(", ", asst.ToolCalls.Select(tc => tc.FunctionName))}]"
+                        : string.Empty;
+                    parts.Add($"[ASSISTANT]\n{text}{toolCallNames}");
+                    break;
+                case ToolChatMessage tool:
+                    parts.Add($"[TOOL]\n{string.Join("\n", tool.Content.Where(p => p.Text is not null).Select(p => p.Text))}");
+                    break;
+            }
+        }
+        return string.Join("\n---\n", parts);
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Agent hit tool call limit of {Limit}")]
