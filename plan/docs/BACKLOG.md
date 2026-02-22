@@ -7,11 +7,11 @@
 ## Current Status
 
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
-**Next Action**: B-094 (Live extraction progress UI)
+**Next Action**: B-094 — polish Upload page live pipeline UX, then push & PR
 
-**Last Updated**: February 21, 2026
+**Last Updated**: February 22, 2026
 
-**Milestone**: B-095 complete — pipeline step instrumentation with per-step persistence, token tracking, tool call traces, and GET /api/sessions/{id}/extraction/steps endpoint. B-094 unblocked.
+**Milestone**: B-094 in progress — live extraction pipeline UI with 3-level progressive disclosure (step cards → tool calls/LLM traces → raw I/O). SessionDetail Processing Log working. Upload page pipeline view has minor timing glitch during extraction (form refetch race). Needs testing before push.
 
 ---
 
@@ -19,7 +19,7 @@
 
 <!-- When you start a task, move it here. Only ONE task at a time. -->
 
-*(none — pick next from Task Table)*
+**B-094** — Live extraction progress UI (In-Progress)
 
 ---
 
@@ -190,7 +190,7 @@
 | B-092 | Phase 2 SLO measurement (latency, F1, cost-per-note) | S | 5 | Ready | - |
 | B-093 | Compare sessions tool for QA agent | S | 3 | Done | - |
 | **Pipeline Observability (B-094–B-096)** |||||
-| B-094 | Live extraction progress UI — step-by-step pipeline visualization | L | 4 | Ready | - |
+| B-094 | Live extraction progress UI — step-by-step pipeline visualization | L | 4 | In-Progress | - |
 | B-095 | Pipeline step instrumentation — persist per-step extraction diagnostics | XL | 2 | Done | - |
 | B-096 | Extraction detail polish — confidence heatmap, risk merge viz, source attribution | M | 4 | Blocked | B-094 |
 
