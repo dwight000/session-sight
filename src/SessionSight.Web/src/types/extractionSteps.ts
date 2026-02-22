@@ -50,6 +50,7 @@ export interface ExtractionStep {
 
 export interface ExtractionStepsResponse {
   extractionId: string
+  documentStatus: string | null
   steps: ExtractionStep[]
 }
 

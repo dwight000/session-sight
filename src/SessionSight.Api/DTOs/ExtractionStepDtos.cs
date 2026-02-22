@@ -2,6 +2,7 @@ namespace SessionSight.Api.DTOs;
 
 public record ExtractionStepsResponseDto(
     Guid ExtractionId,
+    string? DocumentStatus,
     IReadOnlyList<ExtractionStepDto> Steps);
 
 public record ExtractionStepDto(

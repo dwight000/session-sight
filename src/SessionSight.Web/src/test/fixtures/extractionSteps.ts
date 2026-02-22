@@ -59,6 +59,7 @@ export const mockLlmTrace: ExtractionLlmTrace = {
 
 export const mockExtractionStepsComplete: ExtractionStepsResponse = {
   extractionId: 'ext-001',
+  documentStatus: 'Completed',
   steps: [
     makeStep('DocumentParse', 0, {
       durationMs: 1200,
@@ -113,6 +114,7 @@ export const mockExtractionStepsComplete: ExtractionStepsResponse = {
 
 export const mockExtractionStepsPartial: ExtractionStepsResponse = {
   extractionId: 'ext-002',
+  documentStatus: 'Processing',
   steps: [
     mockExtractionStepsComplete.steps[0],
     mockExtractionStepsComplete.steps[1],
@@ -121,6 +123,7 @@ export const mockExtractionStepsPartial: ExtractionStepsResponse = {
 
 export const mockExtractionStepsFailed: ExtractionStepsResponse = {
   extractionId: 'ext-003',
+  documentStatus: 'Failed',
   steps: [
     mockExtractionStepsComplete.steps[0],
     mockExtractionStepsComplete.steps[1],

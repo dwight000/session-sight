@@ -40,12 +40,20 @@ export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipeline
     return step && step.status !== 'Running'
   }).length
   const hasFailed = data?.steps.some((s) => s.status === 'Failed') ?? false
-  const currentStepName = isLive && !hasFailed && completedCount < STEP_ORDER.length
+  const pipelineCrashed = data?.documentStatus === 'Failed' && !hasFailed
+  const currentStepName = isLive && !hasFailed && !pipelineCrashed && completedCount < STEP_ORDER.length
     ? STEP_ORDER[completedCount]
     : null
 
   return (
     <div className="space-y-2">
+      {pipelineCrashed && (
+        <div className="rounded-md bg-red-50 border border-red-200 p-3">
+          <p className="text-sm font-medium text-red-800">
+            Pipeline crashed unexpectedly. Completed steps are shown below.
+          </p>
+        </div>
+      )}
       {STEP_ORDER.map((name) => (
         <ExtractionStepCard
           key={name}

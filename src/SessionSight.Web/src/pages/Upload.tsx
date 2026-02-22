@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { useSessions } from '../hooks/useSessions'
 import { usePatients } from '../hooks/usePatients'
 import { useUploadDocument } from '../hooks/useUploadDocument'
@@ -25,6 +26,7 @@ export function Upload() {
   const { data: sessions, isLoading: sessionsLoading } = useSessions({ hasDocument: false })
   const { data: patients } = usePatients()
   const uploadDocument = useUploadDocument()
+  const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [selectedSessionId, setSelectedSessionId] = useState<string>('')
@@ -85,7 +87,8 @@ export function Upload() {
       { sessionId: selectedSessionId, file: selectedFile },
       {
         onSuccess: (result) => {
-          setProcessingSessionId(null)
+          // Force one final fetch so pipeline view shows completed state
+          queryClient.invalidateQueries({ queryKey: ['extractionSteps', selectedSessionId] })
           if (result.success) {
             setUploadResult({ success: true, sessionId: selectedSessionId })
             setSelectedSessionId('')
@@ -98,7 +101,7 @@ export function Upload() {
           }
         },
         onError: (error) => {
-          setProcessingSessionId(null)
+          queryClient.invalidateQueries({ queryKey: ['extractionSteps', selectedSessionId] })
           setUploadResult({ success: false, error: (error as Error).message })
         },
       }
@@ -319,8 +322,8 @@ export function Upload() {
         </form>
       )}
 
-      {/* Pipeline view — outside the form so it survives session list refetches */}
-      {uploadDocument.isPending && processingSessionId && (
+      {/* Pipeline view — stays visible after completion so user can review steps */}
+      {processingSessionId && (
         <div className="rounded-md border border-blue-200 bg-blue-50/30 p-4">
           <p className="mb-3 text-sm font-medium text-blue-800">Extraction Pipeline</p>
           <ExtractionPipelineView sessionId={processingSessionId} isLive={true} />
