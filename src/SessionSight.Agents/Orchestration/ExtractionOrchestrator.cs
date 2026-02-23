@@ -1,4 +1,6 @@
+using System.Collections.Frozen;
 using System.Diagnostics;
+using System.Reflection;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -613,24 +615,34 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         await _sessionRepository.UpdateExtractionResultAsync(entity);
     }
 
+    private static readonly PropertyInfo[] CachedSectionProperties = typeof(Core.Schema.ClinicalExtraction)
+        .GetProperties()
+        .Where(p => p.PropertyType.GetProperties().Any(sp =>
+            sp.PropertyType.IsGenericType &&
+            sp.PropertyType.GetGenericTypeDefinition() == typeof(Core.Schema.ExtractedField<>)))
+        .ToArray();
+
+    private static readonly FrozenDictionary<Type, PropertyInfo[]> CachedFieldProperties =
+        CachedSectionProperties.ToFrozenDictionary(
+            p => p.PropertyType,
+            p => p.PropertyType.GetProperties()
+                .Where(fp => fp.PropertyType.IsGenericType &&
+                             fp.PropertyType.GetGenericTypeDefinition() == typeof(Core.Schema.ExtractedField<>))
+                .ToArray());
+
     private static int CountExtractedFields(AgentExtractionResult result)
     {
         if (result.Data is null) return 0;
 
         var count = 0;
-        var sectionProperties = typeof(Core.Schema.ClinicalExtraction).GetProperties()
-            .Where(p => p.PropertyType.GetProperties().Any(sp =>
-                sp.PropertyType.IsGenericType &&
-                sp.PropertyType.GetGenericTypeDefinition() == typeof(Core.Schema.ExtractedField<>)));
 
-        foreach (var sectionProp in sectionProperties)
+        foreach (var sectionProp in CachedSectionProperties)
         {
             var section = sectionProp.GetValue(result.Data);
             if (section is null) continue;
 
-            var fieldProps = section.GetType().GetProperties()
-                .Where(p => p.PropertyType.IsGenericType &&
-                            p.PropertyType.GetGenericTypeDefinition() == typeof(Core.Schema.ExtractedField<>));
+            if (!CachedFieldProperties.TryGetValue(sectionProp.PropertyType, out var fieldProps))
+                continue;
 
             foreach (var fieldProp in fieldProps)
             {
@@ -704,7 +716,4 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to save step {StepName} for extraction {ExtractionId}")]
     private static partial void LogStepSaveError(ILogger logger, Exception exception, ExtractionStepName stepName, Guid extractionId);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Step {StepName} save diagnostic: ToolCalls={StepToolCallCount}, LlmTraces={StepLlmTraceCount}, ResultTrace={ResultTraceCount}")]
-    private static partial void LogStepDiagnostic(ILogger logger, ExtractionStepName stepName, int stepToolCallCount, int stepLlmTraceCount, int resultTraceCount);
 }

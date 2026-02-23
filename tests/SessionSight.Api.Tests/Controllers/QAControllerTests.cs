@@ -36,27 +36,8 @@ public class QAControllerTests
         result.Result.Should().BeOfType<NotFoundObjectResult>();
     }
 
-    [Fact]
-    public async Task AskAboutPatient_EmptyQuestion_ReturnsBadRequest()
-    {
-        var patientId = Guid.NewGuid();
-        var request = new QARequest { Question = "" };
-
-        var result = await _controller.AskAboutPatient(patientId, request);
-
-        result.Result.Should().BeOfType<BadRequestObjectResult>();
-    }
-
-    [Fact]
-    public async Task AskAboutPatient_WhitespaceQuestion_ReturnsBadRequest()
-    {
-        var patientId = Guid.NewGuid();
-        var request = new QARequest { Question = "   " };
-
-        var result = await _controller.AskAboutPatient(patientId, request);
-
-        result.Result.Should().BeOfType<BadRequestObjectResult>();
-    }
+    // Empty/whitespace question validation is handled by QARequestValidator + FluentValidation
+    // pipeline (Program.cs), not by the controller. Tested via integration tests.
 
     [Fact]
     public async Task AskAboutPatient_ValidRequest_ReturnsQAResponse()

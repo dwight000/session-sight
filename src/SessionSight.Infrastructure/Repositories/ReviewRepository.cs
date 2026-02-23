@@ -79,6 +79,8 @@ public class ReviewRepository : IReviewRepository
         await _context.SaveChangesAsync();
     }
 
+    // Sequential queries because EF DbContext is not thread-safe (can't use Task.WhenAll).
+    // Could be combined into a single raw SQL query for a single roundtrip if perf matters.
     public async Task<ReviewStats> GetReviewStatsAsync()
     {
         var today = DateTime.UtcNow.Date;

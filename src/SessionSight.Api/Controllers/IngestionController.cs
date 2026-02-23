@@ -73,6 +73,8 @@ public partial class IngestionController : ControllerBase
             if (existingJob is not null)
             {
                 LogDuplicateJobKey(_logger, request.JobKey);
+                // ProcessingJob doesn't store SessionId, so we can't return the original session ID here.
+                // The caller should use the job key for idempotency tracking rather than the session ID.
                 return Accepted(new ProcessNoteResponse(
                     Guid.Empty,
                     "Already processed (duplicate job key)"
@@ -129,16 +131,18 @@ public partial class IngestionController : ControllerBase
         }
 
         // 3. Trigger extraction asynchronously (fire-and-forget)
-        // Use IServiceScopeFactory to create a fresh DI scope that outlives this HTTP request
+        // Use IServiceScopeFactory to create a fresh DI scope that outlives this HTTP request.
+        // Resolve logger from the background scope to avoid capturing the request-scoped _logger.
         _ = Task.Run(async () =>
         {
             try
             {
                 using var scope = _scopeFactory.CreateScope();
+                var logger = scope.ServiceProvider.GetRequiredService<ILogger<IngestionController>>();
                 var orchestrator = scope.ServiceProvider.GetRequiredService<IExtractionOrchestrator>();
-                LogStartingBackgroundExtraction(_logger, session.Id);
+                LogStartingBackgroundExtraction(logger, session.Id);
                 var result = await orchestrator.ProcessSessionAsync(session.Id, CancellationToken.None);
-                LogBackgroundExtractionCompleted(_logger, session.Id);
+                LogBackgroundExtractionCompleted(logger, session.Id);
 
                 if (!string.IsNullOrEmpty(jobKey))
                 {
@@ -148,19 +152,20 @@ public partial class IngestionController : ControllerBase
             }
             catch (Exception ex)
             {
-                LogBackgroundExtractionFailed(_logger, ex, session.Id);
+                using var failScope = _scopeFactory.CreateScope();
+                var logger = failScope.ServiceProvider.GetRequiredService<ILogger<IngestionController>>();
+                LogBackgroundExtractionFailed(logger, ex, session.Id);
 
                 if (!string.IsNullOrEmpty(jobKey))
                 {
                     try
                     {
-                        using var failScope = _scopeFactory.CreateScope();
                         var jobRepo = failScope.ServiceProvider.GetRequiredService<IProcessingJobRepository>();
                         await jobRepo.UpdateStatusAsync(jobKey, JobStatus.Failed);
                     }
-                    catch (DbUpdateException updateEx)
+                    catch (Exception updateEx)
                     {
-                        LogJobStatusUpdateFailed(_logger, updateEx, jobKey);
+                        LogJobStatusUpdateFailed(logger, updateEx, jobKey);
                     }
                 }
             }

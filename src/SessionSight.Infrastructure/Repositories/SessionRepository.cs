@@ -143,13 +143,6 @@ public partial class SessionRepository : ISessionRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task SaveExtractionResultAsync(ExtractionResult extraction)
-    {
-        // Direct insert to Extractions table - avoids Session RowVersion concurrency issues
-        _context.Extractions.Add(extraction);
-        await _context.SaveChangesAsync();
-    }
-
     public async Task UpsertExtractionResultAsync(ExtractionResult extraction)
     {
         // Delete existing extraction for this session (if any) then insert new one.

@@ -25,11 +25,7 @@ public partial class SummarizerAgent : ISummarizerAgent
     private readonly ISessionRepository _sessionRepository;
     private readonly ILogger<SummarizerAgent> _logger;
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
+    private static readonly JsonSerializerOptions JsonOptions = SharedJsonOptions.AgentDefault;
 
     public SummarizerAgent(
         IAIFoundryClientFactory clientFactory,
@@ -268,7 +264,7 @@ public partial class SummarizerAgent : ISummarizerAgent
 
     internal static SessionSummary ParseSessionSummary(string content)
     {
-        var json = ExtractJson(content);
+        var json = LlmJsonHelper.ExtractJson(content);
 
         try
         {
@@ -313,7 +309,7 @@ public partial class SummarizerAgent : ISummarizerAgent
 
     internal static PatientSummary ParsePatientSummary(string content)
     {
-        var json = ExtractJson(content);
+        var json = LlmJsonHelper.ExtractJson(content);
 
         try
         {
@@ -419,8 +415,6 @@ public partial class SummarizerAgent : ISummarizerAgent
 
         return risk;
     }
-
-    internal static string ExtractJson(string content) => LlmJsonHelper.ExtractJson(content);
 
     private static RiskLevelBreakdown CalculateRiskDistribution(List<Session> sessions)
     {

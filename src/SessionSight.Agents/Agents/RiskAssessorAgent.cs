@@ -48,12 +48,10 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
     private const string FieldSelfHarm = "SelfHarm";
     private const string FieldHomicidalIdeation = "HomicidalIdeation";
     private const string FieldRiskLevelOverall = "RiskLevelOverall";
+    private const string FieldSiFrequency = "SiFrequency";
+    private const string FieldSiIntensity = "SiIntensity";
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
+    private static readonly JsonSerializerOptions JsonOptions = SharedJsonOptions.AgentDefault;
 
     public RiskAssessorAgent(
         IAIFoundryClientFactory clientFactory,
@@ -215,7 +213,7 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
 
     internal static RiskReExtractionResponse? ParseRiskResponseWithCriteria(string content)
     {
-        var json = ExtractJson(content);
+        var json = LlmJsonHelper.ExtractJson(content);
 
         try
         {
@@ -237,8 +235,6 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
             return null;
         }
     }
-
-    internal static string ExtractJson(string content) => LlmJsonHelper.ExtractJson(content);
 
     private static RiskAssessmentExtracted MapToRiskAssessment(Dictionary<string, JsonElement> parsed)
     {
@@ -548,6 +544,22 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
                 "Imminent" => 3,
                 _ => 0
             },
+            FieldSiFrequency => value switch
+            {
+                "Rare" => 0,
+                "Occasional" => 1,
+                "Frequent" => 2,
+                "Constant" => 3,
+                _ => 0
+            },
+            FieldSiIntensity => value switch
+            {
+                "Fleeting" => 0,
+                "Mild" => 1,
+                "Moderate" => 2,
+                "Severe" => 3,
+                _ => 0
+            },
             _ => 0
         };
     }
@@ -661,20 +673,18 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         ExtractedField<SiFrequency> field1,
         ExtractedField<SiFrequency> field2)
     {
-        // SiFrequency: Rare=0, Occasional=1, Frequent=2, Constant=3
-        var s1 = (int)field1.Value;
-        var s2 = (int)field2.Value;
-        return s1 >= s2 ? field1 : field2;
+        var severity1 = GetSeverityScore(FieldSiFrequency, field1.Value.ToString());
+        var severity2 = GetSeverityScore(FieldSiFrequency, field2.Value.ToString());
+        return severity1 >= severity2 ? field1 : field2;
     }
 
     private static ExtractedField<SiIntensity> SelectMoreSevereSiInt(
         ExtractedField<SiIntensity> field1,
         ExtractedField<SiIntensity> field2)
     {
-        // SiIntensity: Fleeting=0, Mild=1, Moderate=2, Severe=3
-        var s1 = (int)field1.Value;
-        var s2 = (int)field2.Value;
-        return s1 >= s2 ? field1 : field2;
+        var severity1 = GetSeverityScore(FieldSiIntensity, field1.Value.ToString());
+        var severity2 = GetSeverityScore(FieldSiIntensity, field2.Value.ToString());
+        return severity1 >= severity2 ? field1 : field2;
     }
 
     private static ExtractedField<string> SelectNonNull(
