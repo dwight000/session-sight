@@ -71,6 +71,19 @@ describe('SessionDetail', () => {
     expect(screen.getByText('Overall Risk Level')).toBeInTheDocument()
   })
 
+  it('renders partial extracted fields (confidence-only) with em-dash instead of raw JSON', async () => {
+    renderSessionDetail()
+
+    await waitFor(() => {
+      expect(screen.getByText('Risk Assessment')).toBeInTheDocument()
+    })
+
+    // shRecency has {confidence: 0} with no value key — should show field name and em-dash, not raw JSON
+    expect(screen.getByText('Sh Recency')).toBeInTheDocument()
+    expect(screen.getByText('0%')).toBeInTheDocument()
+    expect(screen.queryByText('{"confidence":0}')).not.toBeInTheDocument()
+  })
+
   it('other accordion sections start closed, open on click', async () => {
     const user = userEvent.setup()
     renderSessionDetail()
@@ -253,5 +266,39 @@ describe('SessionDetail', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /delete document/i })).toBeInTheDocument()
     })
+  })
+
+  it('shows Show source buttons in risk assessment section', async () => {
+    renderSessionDetail()
+
+    await waitFor(() => {
+      expect(screen.getByText('Risk Assessment')).toBeInTheDocument()
+    })
+
+    // Risk assessment is open by default and has source data
+    const showSourceButtons = screen.getAllByText('Show source')
+    expect(showSourceButtons.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('toggles source attribution panel on click', async () => {
+    const user = userEvent.setup()
+    renderSessionDetail()
+
+    await waitFor(() => {
+      expect(screen.getByText('Risk Assessment')).toBeInTheDocument()
+    })
+
+    // Click first "Show source" button
+    const showButtons = screen.getAllByText('Show source')
+    await user.click(showButtons[0])
+
+    // Source details should appear with blue background panel
+    expect(screen.getByText('Hide source')).toBeInTheDocument()
+    expect(screen.getByText(/Section:/)).toBeInTheDocument()
+    expect(screen.getByText(/Chars:/)).toBeInTheDocument()
+
+    // Click hide
+    await user.click(screen.getByText('Hide source'))
+    expect(screen.queryByText('Hide source')).not.toBeInTheDocument()
   })
 })

@@ -7,11 +7,11 @@
 ## Current Status
 
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
-**Next Action**: B-094 — run check scripts, push & create PR
+**Next Action**: B-096 — push & create PR
 
 **Last Updated**: February 22, 2026
 
-**Milestone**: B-094 complete — live extraction pipeline UI with 3-level progressive disclosure, real-time step-by-step polling, crash detection via documentStatus, and Upload page pipeline persistence after completion. All edge cases resolved: early polling stop (isPipelineFinished required all 6 steps), stale Running state (invalidateQueries on mutation complete), form vanishing (pipeline view outside form), EF concurrency (ExecuteUpdateAsync for step upserts), backend saves Running row at step start for live progress.
+**Milestone**: B-096 complete — extraction detail polish with confidence heatmap (color-coded chips per field), risk merge view (three-column original/re-extracted/final with guardrail banners), and source attribution (click-to-expand panels in Clinical Extraction Data). All purely frontend — no backend changes. 16 files changed, 251 tests passing, 83%+ coverage.
 
 ---
 
@@ -19,7 +19,7 @@
 
 <!-- When you start a task, move it here. Only ONE task at a time. -->
 
-**B-094** — Live extraction progress UI (In-Progress)
+**B-096** — Extraction detail polish (Done — ready for PR)
 
 ---
 
@@ -192,7 +192,8 @@
 | **Pipeline Observability (B-094–B-096)** |||||
 | B-094 | Live extraction progress UI — step-by-step pipeline visualization | L | 4 | Done | - |
 | B-095 | Pipeline step instrumentation — persist per-step extraction diagnostics | XL | 2 | Done | - |
-| B-096 | Extraction detail polish — confidence heatmap, risk merge viz, source attribution | M | 4 | Ready | - |
+| B-096 | Extraction detail polish — confidence heatmap, risk merge viz, source attribution | M | 4 | Done | - |
+| B-097 | Legal disclaimer — "not for clinical use" banner, terms of use, liability notice | S | 4 | Ready | - |
 
 ---
 
@@ -1000,6 +1001,7 @@ Both paths call the same `ExtractionOrchestrator.ProcessSessionAsync()`. The blo
 | B-091 | RAG eval harness — 20 golden QA cases, QADiagnostics, ToolCallTrace, precision@5 | 2026-02-20 |
 | B-095 | Pipeline step instrumentation — per-step persistence, token tracking, tool call traces, GET steps endpoint | 2026-02-22 |
 | B-094 | Live extraction progress UI — real-time polling, 3-level progressive disclosure, crash detection, step-by-step progress | 2026-02-22 |
+| B-096 | Extraction detail polish — confidence heatmap, risk merge view, source attribution | 2026-02-22 |
 
 ---
 

@@ -6,6 +6,7 @@ import type {
   ExtractionToolCall,
   ExtractionLlmTrace,
 } from '../../types/extractionSteps'
+import type { ExtractionResultResponse } from '../../types'
 
 let idCounter = 0
 
@@ -134,4 +135,72 @@ export const mockExtractionStepsFailed: ExtractionStepsResponse = {
       resultSummaryJson: null,
     }),
   ],
+}
+
+export const mockExtractionResult: ExtractionResultResponse = {
+  id: 'ext-001',
+  sessionId: 'sess-001',
+  data: {
+    sessionInfo: {
+      sessionDate: { value: '2025-01-15', confidence: 0.98, source: { text: 'Session date: January 15, 2025', startChar: 0, endChar: 30, section: 'header' } },
+      sessionType: { value: 'Individual', confidence: 0.95, source: { text: 'Individual therapy session', startChar: 31, endChar: 57, section: 'header' } },
+    },
+    presentingConcerns: {
+      primaryConcern: { value: 'Anxiety', confidence: 0.92, source: { text: 'Patient reports ongoing anxiety', startChar: 100, endChar: 131, section: 'presenting' } },
+    },
+    moodAssessment: {
+      currentMood: { value: 'Anxious', confidence: 0.88, source: { text: 'Mood: anxious and restless', startChar: 200, endChar: 226, section: 'mood' } },
+      phq9Score: { value: 12, confidence: 0.45, source: { text: 'PHQ-9 score estimated at 12', startChar: 227, endChar: 254, section: 'assessment' } },
+    },
+    riskAssessment: {
+      suicidalIdeation: { value: 'Passive', confidence: 0.65, source: { text: 'Passive SI reported', startChar: 300, endChar: 319, section: 'risk' } },
+      overallRiskLevel: { value: 'Moderate', confidence: 0.72, source: { text: 'Risk level: moderate', startChar: 320, endChar: 340, section: 'risk' } },
+    },
+    mentalStatusExam: {
+      appearance: { value: 'Well-groomed', confidence: 0.9, source: { text: 'Well-groomed appearance', startChar: 400, endChar: 423, section: 'mse' } },
+    },
+    interventions: {
+      techniquesUsed: { value: ['CBT', 'Breathing exercises'], confidence: 0.85, source: { text: 'Used CBT and breathing exercises', startChar: 500, endChar: 532, section: 'interventions' } },
+    },
+    diagnoses: {
+      primaryDiagnosis: { value: 'GAD', confidence: 0.9, source: { text: 'Diagnosis: GAD', startChar: 600, endChar: 614, section: 'diagnosis' } },
+    },
+    treatmentProgress: {
+      progressRating: { value: 'Moderate improvement', confidence: 0.78, source: { text: 'Moderate improvement noted', startChar: 700, endChar: 726, section: 'progress' } },
+    },
+    nextSteps: {
+      followUpPlan: { value: 'Weekly sessions', confidence: 0.85, source: { text: 'Continue weekly sessions', startChar: 800, endChar: 824, section: 'plan' } },
+    },
+  },
+  riskDiagnostics: {
+    guardrailApplied: true,
+    homicidalGuardrail: { applied: false, reason: '' },
+    selfHarmGuardrail: { applied: true, reason: 'Passive SI detected in note text' },
+    discrepancyCount: 2,
+    fieldDecisions: [
+      {
+        field: 'suicidalIdeation',
+        originalValue: 'None',
+        reExtractedValue: 'Passive',
+        finalValue: 'Passive',
+        ruleApplied: 'ConservativeMerge',
+        criteriaUsed: ['Higher severity wins', 'Source text mentions passive SI'],
+        reasoningUsed: 'Re-extraction found passive SI that original extraction missed.',
+      },
+      {
+        field: 'overallRiskLevel',
+        originalValue: 'Low',
+        reExtractedValue: 'Moderate',
+        finalValue: 'Moderate',
+        ruleApplied: 'ConservativeMerge',
+        criteriaUsed: ['Higher severity wins'],
+        reasoningUsed: 'Elevated due to passive SI finding.',
+      },
+    ],
+  },
+}
+
+export const mockExtractionResultNoRisk: ExtractionResultResponse = {
+  ...mockExtractionResult,
+  riskDiagnostics: null,
 }

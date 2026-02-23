@@ -49,6 +49,7 @@ function ExtractionSection({
   data: Record<string, unknown>
 }) {
   const [open, setOpen] = useState(name === 'riskAssessment')
+  const [activeSourceKey, setActiveSourceKey] = useState<string | null>(null)
 
   if (!data || typeof data !== 'object') return null
 
@@ -67,16 +68,36 @@ function ExtractionSection({
         <div className="border-t border-gray-200 px-4 py-3">
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {entries.map(([key, val]) => {
-              if (isExtractedField(val)) {
+              // Partial extracted field: backend returns {"confidence":0} for unextractable fields
+              const isPartialField = typeof val === 'object' && val !== null && 'confidence' in val && !('value' in val)
+              if (isExtractedField(val) || isPartialField) {
+                const confidence = (val as { confidence: number }).confidence
+                const value = 'value' in (val as object) ? (val as { value: unknown }).value : undefined
+                const source = 'source' in (val as object) ? (val as { source: { text?: string; section?: string; startChar: number; endChar: number } | null }).source : null
+                const sourceExpanded = activeSourceKey === key
                 return (
                   <div key={key} className="rounded-md bg-gray-50 p-3">
                     <p className="text-xs font-medium text-gray-500">{formatFieldName(key)}</p>
-                    <p className="mt-1 text-sm text-gray-900">{formatFieldValue(val.value)}</p>
-                    <ConfidenceBar value={val.confidence} className="mt-1" />
-                    {val.source?.text && (
-                      <p className="mt-1 text-xs text-gray-400 italic truncate" title={val.source.text}>
-                        Source: {val.source.text}
-                      </p>
+                    <p className="mt-1 text-sm text-gray-900">{formatFieldValue(value)}</p>
+                    <ConfidenceBar value={confidence} className="mt-1" />
+                    {source?.text && (
+                      <>
+                        <button
+                          onClick={() => setActiveSourceKey(sourceExpanded ? null : key)}
+                          className="mt-1 text-xs text-blue-600 hover:text-blue-800 cursor-pointer"
+                        >
+                          {sourceExpanded ? 'Hide source' : 'Show source'}
+                        </button>
+                        {sourceExpanded && (
+                          <div className="mt-1 rounded border border-blue-100 bg-blue-50 p-2 text-xs">
+                            {source.section && (
+                              <p><span className="font-medium text-gray-500">Section:</span> {source.section}</p>
+                            )}
+                            <p className="break-words"><span className="font-medium text-gray-500">Text:</span> {source.text}</p>
+                            <p><span className="font-medium text-gray-500">Chars:</span> {source.startChar}–{source.endChar}</p>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )

@@ -71,11 +71,21 @@ export interface ClinicalExtractResult {
   fieldCount: number
   overallConfidence: number
   toolCallCount: number
+  lowConfidenceFields?: string[]
 }
 
 export interface RiskAssessResult {
   riskLevel: string
   requiresReview: boolean
+  discrepancyCount?: number
+  guardrailApplied?: boolean
+  reviewReasons?: string[]
+  fieldDecisions?: RiskFieldDecisionSummary[]
+}
+
+export interface RiskFieldDecisionSummary {
+  field: string
+  ruleApplied: string
 }
 
 export interface SummarizeResult {

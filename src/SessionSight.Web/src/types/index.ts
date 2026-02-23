@@ -220,6 +220,37 @@ export interface QAResponse {
   generatedAt: string
 }
 
+// Extraction result types
+export interface ExtractionResultResponse {
+  id: string
+  sessionId: string
+  data: ClinicalExtraction
+  riskDiagnostics: RiskDiagnostics | null
+}
+
+export interface RiskDiagnostics {
+  guardrailApplied: boolean
+  homicidalGuardrail: GuardrailDetail
+  selfHarmGuardrail: GuardrailDetail
+  discrepancyCount: number
+  fieldDecisions: RiskFieldDecision[]
+}
+
+export interface RiskFieldDecision {
+  field: string
+  originalValue: string
+  reExtractedValue: string
+  finalValue: string
+  ruleApplied: string
+  criteriaUsed: string[]
+  reasoningUsed: string
+}
+
+export interface GuardrailDetail {
+  applied: boolean
+  reason: string
+}
+
 // Processing job types
 export type JobStatus = 'Pending' | 'Processing' | 'Completed' | 'Failed'
 
