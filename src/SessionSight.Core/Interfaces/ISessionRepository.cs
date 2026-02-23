@@ -1,5 +1,4 @@
 using SessionSight.Core.Entities;
-using SessionSight.Core.Enums;
 
 namespace SessionSight.Core.Interfaces;
 
@@ -13,11 +12,4 @@ public interface ISessionRepository
     Task<IEnumerable<Session>> GetFlaggedSessionsAsync(DateOnly startDate, DateOnly endDate);
     Task<Session> AddAsync(Session session);
     Task UpdateAsync(Session session);
-    Task AddDocumentAsync(Session session, SessionDocument document);
-    Task UpdateDocumentStatusAsync(Guid sessionId, DocumentStatus status, string? extractedText = null);
-    Task<bool> TryTransitionDocumentStatusAsync(Guid sessionId, DocumentStatus fromStatus, DocumentStatus toStatus);
-    Task UpsertExtractionResultAsync(ExtractionResult extraction);
-    Task UpdateExtractionSummaryAsync(Guid extractionId, string summaryJson);
-    Task UpdateExtractionResultAsync(ExtractionResult extraction);
-    Task DeleteDocumentAsync(Guid sessionId);
 }

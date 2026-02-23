@@ -18,6 +18,7 @@ namespace SessionSight.Api.Tests.Controllers;
 public class DocumentsControllerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepositoryMock;
+    private readonly Mock<IDocumentRepository> _documentRepositoryMock;
     private readonly Mock<IExtractionStepRepository> _stepRepositoryMock;
     private readonly Mock<IDocumentStorage> _documentStorageMock;
     private readonly Mock<ISearchIndexService> _searchIndexServiceMock;
@@ -27,12 +28,14 @@ public class DocumentsControllerTests
     public DocumentsControllerTests()
     {
         _sessionRepositoryMock = new Mock<ISessionRepository>();
+        _documentRepositoryMock = new Mock<IDocumentRepository>();
         _stepRepositoryMock = new Mock<IExtractionStepRepository>();
         _documentStorageMock = new Mock<IDocumentStorage>();
         _searchIndexServiceMock = new Mock<ISearchIndexService>();
         _docOptions = new DocumentIntelligenceOptions();
         _controller = new DocumentsController(
             _sessionRepositoryMock.Object,
+            _documentRepositoryMock.Object,
             _stepRepositoryMock.Object,
             _documentStorageMock.Object,
             _searchIndexServiceMock.Object,
@@ -166,7 +169,7 @@ public class DocumentsControllerTests
 
         await _controller.UploadDocument(sessionId, CreateMockFile());
 
-        _sessionRepositoryMock.Verify(r => r.AddDocumentAsync(session, It.Is<SessionDocument>(d =>
+        _documentRepositoryMock.Verify(r => r.AddDocumentAsync(session, It.Is<SessionDocument>(d =>
             d.SessionId == sessionId &&
             d.Status == DocumentStatus.Pending)), Times.Once);
     }
@@ -269,7 +272,7 @@ public class DocumentsControllerTests
         result.Should().BeOfType<NoContentResult>();
         _documentStorageMock.Verify(s => s.DeleteAsync(blobUri), Times.Once);
         _searchIndexServiceMock.Verify(s => s.DeleteDocumentAsync(sessionId.ToString(), It.IsAny<CancellationToken>()), Times.Once);
-        _sessionRepositoryMock.Verify(r => r.DeleteDocumentAsync(sessionId), Times.Once);
+        _documentRepositoryMock.Verify(r => r.DeleteDocumentAsync(sessionId), Times.Once);
     }
 
     private static IFormFile CreateMockFile(string fileName = "test.pdf", string contentType = "application/pdf", long? length = null)

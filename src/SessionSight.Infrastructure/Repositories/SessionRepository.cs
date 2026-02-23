@@ -7,7 +7,7 @@ using SessionSight.Infrastructure.Data;
 
 namespace SessionSight.Infrastructure.Repositories;
 
-public partial class SessionRepository : ISessionRepository
+public partial class SessionRepository : ISessionRepository, IDocumentRepository, IExtractionResultRepository
 {
     private const int MaxConcurrencyRetries = 3;
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(100);

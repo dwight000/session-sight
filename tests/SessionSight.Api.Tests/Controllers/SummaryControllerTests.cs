@@ -17,6 +17,7 @@ public class SummaryControllerTests
 {
     private readonly Mock<ISummarizerAgent> _mockSummarizer;
     private readonly Mock<ISessionRepository> _mockSessionRepo;
+    private readonly Mock<IExtractionResultRepository> _mockExtractionResultRepo;
     private readonly Mock<IPatientRepository> _mockPatientRepo;
     private readonly SummaryController _controller;
 
@@ -24,10 +25,12 @@ public class SummaryControllerTests
     {
         _mockSummarizer = new Mock<ISummarizerAgent>();
         _mockSessionRepo = new Mock<ISessionRepository>();
+        _mockExtractionResultRepo = new Mock<IExtractionResultRepository>();
         _mockPatientRepo = new Mock<IPatientRepository>();
         _controller = new SummaryController(
             _mockSummarizer.Object,
             _mockSessionRepo.Object,
+            _mockExtractionResultRepo.Object,
             _mockPatientRepo.Object);
     }
 
@@ -106,7 +109,7 @@ public class SummaryControllerTests
         var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
         var summary = okResult.Value.Should().BeOfType<SessionSummary>().Subject;
         summary.OneLiner.Should().Be("New summary");
-        _mockSessionRepo.Verify(r => r.UpdateExtractionSummaryAsync(extractionId, It.IsAny<string>()), Times.Once);
+        _mockExtractionResultRepo.Verify(r => r.UpdateExtractionSummaryAsync(extractionId, It.IsAny<string>()), Times.Once);
     }
 
     [Fact]

@@ -21,6 +21,7 @@ public partial class DocumentsController : ControllerBase
     };
 
     private readonly ISessionRepository _sessionRepository;
+    private readonly IDocumentRepository _documentRepository;
     private readonly IExtractionStepRepository _stepRepository;
     private readonly IDocumentStorage _documentStorage;
     private readonly ISearchIndexService _searchIndexService;
@@ -29,6 +30,7 @@ public partial class DocumentsController : ControllerBase
 
     public DocumentsController(
         ISessionRepository sessionRepository,
+        IDocumentRepository documentRepository,
         IExtractionStepRepository stepRepository,
         IDocumentStorage documentStorage,
         ISearchIndexService searchIndexService,
@@ -36,6 +38,7 @@ public partial class DocumentsController : ControllerBase
         IOptions<DocumentIntelligenceOptions> docOptions)
     {
         _sessionRepository = sessionRepository;
+        _documentRepository = documentRepository;
         _stepRepository = stepRepository;
         _documentStorage = documentStorage;
         _searchIndexService = searchIndexService;
@@ -76,7 +79,7 @@ public partial class DocumentsController : ControllerBase
             UploadedAt = DateTime.UtcNow
         };
 
-        await _sessionRepository.AddDocumentAsync(session, document);
+        await _documentRepository.AddDocumentAsync(session, document);
 
         return Created($"/api/sessions/{sessionId}/document",
             new UploadDocumentResponse(
@@ -130,7 +133,7 @@ public partial class DocumentsController : ControllerBase
         }
 
         // Delete from database (extraction + document)
-        await _sessionRepository.DeleteDocumentAsync(sessionId);
+        await _documentRepository.DeleteDocumentAsync(sessionId);
 
         return NoContent();
     }

@@ -31,6 +31,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
     private readonly IDocumentParser _documentParser;
     private readonly ExtractionAgents _agents;
     private readonly ISessionRepository _sessionRepository;
+    private readonly IDocumentRepository _documentRepository;
+    private readonly IExtractionResultRepository _extractionResultRepository;
     private readonly IExtractionStepRepository _stepRepository;
     private readonly IDocumentStorage _documentStorage;
     private readonly ISessionIndexingService _sessionIndexingService;
@@ -47,6 +49,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         IDocumentParser documentParser,
         ExtractionAgents agents,
         ISessionRepository sessionRepository,
+        IDocumentRepository documentRepository,
+        IExtractionResultRepository extractionResultRepository,
         IExtractionStepRepository stepRepository,
         IDocumentStorage documentStorage,
         ISessionIndexingService sessionIndexingService,
@@ -56,6 +60,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         _documentParser = documentParser;
         _agents = agents;
         _sessionRepository = sessionRepository;
+        _documentRepository = documentRepository;
+        _extractionResultRepository = extractionResultRepository;
         _stepRepository = stepRepository;
         _documentStorage = documentStorage;
         _sessionIndexingService = sessionIndexingService;
@@ -99,11 +105,11 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         // (e.g. ExtractionController retry set Failed→Processing before calling us).
         // NOTE: can't use session.Document.Status — tracked entity may be stale after
         // caller's ExecuteUpdateAsync bypassed the EF change tracker.
-        var transitioned = await _sessionRepository.TryTransitionDocumentStatusAsync(
+        var transitioned = await _documentRepository.TryTransitionDocumentStatusAsync(
             sessionId, DocumentStatus.Pending, DocumentStatus.Processing);
         if (!transitioned)
         {
-            var alreadyProcessing = await _sessionRepository.TryTransitionDocumentStatusAsync(
+            var alreadyProcessing = await _documentRepository.TryTransitionDocumentStatusAsync(
                 sessionId, DocumentStatus.Processing, DocumentStatus.Processing);
             if (!alreadyProcessing)
             {
@@ -131,7 +137,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                 ExtractedAt = DateTime.UtcNow,
                 Data = new Core.Schema.ClinicalExtraction()
             };
-            await _sessionRepository.UpsertExtractionResultAsync(placeholder);
+            await _extractionResultRepository.UpsertExtractionResultAsync(placeholder);
             // Step 1: Download blob and parse with Document Intelligence
             var step1 = BeginStep(extractionId, ExtractionStepName.DocumentParse, 1, "azure-doc-intel");
             await TrySaveStepAsync(step1);
@@ -220,7 +226,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             if (!intakeResult.IsValidTherapyNote)
             {
                 LogDocumentValidationFailed(_logger, intakeResult.ValidationError);
-                await _sessionRepository.TryTransitionDocumentStatusAsync(
+                await _documentRepository.TryTransitionDocumentStatusAsync(
                     sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
 
                 return new OrchestrationResult
@@ -302,7 +308,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             if (extractionResult.Errors.Any(e => e.Contains("Failed to parse extraction JSON", StringComparison.Ordinal)))
             {
                 LogExtractionParseFailed(_logger, sessionId);
-                await _sessionRepository.TryTransitionDocumentStatusAsync(
+                await _documentRepository.TryTransitionDocumentStatusAsync(
                     sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
                 return new OrchestrationResult
                 {
@@ -453,7 +459,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                 riskResult);
 
             // Update document status to Completed
-            await _sessionRepository.UpdateDocumentStatusAsync(
+            await _documentRepository.UpdateDocumentStatusAsync(
                 sessionId, DocumentStatus.Completed, parsedDoc.Content);
 
             stopwatch.Stop();
@@ -484,7 +490,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
             try
             {
-                await _sessionRepository.TryTransitionDocumentStatusAsync(
+                await _documentRepository.TryTransitionDocumentStatusAsync(
                     sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
             }
             catch (Exception updateEx)
@@ -612,7 +618,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                 : null
         };
 
-        await _sessionRepository.UpdateExtractionResultAsync(entity);
+        await _extractionResultRepository.UpdateExtractionResultAsync(entity);
     }
 
     private static readonly PropertyInfo[] CachedSectionProperties = typeof(Core.Schema.ClinicalExtraction)

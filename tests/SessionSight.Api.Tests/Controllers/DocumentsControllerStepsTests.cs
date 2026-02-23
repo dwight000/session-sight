@@ -25,6 +25,7 @@ public class DocumentsControllerStepsTests
         _stepRepositoryMock = new Mock<IExtractionStepRepository>();
         _controller = new DocumentsController(
             _sessionRepositoryMock.Object,
+            new Mock<IDocumentRepository>().Object,
             _stepRepositoryMock.Object,
             new Mock<IDocumentStorage>().Object,
             new Mock<ISearchIndexService>().Object,

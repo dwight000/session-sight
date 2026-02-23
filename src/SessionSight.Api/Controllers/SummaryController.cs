@@ -17,6 +17,7 @@ public class SummaryController : ControllerBase
 {
     private readonly ISummarizerAgent _summarizerAgent;
     private readonly ISessionRepository _sessionRepository;
+    private readonly IExtractionResultRepository _extractionResultRepository;
     private readonly IPatientRepository _patientRepository;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -28,10 +29,12 @@ public class SummaryController : ControllerBase
     public SummaryController(
         ISummarizerAgent summarizerAgent,
         ISessionRepository sessionRepository,
+        IExtractionResultRepository extractionResultRepository,
         IPatientRepository patientRepository)
     {
         _summarizerAgent = summarizerAgent;
         _sessionRepository = sessionRepository;
+        _extractionResultRepository = extractionResultRepository;
         _patientRepository = patientRepository;
     }
 
@@ -79,7 +82,7 @@ public class SummaryController : ControllerBase
 
         // Store the new summary
         var summaryJson = JsonSerializer.Serialize(summary, JsonOptions);
-        await _sessionRepository.UpdateExtractionSummaryAsync(session.Extraction.Id, summaryJson);
+        await _extractionResultRepository.UpdateExtractionSummaryAsync(session.Extraction.Id, summaryJson);
 
         return Ok(summary);
     }

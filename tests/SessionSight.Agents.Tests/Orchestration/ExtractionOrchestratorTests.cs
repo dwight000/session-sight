@@ -24,6 +24,8 @@ public class ExtractionOrchestratorTests
     private readonly IRiskAssessorAgent _riskAssessor;
     private readonly ISummarizerAgent _summarizer;
     private readonly ISessionRepository _sessionRepository;
+    private readonly IDocumentRepository _documentRepository;
+    private readonly IExtractionResultRepository _extractionResultRepository;
     private readonly IExtractionStepRepository _stepRepository;
     private readonly IDocumentStorage _documentStorage;
     private readonly ISessionIndexingService _sessionIndexingService;
@@ -38,6 +40,8 @@ public class ExtractionOrchestratorTests
         _riskAssessor = Substitute.For<IRiskAssessorAgent>();
         _summarizer = Substitute.For<ISummarizerAgent>();
         _sessionRepository = Substitute.For<ISessionRepository>();
+        _documentRepository = Substitute.For<IDocumentRepository>();
+        _extractionResultRepository = Substitute.For<IExtractionResultRepository>();
         _stepRepository = Substitute.For<IExtractionStepRepository>();
         _documentStorage = Substitute.For<IDocumentStorage>();
         _sessionIndexingService = Substitute.For<ISessionIndexingService>();
@@ -48,7 +52,7 @@ public class ExtractionOrchestratorTests
             .Returns(new SessionSummary { OneLiner = "Test summary", ModelUsed = "gpt-4o-mini" });
 
         // Default: atomic transition succeeds
-        _sessionRepository.TryTransitionDocumentStatusAsync(
+        _documentRepository.TryTransitionDocumentStatusAsync(
             Arg.Any<Guid>(), DocumentStatus.Pending, DocumentStatus.Processing)
             .Returns(true);
 
@@ -58,6 +62,8 @@ public class ExtractionOrchestratorTests
             _documentParser,
             agents,
             _sessionRepository,
+            _documentRepository,
+            _extractionResultRepository,
             _stepRepository,
             _documentStorage,
             _sessionIndexingService,
@@ -103,11 +109,11 @@ public class ExtractionOrchestratorTests
         var sessionId = Guid.NewGuid();
         var session = CreateTestSession(sessionId);
         _sessionRepository.GetByIdAsync(sessionId).Returns(session);
-        _sessionRepository.TryTransitionDocumentStatusAsync(
+        _documentRepository.TryTransitionDocumentStatusAsync(
             sessionId, DocumentStatus.Pending, DocumentStatus.Processing)
             .Returns(false);
         // Processing→Processing probe also fails (status is Completed in DB)
-        _sessionRepository.TryTransitionDocumentStatusAsync(
+        _documentRepository.TryTransitionDocumentStatusAsync(
             sessionId, DocumentStatus.Processing, DocumentStatus.Processing)
             .Returns(false);
 
@@ -132,11 +138,11 @@ public class ExtractionOrchestratorTests
         var riskResult = CreateTestRiskResult();
 
         _sessionRepository.GetByIdAsync(sessionId).Returns(session);
-        _sessionRepository.TryTransitionDocumentStatusAsync(
+        _documentRepository.TryTransitionDocumentStatusAsync(
             sessionId, DocumentStatus.Pending, DocumentStatus.Processing)
             .Returns(false);
         // Processing→Processing probe succeeds (DB status is Processing)
-        _sessionRepository.TryTransitionDocumentStatusAsync(
+        _documentRepository.TryTransitionDocumentStatusAsync(
             sessionId, DocumentStatus.Processing, DocumentStatus.Processing)
             .Returns(true);
         _documentStorage.DownloadAsync(Arg.Any<string>()).Returns(new MemoryStream());
@@ -186,8 +192,8 @@ public class ExtractionOrchestratorTests
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("Invalid document");
         // Verify document status was updated to Processing then Failed
-        await _sessionRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Pending, DocumentStatus.Processing);
-        await _sessionRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
+        await _documentRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Pending, DocumentStatus.Processing);
+        await _documentRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
     }
 
     [Fact]
@@ -293,8 +299,8 @@ public class ExtractionOrchestratorTests
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("LLM call failed");
         // Verify document status was updated to Processing then Failed
-        await _sessionRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Pending, DocumentStatus.Processing);
-        await _sessionRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
+        await _documentRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Pending, DocumentStatus.Processing);
+        await _documentRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
     }
 
     [Fact]
@@ -324,11 +330,11 @@ public class ExtractionOrchestratorTests
 
         // Assert - verify document status updates and extraction save
         // Processing status set first
-        await _sessionRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Pending, DocumentStatus.Processing);
+        await _documentRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Pending, DocumentStatus.Processing);
         // Extraction result upserted
-        await _sessionRepository.Received().UpsertExtractionResultAsync(Arg.Any<CoreEntities.ExtractionResult>());
+        await _extractionResultRepository.Received().UpsertExtractionResultAsync(Arg.Any<CoreEntities.ExtractionResult>());
         // Completed status set with extracted text
-        await _sessionRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Completed, Arg.Any<string>());
+        await _documentRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Completed, Arg.Any<string>());
     }
 
     [Fact]
@@ -365,7 +371,7 @@ public class ExtractionOrchestratorTests
         // Assert — pipeline fails, status set to Failed
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("Failed to parse extraction JSON");
-        await _sessionRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
+        await _documentRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
         // Risk assessor should NOT run — empty extraction with defaulted risk fields is a safety risk
         await _riskAssessor.DidNotReceive().AssessAsync(
             Arg.Any<ExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
