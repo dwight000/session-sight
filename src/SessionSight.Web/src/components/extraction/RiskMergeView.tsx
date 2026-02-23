@@ -27,10 +27,10 @@ export function RiskMergeView({ diagnostics, defaultOpen = false }: RiskMergeVie
             <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
               <span className="font-medium">Guardrail Applied</span>
               {diagnostics.homicidalGuardrail?.applied && (
-                <span className="ml-2">— Homicidal: {diagnostics.homicidalGuardrail.reason}</span>
+                <span className="ml-2">— Homicidal: {diagnostics.homicidalGuardrail.reason ?? 'N/A'}</span>
               )}
               {diagnostics.selfHarmGuardrail?.applied && (
-                <span className="ml-2">— Self-harm: {diagnostics.selfHarmGuardrail.reason}</span>
+                <span className="ml-2">— Self-harm: {diagnostics.selfHarmGuardrail.reason ?? 'N/A'}</span>
               )}
             </div>
           )}

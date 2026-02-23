@@ -33,25 +33,30 @@ export function MobileNav() {
         </button>
       </div>
       {open && (
-        <nav className="space-y-1 px-2 pb-3">
-          {links.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              end={link.to === '/'}
-              onClick={() => setOpen(false)}
-              className={({ isActive }) =>
-                `block rounded-md px-3 py-2 text-sm font-medium ${
-                  isActive
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                }`
-              }
-            >
-              {link.label}
-            </NavLink>
-          ))}
-        </nav>
+        <>
+          <nav className="space-y-1 px-2 pb-3">
+            {links.map((link) => (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                end={link.to === '/'}
+                onClick={() => setOpen(false)}
+                className={({ isActive }) =>
+                  `block rounded-md px-3 py-2 text-sm font-medium ${
+                    isActive
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  }`
+                }
+              >
+                {link.label}
+              </NavLink>
+            ))}
+          </nav>
+          <p className="border-t border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            Demo only — AI outputs are not for clinical use.
+          </p>
+        </>
       )}
     </div>
   )

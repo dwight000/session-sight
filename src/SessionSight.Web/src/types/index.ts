@@ -50,7 +50,7 @@ export interface CreateSessionRequest {
 export interface UploadDocumentResponse {
   documentId: string
   sessionId: string
-  fileName: string
+  originalFileName: string
   blobUri: string
   status: string
 }
@@ -230,8 +230,9 @@ export interface ExtractionResultResponse {
 
 export interface RiskDiagnostics {
   guardrailApplied: boolean
-  homicidalGuardrail: GuardrailDetail
-  selfHarmGuardrail: GuardrailDetail
+  homicidalGuardrail?: GuardrailDetail | null
+  selfHarmGuardrail?: GuardrailDetail | null
+  criteriaValidationAttempts: number
   discrepancyCount: number
   fieldDecisions: RiskFieldDecision[]
 }
@@ -248,7 +249,7 @@ export interface RiskFieldDecision {
 
 export interface GuardrailDetail {
   applied: boolean
-  reason: string
+  reason?: string | null
 }
 
 // Processing job types

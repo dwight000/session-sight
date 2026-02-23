@@ -7,11 +7,11 @@
 ## Current Status
 
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
-**Next Action**: B-096 — push & create PR
+**Next Action**: Push & create PR for B-097 + B-015
 
-**Last Updated**: February 22, 2026
+**Last Updated**: February 23, 2026
 
-**Milestone**: B-096 complete — extraction detail polish with confidence heatmap (color-coded chips per field), risk merge view (three-column original/re-extracted/final with guardrail banners), and source attribution (click-to-expand panels in Clinical Extraction Data). All purely frontend — no backend changes. 16 files changed, 251 tests passing, 83%+ coverage.
+**Milestone**: B-097 + B-015 complete — legal disclaimer in sidebar/mobile nav, contract tests for all major API DTOs. Contract tests caught and fixed 4 frontend/backend type drifts (originalFileName, guardrail nullability, missing criteriaValidationAttempts).
 
 ---
 
@@ -19,7 +19,7 @@
 
 <!-- When you start a task, move it here. Only ONE task at a time. -->
 
-**B-096** — Extraction detail polish (Done — ready for PR)
+**B-097 + B-015** — Legal disclaimer + contract tests (Done — ready for PR)
 
 ---
 
@@ -146,7 +146,7 @@
 | P5-003 | API usage examples | S | 5 | Ready | - |
 | B-004 | Architecture diagrams (Mermaid) | M | 5 | Blocked | P2-010 |
 | B-005 | Load testing setup | M | 5 | Done | - |
-| B-015 | Contract tests for API DTOs | M | 5 | Ready | - |
+| B-015 | Contract tests for API DTOs | M | 5 | Done | - |
 | B-016 | Load/concurrency tests | M | 5 | Done | B-005 |
 | B-070 | Merge redundant E2E extraction tests into shared collection fixture | S | 5 | Done | - |
 | B-017 | Safety/red-team evals (14 adversarial golden files) | L | 5 | Done | P2-005 |
@@ -193,7 +193,7 @@
 | B-094 | Live extraction progress UI — step-by-step pipeline visualization | L | 4 | Done | - |
 | B-095 | Pipeline step instrumentation — persist per-step extraction diagnostics | XL | 2 | Done | - |
 | B-096 | Extraction detail polish — confidence heatmap, risk merge viz, source attribution | M | 4 | Done | - |
-| B-097 | Legal disclaimer — "not for clinical use" banner, terms of use, liability notice | S | 4 | Ready | - |
+| B-097 | Legal disclaimer — "not for clinical use" banner, terms of use, liability notice | S | 4 | Done | - |
 
 ---
 
@@ -1002,6 +1002,8 @@ Both paths call the same `ExtractionOrchestrator.ProcessSessionAsync()`. The blo
 | B-095 | Pipeline step instrumentation — per-step persistence, token tracking, tool call traces, GET steps endpoint | 2026-02-22 |
 | B-094 | Live extraction progress UI — real-time polling, 3-level progressive disclosure, crash detection, step-by-step progress | 2026-02-22 |
 | B-096 | Extraction detail polish — confidence heatmap, risk merge view, source attribution | 2026-02-22 |
+| B-097 | Legal disclaimer — "not for clinical use" banner in sidebar and mobile nav | 2026-02-23 |
+| B-015 | Contract tests for API DTOs — JSON shape verification, found and fixed 4 frontend/backend drifts | 2026-02-23 |
 
 ---
 

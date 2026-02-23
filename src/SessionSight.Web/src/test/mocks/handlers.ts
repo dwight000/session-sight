@@ -142,7 +142,7 @@ export const handlers = [
     return HttpResponse.json({
       documentId: 'new-doc-id',
       sessionId: 's1',
-      fileName: 'test.pdf',
+      originalFileName: 'test.pdf',
       blobUri: 'blob://test',
       status: 'Pending'
     })

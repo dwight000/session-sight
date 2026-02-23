@@ -72,8 +72,9 @@ function ExtractionSection({
               const isPartialField = typeof val === 'object' && val !== null && 'confidence' in val && !('value' in val)
               if (isExtractedField(val) || isPartialField) {
                 const confidence = (val as { confidence: number }).confidence
-                const value = 'value' in (val as object) ? (val as { value: unknown }).value : undefined
-                const source = 'source' in (val as object) ? (val as { source: { text?: string; section?: string; startChar: number; endChar: number } | null }).source : null
+                const valObj = val as Record<string, unknown>
+                const value = 'value' in valObj ? valObj.value : undefined
+                const source = 'source' in valObj ? valObj.source as { text?: string; section?: string; startChar: number; endChar: number } | null : null
                 const sourceExpanded = activeSourceKey === key
                 return (
                   <div key={key} className="rounded-md bg-gray-50 p-3">
