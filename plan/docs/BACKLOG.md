@@ -7,11 +7,11 @@
 ## Current Status
 
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
-**Next Action**: Push & create PR for B-097 + B-015
+**Next Action**: Push & create PR for P2-010
 
 **Last Updated**: February 23, 2026
 
-**Milestone**: B-097 + B-015 complete — legal disclaimer in sidebar/mobile nav, contract tests for all major API DTOs. Contract tests caught and fixed 4 frontend/backend type drifts (originalFileName, guardrail nullability, missing criteriaValidationAttempts).
+**Milestone**: P2-010 complete — `docs/ARCHITECTURE.md` with 4 Mermaid sequence diagrams covering extraction pipeline (UI upload + blob trigger), Q&A dual-path flow, and agent loop runner. Unblocks B-004 (architecture diagrams).
 
 ---
 
@@ -112,7 +112,7 @@
 | B-037 | Tool call limit graceful handling | M | 2 | Done | P2-006b |
 | B-040 | Stub IAIFoundryClientFactory in integration tests | S | 2 | Done | P2-002 |
 | P2-009 | Create glossary of domain terms | S | 2 | Ready | P2-004 |
-| P2-010 | Create sequence diagrams for agent interactions | M | 2 | Ready | P2-006a |
+| P2-010 | Create sequence diagrams for agent interactions | M | 2 | Done | P2-006a |
 | **Phase 3: Summarization & RAG** |||||
 | P3-001 | Summarizer Agent (3 levels) | XL | 3 | Done | P2-005 |
 | P3-002 | Azure AI Search vector index | M | 3 | Done | P2-001 |
@@ -144,7 +144,7 @@
 | P5-001 | Integration tests (golden files) | L | 5 | Done | P2-005 |
 | P5-002 | Data flow diagrams (document->agent->DB) | M | 5 | Blocked | B-004 |
 | P5-003 | API usage examples | S | 5 | Ready | - |
-| B-004 | Architecture diagrams (Mermaid) | M | 5 | Blocked | P2-010 |
+| B-004 | Architecture diagrams (Mermaid) | M | 5 | Ready | P2-010 |
 | B-005 | Load testing setup | M | 5 | Done | - |
 | B-015 | Contract tests for API DTOs | M | 5 | Done | - |
 | B-016 | Load/concurrency tests | M | 5 | Done | B-005 |
@@ -1012,6 +1012,7 @@ Both paths call the same `ExtractionOrchestrator.ProcessSessionAsync()`. The blo
 | Date | What Happened |
 |------|---------------|
 | 2026-02-20 | **B-086 complete: Patient longitudinal summary on timeline page.** Frontend-only change — `GET /api/summary/patient/{id}` already existed but was never called. Added `PatientSummary` + `GoalProgress` types to `types/index.ts`, `getPatientSummary()` API function in `api/summary.ts`, `usePatientSummary` query hook, and summary card panel on `PatientTimeline.tsx` between stats bar and session list. Panel shows progress narrative, mood trend badge, effective interventions, recurring themes, goal progress, risk trend summary, and recommended focus. Loading spinner during fetch, hidden on 404 (patients with no extraction data). Tests: 202 frontend unit (7 new: 3 hook, 2 API, 2 page), 17 Playwright smoke (patient summary route mock added). |
+| 2026-02-23 | **P2-010 complete: Architecture sequence diagrams.** Created `docs/ARCHITECTURE.md` with 4 Mermaid sequence diagrams: (1) Extraction Pipeline UI Upload — full 6-step orchestration from document upload through intake gate, agent-loop extraction (4 tools), risk re-extract + conservative merge, non-fatal summarization, non-fatal search indexing, and DB persist. (2) Extraction Pipeline Blob Trigger — async path from Azure Function trigger through blob lifecycle (incoming → processing → processed/failed), idempotency check, atomic patient upsert, fire-and-forget orchestration. (3) Q&A Dual-Path Flow — complexity classifier (nano, temp=0.0) routing to simple single-shot RAG (nano) or complex agentic loop (mini, 5 tools with patient isolation). (4) Agent Loop Runner — shared execution engine with 15 tool call limit, 5-min timeout, parallel tool execution, partial result handling. Includes model assignment table and pipeline summary. Unblocks B-004 (architecture diagrams) which unblocks P5-002 (data flow diagrams). |
 | 2026-02-20 | **B-087/088/089/093 complete: 4 quick wins from gap audit.** B-087: Top Interventions horizontal bar chart card on Dashboard (frontend-only, renders `topInterventions[]` from existing `PracticeSummary` API). B-088: Session summary regenerate/generate button on SessionDetail — new `api/sessionSummary.ts`, `useRegenerateSessionSummary` hook, button shows "Generate Summary" when no summary exists. B-089: Full-stack delete document — backend `DELETE /api/sessions/{id}/document` (blob + search index + DB), frontend red "Delete Document" button with `window.confirm`, `useDeleteDocument` hook. B-093: `CompareSessionsTool` for QA agent — compares 2+ sessions across mood, risk, interventions with change summary; registered in DI, added to agentic loop with `AllowedPatientId` guard, prompt updated. Also fixed `start-dev.sh` missing venv PATH export (caused `az` not found → LLM endpoints hang) and added `az login` warning to both start scripts. Tests: 726 backend (including 4 CompareSessionsTool + 3 DocumentsController delete), 195 frontend (including 7 new hook/page tests), 17 Playwright smoke (2 new assertions). PR #76. |
 | 2026-02-19 | **B-085 complete + Gap audit: 9 new backlog items (B-085–B-093) + 3 stale blocker fixes + B-083 closed.** B-085: Q&A Chat UI page with patient selector, chat-style message history, source citations, loading states, clear button. PR #75 merged. Ran three audits: (1) Backend capabilities with no frontend consumer — found Q&A Chat UI, patient summary, practice breakdown, session regen, delete/replace doc. (2) Specs vs backlog — found missing tickets for doc validation review-routing, RAG eval harness, SLO measurement; stale blockers on P6-007/P5-003/B-015. (3) Implementation vs design — confirmed summarizer tools gap (2 of 3 already exist in `AggregateMetricsTool`, only `compare_sessions` is new); document validation review-routing signals already in Azure SDK response but discarded. Fixed stale blockers: P6-007 Ready (P6-002 done), P5-003 Ready (P1-019 done), B-015 Ready (P1-004 done). Marked B-083 Done (commits d899432, d55d466, ca108cb). Added note to B-035 re: dependency on B-085 for user visibility. |
 | 2026-02-18 | **B-082 complete: Fix BlobNotFound + stuck Processing + file types + sample documents.** Fixed 3 production bugs: (1) URL-decode blob path in `AzureBlobDocumentStorage` — filenames with spaces/parens caused BlobNotFound on extraction. (2) Replaced `UpdateDocumentStatusAsync` with `TryTransitionDocumentStatusAsync` in all 3 `ExtractionOrchestrator` failure paths — change-tracker staleness caused status stuck at Processing. (3) Removed `.txt` from frontend accept list, added backend extension allowlist (`.pdf,.docx,.doc,.jpg,.jpeg,.png,.tiff,.bmp`) with 400 BadRequest for unsupported types. Added sample documents feature: generated 8 static therapy note PDFs (5 non-risk from golden files, 3 risk notes expanded to full structured format) via `fpdf2` script. Built sample document picker on Upload page with tab toggle (Sample Documents / Your Document), card grid with preview and "Use This" buttons. New test project: `SessionSight.Infrastructure.Tests` with 8 blob path round-trip tests. Added 4 Playwright smoke tests for Upload page sample UI. Updated 3 orchestrator tests, 1 E2E test (tab click). Validation: 724 backend tests pass (83.35% coverage), frontend 5/5 gates pass (15 smoke tests), 0 warnings. |
