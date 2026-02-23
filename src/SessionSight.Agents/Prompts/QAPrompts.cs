@@ -59,11 +59,23 @@ public static class QAPrompts
     public const string ComplexityPrompt = """
         Classify this question as "simple" or "complex".
 
-        Simple: factual lookups, single-session queries, straightforward data retrieval
-        (e.g., "What medications was the patient on?", "When was the last session?")
+        Simple: factual lookups, single-field queries, straightforward data retrieval about a patient or session.
+        Examples:
+        - "What medications was the patient on?"
+        - "When was the last session?"
+        - "What is the patient's risk level?"
+        - "What diagnosis does this patient have?"
+        - "What interventions were used?"
 
-        Complex: multi-session analysis, trend identification, clinical reasoning, comparisons
-        (e.g., "How has the patient's mood changed over time?", "What interventions have been most effective?")
+        Complex: multi-session analysis, trend identification over time, statistical aggregation, comparisons between sessions.
+        Examples:
+        - "How has the patient's mood changed over time?"
+        - "What interventions have been most effective across sessions?"
+        - "Compare the last three sessions"
+        - "What patterns do you see in the patient's progress?"
+
+        If the question asks about a single value, field, or current state, classify as "simple".
+        If the question requires analyzing multiple sessions or computing trends, classify as "complex".
 
         Respond with ONLY the word "simple" or "complex".
         """;

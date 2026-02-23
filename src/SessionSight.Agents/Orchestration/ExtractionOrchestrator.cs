@@ -132,6 +132,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             await _sessionRepository.UpsertExtractionResultAsync(placeholder);
             // Step 1: Download blob and parse with Document Intelligence
             var step1 = BeginStep(extractionId, ExtractionStepName.DocumentParse, 1, "azure-doc-intel");
+            await TrySaveStepAsync(step1);
             var sw1 = Stopwatch.StartNew();
             ParsedDocument parsedDoc;
             try
@@ -164,6 +165,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
             // Step 2: Intake Agent - metadata extraction and validation
             var step2 = BeginStep(extractionId, ExtractionStepName.Intake, 2, string.Empty);
+            await TrySaveStepAsync(step2);
             var sw2 = Stopwatch.StartNew();
             IntakeResult intakeResult;
             try
@@ -231,6 +233,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
             // Step 3: Clinical Extractor - schema extraction
             var step3 = BeginStep(extractionId, ExtractionStepName.ClinicalExtract, 3, string.Empty);
+            await TrySaveStepAsync(step3);
             var sw3 = Stopwatch.StartNew();
             AgentExtractionResult extractionResult;
             try
@@ -311,6 +314,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
             // Step 4: Risk Assessor - safety validation
             var step4 = BeginStep(extractionId, ExtractionStepName.RiskAssess, 4, string.Empty);
+            await TrySaveStepAsync(step4);
             var sw4 = Stopwatch.StartNew();
             RiskAssessmentResult riskResult;
             try
@@ -370,6 +374,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
             // Step 5: Generate session summary
             var step5 = BeginStep(extractionId, ExtractionStepName.Summarize, 5, string.Empty);
+            await TrySaveStepAsync(step5);
             var sw5 = Stopwatch.StartNew();
             SessionSummary? sessionSummary = null;
             try
@@ -407,6 +412,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
             // Step 6: Index session for search (embedding + search index)
             var step6 = BeginStep(extractionId, ExtractionStepName.SearchIndex, 6, "text-embedding-3-large");
+            await TrySaveStepAsync(step6);
             var sw6 = Stopwatch.StartNew();
             try
             {

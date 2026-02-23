@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { useSessions } from '../hooks/useSessions'
 import { usePatients } from '../hooks/usePatients'
 import { useUploadDocument } from '../hooks/useUploadDocument'
 import { Button } from '../components/ui/Button'
 import { Spinner } from '../components/ui/Spinner'
+import { ExtractionPipelineView } from '../components/extraction/ExtractionPipelineView'
 
 interface SampleDoc {
   id: string
@@ -24,7 +26,9 @@ export function Upload() {
   const { data: sessions, isLoading: sessionsLoading } = useSessions({ hasDocument: false })
   const { data: patients } = usePatients()
   const uploadDocument = useUploadDocument()
+  const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const pipelineRef = useRef<HTMLDivElement>(null)
 
   const [selectedSessionId, setSelectedSessionId] = useState<string>('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -33,6 +37,7 @@ export function Upload() {
   const [samples, setSamples] = useState<SampleDoc[]>([])
   const [expandedSample, setExpandedSample] = useState<string | null>(null)
   const [loadingSample, setLoadingSample] = useState<string | null>(null)
+  const [processingSessionId, setProcessingSessionId] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/samples/samples.json')
@@ -40,6 +45,13 @@ export function Upload() {
       .then((data: SampleDoc[]) => setSamples(data))
       .catch(() => setSamples([]))
   }, [])
+
+  // Scroll pipeline into view when it appears
+  useEffect(() => {
+    if (processingSessionId) {
+      pipelineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [processingSessionId])
 
   // Build patient name lookup
   const patientNames = new Map<string, string>()
@@ -78,10 +90,13 @@ export function Upload() {
     if (!selectedSessionId || !selectedFile) return
 
     setUploadResult(null)
+    setProcessingSessionId(selectedSessionId)
     uploadDocument.mutate(
       { sessionId: selectedSessionId, file: selectedFile },
       {
         onSuccess: (result) => {
+          // Force one final fetch so pipeline view shows completed state
+          queryClient.invalidateQueries({ queryKey: ['extractionSteps', selectedSessionId] })
           if (result.success) {
             setUploadResult({ success: true, sessionId: selectedSessionId })
             setSelectedSessionId('')
@@ -94,6 +109,7 @@ export function Upload() {
           }
         },
         onError: (error) => {
+          queryClient.invalidateQueries({ queryKey: ['extractionSteps', selectedSessionId] })
           setUploadResult({ success: false, error: (error as Error).message })
         },
       }
@@ -112,6 +128,14 @@ export function Upload() {
           Upload a therapy note document for processing. The note will be analyzed and extracted automatically.
         </p>
       </div>
+
+      {/* Pipeline view — above the form when active */}
+      {processingSessionId && (
+        <div ref={pipelineRef} className="rounded-md border border-blue-200 bg-blue-50/30 p-4">
+          <p className="mb-3 text-sm font-medium text-blue-800">Extraction Pipeline</p>
+          <ExtractionPipelineView sessionId={processingSessionId} isLive={true} />
+        </div>
+      )}
 
       {uploadResult?.success && (
         <div className="rounded-md bg-green-50 p-4">
@@ -311,20 +335,6 @@ export function Upload() {
             </Button>
           </div>
 
-          {uploadDocument.isPending && (
-            <div className="rounded-md bg-blue-50 p-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <Spinner className="h-5 w-5 text-blue-500" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-blue-800">
-                    Uploading and extracting document... This may take up to 2 minutes.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
         </form>
       )}
     </div>

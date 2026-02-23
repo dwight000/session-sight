@@ -12,6 +12,7 @@ import { ConfidenceBar } from '../components/ui/ConfidenceBar'
 import { Spinner } from '../components/ui/Spinner'
 import type { ReviewStatus, SessionSummary } from '../types'
 import { formatFieldValue, formatFieldName, isExtractedField } from '../utils/format'
+import { ExtractionPipelineView } from '../components/extraction/ExtractionPipelineView'
 
 const statusVariant: Record<ReviewStatus, string> = {
   NotFlagged: 'default',
@@ -292,6 +293,12 @@ export function SessionDetail() {
           </ul>
         </Card>
       )}
+
+      {/* Processing Log */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-gray-700">Processing Log</h3>
+        <ExtractionPipelineView sessionId={sessionId!} isLive={false} />
+      </div>
 
       {/* Extraction accordion */}
       <div className="space-y-2">

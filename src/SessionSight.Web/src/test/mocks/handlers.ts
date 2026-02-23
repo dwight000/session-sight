@@ -8,6 +8,7 @@ import { mockPatientTimeline } from '../fixtures/timeline'
 import { mockTherapists } from '../fixtures/therapists'
 import { mockProcessingJobs } from '../fixtures/processingJobs'
 import { mockQAResponse } from '../fixtures/qa'
+import { mockExtractionStepsComplete } from '../fixtures/extractionSteps'
 
 export const handlers = [
   http.get('/api/review/queue', () => {
@@ -152,6 +153,11 @@ export const handlers = [
       success: true,
       extractionId: 'new-extraction-id'
     })
+  }),
+
+  // Extraction steps handler
+  http.get('/api/sessions/:sessionId/extraction/steps', () => {
+    return HttpResponse.json(mockExtractionStepsComplete)
   }),
 
   // Q&A handler

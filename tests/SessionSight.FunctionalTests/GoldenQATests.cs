@@ -279,6 +279,20 @@ public class GoldenQATests : IClassFixture<ApiFixture>
             sourceCount.Should().BeGreaterThanOrEqualTo(goldenCase.ExpectedAnswer.ExpectSourcesCountGte,
                 $"QA case {goldenCase.NoteId}: source count {sourceCount} below minimum {goldenCase.ExpectedAnswer.ExpectSourcesCountGte}");
         }
+
+        // expected_path: verify the complexity classifier routed correctly
+        if (!string.IsNullOrEmpty(goldenCase.ExpectedPath))
+        {
+            var actualPath = qaResponse.TryGetProperty("diagnostics", out var diag) &&
+                             diag.TryGetProperty("isComplex", out var ic)
+                ? (ic.GetBoolean() ? "complex" : "simple")
+                : "unknown";
+
+            _output.WriteLine($"[QA-EVAL] {goldenCase.NoteId} | path_assert: expected={goldenCase.ExpectedPath}, actual={actualPath}");
+
+            actualPath.Should().Be(goldenCase.ExpectedPath,
+                $"QA case {goldenCase.NoteId}: expected path '{goldenCase.ExpectedPath}' but classifier chose '{actualPath}'");
+        }
     }
 
     private void WriteSelectionManifest(GoldenQASelection selection)

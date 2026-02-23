@@ -105,7 +105,8 @@ public partial class DocumentsController : ControllerBase
         if (session.Extraction is null) return NotFound("No extraction result found for this session.");
 
         var steps = await _stepRepository.GetStepsByExtractionIdAsync(session.Extraction.Id);
-        return Ok(steps.ToStepsDto(session.Extraction.Id));
+        var docStatus = session.Document?.Status.ToString();
+        return Ok(steps.ToStepsDto(session.Extraction.Id, docStatus));
     }
 
     [HttpDelete("document")]
