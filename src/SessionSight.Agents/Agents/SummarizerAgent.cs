@@ -130,7 +130,7 @@ public partial class SummarizerAgent : ISummarizerAgent
         var modelName = _modelRouter.SelectModel(ModelTask.Summarization);
 
         // Get patient's sessions with extractions
-        var sessions = (await _sessionRepository.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate))
+        var sessions = (await _sessionRepository.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate, ct))
             .Where(s => s.Extraction != null)
             .OrderBy(s => s.SessionDate)
             .ToList();
@@ -227,8 +227,8 @@ public partial class SummarizerAgent : ISummarizerAgent
         LogStartingPracticeSummary(_logger, startDate, endDate);
 
         // Get all sessions in range
-        var allSessions = (await _sessionRepository.GetAllInDateRangeAsync(startDate, endDate)).ToList();
-        var flaggedSessions = (await _sessionRepository.GetFlaggedSessionsAsync(startDate, endDate)).ToList();
+        var allSessions = (await _sessionRepository.GetAllInDateRangeAsync(startDate, endDate, ct)).ToList();
+        var flaggedSessions = (await _sessionRepository.GetFlaggedSessionsAsync(startDate, endDate, ct)).ToList();
 
         // Aggregate metrics locally (no LLM needed for counts)
         var summary = new PracticeSummary

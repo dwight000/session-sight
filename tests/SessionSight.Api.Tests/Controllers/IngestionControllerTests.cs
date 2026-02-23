@@ -123,8 +123,8 @@ public class IngestionControllerTests
 
         _mockPatientRepo.Setup(r => r.GetOrCreateByExternalIdAsync("P12345", "Unknown", "Patient"))
             .ReturnsAsync(existingPatient);
-        _mockSessionRepo.Setup(r => r.AddAsync(It.IsAny<Session>()))
-            .ReturnsAsync((Session s) => { s.Id = Guid.NewGuid(); return s; });
+        _mockSessionRepo.Setup(r => r.AddAsync(It.IsAny<Session>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Session s, CancellationToken _) => { s.Id = Guid.NewGuid(); return s; });
 
         // Act
         var result = await _controller.ProcessNote(request, CancellationToken.None);
@@ -132,7 +132,7 @@ public class IngestionControllerTests
         // Assert
         result.Result.Should().BeOfType<AcceptedResult>();
         _mockPatientRepo.Verify(r => r.GetOrCreateByExternalIdAsync("P12345", "Unknown", "Patient"), Times.Once);
-        _mockSessionRepo.Verify(r => r.AddAsync(It.Is<Session>(s => s.PatientId == existingPatient.Id)), Times.Once);
+        _mockSessionRepo.Verify(r => r.AddAsync(It.Is<Session>(s => s.PatientId == existingPatient.Id), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -150,8 +150,8 @@ public class IngestionControllerTests
 
         _mockPatientRepo.Setup(r => r.GetOrCreateByExternalIdAsync("P12345", "Unknown", "Patient"))
             .ReturnsAsync(patient);
-        _mockSessionRepo.Setup(r => r.AddAsync(It.IsAny<Session>()))
-            .ReturnsAsync((Session s) => { s.Id = sessionId; return s; });
+        _mockSessionRepo.Setup(r => r.AddAsync(It.IsAny<Session>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Session s, CancellationToken _) => { s.Id = sessionId; return s; });
 
         // Act
         var result = await _controller.ProcessNote(request, CancellationToken.None);
@@ -181,9 +181,9 @@ public class IngestionControllerTests
         Session? capturedSession = null;
         _mockPatientRepo.Setup(r => r.GetOrCreateByExternalIdAsync("P12345", "Unknown", "Patient"))
             .ReturnsAsync(patient);
-        _mockSessionRepo.Setup(r => r.AddAsync(It.IsAny<Session>()))
-            .Callback<Session>(s => capturedSession = s)
-            .ReturnsAsync((Session s) => { s.Id = Guid.NewGuid(); return s; });
+        _mockSessionRepo.Setup(r => r.AddAsync(It.IsAny<Session>(), It.IsAny<CancellationToken>()))
+            .Callback<Session, CancellationToken>((s, _) => capturedSession = s)
+            .ReturnsAsync((Session s, CancellationToken _) => { s.Id = Guid.NewGuid(); return s; });
 
         // Act
         await _controller.ProcessNote(request, CancellationToken.None);
@@ -214,9 +214,9 @@ public class IngestionControllerTests
 
         _mockPatientRepo.Setup(r => r.GetOrCreateByExternalIdAsync("P12345", "Unknown", "Patient"))
             .ReturnsAsync(patient);
-        _mockSessionRepo.Setup(r => r.AddAsync(It.IsAny<Session>()))
-            .Callback<Session>(s => capturedSession = s)
-            .ReturnsAsync((Session s) => { s.Id = Guid.NewGuid(); return s; });
+        _mockSessionRepo.Setup(r => r.AddAsync(It.IsAny<Session>(), It.IsAny<CancellationToken>()))
+            .Callback<Session, CancellationToken>((s, _) => capturedSession = s)
+            .ReturnsAsync((Session s, CancellationToken _) => { s.Id = Guid.NewGuid(); return s; });
 
         var request = new ProcessNoteRequest(
             PatientId: "P12345",
@@ -300,7 +300,7 @@ public class IngestionControllerTests
         var accepted = result.Result as AcceptedResult;
         var response = accepted!.Value as ProcessNoteResponse;
         response!.Message.Should().Contain("Already processed");
-        _mockSessionRepo.Verify(r => r.AddAsync(It.IsAny<Session>()), Times.Never);
+        _mockSessionRepo.Verify(r => r.AddAsync(It.IsAny<Session>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -323,8 +323,8 @@ public class IngestionControllerTests
             .ReturnsAsync((ProcessingJob j) => j);
         _mockPatientRepo.Setup(r => r.GetOrCreateByExternalIdAsync("P12345", "Unknown", "Patient"))
             .ReturnsAsync(patient);
-        _mockSessionRepo.Setup(r => r.AddAsync(It.IsAny<Session>()))
-            .ReturnsAsync((Session s) => { s.Id = Guid.NewGuid(); return s; });
+        _mockSessionRepo.Setup(r => r.AddAsync(It.IsAny<Session>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Session s, CancellationToken _) => { s.Id = Guid.NewGuid(); return s; });
 
         // Act
         var result = await _controller.ProcessNote(request, CancellationToken.None);
@@ -349,8 +349,8 @@ public class IngestionControllerTests
 
         _mockPatientRepo.Setup(r => r.GetOrCreateByExternalIdAsync("P12345", "Unknown", "Patient"))
             .ReturnsAsync(patient);
-        _mockSessionRepo.Setup(r => r.AddAsync(It.IsAny<Session>()))
-            .ReturnsAsync((Session s) => { s.Id = Guid.NewGuid(); return s; });
+        _mockSessionRepo.Setup(r => r.AddAsync(It.IsAny<Session>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Session s, CancellationToken _) => { s.Id = Guid.NewGuid(); return s; });
 
         // Act
         var result = await _controller.ProcessNote(request, CancellationToken.None);
@@ -359,6 +359,6 @@ public class IngestionControllerTests
         result.Result.Should().BeOfType<AcceptedResult>();
         _mockProcessingJobRepo.Verify(r => r.GetByJobKeyAsync(It.IsAny<string>()), Times.Never);
         _mockProcessingJobRepo.Verify(r => r.CreateAsync(It.IsAny<ProcessingJob>()), Times.Never);
-        _mockSessionRepo.Verify(r => r.AddAsync(It.IsAny<Session>()), Times.Once);
+        _mockSessionRepo.Verify(r => r.AddAsync(It.IsAny<Session>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 }

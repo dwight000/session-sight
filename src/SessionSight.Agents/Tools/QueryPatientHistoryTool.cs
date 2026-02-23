@@ -60,7 +60,7 @@ public class QueryPatientHistoryTool : IAgentTool
             }
 
             var maxSessions = request.MaxSessions ?? 5;
-            var sessions = await _repository.GetByPatientIdAsync(patientGuid);
+            var sessions = await _repository.GetByPatientIdAsync(patientGuid, ct);
 
             var summaries = sessions
                 .OrderByDescending(s => s.SessionDate)

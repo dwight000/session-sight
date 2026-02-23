@@ -90,7 +90,7 @@ public class DocumentsControllerTests
     public async Task UploadDocument_SessionNotFound_ReturnsNotFound()
     {
         var sessionId = Guid.NewGuid();
-        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId))
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Session?)null);
 
         var result = await _controller.UploadDocument(sessionId, CreateMockFile());
@@ -107,7 +107,7 @@ public class DocumentsControllerTests
             Id = sessionId,
             Document = new SessionDocument { Id = Guid.NewGuid() }
         };
-        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId))
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(session);
 
         var result = await _controller.UploadDocument(sessionId, CreateMockFile());
@@ -122,7 +122,7 @@ public class DocumentsControllerTests
         var session = new Session { Id = sessionId, Document = null };
         var blobUri = "https://storage.blob.core.windows.net/docs/test.pdf";
 
-        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId))
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(session);
         _documentStorageMock.Setup(s => s.UploadAsync(It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<string>()))
             .ReturnsAsync(blobUri);
@@ -145,7 +145,7 @@ public class DocumentsControllerTests
         var sessionId = Guid.NewGuid();
         var session = new Session { Id = sessionId, Document = null };
 
-        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId))
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(session);
         _documentStorageMock.Setup(s => s.UploadAsync(It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<string>()))
             .ReturnsAsync("uri");
@@ -162,7 +162,7 @@ public class DocumentsControllerTests
         var sessionId = Guid.NewGuid();
         var session = new Session { Id = sessionId, Document = null };
 
-        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId))
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(session);
         _documentStorageMock.Setup(s => s.UploadAsync(It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<string>()))
             .ReturnsAsync("uri");
@@ -171,14 +171,14 @@ public class DocumentsControllerTests
 
         _documentRepositoryMock.Verify(r => r.AddDocumentAsync(session, It.Is<SessionDocument>(d =>
             d.SessionId == sessionId &&
-            d.Status == DocumentStatus.Pending)), Times.Once);
+            d.Status == DocumentStatus.Pending), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task GetExtraction_SessionNotFound_ReturnsNotFound()
     {
         var sessionId = Guid.NewGuid();
-        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId))
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Session?)null);
 
         var result = await _controller.GetExtraction(sessionId);
@@ -191,7 +191,7 @@ public class DocumentsControllerTests
     {
         var sessionId = Guid.NewGuid();
         var session = new Session { Id = sessionId, Extraction = null };
-        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId))
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(session);
 
         var result = await _controller.GetExtraction(sessionId);
@@ -216,7 +216,7 @@ public class DocumentsControllerTests
             Data = new ClinicalExtraction()
         };
         var session = new Session { Id = sessionId, Extraction = extraction };
-        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId))
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(session);
 
         var result = await _controller.GetExtraction(sessionId);
@@ -233,7 +233,7 @@ public class DocumentsControllerTests
     public async Task DeleteDocument_SessionNotFound_ReturnsNotFound()
     {
         var sessionId = Guid.NewGuid();
-        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId))
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Session?)null);
 
         var result = await _controller.DeleteDocument(sessionId);
@@ -246,7 +246,7 @@ public class DocumentsControllerTests
     {
         var sessionId = Guid.NewGuid();
         var session = new Session { Id = sessionId, Document = null };
-        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId))
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(session);
 
         var result = await _controller.DeleteDocument(sessionId);
@@ -264,7 +264,7 @@ public class DocumentsControllerTests
             Id = sessionId,
             Document = new SessionDocument { Id = Guid.NewGuid(), BlobUri = blobUri }
         };
-        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId))
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(session);
 
         var result = await _controller.DeleteDocument(sessionId);
@@ -272,7 +272,7 @@ public class DocumentsControllerTests
         result.Should().BeOfType<NoContentResult>();
         _documentStorageMock.Verify(s => s.DeleteAsync(blobUri), Times.Once);
         _searchIndexServiceMock.Verify(s => s.DeleteDocumentAsync(sessionId.ToString(), It.IsAny<CancellationToken>()), Times.Once);
-        _documentRepositoryMock.Verify(r => r.DeleteDocumentAsync(sessionId), Times.Once);
+        _documentRepositoryMock.Verify(r => r.DeleteDocumentAsync(sessionId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     private static IFormFile CreateMockFile(string fileName = "test.pdf", string contentType = "application/pdf", long? length = null)

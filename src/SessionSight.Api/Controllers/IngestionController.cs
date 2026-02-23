@@ -102,7 +102,7 @@ public partial class IngestionController : ControllerBase
             }
         };
 
-        session = await _sessionRepository.AddAsync(session);
+        session = await _sessionRepository.AddAsync(session, ct);
         LogCreatedSession(_logger, session.Id, patient.Id);
 
         // 2b. Record processing job for idempotency (if job key provided)

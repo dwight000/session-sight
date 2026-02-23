@@ -36,7 +36,7 @@ public class DocumentsControllerStepsTests
     [Fact]
     public async Task GetExtractionSteps_SessionNotFound_Returns404()
     {
-        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(null as Session);
 
         var result = await _controller.GetExtractionSteps(Guid.NewGuid());
@@ -48,7 +48,7 @@ public class DocumentsControllerStepsTests
     public async Task GetExtractionSteps_NoExtraction_Returns404()
     {
         var sessionId = Guid.NewGuid();
-        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId))
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Session { Id = sessionId, Extraction = null });
 
         var result = await _controller.GetExtractionSteps(sessionId);
@@ -63,7 +63,7 @@ public class DocumentsControllerStepsTests
         var extractionId = Guid.NewGuid();
         var stepId = Guid.NewGuid();
 
-        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId))
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Session
             {
                 Id = sessionId,
@@ -109,7 +109,7 @@ public class DocumentsControllerStepsTests
         var extractionId = Guid.NewGuid();
         var stepId = Guid.NewGuid();
 
-        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId))
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Session
             {
                 Id = sessionId,

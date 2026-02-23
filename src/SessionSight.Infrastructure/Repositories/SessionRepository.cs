@@ -21,13 +21,13 @@ public partial class SessionRepository : ISessionRepository, IDocumentRepository
         _logger = logger;
     }
 
-    public async Task<Session?> GetByIdAsync(Guid id)
+    public async Task<Session?> GetByIdAsync(Guid id, CancellationToken ct = default)
         => await _context.Sessions
             .Include(s => s.Document)
             .Include(s => s.Extraction)
-            .FirstOrDefaultAsync(s => s.Id == id);
+            .FirstOrDefaultAsync(s => s.Id == id, ct);
 
-    public async Task<IEnumerable<Session>> GetAllAsync(Guid? patientId = null, bool? hasDocument = null)
+    public async Task<IEnumerable<Session>> GetAllAsync(Guid? patientId = null, bool? hasDocument = null, CancellationToken ct = default)
     {
         var query = _context.Sessions
             .Include(s => s.Document)
@@ -49,36 +49,36 @@ public partial class SessionRepository : ISessionRepository, IDocumentRepository
         return await query
             .OrderByDescending(s => s.SessionDate)
             .AsNoTracking()
-            .ToListAsync();
+            .ToListAsync(ct);
     }
 
-    public async Task<IEnumerable<Session>> GetByPatientIdAsync(Guid patientId)
+    public async Task<IEnumerable<Session>> GetByPatientIdAsync(Guid patientId, CancellationToken ct = default)
         => await _context.Sessions
             .Include(s => s.Document)
             .Include(s => s.Extraction)
             .Where(s => s.PatientId == patientId)
             .OrderByDescending(s => s.SessionDate)
             .AsNoTracking()
-            .ToListAsync();
+            .ToListAsync(ct);
 
-    public async Task<Session> AddAsync(Session session)
+    public async Task<Session> AddAsync(Session session, CancellationToken ct = default)
     {
         session.Id = Guid.NewGuid();
         session.CreatedAt = DateTime.UtcNow;
         session.UpdatedAt = DateTime.UtcNow;
         _context.Sessions.Add(session);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(ct);
         return session;
     }
 
-    public async Task UpdateAsync(Session session)
+    public async Task UpdateAsync(Session session, CancellationToken ct = default)
     {
         for (var attempt = 1; attempt <= MaxConcurrencyRetries; attempt++)
         {
             try
             {
                 session.UpdatedAt = DateTime.UtcNow;
-                await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync(ct);
                 return;
             }
             catch (DbUpdateConcurrencyException ex)
@@ -91,8 +91,8 @@ public partial class SessionRepository : ISessionRepository, IDocumentRepository
                 }
 
                 LogConcurrencyRetry(_logger, session.Id, attempt, MaxConcurrencyRetries);
-                await _context.Entry(session).ReloadAsync();
-                await Task.Delay(RetryDelay);
+                await _context.Entry(session).ReloadAsync(ct);
+                await Task.Delay(RetryDelay, ct);
             }
         }
     }
@@ -103,27 +103,27 @@ public partial class SessionRepository : ISessionRepository, IDocumentRepository
     [LoggerMessage(Level = LogLevel.Error, Message = "Failed to update session {SessionId} after {MaxRetries} concurrency retries")]
     private static partial void LogConcurrencyFailed(ILogger logger, Guid sessionId, int maxRetries);
 
-    public async Task AddDocumentAsync(Session session, SessionDocument document)
+    public async Task AddDocumentAsync(Session session, SessionDocument document, CancellationToken ct = default)
     {
         session.UpdatedAt = DateTime.UtcNow;
         session.Document = document;
         _context.Documents.Add(document);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(ct);
     }
 
-    public async Task<bool> TryTransitionDocumentStatusAsync(Guid sessionId, DocumentStatus fromStatus, DocumentStatus toStatus)
+    public async Task<bool> TryTransitionDocumentStatusAsync(Guid sessionId, DocumentStatus fromStatus, DocumentStatus toStatus, CancellationToken ct = default)
     {
         var rows = await _context.Documents
             .Where(d => d.SessionId == sessionId && d.Status == fromStatus)
-            .ExecuteUpdateAsync(s => s.SetProperty(d => d.Status, toStatus));
+            .ExecuteUpdateAsync(s => s.SetProperty(d => d.Status, toStatus), ct);
         return rows > 0;
     }
 
-    public async Task UpdateDocumentStatusAsync(Guid sessionId, DocumentStatus status, string? extractedText = null)
+    public async Task UpdateDocumentStatusAsync(Guid sessionId, DocumentStatus status, string? extractedText = null, CancellationToken ct = default)
     {
         // Direct update to Document table only - avoids Session RowVersion concurrency issues
         var document = await _context.Documents
-            .FirstOrDefaultAsync(d => d.SessionId == sessionId);
+            .FirstOrDefaultAsync(d => d.SessionId == sessionId, ct);
 
         if (document is null)
         {
@@ -140,19 +140,19 @@ public partial class SessionRepository : ISessionRepository, IDocumentRepository
             document.ExtractedText = extractedText;
         }
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(ct);
     }
 
-    public async Task UpsertExtractionResultAsync(ExtractionResult extraction)
+    public async Task UpsertExtractionResultAsync(ExtractionResult extraction, CancellationToken ct = default)
     {
         // Delete existing extraction for this session (if any) then insert new one.
         // Handles re-extraction after Failed status without unique constraint violation.
         await _context.Extractions
             .Where(e => e.SessionId == extraction.SessionId)
-            .ExecuteDeleteAsync();
+            .ExecuteDeleteAsync(ct);
 
         _context.Extractions.Add(extraction);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(ct);
 
         // Detach the placeholder so its empty Steps collection doesn't interfere
         // with EF change detection during subsequent step saves. The final update
@@ -160,7 +160,7 @@ public partial class SessionRepository : ISessionRepository, IDocumentRepository
         _context.Entry(extraction).State = EntityState.Detached;
     }
 
-    public async Task<IEnumerable<Session>> GetByPatientIdInDateRangeAsync(Guid patientId, DateOnly? startDate, DateOnly? endDate)
+    public async Task<IEnumerable<Session>> GetByPatientIdInDateRangeAsync(Guid patientId, DateOnly? startDate, DateOnly? endDate, CancellationToken ct = default)
     {
         var query = _context.Sessions
             .Include(s => s.Document)
@@ -181,10 +181,10 @@ public partial class SessionRepository : ISessionRepository, IDocumentRepository
         return await query
             .OrderByDescending(s => s.SessionDate)
             .AsNoTracking()
-            .ToListAsync();
+            .ToListAsync(ct);
     }
 
-    public async Task<IEnumerable<Session>> GetAllInDateRangeAsync(DateOnly startDate, DateOnly endDate)
+    public async Task<IEnumerable<Session>> GetAllInDateRangeAsync(DateOnly startDate, DateOnly endDate, CancellationToken ct = default)
         => await _context.Sessions
             .Include(s => s.Document)
             .Include(s => s.Extraction)
@@ -192,9 +192,9 @@ public partial class SessionRepository : ISessionRepository, IDocumentRepository
             .Where(s => s.SessionDate >= startDate && s.SessionDate <= endDate)
             .OrderByDescending(s => s.SessionDate)
             .AsNoTracking()
-            .ToListAsync();
+            .ToListAsync(ct);
 
-    public async Task<IEnumerable<Session>> GetFlaggedSessionsAsync(DateOnly startDate, DateOnly endDate)
+    public async Task<IEnumerable<Session>> GetFlaggedSessionsAsync(DateOnly startDate, DateOnly endDate, CancellationToken ct = default)
         => await _context.Sessions
             .Include(s => s.Document)
             .Include(s => s.Extraction)
@@ -203,22 +203,22 @@ public partial class SessionRepository : ISessionRepository, IDocumentRepository
             .Where(s => s.Extraction != null && s.Extraction.RequiresReview)
             .OrderByDescending(s => s.SessionDate)
             .AsNoTracking()
-            .ToListAsync();
+            .ToListAsync(ct);
 
-    public async Task DeleteDocumentAsync(Guid sessionId)
+    public async Task DeleteDocumentAsync(Guid sessionId, CancellationToken ct = default)
     {
         // Delete extraction first (depends on session, not document, but logically tied)
         await _context.Extractions
             .Where(e => e.SessionId == sessionId)
-            .ExecuteDeleteAsync();
+            .ExecuteDeleteAsync(ct);
 
         // Delete document
         await _context.Documents
             .Where(d => d.SessionId == sessionId)
-            .ExecuteDeleteAsync();
+            .ExecuteDeleteAsync(ct);
     }
 
-    public async Task UpdateExtractionResultAsync(ExtractionResult extraction)
+    public async Task UpdateExtractionResultAsync(ExtractionResult extraction, CancellationToken ct = default)
     {
         // Use ExecuteUpdateAsync to update only scalar columns via raw SQL,
         // bypassing the change tracker entirely. This prevents EF relationship fixup
@@ -243,18 +243,18 @@ public partial class SessionRepository : ISessionRepository, IDocumentRepository
                 .SetProperty(e => e.SelfHarmGuardrailReason, extraction.SelfHarmGuardrailReason)
                 .SetProperty(e => e.CriteriaValidationAttempts, extraction.CriteriaValidationAttempts)
                 .SetProperty(e => e.DiscrepancyCount, extraction.DiscrepancyCount)
-                .SetProperty(e => e.RiskFieldDecisionsJson, extraction.RiskFieldDecisionsJson));
+                .SetProperty(e => e.RiskFieldDecisionsJson, extraction.RiskFieldDecisionsJson), ct);
     }
 
-    public async Task UpdateExtractionSummaryAsync(Guid extractionId, string summaryJson)
+    public async Task UpdateExtractionSummaryAsync(Guid extractionId, string summaryJson, CancellationToken ct = default)
     {
-        var extraction = await _context.Extractions.FindAsync(extractionId);
+        var extraction = await _context.Extractions.FindAsync([extractionId], ct);
         if (extraction is null)
         {
             throw new InvalidOperationException($"Extraction {extractionId} not found");
         }
 
         extraction.SummaryJson = summaryJson;
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(ct);
     }
 }

@@ -61,7 +61,7 @@ public class GetSessionDetailTool : IAgentTool
                 return ToolResult.Error("Invalid sessionId format - must be a valid GUID");
             }
 
-            var session = await _repository.GetByIdAsync(sessionGuid);
+            var session = await _repository.GetByIdAsync(sessionGuid, ct);
             if (session is null)
             {
                 return ToolResult.Error($"Session not found: {request.SessionId}");

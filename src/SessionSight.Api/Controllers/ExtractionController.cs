@@ -44,7 +44,7 @@ public partial class ExtractionController : ControllerBase
         Guid sessionId,
         CancellationToken ct)
     {
-        var session = await _sessionRepository.GetByIdAsync(sessionId);
+        var session = await _sessionRepository.GetByIdAsync(sessionId, ct);
         if (session is null)
         {
             return NotFound($"Session {sessionId} not found");
@@ -57,9 +57,9 @@ public partial class ExtractionController : ControllerBase
 
         // Atomic transition: only one caller can move Pending/Failed → Processing
         var transitioned = await _documentRepository.TryTransitionDocumentStatusAsync(
-                sessionId, DocumentStatus.Pending, DocumentStatus.Processing)
+                sessionId, DocumentStatus.Pending, DocumentStatus.Processing, ct)
             || await _documentRepository.TryTransitionDocumentStatusAsync(
-                sessionId, DocumentStatus.Failed, DocumentStatus.Processing);
+                sessionId, DocumentStatus.Failed, DocumentStatus.Processing, ct);
         if (!transitioned)
         {
             return Conflict("Extraction already in progress or completed");

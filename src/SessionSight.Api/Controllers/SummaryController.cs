@@ -48,7 +48,7 @@ public class SummaryController : ControllerBase
         [FromQuery] bool regenerate = false,
         CancellationToken ct = default)
     {
-        var session = await _sessionRepository.GetByIdAsync(sessionId);
+        var session = await _sessionRepository.GetByIdAsync(sessionId, ct);
         if (session is null)
         {
             return NotFound($"Session {sessionId} not found");
@@ -82,7 +82,7 @@ public class SummaryController : ControllerBase
 
         // Store the new summary
         var summaryJson = JsonSerializer.Serialize(summary, JsonOptions);
-        await _extractionResultRepository.UpdateExtractionSummaryAsync(session.Extraction.Id, summaryJson);
+        await _extractionResultRepository.UpdateExtractionSummaryAsync(session.Extraction.Id, summaryJson, ct);
 
         return Ok(summary);
     }
@@ -129,7 +129,7 @@ public class SummaryController : ControllerBase
             return NotFound($"Patient {patientId} not found");
         }
 
-        var sessions = (await _sessionRepository.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate))
+        var sessions = (await _sessionRepository.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate, ct))
             .OrderBy(s => s.SessionDate)
             .ThenBy(s => s.SessionNumber)
             .ToList();
@@ -195,8 +195,8 @@ public class SummaryController : ControllerBase
         }
 
         var sessions = (startDate.HasValue || endDate.HasValue
-                ? await _sessionRepository.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate)
-                : await _sessionRepository.GetByPatientIdAsync(patientId))
+                ? await _sessionRepository.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate, ct)
+                : await _sessionRepository.GetByPatientIdAsync(patientId, ct))
             .OrderBy(s => s.SessionDate)
             .ThenBy(s => s.SessionNumber)
             .ToList();

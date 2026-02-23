@@ -36,7 +36,7 @@ public class ExtractionControllerTests
     {
         // Arrange
         var sessionId = Guid.NewGuid();
-        _mockRepo.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync((Session?)null);
+        _mockRepo.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync((Session?)null);
 
         // Act
         var result = await _controller.TriggerExtraction(sessionId, CancellationToken.None);
@@ -51,7 +51,7 @@ public class ExtractionControllerTests
         // Arrange
         var sessionId = Guid.NewGuid();
         var session = new Session { Id = sessionId, Document = null };
-        _mockRepo.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _mockRepo.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(session);
 
         // Act
         var result = await _controller.TriggerExtraction(sessionId, CancellationToken.None);
@@ -70,9 +70,9 @@ public class ExtractionControllerTests
             Id = sessionId,
             Document = new SessionDocument { Status = DocumentStatus.Processing }
         };
-        _mockRepo.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _mockRepo.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(session);
         _mockDocRepo.Setup(r => r.TryTransitionDocumentStatusAsync(
-            sessionId, DocumentStatus.Pending, DocumentStatus.Processing))
+            sessionId, DocumentStatus.Pending, DocumentStatus.Processing, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
         // Act
@@ -102,9 +102,9 @@ public class ExtractionControllerTests
             RequiresReview = false
         };
 
-        _mockRepo.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _mockRepo.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(session);
         _mockDocRepo.Setup(r => r.TryTransitionDocumentStatusAsync(
-            sessionId, DocumentStatus.Pending, DocumentStatus.Processing))
+            sessionId, DocumentStatus.Pending, DocumentStatus.Processing, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _mockOrchestrator.Setup(o => o.ProcessSessionAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(orchestrationResult);
@@ -136,14 +136,14 @@ public class ExtractionControllerTests
             ExtractionId = Guid.NewGuid()
         };
 
-        _mockRepo.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _mockRepo.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(session);
         // Pending → Processing fails (status is Failed, not Pending)
         _mockDocRepo.Setup(r => r.TryTransitionDocumentStatusAsync(
-            sessionId, DocumentStatus.Pending, DocumentStatus.Processing))
+            sessionId, DocumentStatus.Pending, DocumentStatus.Processing, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         // Failed → Processing succeeds
         _mockDocRepo.Setup(r => r.TryTransitionDocumentStatusAsync(
-            sessionId, DocumentStatus.Failed, DocumentStatus.Processing))
+            sessionId, DocumentStatus.Failed, DocumentStatus.Processing, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _mockOrchestrator.Setup(o => o.ProcessSessionAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(orchestrationResult);

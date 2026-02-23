@@ -67,7 +67,7 @@ public class AggregateMetricsTool : IAgentTool
                 return ToolResult.Error("Missing required 'metricType' parameter");
             }
 
-            var sessions = (await _repository.GetByPatientIdAsync(patientGuid))
+            var sessions = (await _repository.GetByPatientIdAsync(patientGuid, ct))
                 .OrderBy(s => s.SessionDate)
                 .ToList();
 

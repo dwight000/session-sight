@@ -28,7 +28,7 @@ public class SessionsControllerTests
             new() { Id = Guid.NewGuid(), PatientId = Guid.NewGuid(), TherapistId = Guid.NewGuid(), SessionDate = new DateOnly(2026, 1, 15), SessionType = SessionType.Individual, Modality = SessionModality.InPerson, SessionNumber = 1 },
             new() { Id = Guid.NewGuid(), PatientId = Guid.NewGuid(), TherapistId = Guid.NewGuid(), SessionDate = new DateOnly(2026, 1, 16), SessionType = SessionType.Individual, Modality = SessionModality.TelehealthVideo, SessionNumber = 2 }
         };
-        _mockRepo.Setup(r => r.GetAllAsync(null, null)).ReturnsAsync(sessions);
+        _mockRepo.Setup(r => r.GetAllAsync(null, null, It.IsAny<CancellationToken>())).ReturnsAsync(sessions);
 
         var result = await _controller.GetAll();
 
@@ -45,7 +45,7 @@ public class SessionsControllerTests
         {
             new() { Id = Guid.NewGuid(), PatientId = patientId, TherapistId = Guid.NewGuid(), SessionDate = new DateOnly(2026, 1, 15), SessionType = SessionType.Individual, Modality = SessionModality.InPerson, SessionNumber = 1 }
         };
-        _mockRepo.Setup(r => r.GetAllAsync(patientId, null)).ReturnsAsync(sessions);
+        _mockRepo.Setup(r => r.GetAllAsync(patientId, null, It.IsAny<CancellationToken>())).ReturnsAsync(sessions);
 
         var result = await _controller.GetAll(patientId);
 
@@ -61,7 +61,7 @@ public class SessionsControllerTests
         {
             new() { Id = Guid.NewGuid(), PatientId = Guid.NewGuid(), TherapistId = Guid.NewGuid(), SessionDate = new DateOnly(2026, 1, 15), SessionType = SessionType.Individual, Modality = SessionModality.InPerson, SessionNumber = 1, Document = null }
         };
-        _mockRepo.Setup(r => r.GetAllAsync(null, false)).ReturnsAsync(sessions);
+        _mockRepo.Setup(r => r.GetAllAsync(null, false, It.IsAny<CancellationToken>())).ReturnsAsync(sessions);
 
         var result = await _controller.GetAll(hasDocument: false);
 
@@ -85,7 +85,7 @@ public class SessionsControllerTests
             Modality = SessionModality.InPerson,
             SessionNumber = 1
         };
-        _mockRepo.Setup(r => r.GetByIdAsync(id)).ReturnsAsync(session);
+        _mockRepo.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(session);
 
         var result = await _controller.GetById(id);
 
@@ -95,7 +95,7 @@ public class SessionsControllerTests
     [Fact]
     public async Task GetById_SessionNotFound_ReturnsNotFound()
     {
-        _mockRepo.Setup(r => r.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((Session?)null);
+        _mockRepo.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync((Session?)null);
 
         var result = await _controller.GetById(Guid.NewGuid());
 
@@ -108,8 +108,8 @@ public class SessionsControllerTests
         var request = new CreateSessionRequest(
             Guid.NewGuid(), Guid.NewGuid(), new DateOnly(2026, 1, 20),
             SessionType.Individual, SessionModality.InPerson, 50, 1);
-        _mockRepo.Setup(r => r.AddAsync(It.IsAny<Session>()))
-            .ReturnsAsync((Session s) => { s.Id = Guid.NewGuid(); return s; });
+        _mockRepo.Setup(r => r.AddAsync(It.IsAny<Session>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Session s, CancellationToken _) => { s.Id = Guid.NewGuid(); return s; });
 
         var result = await _controller.Create(request);
 

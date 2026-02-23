@@ -40,7 +40,7 @@ public class SummaryControllerTests
     public async Task GetSessionSummary_SessionNotFound_ReturnsNotFound()
     {
         var sessionId = Guid.NewGuid();
-        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync((Session?)null);
+        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync((Session?)null);
 
         var result = await _controller.GetSessionSummary(sessionId);
 
@@ -52,7 +52,7 @@ public class SummaryControllerTests
     {
         var sessionId = Guid.NewGuid();
         var session = new Session { Id = sessionId, Extraction = null };
-        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(session);
 
         var result = await _controller.GetSessionSummary(sessionId);
 
@@ -74,7 +74,7 @@ public class SummaryControllerTests
                 SummaryJson = storedSummaryJson
             }
         };
-        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(session);
 
         var result = await _controller.GetSessionSummary(sessionId);
 
@@ -100,7 +100,7 @@ public class SummaryControllerTests
         };
         var newSummary = new SessionSummary { OneLiner = "New summary", ModelUsed = "gpt-4o-mini" };
 
-        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(session);
         _mockSummarizer.Setup(s => s.SummarizeSessionAsync(It.IsAny<SessionSight.Agents.Models.ExtractionResult>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(newSummary);
 
@@ -109,7 +109,7 @@ public class SummaryControllerTests
         var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
         var summary = okResult.Value.Should().BeOfType<SessionSummary>().Subject;
         summary.OneLiner.Should().Be("New summary");
-        _mockExtractionResultRepo.Verify(r => r.UpdateExtractionSummaryAsync(extractionId, It.IsAny<string>()), Times.Once);
+        _mockExtractionResultRepo.Verify(r => r.UpdateExtractionSummaryAsync(extractionId, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public class SummaryControllerTests
         };
         var newSummary = new SessionSummary { OneLiner = "Generated summary", ModelUsed = "gpt-4o-mini" };
 
-        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(session);
         _mockSummarizer.Setup(s => s.SummarizeSessionAsync(It.IsAny<SessionSight.Agents.Models.ExtractionResult>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(newSummary);
 
@@ -241,7 +241,7 @@ public class SummaryControllerTests
 
         _mockPatientRepo.Setup(r => r.GetByIdAsync(patientId)).ReturnsAsync(patient);
         _mockSessionRepo
-            .Setup(r => r.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate))
+            .Setup(r => r.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { session2, session3, session1 });
 
         var result = await _controller.GetPatientRiskTrend(patientId, startDate, endDate);
@@ -345,13 +345,13 @@ public class SummaryControllerTests
 
         _mockPatientRepo.Setup(r => r.GetByIdAsync(patientId)).ReturnsAsync(patient);
         _mockSessionRepo
-            .Setup(r => r.GetByPatientIdAsync(patientId))
+            .Setup(r => r.GetByPatientIdAsync(patientId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { second, third, first });
 
         var result = await _controller.GetPatientTimeline(patientId, null, null);
 
-        _mockSessionRepo.Verify(r => r.GetByPatientIdAsync(patientId), Times.Once);
-        _mockSessionRepo.Verify(r => r.GetByPatientIdInDateRangeAsync(It.IsAny<Guid>(), It.IsAny<DateOnly?>(), It.IsAny<DateOnly?>()), Times.Never);
+        _mockSessionRepo.Verify(r => r.GetByPatientIdAsync(patientId, It.IsAny<CancellationToken>()), Times.Once);
+        _mockSessionRepo.Verify(r => r.GetByPatientIdInDateRangeAsync(It.IsAny<Guid>(), It.IsAny<DateOnly?>(), It.IsAny<DateOnly?>(), It.IsAny<CancellationToken>()), Times.Never);
 
         var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
         var timeline = okResult.Value.Should().BeOfType<PatientTimelineDto>().Subject;
@@ -411,13 +411,13 @@ public class SummaryControllerTests
 
         _mockPatientRepo.Setup(r => r.GetByIdAsync(patientId)).ReturnsAsync(patient);
         _mockSessionRepo
-            .Setup(r => r.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate))
+            .Setup(r => r.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<Session>());
 
         var result = await _controller.GetPatientTimeline(patientId, startDate, endDate);
 
-        _mockSessionRepo.Verify(r => r.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate), Times.Once);
-        _mockSessionRepo.Verify(r => r.GetByPatientIdAsync(patientId), Times.Never);
+        _mockSessionRepo.Verify(r => r.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate, It.IsAny<CancellationToken>()), Times.Once);
+        _mockSessionRepo.Verify(r => r.GetByPatientIdAsync(patientId, It.IsAny<CancellationToken>()), Times.Never);
 
         var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
         var timeline = okResult.Value.Should().BeOfType<PatientTimelineDto>().Subject;
