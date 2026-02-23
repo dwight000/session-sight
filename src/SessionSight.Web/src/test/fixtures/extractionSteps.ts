@@ -176,6 +176,7 @@ export const mockExtractionResult: ExtractionResultResponse = {
     guardrailApplied: true,
     homicidalGuardrail: { applied: false, reason: '' },
     selfHarmGuardrail: { applied: true, reason: 'Passive SI detected in note text' },
+    criteriaValidationAttempts: 2,
     discrepancyCount: 2,
     fieldDecisions: [
       {
