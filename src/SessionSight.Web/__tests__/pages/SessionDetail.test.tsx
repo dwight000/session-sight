@@ -71,6 +71,19 @@ describe('SessionDetail', () => {
     expect(screen.getByText('Overall Risk Level')).toBeInTheDocument()
   })
 
+  it('renders partial extracted fields (confidence-only) with em-dash instead of raw JSON', async () => {
+    renderSessionDetail()
+
+    await waitFor(() => {
+      expect(screen.getByText('Risk Assessment')).toBeInTheDocument()
+    })
+
+    // shRecency has {confidence: 0} with no value key — should show field name and em-dash, not raw JSON
+    expect(screen.getByText('Sh Recency')).toBeInTheDocument()
+    expect(screen.getByText('0%')).toBeInTheDocument()
+    expect(screen.queryByText('{"confidence":0}')).not.toBeInTheDocument()
+  })
+
   it('other accordion sections start closed, open on click', async () => {
     const user = userEvent.setup()
     renderSessionDetail()

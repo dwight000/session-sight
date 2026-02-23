@@ -79,6 +79,7 @@ export const mockReviewDetail: ReviewDetail = {
     riskAssessment: {
       suicidalIdeation: { value: 'Passive', confidence: 0.65, source: { text: 'Risk section', startChar: 700, endChar: 800, section: 'risk' } },
       overallRiskLevel: { value: 'Moderate', confidence: 0.7, source: { text: 'Risk section', startChar: 800, endChar: 900, section: 'risk' } },
+      shRecency: { confidence: 0 },
     },
     mentalStatusExam: {
       appearance: { value: 'Well-groomed, appropriate dress', confidence: 0.9, source: { text: 'MSE section', startChar: 900, endChar: 1000, section: 'mse' } },
