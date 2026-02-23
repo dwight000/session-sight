@@ -49,6 +49,7 @@ function ExtractionSection({
   data: Record<string, unknown>
 }) {
   const [open, setOpen] = useState(name === 'riskAssessment')
+  const [activeSourceKey, setActiveSourceKey] = useState<string | null>(null)
 
   if (!data || typeof data !== 'object') return null
 
@@ -68,15 +69,30 @@ function ExtractionSection({
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {entries.map(([key, val]) => {
               if (isExtractedField(val)) {
+                const sourceExpanded = activeSourceKey === key
                 return (
                   <div key={key} className="rounded-md bg-gray-50 p-3">
                     <p className="text-xs font-medium text-gray-500">{formatFieldName(key)}</p>
                     <p className="mt-1 text-sm text-gray-900">{formatFieldValue(val.value)}</p>
                     <ConfidenceBar value={val.confidence} className="mt-1" />
                     {val.source?.text && (
-                      <p className="mt-1 text-xs text-gray-400 italic truncate" title={val.source.text}>
-                        Source: {val.source.text}
-                      </p>
+                      <>
+                        <button
+                          onClick={() => setActiveSourceKey(sourceExpanded ? null : key)}
+                          className="mt-1 text-xs text-blue-600 hover:text-blue-800 cursor-pointer"
+                        >
+                          {sourceExpanded ? 'Hide source' : 'Show source'}
+                        </button>
+                        {sourceExpanded && (
+                          <div className="mt-1 rounded border border-blue-100 bg-blue-50 p-2 text-xs">
+                            {val.source.section && (
+                              <p><span className="font-medium text-gray-500">Section:</span> {val.source.section}</p>
+                            )}
+                            <p className="break-words"><span className="font-medium text-gray-500">Text:</span> {val.source.text}</p>
+                            <p><span className="font-medium text-gray-500">Chars:</span> {val.source.startChar}–{val.source.endChar}</p>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )

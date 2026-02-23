@@ -3,6 +3,9 @@ import type { ExtractionStep, ExtractionStepName } from '../../types/extractionS
 import { STEP_DISPLAY_NAMES, formatDurationMs, formatResultSummary, estimateCost } from './stepConfig'
 import { ToolCallSection } from './ToolCallSection'
 import { LlmTraceSection } from './LlmTraceSection'
+import { ConfidenceHeatmap } from './ConfidenceHeatmap'
+import { RiskMergeView } from './RiskMergeView'
+import { useExtractionResult } from '../../hooks/useExtractionResult'
 
 interface ExtractionStepCardProps {
   stepName: ExtractionStepName
@@ -10,15 +13,22 @@ interface ExtractionStepCardProps {
   isCurrentStep: boolean
   defaultExpanded: boolean
   showSubSectionsOpen?: boolean
+  sessionId?: string
 }
 
-export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpanded, showSubSectionsOpen }: ExtractionStepCardProps) {
+export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpanded, showSubSectionsOpen, sessionId }: ExtractionStepCardProps) {
   const [open, setOpen] = useState(defaultExpanded)
 
   const isPending = !step && !isCurrentStep
   const isRunning = isCurrentStep && (!step || step.status === 'Running')
   const isCompleted = step?.status === 'Succeeded'
   const isFailed = step?.status === 'Failed'
+
+  const needsExtractionData = (stepName === 'ClinicalExtract' || stepName === 'RiskAssess') && isCompleted
+  const { data: extractionResult, isLoading: extractionLoading } = useExtractionResult(
+    sessionId ?? '',
+    open && !!needsExtractionData,
+  )
 
   const summary = step ? formatResultSummary(stepName, step.resultSummaryJson) : null
 
@@ -156,6 +166,17 @@ export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpan
           {/* Sub-accordions */}
           <ToolCallSection toolCalls={step.toolCalls} defaultOpen={showSubSectionsOpen} />
           <LlmTraceSection traces={step.llmTraces} defaultOpen={showSubSectionsOpen} />
+
+          {/* Extraction detail panels */}
+          {needsExtractionData && extractionLoading && (
+            <div className="h-4 w-32 animate-pulse rounded bg-gray-200" />
+          )}
+          {stepName === 'ClinicalExtract' && extractionResult && (
+            <ConfidenceHeatmap data={extractionResult.data} defaultOpen={showSubSectionsOpen} />
+          )}
+          {stepName === 'RiskAssess' && extractionResult?.riskDiagnostics?.fieldDecisions?.length && (
+            <RiskMergeView diagnostics={extractionResult.riskDiagnostics} defaultOpen={showSubSectionsOpen} />
+          )}
         </div>
       )}
     </div>

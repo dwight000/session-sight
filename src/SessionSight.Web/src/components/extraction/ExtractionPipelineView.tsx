@@ -71,6 +71,7 @@ export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipeline
           isCurrentStep={name === currentStepName}
           defaultExpanded={true}
           showSubSectionsOpen={isLive}
+          sessionId={sessionId}
         />
       ))}
     </div>
