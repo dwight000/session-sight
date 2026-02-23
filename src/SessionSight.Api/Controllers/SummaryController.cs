@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using SessionSight.Agents.Agents;
 using SessionSight.Agents.Models;
+using SessionSight.Agents.Orchestration;
 using SessionSight.Api.DTOs;
 using SessionSight.Core.Enums;
 using SessionSight.Core.Interfaces;
@@ -16,8 +17,8 @@ namespace SessionSight.Api.Controllers;
 public class SummaryController : ControllerBase
 {
     private readonly ISummarizerAgent _summarizerAgent;
+    private readonly IExtractionOrchestrator _orchestrator;
     private readonly ISessionRepository _sessionRepository;
-    private readonly IExtractionResultRepository _extractionResultRepository;
     private readonly IPatientRepository _patientRepository;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -28,13 +29,13 @@ public class SummaryController : ControllerBase
 
     public SummaryController(
         ISummarizerAgent summarizerAgent,
+        IExtractionOrchestrator orchestrator,
         ISessionRepository sessionRepository,
-        IExtractionResultRepository extractionResultRepository,
         IPatientRepository patientRepository)
     {
         _summarizerAgent = summarizerAgent;
+        _orchestrator = orchestrator;
         _sessionRepository = sessionRepository;
-        _extractionResultRepository = extractionResultRepository;
         _patientRepository = patientRepository;
     }
 
@@ -69,20 +70,8 @@ public class SummaryController : ControllerBase
             }
         }
 
-        // Generate new summary
-        var agentExtraction = new SessionSight.Agents.Models.ExtractionResult
-        {
-            SessionId = sessionId.ToString("D"),
-            Data = session.Extraction.Data,
-            OverallConfidence = session.Extraction.OverallConfidence,
-            RequiresReview = session.Extraction.RequiresReview
-        };
-
-        var summary = await _summarizerAgent.SummarizeSessionAsync(agentExtraction, ct);
-
-        // Store the new summary
-        var summaryJson = JsonSerializer.Serialize(summary, JsonOptions);
-        await _extractionResultRepository.UpdateExtractionSummaryAsync(session.Extraction.Id, summaryJson, ct);
+        // Generate new summary via orchestrator (calls summarizer agent + persists JSON)
+        var summary = await _orchestrator.GenerateSessionSummaryAsync(sessionId, ct);
 
         return Ok(summary);
     }

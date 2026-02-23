@@ -623,6 +623,31 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         await _extractionResultRepository.UpdateExtractionResultAsync(entity, ct);
     }
 
+    /// <inheritdoc />
+    public async Task<SessionSummary> GenerateSessionSummaryAsync(Guid sessionId, CancellationToken ct = default)
+    {
+        var session = await _sessionRepository.GetByIdAsync(sessionId, ct);
+        if (session?.Extraction is null)
+        {
+            throw new InvalidOperationException($"Session {sessionId} has no extraction data.");
+        }
+
+        var agentExtraction = new AgentExtractionResult
+        {
+            SessionId = sessionId.ToString("D"),
+            Data = session.Extraction.Data,
+            OverallConfidence = session.Extraction.OverallConfidence,
+            RequiresReview = session.Extraction.RequiresReview
+        };
+
+        var summary = await _agents.Summarizer.SummarizeSessionAsync(agentExtraction, ct);
+
+        var summaryJson = JsonSerializer.Serialize(summary, JsonOptions);
+        await _extractionResultRepository.UpdateExtractionSummaryAsync(session.Extraction.Id, summaryJson, ct);
+
+        return summary;
+    }
+
     private static readonly PropertyInfo[] CachedSectionProperties = typeof(Core.Schema.ClinicalExtraction)
         .GetProperties()
         .Where(p => p.PropertyType.GetProperties().Any(sp =>

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Moq;
 using SessionSight.Agents.Agents;
 using SessionSight.Agents.Models;
+using SessionSight.Agents.Orchestration;
 using SessionSight.Api.Controllers;
 using SessionSight.Api.DTOs;
 using SessionSight.Core.Entities;
@@ -16,21 +17,21 @@ namespace SessionSight.Api.Tests.Controllers;
 public class SummaryControllerTests
 {
     private readonly Mock<ISummarizerAgent> _mockSummarizer;
+    private readonly Mock<IExtractionOrchestrator> _mockOrchestrator;
     private readonly Mock<ISessionRepository> _mockSessionRepo;
-    private readonly Mock<IExtractionResultRepository> _mockExtractionResultRepo;
     private readonly Mock<IPatientRepository> _mockPatientRepo;
     private readonly SummaryController _controller;
 
     public SummaryControllerTests()
     {
         _mockSummarizer = new Mock<ISummarizerAgent>();
+        _mockOrchestrator = new Mock<IExtractionOrchestrator>();
         _mockSessionRepo = new Mock<ISessionRepository>();
-        _mockExtractionResultRepo = new Mock<IExtractionResultRepository>();
         _mockPatientRepo = new Mock<IPatientRepository>();
         _controller = new SummaryController(
             _mockSummarizer.Object,
+            _mockOrchestrator.Object,
             _mockSessionRepo.Object,
-            _mockExtractionResultRepo.Object,
             _mockPatientRepo.Object);
     }
 
@@ -84,16 +85,15 @@ public class SummaryControllerTests
     }
 
     [Fact]
-    public async Task GetSessionSummary_RegenerateTrue_CallsSummarizer()
+    public async Task GetSessionSummary_RegenerateTrue_CallsOrchestrator()
     {
         var sessionId = Guid.NewGuid();
-        var extractionId = Guid.NewGuid();
         var session = new Session
         {
             Id = sessionId,
             Extraction = new CoreExtractionResult
             {
-                Id = extractionId,
+                Id = Guid.NewGuid(),
                 Data = new ClinicalExtraction(),
                 SummaryJson = """{"oneLiner":"Old summary"}"""
             }
@@ -101,7 +101,7 @@ public class SummaryControllerTests
         var newSummary = new SessionSummary { OneLiner = "New summary", ModelUsed = "gpt-4o-mini" };
 
         _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(session);
-        _mockSummarizer.Setup(s => s.SummarizeSessionAsync(It.IsAny<SessionSight.Agents.Models.ExtractionResult>(), It.IsAny<CancellationToken>()))
+        _mockOrchestrator.Setup(o => o.GenerateSessionSummaryAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(newSummary);
 
         var result = await _controller.GetSessionSummary(sessionId, regenerate: true);
@@ -109,20 +109,19 @@ public class SummaryControllerTests
         var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
         var summary = okResult.Value.Should().BeOfType<SessionSummary>().Subject;
         summary.OneLiner.Should().Be("New summary");
-        _mockExtractionResultRepo.Verify(r => r.UpdateExtractionSummaryAsync(extractionId, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mockOrchestrator.Verify(o => o.GenerateSessionSummaryAsync(sessionId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task GetSessionSummary_NoStoredSummary_GeneratesNew()
     {
         var sessionId = Guid.NewGuid();
-        var extractionId = Guid.NewGuid();
         var session = new Session
         {
             Id = sessionId,
             Extraction = new CoreExtractionResult
             {
-                Id = extractionId,
+                Id = Guid.NewGuid(),
                 Data = new ClinicalExtraction(),
                 SummaryJson = null
             }
@@ -130,7 +129,7 @@ public class SummaryControllerTests
         var newSummary = new SessionSummary { OneLiner = "Generated summary", ModelUsed = "gpt-4o-mini" };
 
         _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(session);
-        _mockSummarizer.Setup(s => s.SummarizeSessionAsync(It.IsAny<SessionSight.Agents.Models.ExtractionResult>(), It.IsAny<CancellationToken>()))
+        _mockOrchestrator.Setup(o => o.GenerateSessionSummaryAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(newSummary);
 
         var result = await _controller.GetSessionSummary(sessionId);
