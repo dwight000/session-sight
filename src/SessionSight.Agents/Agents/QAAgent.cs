@@ -239,8 +239,11 @@ public partial class QAAgent : IQAAgent
             qaResponse.ToolCallCount = loopResult.ToolCallCount;
             qaResponse.GeneratedAt = DateTime.UtcNow;
 
-            // Build sources from citedSessionIds in the parsed response
+            // Build sources from citedSessionIds in the parsed response,
+            // fall back to session IDs from tool call results if none cited
             BuildAgenticSources(qaResponse, loopResult.Content ?? string.Empty);
+            if (qaResponse.Sources is not { Count: > 0 })
+                FallbackSourcesFromToolTrace(qaResponse, loopResult.ToolCallTrace);
 
             diagnostics.Reasoning = ParseReasoning(loopResult.Content ?? string.Empty);
             diagnostics.ToolCalls = loopResult.ToolCallTrace
@@ -290,6 +293,73 @@ public partial class QAAgent : IQAAgent
         catch (JsonException)
         {
             // Sources remain empty if parsing fails
+        }
+    }
+
+    /// <summary>
+    /// When the LLM omits citedSessionIds, extract session IDs from
+    /// search_sessions / get_session_detail tool call outputs as fallback.
+    /// </summary>
+    internal static void FallbackSourcesFromToolTrace(QAResponse response, IReadOnlyList<Tools.ToolCallEntry> trace)
+    {
+        var sessionIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var entry in trace.Where(t =>
+            t.Succeeded &&
+            !string.IsNullOrEmpty(t.OutputJson) &&
+            t.ToolName is "search_sessions" or "get_session_detail"))
+        {
+            ExtractSessionIdsFromJson(entry.OutputJson!, sessionIds);
+        }
+
+        if (sessionIds.Count > 0)
+        {
+            response.Sources = sessionIds
+                .Select(id => new SourceCitation { SessionId = id })
+                .ToList();
+        }
+    }
+
+    private static void ExtractSessionIdsFromJson(string json, HashSet<string> sessionIds)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            ExtractSessionIdsFromElement(doc.RootElement, sessionIds);
+        }
+        catch (JsonException)
+        {
+            // Best-effort extraction
+        }
+    }
+
+    private static void ExtractSessionIdsFromElement(JsonElement element, HashSet<string> sessionIds)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                // Look for "sessionId" or "SessionId" property
+                if (element.TryGetProperty("sessionId", out var sid) && sid.ValueKind == JsonValueKind.String)
+                {
+                    var val = sid.GetString();
+                    if (!string.IsNullOrEmpty(val))
+                        sessionIds.Add(val);
+                }
+                else if (element.TryGetProperty("SessionId", out var sid2) && sid2.ValueKind == JsonValueKind.String)
+                {
+                    var val = sid2.GetString();
+                    if (!string.IsNullOrEmpty(val))
+                        sessionIds.Add(val);
+                }
+
+                foreach (var prop in element.EnumerateObject())
+                    ExtractSessionIdsFromElement(prop.Value, sessionIds);
+                break;
+
+            case JsonValueKind.Array:
+                foreach (var item in element.EnumerateArray())
+                    ExtractSessionIdsFromElement(item, sessionIds);
+                break;
         }
     }
 
@@ -345,7 +415,7 @@ public partial class QAAgent : IQAAgent
         }
     }
 
-    private static string BuildContextString(
+    internal static string BuildContextString(
         IReadOnlyList<Azure.Search.Documents.Models.SearchResult<SessionSearchDocument>> results)
     {
         var sb = new StringBuilder();
@@ -366,6 +436,9 @@ public partial class QAAgent : IQAAgent
                 sb.AppendLine("Summary:");
                 sb.AppendLine(doc.Summary);
             }
+
+            if (doc.Interventions is { Count: > 0 })
+                sb.AppendLine(CultureInfo.InvariantCulture, $"Interventions: {string.Join(", ", doc.Interventions)}");
 
             if (!string.IsNullOrEmpty(doc.Content))
             {

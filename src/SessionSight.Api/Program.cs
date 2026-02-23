@@ -66,12 +66,9 @@ builder.Services.AddScoped<ExtractionAgents>(sp => new ExtractionAgents(
     sp.GetRequiredService<ISummarizerAgent>()));
 builder.Services.AddSingleton<ISchemaValidator, SchemaValidator>();
 
-// Agent tools (existing from P2-006a)
+// Agent tools (extraction)
 builder.Services.AddSingleton<IAgentTool, CheckRiskKeywordsTool>();
-builder.Services.AddSingleton<IAgentTool, ValidateSchemaTool>();
-
-// Agent tools (new in P2-006b)
-builder.Services.AddSingleton<IAgentTool, ScoreConfidenceTool>();
+builder.Services.AddSingleton<IAgentTool, ValidateAndScoreTool>();
 builder.Services.AddScoped<IAgentTool, QueryPatientHistoryTool>();  // Scoped - needs repository
 builder.Services.AddSingleton<IAgentTool, LookupDiagnosisCodeTool>();
 

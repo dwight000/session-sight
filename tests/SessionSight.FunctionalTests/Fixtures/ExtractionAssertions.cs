@@ -233,11 +233,11 @@ internal static class ExtractionAssertions
         if (toolCallList.Count > 0)
         {
             // All tool calls should succeed — the prompt instructs the LLM to build the
-            // complete extraction before calling validate_schema/score_confidence.
+            // complete extraction before calling validate_and_score.
             toolCallList.Should().OnlyContain(
                 tc => tc.GetProperty("succeeded").GetBoolean(),
-                "All tool calls should succeed — if validate_schema or score_confidence failed, " +
-                "the LLM likely called them before building the full extraction object");
+                "All tool calls should succeed — if validate_and_score failed, " +
+                "the LLM likely called it before building the full extraction object");
         }
 
         // ── Non-LLM steps should have empty tool calls ───────────────────
