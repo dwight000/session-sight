@@ -6,7 +6,7 @@ import { uploadDocument, triggerExtraction } from '../../src/api/upload'
 describe('upload api', () => {
   describe('uploadDocument', () => {
     it('uploads a document successfully', async () => {
-      const response = { documentId: 'd1', sessionId: 's1', fileName: 'test.pdf', blobUri: 'blob://test', status: 'Pending' }
+      const response = { documentId: 'd1', sessionId: 's1', originalFileName: 'test.pdf', blobUri: 'blob://test', status: 'Pending' }
       server.use(
         http.post('/api/sessions/s1/document', () => HttpResponse.json(response))
       )
