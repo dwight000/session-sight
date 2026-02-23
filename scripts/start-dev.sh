@@ -176,10 +176,12 @@ else
             EXTRACTION_PIDS+=($!)
         done
 
-        # Wait for all extractions with progress
+        # Wait for all extractions with progress (timeout after 10 min)
         COMPLETED=0
         TOTAL=${#EXTRACTION_PIDS[@]}
-        while [[ $COMPLETED -lt $TOTAL ]]; do
+        EXTRACTION_WAIT=0
+        EXTRACTION_MAX_WAIT=600
+        while [[ $COMPLETED -lt $TOTAL && $EXTRACTION_WAIT -lt $EXTRACTION_MAX_WAIT ]]; do
             COMPLETED=0
             for PID in "${EXTRACTION_PIDS[@]}"; do
                 if ! kill -0 "$PID" 2>/dev/null; then
@@ -189,10 +191,20 @@ else
             if [[ $COMPLETED -lt $TOTAL ]]; then
                 echo -ne "\r\033[0;32m[DEV]\033[0m   Extractions: $COMPLETED/$TOTAL complete..."
                 sleep 5
+                EXTRACTION_WAIT=$((EXTRACTION_WAIT + 5))
             fi
         done
-        echo -e "\r\033[0;32m[DEV]\033[0m   Extractions: $TOTAL/$TOTAL complete.    "
-        wait
+        if [[ $EXTRACTION_WAIT -ge $EXTRACTION_MAX_WAIT ]]; then
+            echo ""
+            error "Extraction timeout after ${EXTRACTION_MAX_WAIT}s ($COMPLETED/$TOTAL complete). Continuing with partial data."
+            # Kill any remaining extraction curls
+            for PID in "${EXTRACTION_PIDS[@]}"; do
+                kill "$PID" 2>/dev/null || true
+            done
+        else
+            echo -e "\r\033[0;32m[DEV]\033[0m   Extractions: $TOTAL/$TOTAL complete.    "
+        fi
+        wait 2>/dev/null
     fi
 
     log "Demo data seeded: ${#SESSION_IDS[@]} patients with full extraction."

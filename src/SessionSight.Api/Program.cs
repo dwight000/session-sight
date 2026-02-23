@@ -44,7 +44,10 @@ builder.AddAzureBlobClient("documents");
 
 // Infrastructure DI (repositories, blob storage)
 builder.Services.AddScoped<SessionSight.Core.Interfaces.IPatientRepository, SessionSight.Infrastructure.Repositories.PatientRepository>();
-builder.Services.AddScoped<SessionSight.Core.Interfaces.ISessionRepository, SessionSight.Infrastructure.Repositories.SessionRepository>();
+builder.Services.AddScoped<SessionSight.Infrastructure.Repositories.SessionRepository>();
+builder.Services.AddScoped<SessionSight.Core.Interfaces.ISessionRepository>(sp => sp.GetRequiredService<SessionSight.Infrastructure.Repositories.SessionRepository>());
+builder.Services.AddScoped<SessionSight.Core.Interfaces.IDocumentRepository>(sp => sp.GetRequiredService<SessionSight.Infrastructure.Repositories.SessionRepository>());
+builder.Services.AddScoped<SessionSight.Core.Interfaces.IExtractionResultRepository>(sp => sp.GetRequiredService<SessionSight.Infrastructure.Repositories.SessionRepository>());
 builder.Services.AddScoped<SessionSight.Core.Interfaces.IDocumentStorage, SessionSight.Infrastructure.Storage.AzureBlobDocumentStorage>();
 builder.Services.AddScoped<SessionSight.Core.Interfaces.IReviewRepository, SessionSight.Infrastructure.Repositories.ReviewRepository>();
 builder.Services.AddScoped<SessionSight.Core.Interfaces.IExtractionStepRepository, SessionSight.Infrastructure.Repositories.ExtractionStepRepository>();

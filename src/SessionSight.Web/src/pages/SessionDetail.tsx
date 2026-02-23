@@ -194,6 +194,7 @@ export function SessionDetail() {
   const regenerate = useRegenerateSessionSummary(sessionId!)
   const deleteDoc = useDeleteDocument(sessionId!)
   const navigate = useNavigate()
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   if (isLoading) return <Spinner />
 
@@ -364,16 +365,42 @@ export function SessionDetail() {
           <Button
             variant="danger"
             disabled={deleteDoc.isPending}
-            onClick={() => {
-              if (window.confirm('Delete this document and its extraction? This cannot be undone.')) {
-                deleteDoc.mutate(undefined, {
-                  onSuccess: () => navigate('/upload'),
-                })
-              }
-            }}
+            onClick={() => setShowDeleteConfirm(true)}
           >
             {deleteDoc.isPending ? 'Deleting...' : 'Delete Document'}
           </Button>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900">Delete Document</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Delete this document and its extraction? This cannot be undone.
+            </p>
+            <div className="mt-4 flex justify-end gap-3">
+              <Button
+                variant="secondary"
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                disabled={deleteDoc.isPending}
+                onClick={() => {
+                  deleteDoc.mutate(undefined, {
+                    onSuccess: () => navigate('/upload'),
+                  })
+                  setShowDeleteConfirm(false)
+                }}
+              >
+                {deleteDoc.isPending ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

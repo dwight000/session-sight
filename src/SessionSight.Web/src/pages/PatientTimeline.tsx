@@ -45,9 +45,8 @@ function toIsoDate(date: Date): string {
 
 function getDefaultRange() {
   const end = new Date()
-  const start = new Date()
-  start.setMonth(start.getMonth() - 6)
-  return { start: toIsoDate(start), end: toIsoDate(end) }
+  end.setDate(end.getDate() + 1)
+  return { start: '2000-01-01', end: toIsoDate(end) }
 }
 
 export function PatientTimeline() {

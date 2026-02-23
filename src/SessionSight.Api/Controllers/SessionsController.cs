@@ -6,7 +6,7 @@ using SessionSight.Core.Interfaces;
 namespace SessionSight.Api.Controllers;
 
 [ApiController]
-[Route("api")]
+[Route("api/[controller]")]
 public class SessionsController : ControllerBase
 {
     private readonly ISessionRepository _sessionRepository;
@@ -16,7 +16,7 @@ public class SessionsController : ControllerBase
         _sessionRepository = sessionRepository;
     }
 
-    [HttpGet("sessions")]
+    [HttpGet]
     public async Task<ActionResult<IEnumerable<SessionDto>>> GetAll(
         [FromQuery] Guid? patientId = null,
         [FromQuery] bool? hasDocument = null)
@@ -25,7 +25,7 @@ public class SessionsController : ControllerBase
         return Ok(sessions.Select(s => s.ToDto()));
     }
 
-    [HttpGet("sessions/{id:guid}")]
+    [HttpGet("{id:guid}")]
     public async Task<ActionResult<SessionDto>> GetById(Guid id)
     {
         var session = await _sessionRepository.GetByIdAsync(id);
@@ -33,14 +33,14 @@ public class SessionsController : ControllerBase
         return Ok(session.ToDto());
     }
 
-    [HttpGet("patients/{patientId:guid}/sessions")]
+    [HttpGet("~/api/patients/{patientId:guid}/sessions")]
     public async Task<ActionResult<IEnumerable<SessionDto>>> GetByPatientId(Guid patientId)
     {
         var sessions = await _sessionRepository.GetByPatientIdAsync(patientId);
         return Ok(sessions.Select(s => s.ToDto()));
     }
 
-    [HttpPost("sessions")]
+    [HttpPost]
     public async Task<ActionResult<SessionDto>> Create(CreateSessionRequest request)
     {
         var session = request.ToEntity();
@@ -48,7 +48,7 @@ public class SessionsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = session.Id }, session.ToDto());
     }
 
-    [HttpPut("sessions/{id:guid}")]
+    [HttpPut("{id:guid}")]
     public async Task<ActionResult<SessionDto>> Update(Guid id, UpdateSessionRequest request)
     {
         var session = await _sessionRepository.GetByIdAsync(id);

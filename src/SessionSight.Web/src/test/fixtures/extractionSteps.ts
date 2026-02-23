@@ -178,6 +178,7 @@ export const mockExtractionResult: ExtractionResultResponse = {
     selfHarmGuardrail: { applied: true, reason: 'Passive SI detected in note text' },
     criteriaValidationAttempts: 2,
     discrepancyCount: 2,
+    contentFilterBlocked: false,
     fieldDecisions: [
       {
         field: 'suicidalIdeation',

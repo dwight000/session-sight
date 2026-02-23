@@ -173,4 +173,39 @@ public class ExtractionResultMappingsTests
         dto.RiskDiagnostics.SelfHarmGuardrail!.Applied.Should().BeTrue();
         dto.RiskDiagnostics.SelfHarmGuardrail.Reason.Should().Be("self-harm indicators");
     }
+
+    [Fact]
+    public void ToDto_WithContentFilterBlocked_ReturnsDiagnostics()
+    {
+        var entity = new ExtractionResult
+        {
+            Id = Guid.NewGuid(),
+            SessionId = Guid.NewGuid(),
+            ContentFilterBlocked = true
+        };
+
+        var dto = entity.ToDto();
+
+        dto.RiskDiagnostics.Should().NotBeNull();
+        dto.RiskDiagnostics!.ContentFilterBlocked.Should().BeTrue();
+        dto.RiskDiagnostics.GuardrailApplied.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ToDto_WithContentFilterFalse_MapsCorrectly()
+    {
+        var entity = new ExtractionResult
+        {
+            Id = Guid.NewGuid(),
+            SessionId = Guid.NewGuid(),
+            GuardrailApplied = true,
+            HomicidalGuardrailApplied = true,
+            ContentFilterBlocked = false
+        };
+
+        var dto = entity.ToDto();
+
+        dto.RiskDiagnostics.Should().NotBeNull();
+        dto.RiskDiagnostics!.ContentFilterBlocked.Should().BeFalse();
+    }
 }

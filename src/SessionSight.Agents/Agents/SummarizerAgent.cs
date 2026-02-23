@@ -25,11 +25,7 @@ public partial class SummarizerAgent : ISummarizerAgent
     private readonly ISessionRepository _sessionRepository;
     private readonly ILogger<SummarizerAgent> _logger;
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
+    private static readonly JsonSerializerOptions JsonOptions = SharedJsonOptions.AgentDefault;
 
     public SummarizerAgent(
         IAIFoundryClientFactory clientFactory,
@@ -134,7 +130,7 @@ public partial class SummarizerAgent : ISummarizerAgent
         var modelName = _modelRouter.SelectModel(ModelTask.Summarization);
 
         // Get patient's sessions with extractions
-        var sessions = (await _sessionRepository.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate))
+        var sessions = (await _sessionRepository.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate, ct))
             .Where(s => s.Extraction != null)
             .OrderBy(s => s.SessionDate)
             .ToList();
@@ -231,8 +227,8 @@ public partial class SummarizerAgent : ISummarizerAgent
         LogStartingPracticeSummary(_logger, startDate, endDate);
 
         // Get all sessions in range
-        var allSessions = (await _sessionRepository.GetAllInDateRangeAsync(startDate, endDate)).ToList();
-        var flaggedSessions = (await _sessionRepository.GetFlaggedSessionsAsync(startDate, endDate)).ToList();
+        var allSessions = (await _sessionRepository.GetAllInDateRangeAsync(startDate, endDate, ct)).ToList();
+        var flaggedSessions = (await _sessionRepository.GetFlaggedSessionsAsync(startDate, endDate, ct)).ToList();
 
         // Aggregate metrics locally (no LLM needed for counts)
         var summary = new PracticeSummary
@@ -268,7 +264,7 @@ public partial class SummarizerAgent : ISummarizerAgent
 
     internal static SessionSummary ParseSessionSummary(string content)
     {
-        var json = ExtractJson(content);
+        var json = LlmJsonHelper.ExtractJson(content);
 
         try
         {
@@ -313,7 +309,7 @@ public partial class SummarizerAgent : ISummarizerAgent
 
     internal static PatientSummary ParsePatientSummary(string content)
     {
-        var json = ExtractJson(content);
+        var json = LlmJsonHelper.ExtractJson(content);
 
         try
         {
@@ -419,8 +415,6 @@ public partial class SummarizerAgent : ISummarizerAgent
 
         return risk;
     }
-
-    internal static string ExtractJson(string content) => LlmJsonHelper.ExtractJson(content);
 
     private static RiskLevelBreakdown CalculateRiskDistribution(List<Session> sessions)
     {

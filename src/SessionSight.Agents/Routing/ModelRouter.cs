@@ -10,10 +10,6 @@ public class ModelRouter : IModelRouter
     public const string Gpt41Nano = "gpt-4.1-nano";
     public const string Embedding = "text-embedding-3-large";
 
-    // Legacy constants for test compatibility
-    public const string Gpt4o = Gpt41Mini;
-    public const string Gpt4oMini = Gpt41Nano;
-
     public string SelectModel(ModelTask task) => task switch
     {
         ModelTask.DocumentIntake => Gpt41Nano,

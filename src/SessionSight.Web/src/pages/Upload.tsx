@@ -97,6 +97,8 @@ export function Upload() {
         onSuccess: (result) => {
           // Force one final fetch so pipeline view shows completed state
           queryClient.invalidateQueries({ queryKey: ['extractionSteps', selectedSessionId] })
+          queryClient.invalidateQueries({ queryKey: ['extractionResult', selectedSessionId] })
+          queryClient.invalidateQueries({ queryKey: ['reviewDetail', selectedSessionId] })
           if (result.success) {
             setUploadResult({ success: true, sessionId: selectedSessionId })
             setSelectedSessionId('')
@@ -110,6 +112,8 @@ export function Upload() {
         },
         onError: (error) => {
           queryClient.invalidateQueries({ queryKey: ['extractionSteps', selectedSessionId] })
+          queryClient.invalidateQueries({ queryKey: ['extractionResult', selectedSessionId] })
+          queryClient.invalidateQueries({ queryKey: ['reviewDetail', selectedSessionId] })
           setUploadResult({ success: false, error: (error as Error).message })
         },
       }

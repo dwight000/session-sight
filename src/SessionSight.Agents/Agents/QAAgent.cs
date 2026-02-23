@@ -33,11 +33,7 @@ public partial class QAAgent : IQAAgent
 
     internal const int MaxContextSessions = 10;
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
+    private static readonly JsonSerializerOptions JsonOptions = SharedJsonOptions.AgentDefault;
 
 #pragma warning disable S107 // Constructor parameters - DI requires explicit dependencies for testability
     public QAAgent(
@@ -274,7 +270,7 @@ public partial class QAAgent : IQAAgent
     {
         try
         {
-            var json = SummarizerAgent.ExtractJson(content);
+            var json = LlmJsonHelper.ExtractJson(content);
             var parsed = JsonSerializer.Deserialize<JsonElement>(json, JsonOptions);
 
             if (parsed.TryGetProperty("citedSessionIds", out var cited) &&
@@ -367,7 +363,7 @@ public partial class QAAgent : IQAAgent
     {
         try
         {
-            var json = SummarizerAgent.ExtractJson(content);
+            var json = LlmJsonHelper.ExtractJson(content);
             var parsed = JsonSerializer.Deserialize<JsonElement>(json, JsonOptions);
 
             if (parsed.TryGetProperty("reasoning", out var reasoning) &&
@@ -454,7 +450,7 @@ public partial class QAAgent : IQAAgent
 
     internal static QAResponse ParseQAResponse(string content)
     {
-        var json = SummarizerAgent.ExtractJson(content);
+        var json = LlmJsonHelper.ExtractJson(content);
 
         try
         {

@@ -1,4 +1,6 @@
+using System.Collections.Frozen;
 using System.Diagnostics;
+using System.Reflection;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -29,6 +31,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
     private readonly IDocumentParser _documentParser;
     private readonly ExtractionAgents _agents;
     private readonly ISessionRepository _sessionRepository;
+    private readonly IDocumentRepository _documentRepository;
+    private readonly IExtractionResultRepository _extractionResultRepository;
     private readonly IExtractionStepRepository _stepRepository;
     private readonly IDocumentStorage _documentStorage;
     private readonly ISessionIndexingService _sessionIndexingService;
@@ -45,6 +49,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         IDocumentParser documentParser,
         ExtractionAgents agents,
         ISessionRepository sessionRepository,
+        IDocumentRepository documentRepository,
+        IExtractionResultRepository extractionResultRepository,
         IExtractionStepRepository stepRepository,
         IDocumentStorage documentStorage,
         ISessionIndexingService sessionIndexingService,
@@ -54,6 +60,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         _documentParser = documentParser;
         _agents = agents;
         _sessionRepository = sessionRepository;
+        _documentRepository = documentRepository;
+        _extractionResultRepository = extractionResultRepository;
         _stepRepository = stepRepository;
         _documentStorage = documentStorage;
         _sessionIndexingService = sessionIndexingService;
@@ -71,7 +79,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         LogStartingExtraction(_logger, sessionId);
 
         // Step 0: Get session with document
-        var session = await _sessionRepository.GetByIdAsync(sessionId);
+        var session = await _sessionRepository.GetByIdAsync(sessionId, ct);
         if (session is null)
         {
             return new OrchestrationResult
@@ -97,12 +105,12 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         // (e.g. ExtractionController retry set Failed→Processing before calling us).
         // NOTE: can't use session.Document.Status — tracked entity may be stale after
         // caller's ExecuteUpdateAsync bypassed the EF change tracker.
-        var transitioned = await _sessionRepository.TryTransitionDocumentStatusAsync(
-            sessionId, DocumentStatus.Pending, DocumentStatus.Processing);
+        var transitioned = await _documentRepository.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.Pending, DocumentStatus.Processing, ct);
         if (!transitioned)
         {
-            var alreadyProcessing = await _sessionRepository.TryTransitionDocumentStatusAsync(
-                sessionId, DocumentStatus.Processing, DocumentStatus.Processing);
+            var alreadyProcessing = await _documentRepository.TryTransitionDocumentStatusAsync(
+                sessionId, DocumentStatus.Processing, DocumentStatus.Processing, ct);
             if (!alreadyProcessing)
             {
                 return new OrchestrationResult
@@ -129,7 +137,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                 ExtractedAt = DateTime.UtcNow,
                 Data = new Core.Schema.ClinicalExtraction()
             };
-            await _sessionRepository.UpsertExtractionResultAsync(placeholder);
+            await _extractionResultRepository.UpsertExtractionResultAsync(placeholder, ct);
             // Step 1: Download blob and parse with Document Intelligence
             var step1 = BeginStep(extractionId, ExtractionStepName.DocumentParse, 1, "azure-doc-intel");
             await TrySaveStepAsync(step1);
@@ -218,8 +226,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             if (!intakeResult.IsValidTherapyNote)
             {
                 LogDocumentValidationFailed(_logger, intakeResult.ValidationError);
-                await _sessionRepository.TryTransitionDocumentStatusAsync(
-                    sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
+                await _documentRepository.TryTransitionDocumentStatusAsync(
+                    sessionId, DocumentStatus.Processing, DocumentStatus.Failed, ct);
 
                 return new OrchestrationResult
                 {
@@ -300,8 +308,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             if (extractionResult.Errors.Any(e => e.Contains("Failed to parse extraction JSON", StringComparison.Ordinal)))
             {
                 LogExtractionParseFailed(_logger, sessionId);
-                await _sessionRepository.TryTransitionDocumentStatusAsync(
-                    sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
+                await _documentRepository.TryTransitionDocumentStatusAsync(
+                    sessionId, DocumentStatus.Processing, DocumentStatus.Failed, ct);
                 return new OrchestrationResult
                 {
                     Success = false,
@@ -448,11 +456,12 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                 modelsUsed,
                 sessionSummary,
                 riskResult.Diagnostics,
-                riskResult);
+                riskResult,
+                ct);
 
             // Update document status to Completed
-            await _sessionRepository.UpdateDocumentStatusAsync(
-                sessionId, DocumentStatus.Completed, parsedDoc.Content);
+            await _documentRepository.UpdateDocumentStatusAsync(
+                sessionId, DocumentStatus.Completed, parsedDoc.Content, ct);
 
             stopwatch.Stop();
             LogExtractionCompleted(_logger, sessionId, stopwatch.ElapsedMilliseconds, extractionResult.RequiresReview);
@@ -482,8 +491,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
             try
             {
-                await _sessionRepository.TryTransitionDocumentStatusAsync(
-                    sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
+                await _documentRepository.TryTransitionDocumentStatusAsync(
+                    sessionId, DocumentStatus.Processing, DocumentStatus.Failed, ct);
             }
             catch (Exception updateEx)
             {
@@ -573,7 +582,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         List<string> modelsUsed,
         SessionSummary? sessionSummary,
         RiskDiagnostics? riskDiagnostics,
-        RiskAssessmentResult? riskResult = null)
+        RiskAssessmentResult? riskResult = null,
+        CancellationToken ct = default)
     {
         var reviewReasons = agentResult.LowConfidenceFields
             .Where(f => f.StartsWith("Risk:", StringComparison.OrdinalIgnoreCase))
@@ -605,32 +615,68 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             SelfHarmGuardrailReason = riskDiagnostics?.SelfHarmGuardrailReason,
             CriteriaValidationAttempts = riskDiagnostics?.CriteriaValidationAttemptsUsed ?? 1,
             DiscrepancyCount = riskResult?.Discrepancies.Count ?? 0,
+            ContentFilterBlocked = riskDiagnostics?.ContentFilterBlocked ?? false,
             RiskFieldDecisionsJson = riskDiagnostics?.Decisions != null
                 ? JsonSerializer.Serialize(riskDiagnostics.Decisions, JsonOptions)
                 : null
         };
 
-        await _sessionRepository.UpdateExtractionResultAsync(entity);
+        await _extractionResultRepository.UpdateExtractionResultAsync(entity, ct);
     }
+
+    /// <inheritdoc />
+    public async Task<SessionSummary> GenerateSessionSummaryAsync(Guid sessionId, CancellationToken ct = default)
+    {
+        var session = await _sessionRepository.GetByIdAsync(sessionId, ct);
+        if (session?.Extraction is null)
+        {
+            throw new InvalidOperationException($"Session {sessionId} has no extraction data.");
+        }
+
+        var agentExtraction = new AgentExtractionResult
+        {
+            SessionId = sessionId.ToString("D"),
+            Data = session.Extraction.Data,
+            OverallConfidence = session.Extraction.OverallConfidence,
+            RequiresReview = session.Extraction.RequiresReview
+        };
+
+        var summary = await _agents.Summarizer.SummarizeSessionAsync(agentExtraction, ct);
+
+        var summaryJson = JsonSerializer.Serialize(summary, JsonOptions);
+        await _extractionResultRepository.UpdateExtractionSummaryAsync(session.Extraction.Id, summaryJson, ct);
+
+        return summary;
+    }
+
+    private static readonly PropertyInfo[] CachedSectionProperties = typeof(Core.Schema.ClinicalExtraction)
+        .GetProperties()
+        .Where(p => p.PropertyType.GetProperties().Any(sp =>
+            sp.PropertyType.IsGenericType &&
+            sp.PropertyType.GetGenericTypeDefinition() == typeof(Core.Schema.ExtractedField<>)))
+        .ToArray();
+
+    private static readonly FrozenDictionary<Type, PropertyInfo[]> CachedFieldProperties =
+        CachedSectionProperties.ToFrozenDictionary(
+            p => p.PropertyType,
+            p => p.PropertyType.GetProperties()
+                .Where(fp => fp.PropertyType.IsGenericType &&
+                             fp.PropertyType.GetGenericTypeDefinition() == typeof(Core.Schema.ExtractedField<>))
+                .ToArray());
 
     private static int CountExtractedFields(AgentExtractionResult result)
     {
         if (result.Data is null) return 0;
 
         var count = 0;
-        var sectionProperties = typeof(Core.Schema.ClinicalExtraction).GetProperties()
-            .Where(p => p.PropertyType.GetProperties().Any(sp =>
-                sp.PropertyType.IsGenericType &&
-                sp.PropertyType.GetGenericTypeDefinition() == typeof(Core.Schema.ExtractedField<>)));
 
-        foreach (var sectionProp in sectionProperties)
+        foreach (var sectionProp in CachedSectionProperties)
         {
             var section = sectionProp.GetValue(result.Data);
             if (section is null) continue;
 
-            var fieldProps = section.GetType().GetProperties()
-                .Where(p => p.PropertyType.IsGenericType &&
-                            p.PropertyType.GetGenericTypeDefinition() == typeof(Core.Schema.ExtractedField<>));
+            if (!CachedFieldProperties.TryGetValue(sectionProp.PropertyType, out var fieldProps))
+                continue;
 
             foreach (var fieldProp in fieldProps)
             {
@@ -704,7 +750,4 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to save step {StepName} for extraction {ExtractionId}")]
     private static partial void LogStepSaveError(ILogger logger, Exception exception, ExtractionStepName stepName, Guid extractionId);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Step {StepName} save diagnostic: ToolCalls={StepToolCallCount}, LlmTraces={StepLlmTraceCount}, ResultTrace={ResultTraceCount}")]
-    private static partial void LogStepDiagnostic(ILogger logger, ExtractionStepName stepName, int stepToolCallCount, int stepLlmTraceCount, int resultTraceCount);
 }

@@ -6,8 +6,12 @@ export function useRetryExtraction() {
 
   return useMutation({
     mutationFn: (sessionId: string) => triggerExtraction(sessionId),
-    onSuccess: () => {
+    onSuccess: (_data, sessionId) => {
       queryClient.invalidateQueries({ queryKey: ['sessions'] })
+      queryClient.invalidateQueries({ queryKey: ['extractionSteps', sessionId] })
+      queryClient.invalidateQueries({ queryKey: ['extractionResult', sessionId] })
+      queryClient.invalidateQueries({ queryKey: ['reviewDetail', sessionId] })
+      queryClient.invalidateQueries({ queryKey: ['reviewQueue'] })
     },
   })
 }

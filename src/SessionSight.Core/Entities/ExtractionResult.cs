@@ -59,6 +59,11 @@ public class ExtractionResult
     /// </summary>
     public int DiscrepancyCount { get; set; }
 
+    /// <summary>
+    /// Whether the risk re-extraction was blocked by Azure OpenAI content filter.
+    /// </summary>
+    public bool ContentFilterBlocked { get; set; }
+
     // ── Per-field audit trail (genuinely list-shaped → JSON) ──
 
     /// <summary>

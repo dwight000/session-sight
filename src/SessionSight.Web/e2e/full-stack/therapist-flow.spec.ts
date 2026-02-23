@@ -8,7 +8,7 @@ test.describe('Therapist CRUD Flow', () => {
     await test.step('Seed therapist exists', async () => {
       await page.goto('/therapists')
       await expect(page.getByRole('heading', { name: 'Therapists' })).toBeVisible()
-      await expect(page.getByText('Default Therapist')).toBeVisible()
+      await expect(page.getByText('Dr. Sarah Mitchell')).toBeVisible()
     })
 
     await test.step('Create new therapist', async () => {

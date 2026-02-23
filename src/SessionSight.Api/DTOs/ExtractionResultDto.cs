@@ -19,6 +19,7 @@ public record RiskDiagnosticsDto(
     GuardrailDetailDto? SelfHarmGuardrail,
     int CriteriaValidationAttempts,
     int DiscrepancyCount,
+    bool ContentFilterBlocked,
     List<RiskFieldDecisionDto> FieldDecisions);
 
 public record GuardrailDetailDto(bool Applied, string? Reason);

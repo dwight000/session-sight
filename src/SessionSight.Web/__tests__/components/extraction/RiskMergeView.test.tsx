@@ -78,6 +78,16 @@ describe('RiskMergeView', () => {
     expect(screen.queryByText('Guardrail Applied')).not.toBeInTheDocument()
   })
 
+  it('shows content filter banner when contentFilterBlocked is true', () => {
+    render(<RiskMergeView diagnostics={{ ...diagnostics, contentFilterBlocked: true }} defaultOpen={true} />)
+    expect(screen.getByText('Content Filter')).toBeInTheDocument()
+  })
+
+  it('hides content filter banner when contentFilterBlocked is false', () => {
+    render(<RiskMergeView diagnostics={{ ...diagnostics, contentFilterBlocked: false }} defaultOpen={true} />)
+    expect(screen.queryByText('Content Filter')).not.toBeInTheDocument()
+  })
+
   it('starts closed by default, opens on click', async () => {
     const user = userEvent.setup()
     render(<RiskMergeView diagnostics={diagnostics} />)

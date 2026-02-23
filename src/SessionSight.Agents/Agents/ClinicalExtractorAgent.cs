@@ -182,7 +182,7 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
             return null;
         }
 
-        var json = ExtractJson(content);
+        var json = LlmJsonHelper.ExtractJson(content);
         var result = LlmExtractionParser.Parse(json);
 
         if (result is null)
@@ -193,6 +193,7 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
         return result;
     }
 
+    // Test-only helper — used by 25+ tests in ClinicalExtractorAgentTests
     internal static string GetPromptForSection(string sectionName, string noteText)
     {
         return sectionName switch
@@ -210,13 +211,12 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
         };
     }
 
+    // Test-only helper — used by 50+ tests in ClinicalExtractorAgentTests
     internal static T ParseSectionResponse<T>(string sectionName, string content) where T : new()
     {
-        var json = ExtractJson(content);
+        var json = LlmJsonHelper.ExtractJson(content);
         return LlmExtractionParser.ParseSection<T>(json);
     }
-
-    internal static string ExtractJson(string content) => LlmJsonHelper.ExtractJson(content);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Starting clinical extraction for session {SessionId}")]
     private static partial void LogStartingClinicalExtraction(ILogger logger, string sessionId);

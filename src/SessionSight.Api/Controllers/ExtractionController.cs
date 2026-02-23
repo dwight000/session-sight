@@ -14,15 +14,18 @@ public partial class ExtractionController : ControllerBase
 {
     private readonly IExtractionOrchestrator _orchestrator;
     private readonly ISessionRepository _sessionRepository;
+    private readonly IDocumentRepository _documentRepository;
     private readonly ILogger<ExtractionController> _logger;
 
     public ExtractionController(
         IExtractionOrchestrator orchestrator,
         ISessionRepository sessionRepository,
+        IDocumentRepository documentRepository,
         ILogger<ExtractionController> logger)
     {
         _orchestrator = orchestrator;
         _sessionRepository = sessionRepository;
+        _documentRepository = documentRepository;
         _logger = logger;
     }
 
@@ -41,7 +44,7 @@ public partial class ExtractionController : ControllerBase
         Guid sessionId,
         CancellationToken ct)
     {
-        var session = await _sessionRepository.GetByIdAsync(sessionId);
+        var session = await _sessionRepository.GetByIdAsync(sessionId, ct);
         if (session is null)
         {
             return NotFound($"Session {sessionId} not found");
@@ -53,10 +56,10 @@ public partial class ExtractionController : ControllerBase
         }
 
         // Atomic transition: only one caller can move Pending/Failed → Processing
-        var transitioned = await _sessionRepository.TryTransitionDocumentStatusAsync(
-                sessionId, DocumentStatus.Pending, DocumentStatus.Processing)
-            || await _sessionRepository.TryTransitionDocumentStatusAsync(
-                sessionId, DocumentStatus.Failed, DocumentStatus.Processing);
+        var transitioned = await _documentRepository.TryTransitionDocumentStatusAsync(
+                sessionId, DocumentStatus.Pending, DocumentStatus.Processing, ct)
+            || await _documentRepository.TryTransitionDocumentStatusAsync(
+                sessionId, DocumentStatus.Failed, DocumentStatus.Processing, ct);
         if (!transitioned)
         {
             return Conflict("Extraction already in progress or completed");

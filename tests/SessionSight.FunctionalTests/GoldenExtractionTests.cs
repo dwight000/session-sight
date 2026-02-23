@@ -59,7 +59,7 @@ public class GoldenExtractionTests : IClassFixture<ApiFixture>
         var stageOutputs = BuildStageOutputs(triggerResult.Response, extractionData);
         WriteRiskDiagnostics(goldenCase, triggerResult.Response);
 
-        AssertExpectedRiskFields(goldenCase, stageOutputs);
+        AssertExpectedRiskFields(goldenCase, stageOutputs, triggerResult.ContentFilterWasHit);
     }
 
     private async Task<Guid> CreateSessionWithNoteAsync(GoldenRiskCase goldenCase)
@@ -164,9 +164,21 @@ public class GoldenExtractionTests : IClassFixture<ApiFixture>
                 $"Golden case {goldenCase.NoteId} expected content filter blocking but extraction succeeded.");
         }
 
+        var contentFilterHit = false;
+        if (goldenCase.ExpectedOutcome == GoldenExpectedOutcome.ContentFilterOptional
+            && extractionJson.TryGetProperty("riskDiagnostics", out var rd)
+            && rd.ValueKind == JsonValueKind.Object
+            && rd.TryGetProperty("contentFilterBlocked", out var cfProp)
+            && cfProp.ValueKind == JsonValueKind.True)
+        {
+            contentFilterHit = true;
+            _output.WriteLine($"Golden case {goldenCase.NoteId}: content filter hit, skipping risk_reextracted assertions");
+        }
+
         return new TriggerExtractionResult(
             ShouldContinueAssertions: true,
-            Response: extractionJson);
+            Response: extractionJson,
+            ContentFilterWasHit: contentFilterHit);
     }
 
     private async Task<JsonElement> GetExtractionDtoAsync(Guid sessionId)
@@ -206,12 +218,19 @@ public class GoldenExtractionTests : IClassFixture<ApiFixture>
 
     private static void AssertExpectedRiskFields(
         GoldenRiskCase goldenCase,
-        IReadOnlyDictionary<string, JsonElement> stageOutputs)
+        IReadOnlyDictionary<string, JsonElement> stageOutputs,
+        bool contentFilterWasHit)
     {
         var assertStages = ResolveAssertStages(goldenCase);
 
         foreach (var stageName in assertStages)
         {
+            if (contentFilterWasHit
+                && string.Equals(stageName, "risk_reextracted", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             var stageFound = goldenCase.ExpectedByStage.TryGetValue(stageName, out var expectedStage);
             stageFound.Should().BeTrue(
                 $"Golden case {goldenCase.NoteId} missing expected_by_stage for stage '{stageName}' in {goldenCase.FilePath}");
@@ -365,5 +384,6 @@ public class GoldenExtractionTests : IClassFixture<ApiFixture>
 
     private sealed record TriggerExtractionResult(
         bool ShouldContinueAssertions,
-        JsonElement Response);
+        JsonElement Response,
+        bool ContentFilterWasHit = false);
 }

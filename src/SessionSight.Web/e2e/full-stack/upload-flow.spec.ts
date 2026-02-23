@@ -117,9 +117,9 @@ test.describe('Upload Flow', () => {
 
       // Verify pipeline UI shows step names during extraction
       await expect(page.getByText('Extraction Pipeline')).toBeVisible({ timeout: 10_000 })
-      await expect(page.getByText('Document Parse')).toBeVisible()
-      await expect(page.getByText('Intake')).toBeVisible()
-      await expect(page.getByText('Clinical Extract')).toBeVisible()
+      await expect(page.getByRole('button', { name: /Document Parse/ })).toBeVisible()
+      await expect(page.getByRole('button', { name: /Intake/ })).toBeVisible()
+      await expect(page.getByRole('button', { name: /Clinical Extract/ })).toBeVisible()
 
       // Wait for success message (long timeout for LLM extraction)
       await expect(page.getByText('extraction completed successfully')).toBeVisible({
@@ -247,8 +247,10 @@ test.describe('Review Queue', () => {
     await expect(page.getByRole('heading', { name: 'Review Queue' })).toBeVisible()
 
     // The queue might be empty if no extractions have been done
-    const emptyMessage = page.getByText('No sessions match the current filters.')
-    const hasItems = await page.getByRole('link', { name: /Review/ }).count()
+    const main = page.getByRole('main')
+    const emptyMessage = main.getByText('No sessions match the current filters.')
+    const reviewLinks = main.getByRole('link', { name: /Review/ })
+    const hasItems = await reviewLinks.count()
 
     if (await emptyMessage.isVisible()) {
       // Empty queue is valid state

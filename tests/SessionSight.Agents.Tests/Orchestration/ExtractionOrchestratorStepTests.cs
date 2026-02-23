@@ -24,6 +24,8 @@ public class ExtractionOrchestratorStepTests
     private readonly IRiskAssessorAgent _riskAssessor;
     private readonly ISummarizerAgent _summarizer;
     private readonly ISessionRepository _sessionRepository;
+    private readonly IDocumentRepository _documentRepository;
+    private readonly IExtractionResultRepository _extractionResultRepository;
     private readonly IExtractionStepRepository _stepRepository;
     private readonly IDocumentStorage _documentStorage;
     private readonly ISessionIndexingService _sessionIndexingService;
@@ -37,6 +39,8 @@ public class ExtractionOrchestratorStepTests
         _riskAssessor = Substitute.For<IRiskAssessorAgent>();
         _summarizer = Substitute.For<ISummarizerAgent>();
         _sessionRepository = Substitute.For<ISessionRepository>();
+        _documentRepository = Substitute.For<IDocumentRepository>();
+        _extractionResultRepository = Substitute.For<IExtractionResultRepository>();
         _stepRepository = Substitute.For<IExtractionStepRepository>();
         _documentStorage = Substitute.For<IDocumentStorage>();
         _sessionIndexingService = Substitute.For<ISessionIndexingService>();
@@ -45,14 +49,15 @@ public class ExtractionOrchestratorStepTests
         _summarizer.SummarizeSessionAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<CancellationToken>())
             .Returns(new SessionSummary { OneLiner = "Test summary", ModelUsed = "gpt-4.1-nano" });
 
-        _sessionRepository.TryTransitionDocumentStatusAsync(
+        _documentRepository.TryTransitionDocumentStatusAsync(
             Arg.Any<Guid>(), DocumentStatus.Pending, DocumentStatus.Processing)
             .Returns(true);
 
         var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _summarizer);
         var diagOptions = Options.Create(new PipelineDiagnosticsOptions());
         _orchestrator = new ExtractionOrchestrator(
-            _documentParser, agents, _sessionRepository, _stepRepository,
+            _documentParser, agents, _sessionRepository, _documentRepository,
+            _extractionResultRepository, _stepRepository,
             _documentStorage, _sessionIndexingService, diagOptions, logger);
     }
 
@@ -234,7 +239,7 @@ public class ExtractionOrchestratorStepTests
 
         await _orchestrator.ProcessSessionAsync(sessionId);
 
-        await _sessionRepository.Received(1).UpsertExtractionResultAsync(
+        await _extractionResultRepository.Received(1).UpsertExtractionResultAsync(
             Arg.Is<CoreEntities.ExtractionResult>(e => e.SessionId == sessionId));
     }
 
@@ -310,7 +315,7 @@ public class ExtractionOrchestratorStepTests
 
         await _orchestrator.ProcessSessionAsync(sessionId);
 
-        await _sessionRepository.Received(1).UpdateExtractionResultAsync(
+        await _extractionResultRepository.Received(1).UpdateExtractionResultAsync(
             Arg.Is<CoreEntities.ExtractionResult>(e => e.SessionId == sessionId));
     }
 
@@ -338,7 +343,8 @@ public class ExtractionOrchestratorStepTests
         var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _summarizer);
         var logger = Substitute.For<ILogger<ExtractionOrchestrator>>();
         var orchestrator = new ExtractionOrchestrator(
-            _documentParser, agents, _sessionRepository, _stepRepository,
+            _documentParser, agents, _sessionRepository, _documentRepository,
+            _extractionResultRepository, _stepRepository,
             _documentStorage, _sessionIndexingService, diagOptions, logger);
 
         var savedSteps = new List<ExtractionStep>();

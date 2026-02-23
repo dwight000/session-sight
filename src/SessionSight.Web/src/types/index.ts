@@ -234,6 +234,7 @@ export interface RiskDiagnostics {
   selfHarmGuardrail?: GuardrailDetail | null
   criteriaValidationAttempts: number
   discrepancyCount: number
+  contentFilterBlocked: boolean
   fieldDecisions: RiskFieldDecision[]
 }
 

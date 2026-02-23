@@ -7,17 +7,21 @@ namespace SessionSight.Infrastructure.Storage;
 public class AzureBlobDocumentStorage : IDocumentStorage
 {
     private readonly BlobServiceClient _blobServiceClient;
+    private readonly Lazy<Task> _ensureContainer;
     private const string ContainerName = "session-documents";
 
     public AzureBlobDocumentStorage(BlobServiceClient blobServiceClient)
     {
         _blobServiceClient = blobServiceClient;
+        _ensureContainer = new Lazy<Task>(() =>
+            blobServiceClient.GetBlobContainerClient(ContainerName)
+                .CreateIfNotExistsAsync(PublicAccessType.None));
     }
 
     public async Task<string> UploadAsync(string fileName, Stream content, string contentType)
     {
         var containerClient = _blobServiceClient.GetBlobContainerClient(ContainerName);
-        await containerClient.CreateIfNotExistsAsync(PublicAccessType.None);
+        await _ensureContainer.Value;
 
         var blobName = $"{Guid.NewGuid()}/{fileName}";
         var blobClient = containerClient.GetBlobClient(blobName);

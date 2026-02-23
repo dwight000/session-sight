@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Moq;
 using SessionSight.Agents.Agents;
 using SessionSight.Agents.Models;
+using SessionSight.Agents.Orchestration;
 using SessionSight.Api.Controllers;
 using SessionSight.Api.DTOs;
 using SessionSight.Core.Entities;
@@ -16,6 +17,7 @@ namespace SessionSight.Api.Tests.Controllers;
 public class SummaryControllerTests
 {
     private readonly Mock<ISummarizerAgent> _mockSummarizer;
+    private readonly Mock<IExtractionOrchestrator> _mockOrchestrator;
     private readonly Mock<ISessionRepository> _mockSessionRepo;
     private readonly Mock<IPatientRepository> _mockPatientRepo;
     private readonly SummaryController _controller;
@@ -23,10 +25,12 @@ public class SummaryControllerTests
     public SummaryControllerTests()
     {
         _mockSummarizer = new Mock<ISummarizerAgent>();
+        _mockOrchestrator = new Mock<IExtractionOrchestrator>();
         _mockSessionRepo = new Mock<ISessionRepository>();
         _mockPatientRepo = new Mock<IPatientRepository>();
         _controller = new SummaryController(
             _mockSummarizer.Object,
+            _mockOrchestrator.Object,
             _mockSessionRepo.Object,
             _mockPatientRepo.Object);
     }
@@ -37,7 +41,7 @@ public class SummaryControllerTests
     public async Task GetSessionSummary_SessionNotFound_ReturnsNotFound()
     {
         var sessionId = Guid.NewGuid();
-        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync((Session?)null);
+        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync((Session?)null);
 
         var result = await _controller.GetSessionSummary(sessionId);
 
@@ -49,7 +53,7 @@ public class SummaryControllerTests
     {
         var sessionId = Guid.NewGuid();
         var session = new Session { Id = sessionId, Extraction = null };
-        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(session);
 
         var result = await _controller.GetSessionSummary(sessionId);
 
@@ -71,7 +75,7 @@ public class SummaryControllerTests
                 SummaryJson = storedSummaryJson
             }
         };
-        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(session);
 
         var result = await _controller.GetSessionSummary(sessionId);
 
@@ -81,24 +85,23 @@ public class SummaryControllerTests
     }
 
     [Fact]
-    public async Task GetSessionSummary_RegenerateTrue_CallsSummarizer()
+    public async Task GetSessionSummary_RegenerateTrue_CallsOrchestrator()
     {
         var sessionId = Guid.NewGuid();
-        var extractionId = Guid.NewGuid();
         var session = new Session
         {
             Id = sessionId,
             Extraction = new CoreExtractionResult
             {
-                Id = extractionId,
+                Id = Guid.NewGuid(),
                 Data = new ClinicalExtraction(),
                 SummaryJson = """{"oneLiner":"Old summary"}"""
             }
         };
         var newSummary = new SessionSummary { OneLiner = "New summary", ModelUsed = "gpt-4o-mini" };
 
-        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
-        _mockSummarizer.Setup(s => s.SummarizeSessionAsync(It.IsAny<SessionSight.Agents.Models.ExtractionResult>(), It.IsAny<CancellationToken>()))
+        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(session);
+        _mockOrchestrator.Setup(o => o.GenerateSessionSummaryAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(newSummary);
 
         var result = await _controller.GetSessionSummary(sessionId, regenerate: true);
@@ -106,28 +109,27 @@ public class SummaryControllerTests
         var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
         var summary = okResult.Value.Should().BeOfType<SessionSummary>().Subject;
         summary.OneLiner.Should().Be("New summary");
-        _mockSessionRepo.Verify(r => r.UpdateExtractionSummaryAsync(extractionId, It.IsAny<string>()), Times.Once);
+        _mockOrchestrator.Verify(o => o.GenerateSessionSummaryAsync(sessionId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task GetSessionSummary_NoStoredSummary_GeneratesNew()
     {
         var sessionId = Guid.NewGuid();
-        var extractionId = Guid.NewGuid();
         var session = new Session
         {
             Id = sessionId,
             Extraction = new CoreExtractionResult
             {
-                Id = extractionId,
+                Id = Guid.NewGuid(),
                 Data = new ClinicalExtraction(),
                 SummaryJson = null
             }
         };
         var newSummary = new SessionSummary { OneLiner = "Generated summary", ModelUsed = "gpt-4o-mini" };
 
-        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
-        _mockSummarizer.Setup(s => s.SummarizeSessionAsync(It.IsAny<SessionSight.Agents.Models.ExtractionResult>(), It.IsAny<CancellationToken>()))
+        _mockSessionRepo.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(session);
+        _mockOrchestrator.Setup(o => o.GenerateSessionSummaryAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(newSummary);
 
         var result = await _controller.GetSessionSummary(sessionId);
@@ -238,7 +240,7 @@ public class SummaryControllerTests
 
         _mockPatientRepo.Setup(r => r.GetByIdAsync(patientId)).ReturnsAsync(patient);
         _mockSessionRepo
-            .Setup(r => r.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate))
+            .Setup(r => r.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { session2, session3, session1 });
 
         var result = await _controller.GetPatientRiskTrend(patientId, startDate, endDate);
@@ -342,13 +344,13 @@ public class SummaryControllerTests
 
         _mockPatientRepo.Setup(r => r.GetByIdAsync(patientId)).ReturnsAsync(patient);
         _mockSessionRepo
-            .Setup(r => r.GetByPatientIdAsync(patientId))
+            .Setup(r => r.GetByPatientIdAsync(patientId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { second, third, first });
 
         var result = await _controller.GetPatientTimeline(patientId, null, null);
 
-        _mockSessionRepo.Verify(r => r.GetByPatientIdAsync(patientId), Times.Once);
-        _mockSessionRepo.Verify(r => r.GetByPatientIdInDateRangeAsync(It.IsAny<Guid>(), It.IsAny<DateOnly?>(), It.IsAny<DateOnly?>()), Times.Never);
+        _mockSessionRepo.Verify(r => r.GetByPatientIdAsync(patientId, It.IsAny<CancellationToken>()), Times.Once);
+        _mockSessionRepo.Verify(r => r.GetByPatientIdInDateRangeAsync(It.IsAny<Guid>(), It.IsAny<DateOnly?>(), It.IsAny<DateOnly?>(), It.IsAny<CancellationToken>()), Times.Never);
 
         var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
         var timeline = okResult.Value.Should().BeOfType<PatientTimelineDto>().Subject;
@@ -408,13 +410,13 @@ public class SummaryControllerTests
 
         _mockPatientRepo.Setup(r => r.GetByIdAsync(patientId)).ReturnsAsync(patient);
         _mockSessionRepo
-            .Setup(r => r.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate))
+            .Setup(r => r.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<Session>());
 
         var result = await _controller.GetPatientTimeline(patientId, startDate, endDate);
 
-        _mockSessionRepo.Verify(r => r.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate), Times.Once);
-        _mockSessionRepo.Verify(r => r.GetByPatientIdAsync(patientId), Times.Never);
+        _mockSessionRepo.Verify(r => r.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate, It.IsAny<CancellationToken>()), Times.Once);
+        _mockSessionRepo.Verify(r => r.GetByPatientIdAsync(patientId, It.IsAny<CancellationToken>()), Times.Never);
 
         var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
         var timeline = okResult.Value.Should().BeOfType<PatientTimelineDto>().Subject;

@@ -66,8 +66,8 @@ RUN_FRONTEND=false
 HEADED=""
 TEST_FILTER=""
 
-for arg in "$@"; do
-    case $arg in
+while [[ $# -gt 0 ]]; do
+    case $1 in
         --hot)
             HOT_MODE=true
             KEEP_DB=true
@@ -93,12 +93,13 @@ for arg in "$@"; do
             TEST_FILTER="$1"
             ;;
         --filter=*)
-            TEST_FILTER="${arg#*=}"
+            TEST_FILTER="${1#*=}"
             ;;
         *)
             # Ignore unknown arguments
             ;;
     esac
+    shift
 done
 
 # Require at least one of --backend, --frontend, or --all

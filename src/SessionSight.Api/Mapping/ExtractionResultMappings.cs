@@ -67,6 +67,7 @@ public static class ExtractionResultMappings
             && !result.SelfHarmGuardrailApplied
             && result.CriteriaValidationAttempts <= 1
             && result.DiscrepancyCount == 0
+            && !result.ContentFilterBlocked
             && result.RiskFieldDecisionsJson is null)
         {
             return null;
@@ -84,6 +85,7 @@ public static class ExtractionResultMappings
                 : null,
             result.CriteriaValidationAttempts,
             result.DiscrepancyCount,
+            result.ContentFilterBlocked,
             fieldDecisions);
     }
 
