@@ -40,6 +40,11 @@ public sealed class RiskDiagnostics
     /// </summary>
     public int CriteriaValidationAttemptsUsed { get; set; } = 1;
 
+    /// <summary>
+    /// Whether the risk re-extraction was blocked by Azure OpenAI content filter.
+    /// </summary>
+    public bool ContentFilterBlocked { get; set; }
+
 }
 
 /// <summary>

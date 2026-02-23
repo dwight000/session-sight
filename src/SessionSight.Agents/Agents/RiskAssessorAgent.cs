@@ -86,10 +86,11 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         // Step 1: Re-extract with focused safety prompt
         var modelName = _modelRouter.SelectModel(ModelTask.RiskAssessment);
         result.ModelUsed = modelName;
+        var contentFilterBlocked = false;
 
         try
         {
-            var reExtracted = await ReExtractRiskAsync(originalNoteText, modelName, ct);
+            var reExtracted = await ReExtractRiskAsync(originalNoteText, modelName, extraction.SessionId, ct);
             result.ValidatedExtraction = reExtracted.Risk;
             criteriaUsed = reExtracted.CriteriaUsed;
             reasoningUsed = reExtracted.ReasoningUsed;
@@ -98,6 +99,14 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
             result.OutputTokens = reExtracted.OutputTokens;
             result.TotalTokens = reExtracted.TotalTokens;
             result.LlmTraces = reExtracted.LlmTraces;
+        }
+        catch (Exception ex) when (ex.Message.Contains("content filter", StringComparison.OrdinalIgnoreCase))
+        {
+            LogRiskReExtractionError(_logger, ex, extraction.SessionId);
+            result.ValidatedExtraction = new RiskAssessmentExtracted();
+            result.ReviewReasons.Add("Re-extraction blocked by content filter");
+            result.RequiresReview = true;
+            contentFilterBlocked = true;
         }
         catch (Exception ex)
         {
@@ -142,7 +151,8 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
             selfHarmGuardrail.Reason,
             criteriaUsed,
             reasoningUsed,
-            criteriaValidationAttemptsUsed);
+            criteriaValidationAttemptsUsed,
+            contentFilterBlocked);
 
         result.DeterminedRiskLevel = result.FinalExtraction.RiskLevelOverall.Value;
 
@@ -157,6 +167,7 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
     private async Task<RiskReExtractionResponse> ReExtractRiskAsync(
         string noteText,
         string modelName,
+        string sessionId,
         CancellationToken ct)
     {
         var chatClient = _clientFactory.CreateChatClient(modelName);
@@ -178,9 +189,28 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var response = await chatClient.CompleteChatAsync(messages, options, ct);
         sw.Stop();
+
+        if (IsContentFilterBlocked(response.Value))
+        {
+            LogRiskReExtractionContentFilter(_logger, sessionId, 1);
+            sw.Restart();
+            response = await chatClient.CompleteChatAsync(messages, options, ct);
+            sw.Stop();
+            if (IsContentFilterBlocked(response.Value))
+            {
+                LogRiskReExtractionContentFilterFinal(_logger, sessionId);
+                throw new InvalidOperationException(
+                    "Re-extraction blocked by content filter after retry");
+            }
+        }
+
         var content = response.Value.Content[0].Text;
-        var parsed = ParseRiskResponseWithCriteria(content)
-            ?? throw new InvalidOperationException("Failed to parse risk re-extraction response");
+        var parsed = ParseRiskResponseWithCriteria(content);
+        if (parsed is null)
+        {
+            LogRiskReExtractionParseFailure(_logger, sessionId, content);
+            throw new InvalidOperationException("Failed to parse risk re-extraction response");
+        }
         parsed.CriteriaValidationAttemptsUsed = 1;
 
         if (response.Value.Usage is not null)
@@ -924,7 +954,8 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         string? selfHarmGuardrailReason,
         Dictionary<string, List<string>> criteriaUsed,
         Dictionary<string, string> reasoningUsed,
-        int criteriaValidationAttemptsUsed)
+        int criteriaValidationAttemptsUsed,
+        bool contentFilterBlocked)
     {
         var diagnostics = new RiskDiagnostics
         {
@@ -933,7 +964,8 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
             HomicidalKeywordMatches = keywordResult?.HomicidalMatches.ToList() ?? [],
             SelfHarmGuardrailApplied = selfHarmGuardrailApplied,
             SelfHarmGuardrailReason = selfHarmGuardrailReason,
-            CriteriaValidationAttemptsUsed = Math.Max(1, criteriaValidationAttemptsUsed)
+            CriteriaValidationAttemptsUsed = Math.Max(1, criteriaValidationAttemptsUsed),
+            ContentFilterBlocked = contentFilterBlocked
         };
 
         diagnostics.Decisions.Add(CreateFieldDiagnostic(
@@ -1093,11 +1125,24 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
             : trimmed[..320];
     }
 
+    private static bool IsContentFilterBlocked(ChatCompletion completion) =>
+        completion.FinishReason == ChatFinishReason.ContentFilter
+        || completion.Content.Count == 0;
+
     [LoggerMessage(Level = LogLevel.Information, Message = "Starting risk assessment for session {SessionId}")]
     private static partial void LogStartingRiskAssessment(ILogger logger, string sessionId);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Error during risk re-extraction for session {SessionId}")]
     private static partial void LogRiskReExtractionError(ILogger logger, Exception exception, string sessionId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Risk re-extraction parse failure for session {SessionId}. Raw LLM response: {RawResponse}")]
+    private static partial void LogRiskReExtractionParseFailure(ILogger logger, string sessionId, string rawResponse);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Risk re-extraction content filter hit for session {SessionId} (attempt {Attempt}), retrying")]
+    private static partial void LogRiskReExtractionContentFilter(ILogger logger, string sessionId, int attempt);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Risk re-extraction content filter blocked for session {SessionId} after retry")]
+    private static partial void LogRiskReExtractionContentFilterFinal(ILogger logger, string sessionId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Risk assessment completed for session {SessionId}. RequiresReview: {RequiresReview}, RiskLevel: {RiskLevel}, Discrepancies: {DiscrepancyCount}")]
     private static partial void LogRiskAssessmentCompleted(ILogger logger, string sessionId, bool requiresReview, RiskLevelOverall? riskLevel, int discrepancyCount);

@@ -51,13 +51,19 @@ export function Sessions() {
   const retryMutation = useRetryExtraction()
   const [retryingSessionId, setRetryingSessionId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
-  const [formData, setFormData] = useState({
-    patientId: '',
-    therapistId: '',
-    sessionDate: '',
-    sessionType: 'Individual' as SessionType,
-    modality: 'InPerson' as SessionModality,
-    sessionNumber: 1,
+  const [formData, setFormData] = useState(() => {
+    const now = new Date()
+    const ddHHmm = String(now.getDate()).padStart(2, '0')
+      + String(now.getHours()).padStart(2, '0')
+      + String(now.getMinutes()).padStart(2, '0')
+    return {
+      patientId: '',
+      therapistId: '',
+      sessionDate: now.toISOString().slice(0, 10),
+      sessionType: 'Individual' as SessionType,
+      modality: 'InPerson' as SessionModality,
+      sessionNumber: parseInt(ddHHmm, 10),
+    }
   })
 
   function handleSubmit(e: React.FormEvent) {

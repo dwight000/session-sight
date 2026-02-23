@@ -6,7 +6,7 @@ export function useExtractionResult(sessionId: string, enabled: boolean) {
     queryKey: ['extractionResult', sessionId],
     queryFn: () => getExtractionResult(sessionId),
     enabled: !!sessionId && enabled,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
     retry: 1,
   })
 }

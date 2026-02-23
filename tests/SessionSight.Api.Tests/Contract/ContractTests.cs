@@ -154,6 +154,7 @@ public class ContractTests : IntegrationTestBase
                 new GuardrailDetailDto(true, "elevated risk"),
                 null,
                 2, 1,
+                false,
                 [
                     new RiskFieldDecisionDto(
                         "suicidalIdeation", "low", "moderate", "moderate",
@@ -176,7 +177,8 @@ public class ContractTests : IntegrationTestBase
         var riskKeys = risk.EnumerateObject().Select(p => p.Name).ToList();
         riskKeys.Should().BeEquivalentTo([
             "guardrailApplied", "homicidalGuardrail",
-            "criteriaValidationAttempts", "discrepancyCount", "fieldDecisions",
+            "criteriaValidationAttempts", "discrepancyCount",
+            "contentFilterBlocked", "fieldDecisions",
         ]);
         // selfHarmGuardrail is null → omitted
         riskKeys.Should().NotContain("selfHarmGuardrail");

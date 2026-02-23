@@ -6,5 +6,6 @@ export function useReviewDetail(sessionId: string) {
     queryKey: ['reviewDetail', sessionId],
     queryFn: () => getReviewDetail(sessionId),
     enabled: !!sessionId,
+    staleTime: 0,
   })
 }

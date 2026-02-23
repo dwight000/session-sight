@@ -615,6 +615,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             SelfHarmGuardrailReason = riskDiagnostics?.SelfHarmGuardrailReason,
             CriteriaValidationAttempts = riskDiagnostics?.CriteriaValidationAttemptsUsed ?? 1,
             DiscrepancyCount = riskResult?.Discrepancies.Count ?? 0,
+            ContentFilterBlocked = riskDiagnostics?.ContentFilterBlocked ?? false,
             RiskFieldDecisionsJson = riskDiagnostics?.Decisions != null
                 ? JsonSerializer.Serialize(riskDiagnostics.Decisions, JsonOptions)
                 : null
