@@ -385,6 +385,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             await TrySaveStepAsync(step5);
             var sw5 = Stopwatch.StartNew();
             SessionSummary? sessionSummary = null;
+            var summarizeFailed = false;
             try
             {
                 LogRunningSummarizer(_logger);
@@ -409,6 +410,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             catch (Exception ex)
             {
                 sw5.Stop();
+                summarizeFailed = true;
                 FailStep(step5, sw5.ElapsedMilliseconds, ex.Message);
                 LogSummarizerError(_logger, ex, sessionId);
                 // Summary generation failure is non-fatal - continue
@@ -422,11 +424,13 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             var step6 = BeginStep(extractionId, ExtractionStepName.SearchIndex, 6, "text-embedding-3-large");
             await TrySaveStepAsync(step6);
             var sw6 = Stopwatch.StartNew();
+            IndexingStatus indexingStatus;
             try
             {
                 LogIndexingStarted(_logger, sessionId);
                 await _sessionIndexingService.IndexSessionAsync(session, extractionResult, sessionSummary, ct);
                 sw6.Stop();
+                indexingStatus = IndexingStatus.Indexed;
                 CompleteStep(step6, sw6.ElapsedMilliseconds);
                 step6.ResultSummaryJson = JsonSerializer.Serialize(new { indexed = true }, JsonOptions);
                 LogIndexingCompleted(_logger, sessionId);
@@ -434,6 +438,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             catch (Exception ex)
             {
                 sw6.Stop();
+                indexingStatus = IndexingStatus.Failed;
                 FailStep(step6, sw6.ElapsedMilliseconds, ex.Message);
                 step6.ResultSummaryJson = JsonSerializer.Serialize(new
                 {
@@ -459,9 +464,14 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                 riskResult,
                 ct);
 
-            // Update document status to Completed
+            // Determine final document status based on non-fatal step outcomes
+            var finalStatus = (summarizeFailed || indexingStatus == IndexingStatus.Failed)
+                ? DocumentStatus.PartiallyCompleted
+                : DocumentStatus.Completed;
+
             await _documentRepository.UpdateDocumentStatusAsync(
-                sessionId, DocumentStatus.Completed, parsedDoc.Content, ct);
+                sessionId, finalStatus, parsedDoc.Content,
+                indexingStatus: indexingStatus, ct: ct);
 
             stopwatch.Stop();
             LogExtractionCompleted(_logger, sessionId, stopwatch.ElapsedMilliseconds, extractionResult.RequiresReview);
@@ -469,6 +479,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             return new OrchestrationResult
             {
                 Success = true,
+                IsPartiallyCompleted = finalStatus == DocumentStatus.PartiallyCompleted,
                 SessionId = sessionId,
                 ExtractionId = extractionId,
                 RequiresReview = extractionResult.RequiresReview,
@@ -489,10 +500,13 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             stopwatch.Stop();
             LogExtractionFailed(_logger, ex, sessionId);
 
+            var (failureKind, errorMessage) = ClassifyFailure(ex);
+
             try
             {
-                await _documentRepository.TryTransitionDocumentStatusAsync(
-                    sessionId, DocumentStatus.Processing, DocumentStatus.Failed, ct);
+                await _documentRepository.UpdateDocumentStatusAsync(
+                    sessionId, DocumentStatus.Failed,
+                    failureKind: failureKind, errorMessage: errorMessage, ct: ct);
             }
             catch (Exception updateEx)
             {
@@ -692,6 +706,92 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         }
 
         return count;
+    }
+
+    internal static (FailureKind Kind, string Message) ClassifyFailure(Exception ex)
+    {
+        var msg = ex.Message;
+
+        // Permanent: document is not a therapy note (intake validation)
+        if (msg.Contains("not a therapy", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("Invalid document", StringComparison.OrdinalIgnoreCase))
+        {
+            return (FailureKind.Permanent, "Document does not appear to be a therapy session note");
+        }
+
+        // Permanent: corrupt/unreadable document
+        if (msg.Contains("could not be read", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("could not be parsed", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("corrupt", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("unreadable", StringComparison.OrdinalIgnoreCase))
+        {
+            return (FailureKind.Permanent, "Document could not be read or parsed");
+        }
+
+        // Permanent: blob not found
+        if (msg.Contains("BlobNotFound", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("blob does not exist", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("404") && msg.Contains("blob", StringComparison.OrdinalIgnoreCase))
+        {
+            return (FailureKind.Permanent, "Source document no longer exists");
+        }
+
+        // Transient: rate limit
+        if (msg.Contains("429", StringComparison.Ordinal)
+            || msg.Contains("rate limit", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("TooManyRequests", StringComparison.OrdinalIgnoreCase))
+        {
+            return (FailureKind.Transient, "Service rate limit reached \u2014 try again shortly");
+        }
+
+        // Transient: content filter
+        if (msg.Contains("content filter", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("content_filter", StringComparison.OrdinalIgnoreCase))
+        {
+            return (FailureKind.Transient, "Content was flagged by safety filter \u2014 retry usually succeeds");
+        }
+
+        // Transient: circuit breaker
+        if (msg.Contains("circuit breaker", StringComparison.OrdinalIgnoreCase)
+            || ex.GetType().Name.Contains("BrokenCircuit", StringComparison.OrdinalIgnoreCase))
+        {
+            return (FailureKind.Transient, "Service temporarily unavailable (circuit breaker)");
+        }
+
+        // Transient: credential
+        if (ex.GetType().Name.Contains("CredentialUnavailable", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("CredentialUnavailable", StringComparison.OrdinalIgnoreCase))
+        {
+            return (FailureKind.Transient, "Authentication error \u2014 contact administrator");
+        }
+
+        // Transient: JSON parse failure
+        if (msg.Contains("Failed to parse extraction JSON", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("Failed to parse", StringComparison.OrdinalIgnoreCase) && msg.Contains("JSON", StringComparison.OrdinalIgnoreCase))
+        {
+            return (FailureKind.Transient, "Extraction produced invalid output \u2014 retry usually succeeds");
+        }
+
+        // Transient: timeout
+        if (ex is TimeoutException || ex is OperationCanceledException
+            || msg.Contains("timed out", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("timeout", StringComparison.OrdinalIgnoreCase))
+        {
+            return (FailureKind.Transient, "Extraction timed out \u2014 try again");
+        }
+
+        // Transient: Azure 5xx / network
+        if (msg.Contains("Internal Server Error", StringComparison.OrdinalIgnoreCase)
+                || msg.Contains("502", StringComparison.Ordinal)
+                || msg.Contains("503", StringComparison.Ordinal)
+                || msg.Contains("504", StringComparison.Ordinal)
+            || ex is HttpRequestException)
+        {
+            return (FailureKind.Transient, "Service temporarily unavailable");
+        }
+
+        // Default: transient with the actual exception message
+        return (FailureKind.Transient, $"Unexpected error: {Truncate(msg, 500)}");
     }
 
     private static string Truncate(string? text, int maxLength)

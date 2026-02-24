@@ -8,5 +8,6 @@ public enum JobStatus
     Pending,
     Processing,
     Completed,
+    PartiallyCompleted,
     Failed
 }

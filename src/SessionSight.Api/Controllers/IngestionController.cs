@@ -146,8 +146,15 @@ public partial class IngestionController : ControllerBase
 
                 if (!string.IsNullOrEmpty(jobKey))
                 {
+                    var jobStatus = JobStatus.Failed;
+                    if (result.Success)
+                    {
+                        jobStatus = result.IsPartiallyCompleted
+                            ? JobStatus.PartiallyCompleted
+                            : JobStatus.Completed;
+                    }
                     var jobRepo = scope.ServiceProvider.GetRequiredService<IProcessingJobRepository>();
-                    await jobRepo.UpdateStatusAsync(jobKey, result.Success ? JobStatus.Completed : JobStatus.Failed);
+                    await jobRepo.UpdateStatusAsync(jobKey, jobStatus);
                 }
             }
             catch (Exception ex)

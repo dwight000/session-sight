@@ -298,9 +298,15 @@ public class ExtractionOrchestratorTests
         // Assert
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("LLM call failed");
-        // Verify document status was updated to Processing then Failed
+        // Verify document status was updated to Processing then Failed with failure classification
         await _documentRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Pending, DocumentStatus.Processing);
-        await _documentRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
+        await _documentRepository.Received().UpdateDocumentStatusAsync(
+            sessionId, DocumentStatus.Failed,
+            Arg.Any<string?>(),
+            Arg.Any<IndexingStatus?>(),
+            Arg.Is<FailureKind?>(k => k == FailureKind.Transient),
+            Arg.Any<string?>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -333,8 +339,13 @@ public class ExtractionOrchestratorTests
         await _documentRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Pending, DocumentStatus.Processing);
         // Extraction result upserted
         await _extractionResultRepository.Received().UpsertExtractionResultAsync(Arg.Any<CoreEntities.ExtractionResult>());
-        // Completed status set with extracted text
-        await _documentRepository.Received().UpdateDocumentStatusAsync(sessionId, DocumentStatus.Completed, Arg.Any<string>());
+        // Completed status set with extracted text and IndexingStatus
+        await _documentRepository.Received().UpdateDocumentStatusAsync(
+            sessionId, DocumentStatus.Completed, Arg.Any<string>(),
+            Arg.Is<IndexingStatus?>(s => s == IndexingStatus.Indexed),
+            Arg.Any<FailureKind?>(),
+            Arg.Any<string?>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -375,6 +386,293 @@ public class ExtractionOrchestratorTests
         // Risk assessor should NOT run — empty extraction with defaulted risk fields is a safety risk
         await _riskAssessor.DidNotReceive().AssessAsync(
             Arg.Any<ExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ProcessSessionAsync_SummarizeFailure_SetsPartiallyCompleted()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        var parsedDoc = CreateTestParsedDocument();
+        var intakeResult = CreateTestIntakeResult(parsedDoc);
+        var extractionResult = CreateTestExtractionResult();
+        var riskResult = CreateTestRiskResult();
+
+        _sessionRepository.GetByIdAsync(sessionId).Returns(session);
+        _documentStorage.DownloadAsync(Arg.Any<string>()).Returns(new MemoryStream());
+        _documentParser.ParseAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(parsedDoc);
+        _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
+            .Returns(intakeResult);
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+            .Returns(extractionResult);
+        _riskAssessor.AssessAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(riskResult);
+        // Summarizer throws
+        _summarizer.SummarizeSessionAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("Content filter blocked"));
+
+        // Act
+        var result = await _orchestrator.ProcessSessionAsync(sessionId);
+
+        // Assert — pipeline succeeds but is partially completed
+        result.Success.Should().BeTrue();
+        result.IsPartiallyCompleted.Should().BeTrue();
+        await _documentRepository.Received().UpdateDocumentStatusAsync(
+            sessionId, DocumentStatus.PartiallyCompleted,
+            Arg.Any<string?>(),
+            Arg.Any<IndexingStatus?>(),
+            Arg.Any<FailureKind?>(),
+            Arg.Any<string?>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ProcessSessionAsync_IndexingFailure_SetsPartiallyCompleted()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        var parsedDoc = CreateTestParsedDocument();
+        var intakeResult = CreateTestIntakeResult(parsedDoc);
+        var extractionResult = CreateTestExtractionResult();
+        var riskResult = CreateTestRiskResult();
+
+        _sessionRepository.GetByIdAsync(sessionId).Returns(session);
+        _documentStorage.DownloadAsync(Arg.Any<string>()).Returns(new MemoryStream());
+        _documentParser.ParseAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(parsedDoc);
+        _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
+            .Returns(intakeResult);
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+            .Returns(extractionResult);
+        _riskAssessor.AssessAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(riskResult);
+        // Indexing throws
+        _sessionIndexingService.IndexSessionAsync(
+            Arg.Any<CoreEntities.Session>(), Arg.Any<AgentExtractionResult>(),
+            Arg.Any<SessionSummary?>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new TimeoutException("Embedding timed out"));
+
+        // Act
+        var result = await _orchestrator.ProcessSessionAsync(sessionId);
+
+        // Assert — pipeline succeeds but is partially completed with IndexingStatus.Failed
+        result.Success.Should().BeTrue();
+        result.IsPartiallyCompleted.Should().BeTrue();
+        await _documentRepository.Received().UpdateDocumentStatusAsync(
+            sessionId, DocumentStatus.PartiallyCompleted,
+            Arg.Any<string?>(),
+            Arg.Is<IndexingStatus?>(s => s == IndexingStatus.Failed),
+            Arg.Any<FailureKind?>(),
+            Arg.Any<string?>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ProcessSessionAsync_FullSuccess_SetsIndexedStatus()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        var parsedDoc = CreateTestParsedDocument();
+        var intakeResult = CreateTestIntakeResult(parsedDoc);
+        var extractionResult = CreateTestExtractionResult();
+        var riskResult = CreateTestRiskResult();
+
+        _sessionRepository.GetByIdAsync(sessionId).Returns(session);
+        _documentStorage.DownloadAsync(Arg.Any<string>()).Returns(new MemoryStream());
+        _documentParser.ParseAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(parsedDoc);
+        _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
+            .Returns(intakeResult);
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+            .Returns(extractionResult);
+        _riskAssessor.AssessAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(riskResult);
+
+        // Act
+        var result = await _orchestrator.ProcessSessionAsync(sessionId);
+
+        // Assert — full success sets Completed + Indexed
+        result.Success.Should().BeTrue();
+        result.IsPartiallyCompleted.Should().BeFalse();
+        await _documentRepository.Received().UpdateDocumentStatusAsync(
+            sessionId, DocumentStatus.Completed,
+            Arg.Any<string?>(),
+            Arg.Is<IndexingStatus?>(s => s == IndexingStatus.Indexed),
+            Arg.Any<FailureKind?>(),
+            Arg.Any<string?>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    // Permanent: therapy note validation
+    [InlineData("not a therapy note", FailureKind.Permanent)]
+    [InlineData("Invalid document type", FailureKind.Permanent)]
+    // Permanent: corrupt/unreadable
+    [InlineData("could not be read", FailureKind.Permanent)]
+    [InlineData("could not be parsed", FailureKind.Permanent)]
+    [InlineData("corrupt PDF file", FailureKind.Permanent)]
+    [InlineData("unreadable document", FailureKind.Permanent)]
+    // Permanent: blob not found
+    [InlineData("BlobNotFound", FailureKind.Permanent)]
+    [InlineData("blob does not exist", FailureKind.Permanent)]
+    [InlineData("404 Not Found for blob resource", FailureKind.Permanent)]
+    // Transient: rate limit
+    [InlineData("429 Too Many Requests", FailureKind.Transient)]
+    [InlineData("rate limit exceeded", FailureKind.Transient)]
+    [InlineData("TooManyRequests", FailureKind.Transient)]
+    // Transient: content filter
+    [InlineData("content filter blocked", FailureKind.Transient)]
+    [InlineData("content_filter response", FailureKind.Transient)]
+    // Transient: circuit breaker
+    [InlineData("circuit breaker open", FailureKind.Transient)]
+    // Transient: JSON parse
+    [InlineData("Failed to parse extraction JSON", FailureKind.Transient)]
+    [InlineData("Failed to parse response JSON data", FailureKind.Transient)]
+    // Transient: server errors
+    [InlineData("Internal Server Error", FailureKind.Transient)]
+    [InlineData("502 Bad Gateway", FailureKind.Transient)]
+    [InlineData("503 Service Unavailable", FailureKind.Transient)]
+    [InlineData("504 Gateway Timeout", FailureKind.Transient)]
+    // Transient: unknown
+    [InlineData("Something unexpected happened", FailureKind.Transient)]
+    public void ClassifyFailure_CategorizesCorrectly(string message, FailureKind expectedKind)
+    {
+        var ex = new InvalidOperationException(message);
+        var (kind, _) = ExtractionOrchestrator.ClassifyFailure(ex);
+        kind.Should().Be(expectedKind);
+    }
+
+    [Fact]
+    public void ClassifyFailure_Timeout_IsTransient()
+    {
+        var ex = new TimeoutException("Operation timed out");
+        var (kind, errorMessage) = ExtractionOrchestrator.ClassifyFailure(ex);
+        kind.Should().Be(FailureKind.Transient);
+        errorMessage.Should().Contain("timed out");
+    }
+
+    [Fact]
+    public void ClassifyFailure_HttpRequestException_IsTransient()
+    {
+        var ex = new HttpRequestException("Connection refused");
+        var (kind, errorMessage) = ExtractionOrchestrator.ClassifyFailure(ex);
+        kind.Should().Be(FailureKind.Transient);
+        errorMessage.Should().Contain("temporarily unavailable");
+    }
+
+    [Fact]
+    public void ClassifyFailure_PermanentFailure_HasDescriptiveMessage()
+    {
+        var ex = new InvalidOperationException("This is not a therapy note");
+        var (kind, errorMessage) = ExtractionOrchestrator.ClassifyFailure(ex);
+        kind.Should().Be(FailureKind.Permanent);
+        errorMessage.Should().Contain("therapy session note");
+    }
+
+    [Fact]
+    public void ClassifyFailure_UnknownError_IsTransientWithMessage()
+    {
+        var ex = new InvalidOperationException("Completely unknown error XYZ");
+        var (kind, errorMessage) = ExtractionOrchestrator.ClassifyFailure(ex);
+        kind.Should().Be(FailureKind.Transient);
+        errorMessage.Should().Contain("Unexpected error");
+        errorMessage.Should().Contain("Completely unknown error XYZ");
+    }
+
+    [Fact]
+    public void ClassifyFailure_OperationCanceled_IsTransient()
+    {
+        var ex = new OperationCanceledException("The operation was canceled");
+        var (kind, errorMessage) = ExtractionOrchestrator.ClassifyFailure(ex);
+        kind.Should().Be(FailureKind.Transient);
+        errorMessage.Should().Contain("timed out");
+    }
+
+    [Fact]
+    public void ClassifyFailure_CredentialUnavailable_IsTransient()
+    {
+        var ex = new InvalidOperationException("CredentialUnavailableException: No credentials available");
+        var (kind, errorMessage) = ExtractionOrchestrator.ClassifyFailure(ex);
+        kind.Should().Be(FailureKind.Transient);
+        errorMessage.Should().Contain("Authentication error");
+    }
+
+    [Fact]
+    public void ClassifyFailure_InternalServerError_IsTransient()
+    {
+        var ex = new InvalidOperationException("Internal Server Error from Azure");
+        var (kind, errorMessage) = ExtractionOrchestrator.ClassifyFailure(ex);
+        kind.Should().Be(FailureKind.Transient);
+        errorMessage.Should().Contain("temporarily unavailable");
+    }
+
+    [Fact]
+    public async Task ProcessSessionAsync_ExtractionFails_ClassifiesAndWritesFailureFields()
+    {
+        // Arrange — simulate a timeout exception that should be classified as Transient
+        var sessionId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        var parsedDoc = CreateTestParsedDocument();
+        var intakeResult = CreateTestIntakeResult(parsedDoc);
+
+        _sessionRepository.GetByIdAsync(sessionId).Returns(session);
+        _documentStorage.DownloadAsync(Arg.Any<string>()).Returns(new MemoryStream());
+        _documentParser.ParseAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(parsedDoc);
+        _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
+            .Returns(intakeResult);
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new TimeoutException("Agent loop timed out"));
+
+        // Act
+        var result = await _orchestrator.ProcessSessionAsync(sessionId);
+
+        // Assert — failure is classified as Transient with timeout message
+        result.Success.Should().BeFalse();
+        await _documentRepository.Received().UpdateDocumentStatusAsync(
+            sessionId, DocumentStatus.Failed,
+            Arg.Any<string?>(),
+            Arg.Any<IndexingStatus?>(),
+            Arg.Is<FailureKind?>(k => k == FailureKind.Transient),
+            Arg.Is<string?>(m => m != null && m.Contains("timed out")),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ProcessSessionAsync_StatusUpdateFails_DoesNotThrow()
+    {
+        // Arrange — extraction fails AND status update also fails
+        var sessionId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        var parsedDoc = CreateTestParsedDocument();
+        var intakeResult = CreateTestIntakeResult(parsedDoc);
+
+        _sessionRepository.GetByIdAsync(sessionId).Returns(session);
+        _documentStorage.DownloadAsync(Arg.Any<string>()).Returns(new MemoryStream());
+        _documentParser.ParseAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(parsedDoc);
+        _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
+            .Returns(intakeResult);
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("LLM failed"));
+        // Status update also throws
+        _documentRepository.UpdateDocumentStatusAsync(
+            Arg.Any<Guid>(), Arg.Any<DocumentStatus>(),
+            Arg.Any<string?>(), Arg.Any<IndexingStatus?>(),
+            Arg.Any<FailureKind?>(), Arg.Any<string?>(),
+            Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("DB connection lost"));
+
+        // Act — should not throw even though status update failed
+        var result = await _orchestrator.ProcessSessionAsync(sessionId);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("LLM failed");
     }
 
     private static CoreEntities.Session CreateTestSession(Guid sessionId)

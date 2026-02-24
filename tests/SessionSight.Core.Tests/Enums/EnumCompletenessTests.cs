@@ -8,7 +8,7 @@ public class EnumCompletenessTests
     [Theory]
     [InlineData(typeof(SessionType), 8)]
     [InlineData(typeof(SessionModality), 4)]
-    [InlineData(typeof(DocumentStatus), 4)]
+    [InlineData(typeof(DocumentStatus), 5)]
     [InlineData(typeof(PrimaryConcernCategory), 13)]
     [InlineData(typeof(ConcernSeverity), 4)]
     [InlineData(typeof(ObservedAffect), 10)]

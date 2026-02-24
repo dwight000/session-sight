@@ -113,13 +113,28 @@ public partial class SessionRepository : ISessionRepository, IDocumentRepository
 
     public async Task<bool> TryTransitionDocumentStatusAsync(Guid sessionId, DocumentStatus fromStatus, DocumentStatus toStatus, CancellationToken ct = default)
     {
-        var rows = await _context.Documents
+        // When transitioning to Processing, reset resilience fields for a clean slate on retry
+        if (toStatus == DocumentStatus.Processing && fromStatus != DocumentStatus.Processing)
+        {
+            var rows = await _context.Documents
+                .Where(d => d.SessionId == sessionId && d.Status == fromStatus)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(d => d.Status, toStatus)
+                    .SetProperty(d => d.FailureKind, FailureKind.None)
+                    .SetProperty(d => d.ErrorMessage, (string?)null)
+                    .SetProperty(d => d.IndexingStatus, IndexingStatus.None), ct);
+            return rows > 0;
+        }
+
+        var affectedRows = await _context.Documents
             .Where(d => d.SessionId == sessionId && d.Status == fromStatus)
             .ExecuteUpdateAsync(s => s.SetProperty(d => d.Status, toStatus), ct);
-        return rows > 0;
+        return affectedRows > 0;
     }
 
-    public async Task UpdateDocumentStatusAsync(Guid sessionId, DocumentStatus status, string? extractedText = null, CancellationToken ct = default)
+    public async Task UpdateDocumentStatusAsync(Guid sessionId, DocumentStatus status, string? extractedText = null,
+        IndexingStatus? indexingStatus = null, FailureKind? failureKind = null, string? errorMessage = null,
+        CancellationToken ct = default)
     {
         // Direct update to Document table only - avoids Session RowVersion concurrency issues
         var document = await _context.Documents
@@ -131,13 +146,25 @@ public partial class SessionRepository : ISessionRepository, IDocumentRepository
         }
 
         document.Status = status;
-        if (status == DocumentStatus.Completed)
+        if (status == DocumentStatus.Completed || status == DocumentStatus.PartiallyCompleted)
         {
             document.ProcessedAt = DateTime.UtcNow;
         }
         if (extractedText != null)
         {
             document.ExtractedText = extractedText;
+        }
+        if (indexingStatus.HasValue)
+        {
+            document.IndexingStatus = indexingStatus.Value;
+        }
+        if (failureKind.HasValue)
+        {
+            document.FailureKind = failureKind.Value;
+        }
+        if (errorMessage != null)
+        {
+            document.ErrorMessage = errorMessage;
         }
 
         await _context.SaveChangesAsync(ct);

@@ -55,11 +55,13 @@ public partial class ExtractionController : ControllerBase
             return BadRequest("Session has no document uploaded");
         }
 
-        // Atomic transition: only one caller can move Pending/Failed → Processing
+        // Atomic transition: only one caller can move Pending/Failed/PartiallyCompleted → Processing
         var transitioned = await _documentRepository.TryTransitionDocumentStatusAsync(
                 sessionId, DocumentStatus.Pending, DocumentStatus.Processing, ct)
             || await _documentRepository.TryTransitionDocumentStatusAsync(
-                sessionId, DocumentStatus.Failed, DocumentStatus.Processing, ct);
+                sessionId, DocumentStatus.Failed, DocumentStatus.Processing, ct)
+            || await _documentRepository.TryTransitionDocumentStatusAsync(
+                sessionId, DocumentStatus.PartiallyCompleted, DocumentStatus.Processing, ct);
         if (!transitioned)
         {
             return Conflict("Extraction already in progress or completed");

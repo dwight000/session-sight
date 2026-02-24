@@ -154,4 +154,46 @@ public class ExtractionControllerTests
         // Assert
         result.Result.Should().BeOfType<OkObjectResult>();
     }
+
+    [Fact]
+    public async Task TriggerExtraction_PartiallyCompletedDocument_CanRetrigger()
+    {
+        // Arrange — PartiallyCompleted documents can transition to Processing via third fallback
+        var sessionId = Guid.NewGuid();
+        var session = new Session
+        {
+            Id = sessionId,
+            Document = new SessionDocument { Status = DocumentStatus.PartiallyCompleted }
+        };
+        var orchestrationResult = new OrchestrationResult
+        {
+            Success = true,
+            SessionId = sessionId,
+            ExtractionId = Guid.NewGuid()
+        };
+
+        _mockRepo.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(session);
+        // Pending → Processing fails
+        _mockDocRepo.Setup(r => r.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.Pending, DocumentStatus.Processing, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        // Failed → Processing fails
+        _mockDocRepo.Setup(r => r.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.Failed, DocumentStatus.Processing, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        // PartiallyCompleted → Processing succeeds
+        _mockDocRepo.Setup(r => r.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.PartiallyCompleted, DocumentStatus.Processing, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _mockOrchestrator.Setup(o => o.ProcessSessionAsync(sessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(orchestrationResult);
+
+        // Act
+        var result = await _controller.TriggerExtraction(sessionId, CancellationToken.None);
+
+        // Assert
+        result.Result.Should().BeOfType<OkObjectResult>();
+        _mockDocRepo.Verify(r => r.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.PartiallyCompleted, DocumentStatus.Processing, It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

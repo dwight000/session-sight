@@ -73,6 +73,21 @@ public partial class SummarizerAgent : ISummarizerAgent
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var response = await chatClient.CompleteChatAsync(messages, options, ct);
             sw.Stop();
+
+            // Content filter retry: if blocked, retry once before throwing
+            if (ContentFilterHelper.IsContentFilterBlocked(response.Value))
+            {
+                LogSessionSummaryContentFilter(_logger, extraction.SessionId);
+                sw.Restart();
+                response = await chatClient.CompleteChatAsync(messages, options, ct);
+                sw.Stop();
+                if (ContentFilterHelper.IsContentFilterBlocked(response.Value))
+                {
+                    throw new InvalidOperationException(
+                        "Session summary blocked by content filter after retry");
+                }
+            }
+
             var content = response.Value.Content[0].Text;
 
             var summary = ParseSessionSummary(content);
@@ -533,6 +548,9 @@ public partial class SummarizerAgent : ISummarizerAgent
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Session summary failed for {SessionId}")]
     private static partial void LogSessionSummaryError(ILogger logger, Exception exception, string sessionId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Session summary content filter hit for {SessionId}, retrying")]
+    private static partial void LogSessionSummaryContentFilter(ILogger logger, string sessionId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Starting patient summary for {PatientId}")]
     private static partial void LogStartingPatientSummary(ILogger logger, Guid patientId);
