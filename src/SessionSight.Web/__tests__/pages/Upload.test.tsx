@@ -157,6 +157,7 @@ describe('Upload page', () => {
 
   it('shows success message after successful upload', async () => {
     const user = userEvent.setup()
+    // Default MSW handlers return 202 for extraction and Completed steps for extraction steps
     renderUpload()
     await waitFor(() => expect(screen.getByLabelText(/select session/i)).toBeInTheDocument())
 
@@ -172,15 +173,18 @@ describe('Upload page', () => {
     // Submit form
     await user.click(screen.getByRole('button', { name: /upload & extract/i }))
 
+    // Banner is driven by polling extraction steps (documentStatus === 'Completed')
     await waitFor(() => {
-      expect(screen.getByText(/document uploaded and extraction completed successfully/i)).toBeInTheDocument()
+      expect(screen.getByText(/extraction completed successfully/i)).toBeInTheDocument()
     }, { timeout: 5000 })
   })
 
-  it('shows error message when extraction fails', async () => {
+  it('shows error message when extraction request fails', async () => {
     const user = userEvent.setup()
     server.use(
-      http.post('/api/extraction/:sessionId', () => HttpResponse.json({ success: false, errorMessage: 'Invalid document format' }))
+      http.post('/api/extraction/:sessionId', () =>
+        new HttpResponse('Invalid document format', { status: 400 })
+      )
     )
 
     renderUpload()
@@ -199,7 +203,7 @@ describe('Upload page', () => {
     await user.click(screen.getByRole('button', { name: /upload & extract/i }))
 
     await waitFor(() => {
-      expect(screen.getByText(/invalid document format/i)).toBeInTheDocument()
+      expect(screen.getByText(/extraction failed/i)).toBeInTheDocument()
     }, { timeout: 5000 })
   })
 

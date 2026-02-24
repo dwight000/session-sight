@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useSessions } from '../hooks/useSessions'
 import { usePatients } from '../hooks/usePatients'
 import { useUploadDocument } from '../hooks/useUploadDocument'
+import { useExtractionSteps } from '../hooks/useExtractionSteps'
 import { Button } from '../components/ui/Button'
 import { Spinner } from '../components/ui/Spinner'
 import { ExtractionPipelineView } from '../components/extraction/ExtractionPipelineView'
@@ -32,12 +33,16 @@ export function Upload() {
 
   const [selectedSessionId, setSelectedSessionId] = useState<string>('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [uploadResult, setUploadResult] = useState<{ success: boolean; sessionId?: string; error?: string } | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
   const [docSource, setDocSource] = useState<DocSource>('sample')
   const [samples, setSamples] = useState<SampleDoc[]>([])
   const [expandedSample, setExpandedSample] = useState<string | null>(null)
   const [loadingSample, setLoadingSample] = useState<string | null>(null)
   const [processingSessionId, setProcessingSessionId] = useState<string | null>(null)
+
+  // Poll extraction steps for the session being processed — drives status banners
+  const { data: pipelineData } = useExtractionSteps(processingSessionId ?? '', !!processingSessionId)
+  const pipelineStatus = pipelineData?.documentStatus
 
   useEffect(() => {
     fetch('/samples/samples.json')
@@ -63,7 +68,7 @@ export function Upload() {
     const file = e.target.files?.[0]
     if (file) {
       setSelectedFile(file)
-      setUploadResult(null)
+      setUploadError(null)
     }
   }
 
@@ -74,12 +79,12 @@ export function Upload() {
       const blob = await response.blob()
       const file = new File([blob], sample.filename, { type: 'application/pdf' })
       setSelectedFile(file)
-      setUploadResult(null)
+      setUploadError(null)
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
     } catch {
-      setUploadResult({ success: false, error: `Failed to load sample: ${sample.title}` })
+      setUploadError(`Failed to load sample: ${sample.title}`)
     } finally {
       setLoadingSample(null)
     }
@@ -89,32 +94,27 @@ export function Upload() {
     e.preventDefault()
     if (!selectedSessionId || !selectedFile) return
 
-    setUploadResult(null)
+    setUploadError(null)
     setProcessingSessionId(selectedSessionId)
     uploadDocument.mutate(
       { sessionId: selectedSessionId, file: selectedFile },
       {
-        onSuccess: (result) => {
-          // Force one final fetch so pipeline view shows completed state
+        onSuccess: () => {
+          // 202 accepted — pipeline view takes over for progress. Clear form.
           queryClient.invalidateQueries({ queryKey: ['extractionSteps', selectedSessionId] })
           queryClient.invalidateQueries({ queryKey: ['extractionResult', selectedSessionId] })
           queryClient.invalidateQueries({ queryKey: ['reviewDetail', selectedSessionId] })
-          if (result.success) {
-            setUploadResult({ success: true, sessionId: selectedSessionId })
-            setSelectedSessionId('')
-            setSelectedFile(null)
-            if (fileInputRef.current) {
-              fileInputRef.current.value = ''
-            }
-          } else {
-            setUploadResult({ success: false, error: result.errorMessage || 'Extraction failed' })
+          setSelectedSessionId('')
+          setSelectedFile(null)
+          if (fileInputRef.current) {
+            fileInputRef.current.value = ''
           }
         },
         onError: (error) => {
           queryClient.invalidateQueries({ queryKey: ['extractionSteps', selectedSessionId] })
           queryClient.invalidateQueries({ queryKey: ['extractionResult', selectedSessionId] })
           queryClient.invalidateQueries({ queryKey: ['reviewDetail', selectedSessionId] })
-          setUploadResult({ success: false, error: (error as Error).message })
+          setUploadError((error as Error).message)
         },
       }
     )
@@ -141,7 +141,7 @@ export function Upload() {
         </div>
       )}
 
-      {uploadResult?.success && (
+      {pipelineStatus === 'Completed' && (
         <div className="rounded-md bg-green-50 p-4">
           <div className="flex">
             <div className="flex-shrink-0">
@@ -151,11 +151,11 @@ export function Upload() {
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-green-800">
-                Document uploaded and extraction completed successfully!
+                Extraction completed successfully!
               </p>
               <div className="mt-2">
                 <Link
-                  to={`/review/session/${uploadResult.sessionId}`}
+                  to={`/review/session/${processingSessionId}`}
                   className="text-sm font-medium text-green-700 underline hover:text-green-600"
                 >
                   View extraction results
@@ -166,7 +166,32 @@ export function Upload() {
         </div>
       )}
 
-      {uploadResult?.success === false && (
+      {pipelineStatus === 'PartiallyCompleted' && (
+        <div className="rounded-md bg-amber-50 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-amber-800">
+                Extraction partially completed — some steps need retry.
+              </p>
+              <div className="mt-2">
+                <Link
+                  to={`/review/session/${processingSessionId}`}
+                  className="text-sm font-medium text-amber-700 underline hover:text-amber-600"
+                >
+                  View extraction results
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pipelineStatus === 'Failed' && (
         <div className="rounded-md bg-red-50 p-4">
           <div className="flex">
             <div className="flex-shrink-0">
@@ -176,7 +201,24 @@ export function Upload() {
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-red-800">
-                {uploadResult.error}
+                Extraction failed. You can retry from the Sessions page.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {uploadError && (
+        <div className="rounded-md bg-red-50 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-red-800">
+                {uploadError}
               </p>
             </div>
           </div>

@@ -745,4 +745,436 @@ public class ExtractionOrchestratorTests
             ModelUsed = "gpt-4o"
         };
     }
+
+    [Fact]
+    public async Task ProcessSessionAsync_ResumeFromPartiallyCompleted_SkipsCoreSteps()
+    {
+        // Arrange — steps 1-4 already succeeded, step 6 (SearchIndex) failed
+        var sessionId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        _sessionRepository.GetByIdAsync(sessionId).Returns(session);
+
+        // Processing → Processing probe succeeds (caller already set Processing)
+        _documentRepository.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.Processing, DocumentStatus.Processing)
+            .Returns(true);
+
+        var existingExtraction = new CoreEntities.ExtractionResult
+        {
+            Id = Guid.NewGuid(),
+            SessionId = sessionId,
+            Data = new ClinicalExtraction(),
+            OverallConfidence = 0.85,
+            RequiresReview = false,
+            SummaryJson = "{\"oneLiner\":\"Test\",\"modelUsed\":\"gpt-4o\"}",
+            Steps = new List<CoreEntities.ExtractionStep>
+            {
+                new() { StepName = ExtractionStepName.DocumentParse, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.Intake, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.ClinicalExtract, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.RiskAssess, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.Summarize, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.SearchIndex, Status = ExtractionStepStatus.Failed },
+            }
+        };
+        _extractionResultRepository.GetBySessionIdAsync(sessionId, Arg.Any<CancellationToken>())
+            .Returns(existingExtraction);
+
+        // Act
+        var result = await _orchestrator.ProcessSessionAsync(sessionId);
+
+        // Assert — core steps should NOT have been called
+        await _documentParser.DidNotReceive().ParseAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _intakeAgent.DidNotReceive().ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>());
+        await _extractorAgent.DidNotReceive().ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>());
+        await _riskAssessor.DidNotReceive().AssessAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+
+        // SearchIndex should have been re-attempted
+        await _sessionIndexingService.Received().IndexSessionAsync(
+            Arg.Any<CoreEntities.Session>(),
+            Arg.Any<AgentExtractionResult>(),
+            Arg.Any<SessionSummary?>(),
+            Arg.Any<CancellationToken>());
+
+        result.Success.Should().BeTrue();
+        result.ExtractionId.Should().Be(existingExtraction.Id);
+    }
+
+    [Fact]
+    public async Task ProcessSessionAsync_NoExistingExtraction_DoesFullRun()
+    {
+        // Arrange — no prior extraction exists, should do a full run
+        var sessionId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        var parsedDoc = CreateTestParsedDocument();
+        var intakeResult = CreateTestIntakeResult(parsedDoc);
+        var extractionResult = CreateTestExtractionResult();
+        var riskResult = CreateTestRiskResult();
+
+        _sessionRepository.GetByIdAsync(sessionId).Returns(session);
+        _documentStorage.DownloadAsync(Arg.Any<string>()).Returns(new MemoryStream());
+        _documentParser.ParseAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(parsedDoc);
+        _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
+            .Returns(intakeResult);
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+            .Returns(extractionResult);
+        _riskAssessor.AssessAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(riskResult);
+
+        // GetBySessionIdAsync returns null — no prior extraction
+        _extractionResultRepository.GetBySessionIdAsync(sessionId, Arg.Any<CancellationToken>())
+            .Returns((CoreEntities.ExtractionResult?)null);
+
+        // Act
+        var result = await _orchestrator.ProcessSessionAsync(sessionId);
+
+        // Assert — full run, all agents called
+        await _documentParser.Received().ParseAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _intakeAgent.Received().ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>());
+        result.Success.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ProcessSessionAsync_ResumeFromSummarizeFailed_ReRunsSummarizeAndIndex()
+    {
+        // Arrange — steps 1-4 succeeded, step 5 (Summarize) failed, step 6 (SearchIndex) also failed
+        var sessionId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        _sessionRepository.GetByIdAsync(sessionId).Returns(session);
+
+        _documentRepository.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.Processing, DocumentStatus.Processing)
+            .Returns(true);
+
+        var existingExtraction = new CoreEntities.ExtractionResult
+        {
+            Id = Guid.NewGuid(),
+            SessionId = sessionId,
+            Data = new ClinicalExtraction(),
+            OverallConfidence = 0.85,
+            RequiresReview = false,
+            Steps = new List<CoreEntities.ExtractionStep>
+            {
+                new() { StepName = ExtractionStepName.DocumentParse, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.Intake, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.ClinicalExtract, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.RiskAssess, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.Summarize, Status = ExtractionStepStatus.Failed },
+                new() { StepName = ExtractionStepName.SearchIndex, Status = ExtractionStepStatus.Failed },
+            }
+        };
+        _extractionResultRepository.GetBySessionIdAsync(sessionId, Arg.Any<CancellationToken>())
+            .Returns(existingExtraction);
+
+        // Act
+        var result = await _orchestrator.ProcessSessionAsync(sessionId);
+
+        // Assert — summarize should be re-attempted
+        await _summarizer.Received().SummarizeSessionAsync(
+            Arg.Any<AgentExtractionResult>(), Arg.Any<CancellationToken>());
+        // Indexing should also be re-attempted
+        await _sessionIndexingService.Received().IndexSessionAsync(
+            Arg.Any<CoreEntities.Session>(),
+            Arg.Any<AgentExtractionResult>(),
+            Arg.Any<SessionSummary?>(),
+            Arg.Any<CancellationToken>());
+        // Summary should be persisted
+        await _extractionResultRepository.Received().UpdateExtractionSummaryAsync(
+            existingExtraction.Id, Arg.Any<string>(), Arg.Any<CancellationToken>());
+
+        result.Success.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ProcessSessionAsync_ResumeWithSummarizeThrow_ReturnsPartiallyCompleted()
+    {
+        // Arrange — step 5 failed, re-run also throws → PartiallyCompleted
+        var sessionId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        _sessionRepository.GetByIdAsync(sessionId).Returns(session);
+
+        _documentRepository.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.Processing, DocumentStatus.Processing)
+            .Returns(true);
+
+        var existingExtraction = new CoreEntities.ExtractionResult
+        {
+            Id = Guid.NewGuid(),
+            SessionId = sessionId,
+            Data = new ClinicalExtraction(),
+            OverallConfidence = 0.85,
+            RequiresReview = false,
+            Steps = new List<CoreEntities.ExtractionStep>
+            {
+                new() { StepName = ExtractionStepName.DocumentParse, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.Intake, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.ClinicalExtract, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.RiskAssess, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.Summarize, Status = ExtractionStepStatus.Failed },
+                new() { StepName = ExtractionStepName.SearchIndex, Status = ExtractionStepStatus.Succeeded },
+            }
+        };
+        _extractionResultRepository.GetBySessionIdAsync(sessionId, Arg.Any<CancellationToken>())
+            .Returns(existingExtraction);
+
+        // Summarizer throws on re-run
+        _summarizer.SummarizeSessionAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("Content filter blocked"));
+
+        // Act
+        var result = await _orchestrator.ProcessSessionAsync(sessionId);
+
+        // Assert — should be PartiallyCompleted (summarize failed, but indexing already OK)
+        result.Success.Should().BeTrue();
+        result.IsPartiallyCompleted.Should().BeTrue();
+
+        await _documentRepository.Received().UpdateDocumentStatusAsync(
+            sessionId, DocumentStatus.PartiallyCompleted,
+            Arg.Any<string?>(), Arg.Any<IndexingStatus?>(),
+            Arg.Any<FailureKind?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ProcessSessionAsync_ResumeIndexingThrows_ReturnsPartiallyCompleted()
+    {
+        // Arrange — step 6 failed, re-run also throws → PartiallyCompleted
+        var sessionId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        _sessionRepository.GetByIdAsync(sessionId).Returns(session);
+
+        _documentRepository.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.Processing, DocumentStatus.Processing)
+            .Returns(true);
+
+        var existingExtraction = new CoreEntities.ExtractionResult
+        {
+            Id = Guid.NewGuid(),
+            SessionId = sessionId,
+            Data = new ClinicalExtraction(),
+            OverallConfidence = 0.85,
+            RequiresReview = false,
+            SummaryJson = "{\"oneLiner\":\"Test\",\"modelUsed\":\"gpt-4o\"}",
+            Steps = new List<CoreEntities.ExtractionStep>
+            {
+                new() { StepName = ExtractionStepName.DocumentParse, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.Intake, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.ClinicalExtract, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.RiskAssess, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.Summarize, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.SearchIndex, Status = ExtractionStepStatus.Failed },
+            }
+        };
+        _extractionResultRepository.GetBySessionIdAsync(sessionId, Arg.Any<CancellationToken>())
+            .Returns(existingExtraction);
+
+        // Indexing throws on re-run
+        _sessionIndexingService.IndexSessionAsync(
+            Arg.Any<CoreEntities.Session>(), Arg.Any<AgentExtractionResult>(),
+            Arg.Any<SessionSummary?>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new HttpRequestException("Service temporarily unavailable"));
+
+        // Act
+        var result = await _orchestrator.ProcessSessionAsync(sessionId);
+
+        // Assert — should be PartiallyCompleted (indexing failed)
+        result.Success.Should().BeTrue();
+        result.IsPartiallyCompleted.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("Document is not a therapy note", FailureKind.Permanent, "Document does not appear to be a therapy session note")]
+    [InlineData("Invalid document format", FailureKind.Permanent, "Document does not appear to be a therapy session note")]
+    [InlineData("File could not be read", FailureKind.Permanent, "Document could not be read or parsed")]
+    [InlineData("PDF is corrupt", FailureKind.Permanent, "Document could not be read or parsed")]
+    [InlineData("BlobNotFound error", FailureKind.Permanent, "Source document no longer exists")]
+    [InlineData("HTTP 429 TooManyRequests", FailureKind.Transient, "Service rate limit reached")]
+    [InlineData("content filter triggered", FailureKind.Transient, "Content was flagged by safety filter")]
+    [InlineData("circuit breaker is open", FailureKind.Transient, "Service temporarily unavailable (circuit breaker)")]
+    [InlineData("Failed to parse extraction JSON", FailureKind.Transient, "Extraction produced invalid output")]
+    [InlineData("Internal Server Error from Azure", FailureKind.Transient, "Service temporarily unavailable")]
+    [InlineData("Something completely unexpected", FailureKind.Transient, "Unexpected error:")]
+    public void ClassifyFailure_ReturnsCorrectKindAndMessage(string exceptionMessage, FailureKind expectedKind, string expectedMessageContains)
+    {
+        var (kind, message) = ExtractionOrchestrator.ClassifyFailure(new InvalidOperationException(exceptionMessage));
+
+        kind.Should().Be(expectedKind);
+        message.Should().Contain(expectedMessageContains);
+    }
+
+    [Fact]
+    public void ClassifyFailure_TimeoutException_ReturnsTransient()
+    {
+        var (kind, message) = ExtractionOrchestrator.ClassifyFailure(new TimeoutException("Operation timed out"));
+
+        kind.Should().Be(FailureKind.Transient);
+        message.Should().Contain("timed out");
+    }
+
+    [Fact]
+    public void ClassifyFailure_HttpRequestException_ReturnsTransient()
+    {
+        var (kind, message) = ExtractionOrchestrator.ClassifyFailure(new HttpRequestException("Network error"));
+
+        kind.Should().Be(FailureKind.Transient);
+        message.Should().Contain("Service temporarily unavailable");
+    }
+
+    [Fact]
+    public async Task ProcessSessionAsync_DocumentParseThrows_FailsWithClassifiedError()
+    {
+        // Arrange — step 1 (DocumentParse) throws
+        var sessionId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        _sessionRepository.GetByIdAsync(sessionId).Returns(session);
+        _documentStorage.DownloadAsync(Arg.Any<string>()).Returns(new MemoryStream());
+        _documentParser.ParseAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("File could not be read"));
+        _extractionResultRepository.GetBySessionIdAsync(sessionId, Arg.Any<CancellationToken>())
+            .Returns((CoreEntities.ExtractionResult?)null);
+
+        // Act
+        var result = await _orchestrator.ProcessSessionAsync(sessionId);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        await _documentRepository.Received().UpdateDocumentStatusAsync(
+            sessionId, DocumentStatus.Failed,
+            Arg.Any<string?>(), Arg.Any<IndexingStatus?>(),
+            FailureKind.Permanent, Arg.Is<string?>(m => m!.Contains("could not be read")),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ProcessSessionAsync_RiskAssessThrows_FailsWithClassifiedError()
+    {
+        // Arrange — step 4 (RiskAssess) throws
+        var sessionId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        var parsedDoc = CreateTestParsedDocument();
+        var intakeResult = CreateTestIntakeResult(parsedDoc);
+        var extractionResult = CreateTestExtractionResult();
+
+        _sessionRepository.GetByIdAsync(sessionId).Returns(session);
+        _documentStorage.DownloadAsync(Arg.Any<string>()).Returns(new MemoryStream());
+        _documentParser.ParseAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(parsedDoc);
+        _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
+            .Returns(intakeResult);
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+            .Returns(extractionResult);
+        _riskAssessor.AssessAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("content filter triggered"));
+        _extractionResultRepository.GetBySessionIdAsync(sessionId, Arg.Any<CancellationToken>())
+            .Returns((CoreEntities.ExtractionResult?)null);
+
+        // Act
+        var result = await _orchestrator.ProcessSessionAsync(sessionId);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        await _documentRepository.Received().UpdateDocumentStatusAsync(
+            sessionId, DocumentStatus.Failed,
+            Arg.Any<string?>(), Arg.Any<IndexingStatus?>(),
+            FailureKind.Transient, Arg.Is<string?>(m => m!.Contains("Content was flagged")),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ProcessSessionAsync_ResumeCrash_SetsFailedWithClassifiedError()
+    {
+        // Arrange — resume path, but final UpdateDocumentStatusAsync throws (covers outer catch)
+        var sessionId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        _sessionRepository.GetByIdAsync(sessionId).Returns(session);
+
+        _documentRepository.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.Processing, DocumentStatus.Processing)
+            .Returns(true);
+
+        var existingExtraction = new CoreEntities.ExtractionResult
+        {
+            Id = Guid.NewGuid(),
+            SessionId = sessionId,
+            Data = new ClinicalExtraction(),
+            OverallConfidence = 0.85,
+            RequiresReview = false,
+            SummaryJson = "{\"oneLiner\":\"Test\",\"modelUsed\":\"gpt-4o\"}",
+            Steps = new List<CoreEntities.ExtractionStep>
+            {
+                new() { StepName = ExtractionStepName.DocumentParse, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.Intake, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.ClinicalExtract, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.RiskAssess, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.Summarize, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.SearchIndex, Status = ExtractionStepStatus.Succeeded },
+            }
+        };
+        _extractionResultRepository.GetBySessionIdAsync(sessionId, Arg.Any<CancellationToken>())
+            .Returns(existingExtraction);
+
+        // The final UpdateDocumentStatusAsync (Completed) throws, forcing the outer catch
+        _documentRepository.UpdateDocumentStatusAsync(
+            sessionId, DocumentStatus.Completed,
+            Arg.Any<string?>(), Arg.Any<IndexingStatus?>(),
+            Arg.Any<FailureKind?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("DB connection lost"));
+
+        // Act
+        var result = await _orchestrator.ProcessSessionAsync(sessionId);
+
+        // Assert — outer catch sets Failed
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("DB connection lost");
+    }
+
+    [Fact]
+    public async Task GenerateSessionSummaryAsync_ReturnsAndPersistsSummary()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var extractionId = Guid.NewGuid();
+        var session = new CoreEntities.Session
+        {
+            Id = sessionId,
+            Extraction = new CoreEntities.ExtractionResult
+            {
+                Id = extractionId,
+                Data = new ClinicalExtraction(),
+                OverallConfidence = 0.85,
+                RequiresReview = false
+            }
+        };
+        _sessionRepository.GetByIdAsync(sessionId, Arg.Any<CancellationToken>()).Returns(session);
+
+        var expectedSummary = new SessionSummary
+        {
+            OneLiner = "Anxiety session",
+            ModelUsed = "gpt-4o-mini",
+            InterventionsUsed = new List<string> { "CBT" }
+        };
+        _summarizer.SummarizeSessionAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<CancellationToken>())
+            .Returns(expectedSummary);
+
+        // Act
+        var result = await _orchestrator.GenerateSessionSummaryAsync(sessionId);
+
+        // Assert
+        result.OneLiner.Should().Be("Anxiety session");
+        await _extractionResultRepository.Received().UpdateExtractionSummaryAsync(
+            extractionId, Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GenerateSessionSummaryAsync_NoExtraction_Throws()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        _sessionRepository.GetByIdAsync(sessionId, Arg.Any<CancellationToken>())
+            .Returns(new CoreEntities.Session { Id = sessionId, Extraction = null });
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _orchestrator.GenerateSessionSummaryAsync(sessionId));
+    }
 }

@@ -148,11 +148,11 @@ export const handlers = [
     })
   }),
 
-  http.post('/api/extraction/:sessionId', () => {
-    return HttpResponse.json({
-      success: true,
-      extractionId: 'new-extraction-id'
-    })
+  http.post('/api/extraction/:sessionId', ({ params }) => {
+    return HttpResponse.json(
+      { sessionId: params.sessionId },
+      { status: 202 }
+    )
   }),
 
   // Extraction steps handler

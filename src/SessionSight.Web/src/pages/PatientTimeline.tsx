@@ -283,7 +283,7 @@ export function PatientTimeline() {
                 </div>
                 <div>
                   <p className="text-xs font-medium text-gray-500">Document</p>
-                  <p>Status: {entry.documentStatus ?? 'None'}</p>
+                  <p>Status: {entry.documentStatus === 'PartiallyCompleted' ? 'Partial' : entry.documentStatus ?? 'None'}</p>
                   {entry.documentFileName && <p className="truncate">{entry.documentFileName}</p>}
                   {entry.documentBlobUri && (
                     <a

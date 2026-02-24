@@ -7,8 +7,8 @@ const TERMINAL_STATUSES = new Set(['Succeeded', 'Failed', 'Skipped'])
 
 function isPipelineFinished(data: ExtractionStepsResponse | undefined): boolean {
   if (!data || data.steps.length === 0) return false
-  // Backend crashed or pipeline failed — document status is the source of truth
-  if (data.documentStatus === 'Failed' || data.documentStatus === 'Completed') return true
+  // Backend crashed or pipeline finished — document status is the source of truth
+  if (data.documentStatus === 'Failed' || data.documentStatus === 'Completed' || data.documentStatus === 'PartiallyCompleted') return true
   if (data.steps.some((s) => s.status === 'Failed')) return true
   // All expected steps must be present AND terminal — don't stop early when
   // only the first few steps have completed but later steps haven't started yet.

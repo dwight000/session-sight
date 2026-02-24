@@ -170,6 +170,12 @@ public partial class SessionRepository : ISessionRepository, IDocumentRepository
         await _context.SaveChangesAsync(ct);
     }
 
+    public async Task<ExtractionResult?> GetBySessionIdAsync(Guid sessionId, CancellationToken ct = default)
+        => await _context.Extractions
+            .Include(e => e.Steps)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(e => e.SessionId == sessionId, ct);
+
     public async Task UpsertExtractionResultAsync(ExtractionResult extraction, CancellationToken ct = default)
     {
         // Delete existing extraction for this session (if any) then insert new one.

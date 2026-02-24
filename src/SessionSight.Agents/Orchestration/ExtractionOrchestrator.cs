@@ -122,6 +122,13 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             }
         }
 
+        // Resume check: if a prior run completed steps 1-4, skip to the first failed non-fatal step.
+        var existingExtraction = await _extractionResultRepository.GetBySessionIdAsync(sessionId, ct);
+        if (existingExtraction != null && CanResumeFromExistingExtraction(existingExtraction))
+        {
+            return await ResumeFromFailedStepsAsync(session, existingExtraction, stopwatch, ct);
+        }
+
         var extractionId = Guid.NewGuid();
 
         try
@@ -708,6 +715,185 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         return count;
     }
 
+    private static readonly ExtractionStepName[] CoreSteps =
+    [
+        ExtractionStepName.DocumentParse,
+        ExtractionStepName.Intake,
+        ExtractionStepName.ClinicalExtract,
+        ExtractionStepName.RiskAssess
+    ];
+
+    private static bool CanResumeFromExistingExtraction(Core.Entities.ExtractionResult existing)
+    {
+        var steps = existing.Steps;
+        return CoreSteps.All(name =>
+            steps.Any(s => s.StepName == name && s.Status == ExtractionStepStatus.Succeeded));
+    }
+
+    private async Task<OrchestrationResult> ResumeFromFailedStepsAsync(
+        Session session,
+        Core.Entities.ExtractionResult existing,
+        Stopwatch stopwatch,
+        CancellationToken ct)
+    {
+        var sessionId = session.Id;
+        var extractionId = existing.Id;
+        LogResumingExtraction(_logger, sessionId, extractionId);
+
+        // Reconstruct agent result from persisted extraction data
+        var agentResult = new AgentExtractionResult
+        {
+            SessionId = sessionId.ToString("D", System.Globalization.CultureInfo.InvariantCulture),
+            Data = existing.Data,
+            OverallConfidence = existing.OverallConfidence,
+            RequiresReview = existing.RequiresReview
+        };
+
+        var stepLookup = existing.Steps.ToDictionary(s => s.StepName);
+        var needsSummarize = !stepLookup.TryGetValue(ExtractionStepName.Summarize, out var sumStep)
+            || sumStep.Status != ExtractionStepStatus.Succeeded;
+        var needsIndexing = !stepLookup.TryGetValue(ExtractionStepName.SearchIndex, out var idxStep)
+            || idxStep.Status != ExtractionStepStatus.Succeeded;
+
+        var modelsUsed = new List<string>();
+        var summarizeFailed = false;
+        SessionSummary? sessionSummary = null;
+
+        // Load existing summary if step 5 already succeeded
+        if (!needsSummarize && existing.SummaryJson != null)
+        {
+            sessionSummary = JsonSerializer.Deserialize<SessionSummary>(existing.SummaryJson, JsonOptions);
+        }
+
+        try
+        {
+            if (needsSummarize)
+            {
+                var step5 = BeginStep(extractionId, ExtractionStepName.Summarize, 5, string.Empty);
+                await TrySaveStepAsync(step5);
+                var sw5 = Stopwatch.StartNew();
+                try
+                {
+                    LogRunningSummarizer(_logger);
+                    sessionSummary = await _agents.Summarizer.SummarizeSessionAsync(agentResult, ct);
+                    sw5.Stop();
+                    modelsUsed.Add(sessionSummary.ModelUsed);
+                    step5.ModelUsed = sessionSummary.ModelUsed;
+                    step5.InputTokens = sessionSummary.InputTokens;
+                    step5.OutputTokens = sessionSummary.OutputTokens;
+                    step5.TotalTokens = sessionSummary.TotalTokens;
+                    CompleteStep(step5, sw5.ElapsedMilliseconds);
+                    step5.ResultSummaryJson = JsonSerializer.Serialize(new
+                    {
+                        oneLiner = sessionSummary.OneLiner,
+                        interventionsUsed = sessionSummary.InterventionsUsed
+                    }, JsonOptions);
+
+                    // Persist the new summary
+                    var summaryJson = JsonSerializer.Serialize(sessionSummary, JsonOptions);
+                    await _extractionResultRepository.UpdateExtractionSummaryAsync(extractionId, summaryJson, ct);
+                }
+                catch (Exception ex)
+                {
+                    sw5.Stop();
+                    summarizeFailed = true;
+                    FailStep(step5, sw5.ElapsedMilliseconds, ex.Message);
+                    LogSummarizerError(_logger, ex, sessionId);
+                }
+                finally
+                {
+                    await TrySaveStepAsync(step5);
+                }
+            }
+
+            IndexingStatus indexingStatus;
+            if (needsIndexing)
+            {
+                var step6 = BeginStep(extractionId, ExtractionStepName.SearchIndex, 6, "text-embedding-3-large");
+                await TrySaveStepAsync(step6);
+                var sw6 = Stopwatch.StartNew();
+                try
+                {
+                    LogIndexingStarted(_logger, sessionId);
+                    await _sessionIndexingService.IndexSessionAsync(session, agentResult, sessionSummary, ct);
+                    sw6.Stop();
+                    indexingStatus = IndexingStatus.Indexed;
+                    CompleteStep(step6, sw6.ElapsedMilliseconds);
+                    step6.ResultSummaryJson = JsonSerializer.Serialize(new { indexed = true }, JsonOptions);
+                    LogIndexingCompleted(_logger, sessionId);
+                }
+                catch (Exception ex)
+                {
+                    sw6.Stop();
+                    indexingStatus = IndexingStatus.Failed;
+                    FailStep(step6, sw6.ElapsedMilliseconds, ex.Message);
+                    step6.ResultSummaryJson = JsonSerializer.Serialize(new
+                    {
+                        indexed = false,
+                        errorReason = Truncate(ex.Message, 500)
+                    }, JsonOptions);
+                    LogIndexingError(_logger, ex, sessionId);
+                }
+                finally
+                {
+                    await TrySaveStepAsync(step6);
+                }
+            }
+            else
+            {
+                indexingStatus = IndexingStatus.Indexed;
+            }
+
+            var finalStatus = (summarizeFailed || indexingStatus == IndexingStatus.Failed)
+                ? DocumentStatus.PartiallyCompleted
+                : DocumentStatus.Completed;
+
+            await _documentRepository.UpdateDocumentStatusAsync(
+                sessionId, finalStatus, indexingStatus: indexingStatus, ct: ct);
+
+            stopwatch.Stop();
+            LogExtractionCompleted(_logger, sessionId, stopwatch.ElapsedMilliseconds, existing.RequiresReview);
+
+            return new OrchestrationResult
+            {
+                Success = true,
+                IsPartiallyCompleted = finalStatus == DocumentStatus.PartiallyCompleted,
+                SessionId = sessionId,
+                ExtractionId = extractionId,
+                RequiresReview = existing.RequiresReview,
+                ModelsUsed = modelsUsed,
+                ElapsedMilliseconds = stopwatch.ElapsedMilliseconds
+            };
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            LogExtractionFailed(_logger, ex, sessionId);
+
+            var (failureKind, errorMessage) = ClassifyFailure(ex);
+
+            try
+            {
+                await _documentRepository.UpdateDocumentStatusAsync(
+                    sessionId, DocumentStatus.Failed,
+                    failureKind: failureKind, errorMessage: errorMessage, ct: ct);
+            }
+            catch (Exception updateEx)
+            {
+                LogStatusUpdateFailed(_logger, updateEx, sessionId);
+            }
+
+            return new OrchestrationResult
+            {
+                Success = false,
+                SessionId = sessionId,
+                ErrorMessage = ex.Message,
+                ModelsUsed = modelsUsed,
+                ElapsedMilliseconds = stopwatch.ElapsedMilliseconds
+            };
+        }
+    }
+
     internal static (FailureKind Kind, string Message) ClassifyFailure(Exception ex)
     {
         var msg = ex.Message;
@@ -802,6 +988,9 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Starting extraction for session {SessionId}")]
     private static partial void LogStartingExtraction(ILogger logger, Guid sessionId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Resuming extraction for session {SessionId} from existing extraction {ExtractionId}")]
+    private static partial void LogResumingExtraction(ILogger logger, Guid sessionId, Guid extractionId);
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Downloading document from {BlobUri}")]
     private static partial void LogDownloadingDocument(ILogger logger, string blobUri);

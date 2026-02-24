@@ -4,6 +4,7 @@ import { useReviewDetail } from '../hooks/useReviewDetail'
 import { useSubmitReview } from '../hooks/useSubmitReview'
 import { useRegenerateSessionSummary } from '../hooks/useRegenerateSessionSummary'
 import { useDeleteDocument } from '../hooks/useDeleteDocument'
+import { useRetryExtraction } from '../hooks/useRetryExtraction'
 import { Card } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -193,6 +194,7 @@ export function SessionDetail() {
   const { data, isLoading, error } = useReviewDetail(sessionId!)
   const regenerate = useRegenerateSessionSummary(sessionId!)
   const deleteDoc = useDeleteDocument(sessionId!)
+  const retryMutation = useRetryExtraction()
   const navigate = useNavigate()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
@@ -240,6 +242,43 @@ export function SessionDetail() {
         <Badge variant={statusVariant[data.reviewStatus]}>{data.reviewStatus}</Badge>
         <span className="text-sm text-gray-500">{Math.round(data.overallConfidence * 100)}% confidence</span>
       </div>
+
+      {/* Failure context banners */}
+      {(data.documentStatus === 'Failed' || data.documentStatus === 'PartiallyCompleted') && (
+        <div className={`rounded-md p-4 ${data.documentStatus === 'Failed' ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200'}`}>
+          <div className="flex items-start justify-between">
+            <div>
+              <p className={`text-sm font-medium ${data.documentStatus === 'Failed' ? 'text-red-800' : 'text-amber-800'}`}>
+                {data.documentStatus === 'Failed' ? 'Extraction failed' : 'Extraction partially completed'}
+              </p>
+              {data.errorMessage && (
+                <p className={`mt-1 text-sm ${data.documentStatus === 'Failed' ? 'text-red-700' : 'text-amber-700'}`}>
+                  {data.errorMessage}
+                </p>
+              )}
+              {data.indexingStatus === 'Failed' && data.documentStatus !== 'Failed' && (
+                <p className="mt-1 text-sm text-amber-700">
+                  Search indexing failed — this session may not appear in Q&A search results.
+                </p>
+              )}
+            </div>
+            {data.failureKind !== 'Permanent' && (
+              <Button
+                variant="secondary"
+                onClick={() => retryMutation.mutate(sessionId!)}
+                disabled={retryMutation.isPending}
+              >
+                {retryMutation.isPending ? 'Retrying...' : 'Retry'}
+              </Button>
+            )}
+          </div>
+          {data.failureKind === 'Permanent' && (
+            <p className="mt-2 text-xs text-gray-500">
+              This error is permanent and retry will not help.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Summary panel */}
       {summary ? (

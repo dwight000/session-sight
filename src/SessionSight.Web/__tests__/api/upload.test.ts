@@ -31,13 +31,14 @@ describe('upload api', () => {
 
   describe('triggerExtraction', () => {
     it('triggers extraction for a session', async () => {
-      const response = { success: true, extractionId: 'e1' }
       server.use(
-        http.post('/api/extraction/s1', () => HttpResponse.json(response))
+        http.post('/api/extraction/s1', () =>
+          HttpResponse.json({ sessionId: 's1' }, { status: 202 })
+        )
       )
 
       const result = await triggerExtraction('s1')
-      expect(result).toEqual(response)
+      expect(result).toEqual({ accepted: true, sessionId: 's1' })
     })
 
     it('throws on extraction failure', async () => {
