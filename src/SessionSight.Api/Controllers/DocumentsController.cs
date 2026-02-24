@@ -109,7 +109,9 @@ public partial class DocumentsController : ControllerBase
 
         var steps = await _stepRepository.GetStepsByExtractionIdAsync(session.Extraction.Id);
         var docStatus = session.Document?.Status.ToString();
-        return Ok(steps.ToStepsDto(session.Extraction.Id, docStatus));
+        var failureKind = session.Document?.FailureKind.ToString();
+        var errorMessage = session.Document?.ErrorMessage;
+        return Ok(steps.ToStepsDto(session.Extraction.Id, docStatus, failureKind, errorMessage));
     }
 
     [HttpDelete("document")]

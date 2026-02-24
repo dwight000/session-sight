@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
+using Xunit.Abstractions;
 
 namespace SessionSight.FunctionalTests.Fixtures;
 
@@ -15,6 +16,58 @@ internal static class ExtractionAssertions
     {
         PropertyNameCaseInsensitive = true
     };
+
+    /// <summary>
+    /// Polls the extraction steps endpoint until the document reaches a terminal status
+    /// (Completed, PartiallyCompleted, or Failed). Returns the final document status.
+    /// Throws TimeoutException if the deadline expires.
+    /// </summary>
+    internal static async Task<string> WaitForExtractionAsync(
+        HttpClient client, Guid sessionId, TimeSpan? timeout = null, ITestOutputHelper? output = null)
+    {
+        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromMinutes(5));
+        string? documentStatus = null;
+        string? errorMessage = null;
+
+        while (DateTime.UtcNow < deadline)
+        {
+            var response = await client.GetAsync($"/api/sessions/{sessionId}/extraction/steps");
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                var dto = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+                if (dto.TryGetProperty("documentStatus", out var statusProp) && statusProp.ValueKind == JsonValueKind.String)
+                {
+                    documentStatus = statusProp.GetString();
+
+                    if (dto.TryGetProperty("errorMessage", out var errProp) && errProp.ValueKind == JsonValueKind.String)
+                        errorMessage = errProp.GetString();
+
+                    if (documentStatus is "Completed" or "PartiallyCompleted" or "Failed")
+                    {
+                        var label = documentStatus == "Failed" && errorMessage != null
+                            ? $"{documentStatus}: {errorMessage}"
+                            : documentStatus;
+                        output?.WriteLine($"[POLL] Extraction for {sessionId} reached status: {label}");
+                        return documentStatus;
+                    }
+                }
+            }
+
+            output?.WriteLine($"[POLL] Extraction for {sessionId} still in progress...");
+            await Task.Delay(2000);
+        }
+
+        throw new TimeoutException(
+            $"Extraction for session {sessionId} did not complete within timeout. Last status: {documentStatus ?? "unknown"}");
+    }
+
+    /// <summary>
+    /// Returns true if the extraction failed due to Azure content filter blocking.
+    /// </summary>
+    internal static bool IsContentFilterFailure(string status, string? errorMessage)
+        => status == "Failed"
+           && errorMessage != null
+           && errorMessage.Contains("safety filter", StringComparison.OrdinalIgnoreCase);
 
     internal static string? GetFieldValue(JsonElement section, string fieldName)
     {

@@ -379,10 +379,16 @@ public class ExtractionOrchestratorTests
         // Act
         var result = await _orchestrator.ProcessSessionAsync(sessionId);
 
-        // Assert — pipeline fails, status set to Failed
+        // Assert — pipeline fails, status set to Failed via outer catch
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("Failed to parse extraction JSON");
-        await _documentRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
+        await _documentRepository.Received().UpdateDocumentStatusAsync(
+            sessionId, DocumentStatus.Failed,
+            Arg.Any<string?>(),
+            Arg.Any<IndexingStatus?>(),
+            Arg.Is<FailureKind?>(fk => fk == FailureKind.Transient),
+            Arg.Any<string?>(),
+            Arg.Any<CancellationToken>());
         // Risk assessor should NOT run — empty extraction with defaulted risk fields is a safety risk
         await _riskAssessor.DidNotReceive().AssessAsync(
             Arg.Any<ExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>());

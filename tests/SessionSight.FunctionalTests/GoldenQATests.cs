@@ -136,14 +136,16 @@ public class GoldenQATests : IClassFixture<ApiFixture>
         uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created,
             $"Document upload should succeed for QA case {goldenCase.NoteId}");
 
-        // Trigger extraction
-        var extractionResponse = await _longClient.PostAsync($"/api/extraction/{sessionId}", null);
-        extractionResponse.StatusCode.Should().Be(HttpStatusCode.OK,
-            $"Extraction should succeed for QA case {goldenCase.NoteId}");
+        // Trigger extraction — 202 Accepted, runs in background
+        var extractionResponse = await _client.PostAsync($"/api/extraction/{sessionId}", null);
+        extractionResponse.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            $"Extraction should return 202 for QA case {goldenCase.NoteId}");
 
-        var extractionJson = await extractionResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
-        var success = extractionJson.GetProperty("success").GetBoolean();
-        success.Should().BeTrue($"Extraction should be successful for QA case {goldenCase.NoteId}");
+        // Poll for completion
+        var finalStatus = await ExtractionAssertions.WaitForExtractionAsync(
+            _client, sessionId, TimeSpan.FromMinutes(5), _output);
+        finalStatus.Should().BeOneOf("Completed", "PartiallyCompleted",
+            $"Extraction should complete for QA case {goldenCase.NoteId}");
 
         _output.WriteLine($"[QA-EVAL] {goldenCase.NoteId} | extraction completed for session {sessionId}");
 

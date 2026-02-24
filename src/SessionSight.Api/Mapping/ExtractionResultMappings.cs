@@ -9,8 +9,10 @@ public static class ExtractionResultMappings
     public static ExtractionStepsResponseDto ToStepsDto(
         this IReadOnlyList<ExtractionStep> steps,
         Guid extractionId,
-        string? documentStatus = null) =>
-        new(extractionId, documentStatus, steps.Select(s => new ExtractionStepDto(
+        string? documentStatus = null,
+        string? failureKind = null,
+        string? errorMessage = null) =>
+        new(extractionId, documentStatus, failureKind, errorMessage, steps.Select(s => new ExtractionStepDto(
             s.Id,
             s.StepName.ToString(),
             s.Status.ToString(),

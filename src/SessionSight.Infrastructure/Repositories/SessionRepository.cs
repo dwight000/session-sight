@@ -253,30 +253,39 @@ public partial class SessionRepository : ISessionRepository, IDocumentRepository
 
     public async Task UpdateExtractionResultAsync(ExtractionResult extraction, CancellationToken ct = default)
     {
-        // Use ExecuteUpdateAsync to update only scalar columns via raw SQL,
-        // bypassing the change tracker entirely. This prevents EF relationship fixup
-        // from orphaning/deleting the ExtractionStep and ExtractionToolCall child rows
-        // that were already committed during the pipeline by TrySaveStepAsync.
-        await _context.Extractions
-            .Where(e => e.Id == extraction.Id)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(e => e.SchemaVersion, extraction.SchemaVersion)
-                .SetProperty(e => e.ModelUsed, extraction.ModelUsed)
-                .SetProperty(e => e.OverallConfidence, extraction.OverallConfidence)
-                .SetProperty(e => e.RequiresReview, extraction.RequiresReview)
-                .SetProperty(e => e.ReviewStatus, extraction.ReviewStatus)
-                .SetProperty(e => e.ReviewReasons, extraction.ReviewReasons)
-                .SetProperty(e => e.ExtractedAt, extraction.ExtractedAt)
-                .SetProperty(e => e.Data, extraction.Data)
-                .SetProperty(e => e.SummaryJson, extraction.SummaryJson)
-                .SetProperty(e => e.GuardrailApplied, extraction.GuardrailApplied)
-                .SetProperty(e => e.HomicidalGuardrailApplied, extraction.HomicidalGuardrailApplied)
-                .SetProperty(e => e.HomicidalGuardrailReason, extraction.HomicidalGuardrailReason)
-                .SetProperty(e => e.SelfHarmGuardrailApplied, extraction.SelfHarmGuardrailApplied)
-                .SetProperty(e => e.SelfHarmGuardrailReason, extraction.SelfHarmGuardrailReason)
-                .SetProperty(e => e.CriteriaValidationAttempts, extraction.CriteriaValidationAttempts)
-                .SetProperty(e => e.DiscrepancyCount, extraction.DiscrepancyCount)
-                .SetProperty(e => e.RiskFieldDecisionsJson, extraction.RiskFieldDecisionsJson), ct);
+        // Load the existing row (scalar only — no Include on Steps/Reviews)
+        // and update via tracked change detection + SaveChangesAsync.
+        // This avoids ExecuteUpdateAsync which bypasses the change tracker and
+        // can be silently overwritten by a later SaveChangesAsync that flushes
+        // stale tracked state from the same DbContext.
+        var existing = await _context.Extractions
+            .FirstOrDefaultAsync(e => e.Id == extraction.Id, ct)
+            ?? throw new InvalidOperationException(
+                $"UpdateExtractionResultAsync: extraction {extraction.Id} not found.");
+
+        existing.SchemaVersion = extraction.SchemaVersion;
+        existing.ModelUsed = extraction.ModelUsed;
+        existing.OverallConfidence = extraction.OverallConfidence;
+        existing.RequiresReview = extraction.RequiresReview;
+        existing.ReviewStatus = extraction.ReviewStatus;
+        existing.ReviewReasons = extraction.ReviewReasons;
+        existing.ExtractedAt = extraction.ExtractedAt;
+        existing.Data = extraction.Data;
+        existing.SummaryJson = extraction.SummaryJson;
+        existing.GuardrailApplied = extraction.GuardrailApplied;
+        existing.HomicidalGuardrailApplied = extraction.HomicidalGuardrailApplied;
+        existing.HomicidalGuardrailReason = extraction.HomicidalGuardrailReason;
+        existing.SelfHarmGuardrailApplied = extraction.SelfHarmGuardrailApplied;
+        existing.SelfHarmGuardrailReason = extraction.SelfHarmGuardrailReason;
+        existing.CriteriaValidationAttempts = extraction.CriteriaValidationAttempts;
+        existing.DiscrepancyCount = extraction.DiscrepancyCount;
+        existing.ContentFilterBlocked = extraction.ContentFilterBlocked;
+        existing.RiskFieldDecisionsJson = extraction.RiskFieldDecisionsJson;
+
+        await _context.SaveChangesAsync(ct);
+
+        // Detach to prevent stale state from interfering with subsequent operations
+        _context.Entry(existing).State = EntityState.Detached;
     }
 
     public async Task UpdateExtractionSummaryAsync(Guid extractionId, string summaryJson, CancellationToken ct = default)

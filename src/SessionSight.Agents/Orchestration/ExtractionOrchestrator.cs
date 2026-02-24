@@ -281,15 +281,23 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                     });
                 }
 
+                // Fail pipeline on content filter block (extraction was empty/partial)
+                if (extractionResult.Errors.Any(e => e.Contains("content filter", StringComparison.OrdinalIgnoreCase)))
+                {
+                    FailStep(step3, sw3.ElapsedMilliseconds, "Content filter blocked extraction");
+                    throw new InvalidOperationException(
+                        "Clinical extraction blocked by content filter after retry");
+                }
+
                 // Fail pipeline on JSON parse failure
                 if (extractionResult.Errors.Any(e => e.Contains("Failed to parse extraction JSON", StringComparison.Ordinal)))
                 {
                     FailStep(step3, sw3.ElapsedMilliseconds, "Failed to parse extraction JSON from agent response");
+                    throw new InvalidOperationException(
+                        "Failed to parse extraction JSON from agent response");
                 }
-                else
-                {
-                    CompleteStep(step3, sw3.ElapsedMilliseconds);
-                }
+
+                CompleteStep(step3, sw3.ElapsedMilliseconds);
 
                 step3.ResultSummaryJson = JsonSerializer.Serialize(new
                 {

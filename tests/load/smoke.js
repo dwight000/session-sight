@@ -299,7 +299,7 @@ export function expensiveScenario(data) {
         );
 
         const success = check(res, {
-            'extraction is 200': (r) => r.status === 200,
+            'extraction is 202': (r) => r.status === 202,
         });
 
         if (!success) {
