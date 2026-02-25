@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using SessionSight.Agents.Orchestration;
+using SessionSight.Agents.Services;
 using SessionSight.Core.Enums;
 using SessionSight.Core.Interfaces;
 
@@ -14,18 +14,18 @@ public partial class ExtractionController : ControllerBase
 {
     private readonly ISessionRepository _sessionRepository;
     private readonly IDocumentRepository _documentRepository;
-    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IExtractionJobDispatcher _dispatcher;
     private readonly ILogger<ExtractionController> _logger;
 
     public ExtractionController(
         ISessionRepository sessionRepository,
         IDocumentRepository documentRepository,
-        IServiceScopeFactory scopeFactory,
+        IExtractionJobDispatcher dispatcher,
         ILogger<ExtractionController> logger)
     {
         _sessionRepository = sessionRepository;
         _documentRepository = documentRepository;
-        _scopeFactory = scopeFactory;
+        _dispatcher = dispatcher;
         _logger = logger;
     }
 
@@ -68,45 +68,11 @@ public partial class ExtractionController : ControllerBase
 
         LogTriggeringExtraction(_logger, sessionId);
 
-        // Fire-and-forget: run extraction in a background scope that outlives this HTTP request.
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                using var scope = _scopeFactory.CreateScope();
-                var logger = scope.ServiceProvider.GetRequiredService<ILogger<ExtractionController>>();
-                var orchestrator = scope.ServiceProvider.GetRequiredService<IExtractionOrchestrator>();
-                LogStartingBackgroundExtraction(logger, sessionId);
-                var result = await orchestrator.ProcessSessionAsync(sessionId, CancellationToken.None);
-
-                if (!result.Success)
-                    LogExtractionFailed(logger, sessionId, result.ErrorMessage);
-                else
-                    LogBackgroundExtractionCompleted(logger, sessionId);
-            }
-            catch (Exception ex)
-            {
-                using var failScope = _scopeFactory.CreateScope();
-                var logger = failScope.ServiceProvider.GetRequiredService<ILogger<ExtractionController>>();
-                LogBackgroundExtractionCrashed(logger, ex, sessionId);
-            }
-        }, CancellationToken.None);
+        await _dispatcher.EnqueueAsync(sessionId);
 
         return Accepted(new { sessionId });
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Triggering extraction for session {SessionId}")]
     private static partial void LogTriggeringExtraction(ILogger logger, Guid sessionId);
-
-    [LoggerMessage(Level = LogLevel.Debug, Message = "Starting background extraction for session {SessionId}")]
-    private static partial void LogStartingBackgroundExtraction(ILogger logger, Guid sessionId);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Background extraction completed for session {SessionId}")]
-    private static partial void LogBackgroundExtractionCompleted(ILogger logger, Guid sessionId);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Extraction failed for session {SessionId}: {Error}")]
-    private static partial void LogExtractionFailed(ILogger logger, Guid sessionId, string? error);
-
-    [LoggerMessage(Level = LogLevel.Error, Message = "Background extraction crashed for session {SessionId}")]
-    private static partial void LogBackgroundExtractionCrashed(ILogger logger, Exception exception, Guid sessionId);
 }
