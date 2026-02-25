@@ -29,7 +29,9 @@ Extraction is triggered asynchronously via `ExtractionJobDispatcher` (bounded ch
 
 ### 1. Extraction Pipeline (UI Upload)
 
-A user uploads a document through the browser, then triggers extraction. The controller enqueues the job on the `ExtractionJobDispatcher` and returns `202 Accepted` immediately. The browser polls for step-level progress while the orchestrator runs six sequential steps in the background, two of which are non-fatal (summarization and search indexing).
+A user uploads a document through the browser, then triggers extraction. The controller enqueues the job on the `ExtractionJobDispatcher` and returns `202 Accepted` immediately. The browser polls for step-level progress while the orchestrator runs six sequential steps in the background, two of which are non-fatal (summarization and search indexing). The flow is split into two diagrams at the async boundary.
+
+#### 1a. Request & Dispatch
 
 ```mermaid
 sequenceDiagram
@@ -37,17 +39,7 @@ sequenceDiagram
     participant DocsCtrl as DocumentsController
     participant ExtCtrl as ExtractionController
     participant Dispatcher as ExtractionJobDispatcher
-    participant Orch as ExtractionOrchestrator
     participant DocStore as DocumentStorage
-    participant DocParser as DocumentParser
-    participant Intake as IntakeAgent [nano]
-    participant Extractor as ClinicalExtractorAgent [mini]
-    participant Runner as AgentLoopRunner
-    participant Risk as RiskAssessorAgent [mini]
-    participant Summarizer as SummarizerAgent [nano]
-    participant Indexer as SessionIndexingService
-    participant Embedding as EmbeddingService [e3-large]
-    participant Search as AISearch
     participant DB
 
     Note over Browser,DB: Phase 1 — Document Upload
@@ -83,6 +75,27 @@ sequenceDiagram
 
     Dispatcher->>Dispatcher: Channel reader dequeues job
     Dispatcher->>Dispatcher: CreateScope (fresh DI per job)
+    Note over Dispatcher: Continues in Diagram 1b ↓
+```
+
+#### 1b. Pipeline Execution
+
+```mermaid
+sequenceDiagram
+    participant Dispatcher as ExtractionJobDispatcher
+    participant Orch as ExtractionOrchestrator
+    participant DocStore as DocumentStorage
+    participant DocParser as DocumentParser
+    participant Intake as IntakeAgent [nano]
+    participant Extractor as ClinicalExtractorAgent [mini]
+    participant Runner as AgentLoopRunner
+    participant Risk as RiskAssessorAgent [mini]
+    participant Summarizer as SummarizerAgent [nano]
+    participant Indexer as SessionIndexingService
+    participant Embedding as EmbeddingService [e3-large]
+    participant Search as AISearch
+    participant DB
+
     Dispatcher->>Orch: ProcessSessionAsync(sessionId)
 
     Note over Orch,DB: Step 1 — Document Parse
