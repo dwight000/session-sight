@@ -26,6 +26,7 @@ export const mockSessions: Session[] = [
     sessionNumber: 2,
     hasDocument: true,
     documentStatus: 'Completed',
+    indexingStatus: 'Indexed',
     createdAt: '2025-01-02T00:00:00Z',
     updatedAt: '2025-01-02T00:00:00Z'
   },
@@ -54,6 +55,7 @@ export const mockSessions: Session[] = [
     sessionNumber: 4,
     hasDocument: true,
     documentStatus: 'PartiallyCompleted',
+    indexingStatus: 'Failed',
     createdAt: '2025-02-01T00:00:00Z',
     updatedAt: '2025-02-01T00:00:00Z'
   }

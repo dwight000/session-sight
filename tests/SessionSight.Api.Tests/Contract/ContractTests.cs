@@ -80,7 +80,7 @@ public class ContractTests : IntegrationTestBase
 
         var keys = root.EnumerateObject().Select(p => p.Name).ToList();
 
-        // documentStatus is null for a new session → omitted by WhenWritingNull
+        // documentStatus and indexingStatus are null for a new session → omitted by WhenWritingNull
         keys.Should().BeEquivalentTo([
             "id", "patientId", "therapistId", "sessionDate",
             "sessionType", "modality", "durationMinutes",

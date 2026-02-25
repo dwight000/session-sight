@@ -32,6 +32,7 @@ export interface Session {
   sessionNumber: number
   hasDocument: boolean
   documentStatus: DocumentStatus | null
+  indexingStatus?: string
   createdAt: string
   updatedAt: string
 }

@@ -1,3 +1,6 @@
+using System.Text.Json;
+using Azure;
+using Azure.Identity;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -8,6 +11,7 @@ using SessionSight.Agents.Models;
 using SessionSight.Agents.Orchestration;
 using SessionSight.Agents.Services;
 using SessionSight.Core.Enums;
+using SessionSight.Core.Exceptions;
 using SessionSight.Core.Interfaces;
 using SessionSight.Core.Schema;
 using AgentModels = SessionSight.Agents.Models;
@@ -191,9 +195,15 @@ public class ExtractionOrchestratorTests
         // Assert
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("Invalid document");
-        // Verify document status was updated to Processing then Failed
+        // Verify document status set to Failed with FailureKind.Permanent and descriptive error
         await _documentRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Pending, DocumentStatus.Processing);
-        await _documentRepository.Received().TryTransitionDocumentStatusAsync(sessionId, DocumentStatus.Processing, DocumentStatus.Failed);
+        await _documentRepository.Received().UpdateDocumentStatusAsync(
+            sessionId, DocumentStatus.Failed,
+            Arg.Any<string?>(),
+            Arg.Any<IndexingStatus?>(),
+            Arg.Is<FailureKind?>(k => k == FailureKind.Permanent),
+            Arg.Is<string?>(m => m != null && m.Contains("therapy session note")),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -1027,6 +1037,76 @@ public class ExtractionOrchestratorTests
     }
 
     [Fact]
+    public void ClassifyFailure_RequestFailedException404_ReturnsPermanent()
+    {
+        var ex = new RequestFailedException(404, "Blob not found");
+        var (kind, message) = ExtractionOrchestrator.ClassifyFailure(ex);
+
+        kind.Should().Be(FailureKind.Permanent);
+        message.Should().Contain("no longer exists");
+    }
+
+    [Fact]
+    public void ClassifyFailure_RequestFailedException429_ReturnsTransient()
+    {
+        var ex = new RequestFailedException(429, "Rate limited");
+        var (kind, message) = ExtractionOrchestrator.ClassifyFailure(ex);
+
+        kind.Should().Be(FailureKind.Transient);
+        message.Should().Contain("rate limit");
+    }
+
+    [Fact]
+    public void ClassifyFailure_RequestFailedException500_ReturnsTransient()
+    {
+        var ex = new RequestFailedException(500, "Internal Server Error");
+        var (kind, message) = ExtractionOrchestrator.ClassifyFailure(ex);
+
+        kind.Should().Be(FailureKind.Transient);
+        message.Should().Contain("temporarily unavailable");
+    }
+
+    [Fact]
+    public void ClassifyFailure_DocumentValidationException_ReturnsPermanent()
+    {
+        var ex = new DocumentValidationException("Not a therapy note");
+        var (kind, message) = ExtractionOrchestrator.ClassifyFailure(ex);
+
+        kind.Should().Be(FailureKind.Permanent);
+        message.Should().Contain("therapy session note");
+    }
+
+    [Fact]
+    public void ClassifyFailure_CircuitBreakerOpenException_ReturnsTransient()
+    {
+        var ex = new CircuitBreakerOpenException("OpenAI", TimeSpan.FromSeconds(30));
+        var (kind, message) = ExtractionOrchestrator.ClassifyFailure(ex);
+
+        kind.Should().Be(FailureKind.Transient);
+        message.Should().Contain("circuit breaker");
+    }
+
+    [Fact]
+    public void ClassifyFailure_CredentialUnavailableException_ReturnsTransient()
+    {
+        var ex = new CredentialUnavailableException("No credentials available");
+        var (kind, message) = ExtractionOrchestrator.ClassifyFailure(ex);
+
+        kind.Should().Be(FailureKind.Transient);
+        message.Should().Contain("Authentication error");
+    }
+
+    [Fact]
+    public void ClassifyFailure_JsonException_ReturnsTransient()
+    {
+        var ex = new JsonException("Invalid JSON");
+        var (kind, message) = ExtractionOrchestrator.ClassifyFailure(ex);
+
+        kind.Should().Be(FailureKind.Transient);
+        message.Should().Contain("invalid output");
+    }
+
+    [Fact]
     public async Task ProcessSessionAsync_DocumentParseThrows_FailsWithClassifiedError()
     {
         // Arrange — step 1 (DocumentParse) throws
@@ -1132,6 +1212,49 @@ public class ExtractionOrchestratorTests
         // Assert — outer catch sets Failed
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("DB connection lost");
+    }
+
+    [Fact]
+    public async Task ProcessSessionAsync_ResumeWithDuplicateSteps_UsesLatestStep()
+    {
+        // Arrange — steps 1-4 succeeded, step 5 (Summarize) has two Failed rows from prior retries
+        var sessionId = Guid.NewGuid();
+        var session = CreateTestSession(sessionId);
+        _sessionRepository.GetByIdAsync(sessionId).Returns(session);
+
+        _documentRepository.TryTransitionDocumentStatusAsync(
+            sessionId, DocumentStatus.Processing, DocumentStatus.Processing)
+            .Returns(true);
+
+        var existingExtraction = new CoreEntities.ExtractionResult
+        {
+            Id = Guid.NewGuid(),
+            SessionId = sessionId,
+            Data = new ClinicalExtraction(),
+            OverallConfidence = 0.85,
+            RequiresReview = false,
+            Steps = new List<CoreEntities.ExtractionStep>
+            {
+                new() { StepName = ExtractionStepName.DocumentParse, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.Intake, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.ClinicalExtract, Status = ExtractionStepStatus.Succeeded },
+                new() { StepName = ExtractionStepName.RiskAssess, Status = ExtractionStepStatus.Succeeded },
+                // Two failed Summarize steps from prior retries — should not throw ArgumentException
+                new() { Id = Guid.NewGuid(), StepName = ExtractionStepName.Summarize, Status = ExtractionStepStatus.Failed, StartedAt = DateTime.UtcNow.AddHours(-2) },
+                new() { Id = Guid.NewGuid(), StepName = ExtractionStepName.Summarize, Status = ExtractionStepStatus.Failed, StartedAt = DateTime.UtcNow.AddHours(-1) },
+                new() { StepName = ExtractionStepName.SearchIndex, Status = ExtractionStepStatus.Failed },
+            }
+        };
+        _extractionResultRepository.GetBySessionIdAsync(sessionId, Arg.Any<CancellationToken>())
+            .Returns(existingExtraction);
+
+        // Act — should NOT throw ArgumentException from ToDictionary
+        var result = await _orchestrator.ProcessSessionAsync(sessionId);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        await _summarizer.Received().SummarizeSessionAsync(
+            Arg.Any<AgentExtractionResult>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

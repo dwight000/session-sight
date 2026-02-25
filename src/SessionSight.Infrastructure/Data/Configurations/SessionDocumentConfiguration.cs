@@ -20,5 +20,8 @@ public class SessionDocumentConfiguration : IEntityTypeConfiguration<SessionDocu
         builder.Property(d => d.FailureKind).HasConversion<string>().HasMaxLength(50)
             .HasDefaultValue(FailureKind.None);
         builder.Property(d => d.ErrorMessage).HasMaxLength(2000);
+        builder.Property(d => d.RowVersion)
+            .IsRowVersion()
+            .IsConcurrencyToken();
     }
 }

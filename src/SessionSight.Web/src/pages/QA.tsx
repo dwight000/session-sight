@@ -24,8 +24,8 @@ export function QA() {
   )
   const mutation = useAskQuestion(selectedPatientId)
 
-  const hasPartialSessions = patientSessions?.some(
-    (s) => s.documentStatus === 'PartiallyCompleted'
+  const hasIndexingFailures = patientSessions?.some(
+    (s) => s.indexingStatus === 'Failed'
   ) ?? false
 
   const handlePatientChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -121,10 +121,10 @@ export function QA() {
         </form>
       </Card>
 
-      {hasPartialSessions && (
+      {hasIndexingFailures && (
         <div className="rounded-md border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm text-amber-800">
-            Some sessions may be missing from search results due to indexing issues.
+            Some sessions may not appear in search results due to indexing failures.
           </p>
         </div>
       )}

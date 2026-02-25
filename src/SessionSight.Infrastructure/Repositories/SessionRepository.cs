@@ -103,6 +103,9 @@ public partial class SessionRepository : ISessionRepository, IDocumentRepository
     [LoggerMessage(Level = LogLevel.Error, Message = "Failed to update session {SessionId} after {MaxRetries} concurrency retries")]
     private static partial void LogConcurrencyFailed(ILogger logger, Guid sessionId, int maxRetries);
 
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Concurrency conflict updating document for session {SessionId}, retry {Attempt}/{MaxRetries}")]
+    private static partial void LogDocumentConcurrencyRetry(ILogger logger, Guid sessionId, int attempt, int maxRetries);
+
     public async Task AddDocumentAsync(Session session, SessionDocument document, CancellationToken ct = default)
     {
         session.UpdatedAt = DateTime.UtcNow;
@@ -136,38 +139,53 @@ public partial class SessionRepository : ISessionRepository, IDocumentRepository
         IndexingStatus? indexingStatus = null, FailureKind? failureKind = null, string? errorMessage = null,
         CancellationToken ct = default)
     {
-        // Direct update to Document table only - avoids Session RowVersion concurrency issues
-        var document = await _context.Documents
-            .FirstOrDefaultAsync(d => d.SessionId == sessionId, ct);
+        for (var attempt = 1; attempt <= MaxConcurrencyRetries; attempt++)
+        {
+            // Direct update to Document table only - avoids Session RowVersion concurrency issues
+            var document = await _context.Documents
+                .FirstOrDefaultAsync(d => d.SessionId == sessionId, ct);
 
-        if (document is null)
-        {
-            throw new InvalidOperationException($"No document found for session {sessionId}");
-        }
+            if (document is null)
+            {
+                throw new InvalidOperationException($"No document found for session {sessionId}");
+            }
 
-        document.Status = status;
-        if (status == DocumentStatus.Completed || status == DocumentStatus.PartiallyCompleted)
-        {
-            document.ProcessedAt = DateTime.UtcNow;
-        }
-        if (extractedText != null)
-        {
-            document.ExtractedText = extractedText;
-        }
-        if (indexingStatus.HasValue)
-        {
-            document.IndexingStatus = indexingStatus.Value;
-        }
-        if (failureKind.HasValue)
-        {
-            document.FailureKind = failureKind.Value;
-        }
-        if (errorMessage != null)
-        {
-            document.ErrorMessage = errorMessage;
-        }
+            document.Status = status;
+            if (status == DocumentStatus.Completed || status == DocumentStatus.PartiallyCompleted)
+            {
+                document.ProcessedAt = DateTime.UtcNow;
+            }
+            if (extractedText != null)
+            {
+                document.ExtractedText = extractedText;
+            }
+            if (indexingStatus.HasValue)
+            {
+                document.IndexingStatus = indexingStatus.Value;
+            }
+            if (failureKind.HasValue)
+            {
+                document.FailureKind = failureKind.Value;
+            }
+            // null means "leave existing value" (not "clear"). ErrorMessage is cleared
+            // by TryTransitionDocumentStatusAsync when transitioning to Processing.
+            if (errorMessage != null)
+            {
+                document.ErrorMessage = errorMessage;
+            }
 
-        await _context.SaveChangesAsync(ct);
+            try
+            {
+                await _context.SaveChangesAsync(ct);
+                return;
+            }
+            catch (DbUpdateConcurrencyException) when (attempt < MaxConcurrencyRetries)
+            {
+                LogDocumentConcurrencyRetry(_logger, sessionId, attempt, MaxConcurrencyRetries);
+                await _context.Entry(document).ReloadAsync(ct);
+                await Task.Delay(RetryDelay, ct);
+            }
+        }
     }
 
     public async Task<ExtractionResult?> GetBySessionIdAsync(Guid sessionId, CancellationToken ct = default)

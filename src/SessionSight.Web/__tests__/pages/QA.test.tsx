@@ -197,6 +197,22 @@ describe('QA page', () => {
     expect(screen.getByText(/Answer 2/)).toBeInTheDocument()
   })
 
+  it('shows indexing failure warning when session has Failed indexingStatus', async () => {
+    const user = userEvent.setup()
+    renderQA()
+
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: /John Doe/ })).toBeInTheDocument(),
+    )
+
+    // Select patient — mockSessions includes s4 with indexingStatus: 'Failed'
+    await user.selectOptions(screen.getByLabelText(/patient/i), 'p1')
+
+    await waitFor(() =>
+      expect(screen.getByText(/indexing failures/)).toBeInTheDocument(),
+    )
+  })
+
   it('clears chat history when patient changes', async () => {
     const user = userEvent.setup()
     renderQA()
