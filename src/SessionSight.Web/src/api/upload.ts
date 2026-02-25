@@ -30,13 +30,12 @@ export async function deleteDocument(sessionId: string): Promise<void> {
   }
 }
 
-export interface ExtractionResult {
-  success: boolean
-  errorMessage?: string
-  extractionId?: string
+export interface ExtractionAccepted {
+  accepted: true
+  sessionId: string
 }
 
-export async function triggerExtraction(sessionId: string): Promise<ExtractionResult> {
+export async function triggerExtraction(sessionId: string): Promise<ExtractionAccepted> {
   const res = await fetch(`/api/extraction/${sessionId}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -47,5 +46,7 @@ export async function triggerExtraction(sessionId: string): Promise<ExtractionRe
     throw new Error(`Extraction failed (${res.status}): ${text}`)
   }
 
-  return res.json()
+  // Server returns 202 Accepted with { sessionId }
+  const body = await res.json()
+  return { accepted: true, sessionId: body.sessionId ?? sessionId }
 }

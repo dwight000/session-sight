@@ -1,4 +1,6 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
+using Moq;
 using SessionSight.Core.Resilience;
 
 namespace SessionSight.Core.Tests.Resilience;
@@ -146,6 +148,66 @@ public class CircuitBreakerStateTests
         breaker.RecordFailure();
         breaker.State.Should().Be(CircuitState.Closed);
         breaker.RecordFailure();
+        breaker.State.Should().Be(CircuitState.Open);
+    }
+
+    [Fact]
+    public void AtThreshold_WithLogger_OpensAndLogs()
+    {
+        var logger = new Mock<ILogger>();
+        var breaker = new CircuitBreakerState("test", failureThreshold: 2, logger: logger.Object);
+
+        breaker.RecordFailure();
+        breaker.RecordFailure();
+
+        breaker.State.Should().Be(CircuitState.Open);
+    }
+
+    [Fact]
+    public void HalfOpen_WithLogger_SuccessClosesAndLogs()
+    {
+        var logger = new Mock<ILogger>();
+        var breaker = new CircuitBreakerState("test",
+            failureThreshold: 1,
+            breakDuration: TimeSpan.FromMilliseconds(1),
+            logger: logger.Object);
+
+        breaker.RecordFailure();
+        Thread.Sleep(10);
+        breaker.IsOpen(out _); // Triggers HalfOpen + log
+
+        breaker.RecordSuccess(); // Triggers Closed + log
+
+        breaker.State.Should().Be(CircuitState.Closed);
+    }
+
+    [Fact]
+    public void HalfOpen_WithLogger_FailureReopensAndLogs()
+    {
+        var logger = new Mock<ILogger>();
+        var breaker = new CircuitBreakerState("test",
+            failureThreshold: 1,
+            breakDuration: TimeSpan.FromMilliseconds(1),
+            logger: logger.Object);
+
+        breaker.RecordFailure();
+        Thread.Sleep(10);
+        breaker.IsOpen(out _); // Triggers HalfOpen + log
+
+        breaker.RecordFailure(); // Triggers Reopen + log
+
+        breaker.State.Should().Be(CircuitState.Open);
+    }
+
+    [Fact]
+    public void Open_RecordFailure_IsNoOp()
+    {
+        var breaker = new CircuitBreakerState("test", failureThreshold: 1);
+
+        breaker.RecordFailure(); // Opens
+        breaker.State.Should().Be(CircuitState.Open);
+
+        breaker.RecordFailure(); // Should be no-op (already open, not half-open)
         breaker.State.Should().Be(CircuitState.Open);
     }
 }

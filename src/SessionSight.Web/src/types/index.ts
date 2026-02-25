@@ -19,7 +19,7 @@ export interface CreatePatientRequest {
 // Session types
 export type SessionType = 'Intake' | 'Individual' | 'Group' | 'Family' | 'Couples' | 'Crisis' | 'Assessment' | 'Termination'
 export type SessionModality = 'InPerson' | 'TelehealthVideo' | 'TelehealthPhone' | 'Hybrid'
-export type DocumentStatus = 'Pending' | 'Processing' | 'Completed' | 'Failed'
+export type DocumentStatus = 'Pending' | 'Processing' | 'Completed' | 'PartiallyCompleted' | 'Failed'
 
 export interface Session {
   id: string
@@ -81,6 +81,10 @@ export interface ReviewDetail {
   summaryJson: string | null
   data: ClinicalExtraction
   reviews: SupervisorReview[]
+  documentStatus?: DocumentStatus
+  failureKind?: string
+  errorMessage?: string
+  indexingStatus?: string
 }
 
 export interface SubmitReviewRequest {

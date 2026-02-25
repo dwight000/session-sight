@@ -3,11 +3,9 @@ using System.Text.Json.Serialization;
 namespace SessionSight.Core.Enums;
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
-public enum DocumentStatus
+public enum FailureKind
 {
-    Pending,
-    Processing,
-    Completed,
-    PartiallyCompleted,
-    Failed
+    None,
+    Transient,
+    Permanent
 }

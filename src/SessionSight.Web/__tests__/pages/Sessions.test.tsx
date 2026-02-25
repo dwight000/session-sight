@@ -44,7 +44,8 @@ describe('Sessions page', () => {
   it('shows retry button for failed sessions', async () => {
     renderSessions()
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument()
+      // Both Failed (s3) and PartiallyCompleted (s4) get retry buttons
+      expect(screen.getAllByRole('button', { name: /retry/i }).length).toBeGreaterThanOrEqual(1)
     })
   })
 
@@ -53,16 +54,16 @@ describe('Sessions page', () => {
     server.use(
       http.post('/api/extraction/:sessionId', ({ params }) => {
         capturedSessionId = params.sessionId as string
-        return HttpResponse.json({ success: true, extractionId: 'new-id' })
+        return HttpResponse.json({ sessionId: params.sessionId }, { status: 202 })
       }),
     )
 
     renderSessions()
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument()
+      expect(screen.getAllByRole('button', { name: /retry/i }).length).toBeGreaterThanOrEqual(1)
     })
 
-    await userEvent.click(screen.getByRole('button', { name: /retry/i }))
+    await userEvent.click(screen.getAllByRole('button', { name: /retry/i })[0])
 
     await waitFor(() => expect(capturedSessionId).toBe('s3'))
   })

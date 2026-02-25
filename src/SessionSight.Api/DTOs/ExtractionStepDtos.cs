@@ -3,6 +3,8 @@ namespace SessionSight.Api.DTOs;
 public record ExtractionStepsResponseDto(
     Guid ExtractionId,
     string? DocumentStatus,
+    string? FailureKind,
+    string? ErrorMessage,
     IReadOnlyList<ExtractionStepDto> Steps);
 
 public record ExtractionStepDto(

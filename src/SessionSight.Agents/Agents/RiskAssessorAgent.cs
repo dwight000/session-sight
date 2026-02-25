@@ -1126,8 +1126,7 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
     }
 
     private static bool IsContentFilterBlocked(ChatCompletion completion) =>
-        completion.FinishReason == ChatFinishReason.ContentFilter
-        || completion.Content.Count == 0;
+        ContentFilterHelper.IsContentFilterBlocked(completion);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Starting risk assessment for session {SessionId}")]
     private static partial void LogStartingRiskAssessment(ILogger logger, string sessionId);

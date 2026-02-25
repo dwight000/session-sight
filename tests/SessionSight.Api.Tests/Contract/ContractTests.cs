@@ -212,7 +212,7 @@ public class ContractTests : IntegrationTestBase
     public void ExtractionStepsResponseDto_JsonShape_MatchesContract()
     {
         var dto = new ExtractionStepsResponseDto(
-            Guid.NewGuid(), "Completed",
+            Guid.NewGuid(), "Completed", null, null,
             [
                 new ExtractionStepDto(
                     Guid.NewGuid(), "Intake", "Completed", 1,

@@ -137,6 +137,28 @@ export const mockExtractionStepsFailed: ExtractionStepsResponse = {
   ],
 }
 
+export const mockExtractionStepsPartiallyCompleted: ExtractionStepsResponse = {
+  extractionId: 'ext-004',
+  documentStatus: 'PartiallyCompleted',
+  steps: [
+    mockExtractionStepsComplete.steps[0],
+    mockExtractionStepsComplete.steps[1],
+    mockExtractionStepsComplete.steps[2],
+    mockExtractionStepsComplete.steps[3],
+    mockExtractionStepsComplete.steps[4],
+    makeStep('SearchIndex', 5, {
+      status: 'Failed',
+      durationMs: 1200,
+      modelUsed: '',
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      errorMessage: 'Embedding service timeout',
+      resultSummaryJson: '{"indexed":false,"errorReason":"Embedding service timeout"}',
+    }),
+  ],
+}
+
 export const mockExtractionResult: ExtractionResultResponse = {
   id: 'ext-001',
   sessionId: 'sess-001',

@@ -35,6 +35,7 @@ function getDocumentBadge(session: Session): { label: string; variant: string } 
     case 'Pending': return { label: 'Pending', variant: 'pending' }
     case 'Processing': return { label: 'Processing', variant: 'warning' }
     case 'Completed': return { label: 'Extracted', variant: 'approved' }
+    case 'PartiallyCompleted': return { label: 'Partial', variant: 'warning' }
     case 'Failed': return { label: 'Failed', variant: 'danger' }
     default: return { label: 'Uploaded', variant: 'approved' }
   }
@@ -274,7 +275,7 @@ export function Sessions() {
                       return (
                         <span className="inline-flex items-center gap-2">
                           <Badge variant={badge.variant}>{badge.label}</Badge>
-                          {session.documentStatus === 'Failed' && (
+                          {(session.documentStatus === 'Failed' || session.documentStatus === 'PartiallyCompleted') && (
                             <Button
                               variant="secondary"
                               className="px-2 py-0.5 text-xs"

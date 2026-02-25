@@ -13,6 +13,9 @@ public class SessionDocument
     public long FileSizeBytes { get; set; }
     public string? ExtractedText { get; set; }
     public DocumentStatus Status { get; set; }
+    public IndexingStatus IndexingStatus { get; set; }
+    public FailureKind FailureKind { get; set; }
+    public string? ErrorMessage { get; set; }
     public DateTime UploadedAt { get; set; }
     public DateTime? ProcessedAt { get; set; }
 }

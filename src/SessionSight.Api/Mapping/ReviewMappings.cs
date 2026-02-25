@@ -26,7 +26,11 @@ public static class ReviewMappings
             extraction.ReviewReasons,
             extraction.SummaryJson,
             extraction.Data,
-            reviews);
+            reviews,
+            extraction.Session.Document?.Status.ToString(),
+            extraction.Session.Document?.FailureKind.ToString(),
+            extraction.Session.Document?.ErrorMessage,
+            extraction.Session.Document?.IndexingStatus.ToString());
 
     public static SupervisorReviewDto ToDto(this SupervisorReview review) =>
         new(review.Id,
