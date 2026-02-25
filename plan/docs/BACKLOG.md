@@ -7,7 +7,7 @@
 ## Current Status
 
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
-**Next Action**: Pick next task (B-104, B-090, B-013, P5-003, or B-092)
+**Next Action**: Pick next task (B-104, B-090, or B-092)
 
 **Last Updated**: February 25, 2026
 
@@ -83,7 +83,7 @@ _(none)_
 | B-010 | Exponential backoff for Azure SDK clients (OpenAI/Search/DocIntel) | M | 2 | Done | P2-001 |
 | B-011 | Idempotent job IDs for blob trigger | M | 2 | Ready | P2-008 |
 | ~~B-012~~ | ~~Dead-letter handling for failed ingestion~~ | - | - | Merged → B-084 | - |
-| B-013 | Dedupe strategy blob->SQL->AI Search | M | 2 | Ready | P2-004 |
+| B-013 | Dedupe strategy blob->SQL->AI Search | M | 2 | Done | P2-004 |
 | B-019 | Telemetry redaction for PHI in traces | M | 2 | Ready | P1-016 |
 | B-032 | Document size validation (reject >30 pages) | M | 2 | Done | P2-008 |
 | B-033 | Internal service auth (Function->API) | M | 2 | Ready | P2-008 |
@@ -143,7 +143,7 @@ _(none)_
 | **Phase 5: Polish & Testing** |||||
 | P5-001 | Integration tests (golden files) | L | 5 | Done | P2-005 |
 | P5-002 | Data flow diagrams (document->agent->DB) | M | 5 | Done | B-004 |
-| P5-003 | API usage examples | S | 5 | Ready | - |
+| P5-003 | API usage examples | S | 5 | Done | - |
 | B-004 | Architecture diagrams (Mermaid) | M | 5 | Done | P2-010 |
 | B-005 | Load testing setup | M | 5 | Done | - |
 | B-015 | Contract tests for API DTOs | M | 5 | Done | - |
@@ -1144,6 +1144,8 @@ In the document repository, passing `errorMessage: null` to `UpdateDocumentStatu
 | B-103 | ExtractionJobDispatcher BackgroundService — bounded Channel(20), 3 concurrent workers, replaces Task.Run fire-and-forget | 2026-02-25 |
 | B-004 | Architecture diagrams — updated 2 stale extraction diagrams + split UI Upload into 2 sub-diagrams at async boundary | 2026-02-25 |
 | P5-002 | Data flow diagrams — document lifecycle (stateDiagram-v2), data transformation pipeline (flowchart LR), entity relationship (erDiagram) | 2026-02-25 |
+| B-013 | Dedupe strategy — closed as sufficiently addressed: same-session 409 Conflict, atomic TryTransition (B-064), patient unique constraint (B-034), JobKey unique index (B-011), AI Search MergeOrUpload idempotent | 2026-02-25 |
+| P5-003 | API usage examples — closed as covered: Scalar interactive docs, frontend TS API client, 9 contract tests, k6 load test workflow, ARCHITECTURE.md sequence diagrams, README endpoint table | 2026-02-25 |
 
 ---
 
