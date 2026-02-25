@@ -7,11 +7,11 @@
 ## Current Status
 
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
-**Next Action**: Push & create PR for P2-010
+**Next Action**: Pick next task (B-104, B-090, B-013, P5-003, or B-092)
 
-**Last Updated**: February 23, 2026
+**Last Updated**: February 25, 2026
 
-**Milestone**: P2-010 complete — `docs/ARCHITECTURE.md` with 4 Mermaid sequence diagrams covering extraction pipeline (UI upload + blob trigger), Q&A dual-path flow, and agent loop runner. Unblocks B-004 (architecture diagrams).
+**Milestone**: B-004 + P5-002 complete — updated 2 stale extraction diagrams (dispatcher, 202 async, failure classification) and added 3 new data flow diagrams (document lifecycle state machine, data transformation pipeline, entity relationship). B-084 follow-ups (B-098–B-103) all merged.
 
 ---
 
@@ -19,7 +19,7 @@
 
 <!-- When you start a task, move it here. Only ONE task at a time. -->
 
-**B-097 + B-015** — Legal disclaimer + contract tests (Done — ready for PR)
+_(none)_
 
 ---
 
@@ -142,9 +142,9 @@
 | B-065 | Frontend code coverage: Add Vitest coverage (v8), set 80% threshold, add to check-frontend.sh + CI | S | 4 | Done | B-059 |
 | **Phase 5: Polish & Testing** |||||
 | P5-001 | Integration tests (golden files) | L | 5 | Done | P2-005 |
-| P5-002 | Data flow diagrams (document->agent->DB) | M | 5 | Blocked | B-004 |
+| P5-002 | Data flow diagrams (document->agent->DB) | M | 5 | Done | B-004 |
 | P5-003 | API usage examples | S | 5 | Ready | - |
-| B-004 | Architecture diagrams (Mermaid) | M | 5 | Ready | P2-010 |
+| B-004 | Architecture diagrams (Mermaid) | M | 5 | Done | P2-010 |
 | B-005 | Load testing setup | M | 5 | Done | - |
 | B-015 | Contract tests for API DTOs | M | 5 | Done | - |
 | B-016 | Load/concurrency tests | M | 5 | Done | B-005 |
@@ -195,12 +195,12 @@
 | B-096 | Extraction detail polish — confidence heatmap, risk merge viz, source attribution | M | 4 | Done | - |
 | B-097 | Legal disclaimer — "not for clinical use" banner, terms of use, liability notice | S | 4 | Done | - |
 | **B-084 Follow-ups (B-098–B-104)** |||||
-| B-098 | Orchestrator: intake validation failure classification + test coverage | S | 2 | Ready | B-084 |
-| B-099 | Resume path: fix duplicate ExtractionStep rows on retry | S | 2 | Ready | B-084 |
-| B-100 | Minor API/UI cleanup: QA warning precision + ErrorMessage clearing semantics | S | 4 | Ready | B-084 |
-| B-101 | ClassifyFailure: use exception types instead of message string matching | S | 2 | Ready | B-084 |
-| B-102 | Add RowVersion concurrency token to SessionDocument | S | 2 | Ready | B-084 |
-| B-103 | Replace Task.Run fire-and-forget with IHostedService background queue | M | 2 | Ready | B-084 |
+| B-098 | Orchestrator: intake validation failure classification + test coverage | S | 2 | Done | B-084 |
+| B-099 | Resume path: fix duplicate ExtractionStep rows on retry | S | 2 | Done | B-084 |
+| B-100 | Minor API/UI cleanup: QA warning precision + ErrorMessage clearing semantics | S | 4 | Done | B-084 |
+| B-101 | ClassifyFailure: use exception types instead of message string matching | S | 2 | Done | B-084 |
+| B-102 | Add RowVersion concurrency token to SessionDocument | S | 2 | Done | B-084 |
+| B-103 | Replace Task.Run fire-and-forget with IHostedService background queue | M | 2 | **Done** | B-084 |
 | B-104 | Split SessionRepository into 3 concrete repository classes | L | 2 | Ready | B-084 |
 
 ---
@@ -1136,6 +1136,14 @@ In the document repository, passing `errorMessage: null` to `UpdateDocumentStatu
 | B-097 | Legal disclaimer — "not for clinical use" banner in sidebar and mobile nav | 2026-02-23 |
 | B-015 | Contract tests for API DTOs — JSON shape verification, found and fixed 4 frontend/backend drifts | 2026-02-23 |
 | B-084 | Resilient extraction pipeline — 202 background processing, failure classification, PartiallyCompleted status, content filter resilience, index retry, resume from failed step | 2026-02-24 |
+| B-098 | Orchestrator intake failure classification — FailureKind.Permanent with specific error message for invalid therapy notes | 2026-02-24 |
+| B-099 | Resume path dedup — UpdateOrBeginStep reuses existing step rows instead of inserting duplicates on retry | 2026-02-24 |
+| B-100 | QA warning banner for incomplete extraction + ErrorMessage reset to null on re-extraction | 2026-02-24 |
+| B-101 | ClassifyFailure uses switch(ex) type patterns instead of string matching | 2026-02-24 |
+| B-102 | RowVersion [Timestamp] concurrency token on SessionDocument | 2026-02-24 |
+| B-103 | ExtractionJobDispatcher BackgroundService — bounded Channel(20), 3 concurrent workers, replaces Task.Run fire-and-forget | 2026-02-25 |
+| B-004 | Architecture diagrams — updated 2 stale extraction diagrams + split UI Upload into 2 sub-diagrams at async boundary | 2026-02-25 |
+| P5-002 | Data flow diagrams — document lifecycle (stateDiagram-v2), data transformation pipeline (flowchart LR), entity relationship (erDiagram) | 2026-02-25 |
 
 ---
 
@@ -1143,6 +1151,7 @@ In the document repository, passing `errorMessage: null` to `UpdateDocumentStatu
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-25 | **B-004 + P5-002 complete: Architecture diagram update + data flow diagrams.** Updated 2 stale extraction sequence diagrams to reflect B-084/B-103 refactors (ExtractionJobDispatcher, 202 Accepted, polling, FailureKind classification, PartiallyCompleted resume). Split UI Upload diagram into 2 sub-diagrams at the async boundary (1a: Request & Dispatch — 6 lanes, 1b: Pipeline Execution — 13 lanes) to reduce width. Added 3 new data flow diagrams: (5) Document Lifecycle stateDiagram-v2 with nested Transient/Permanent failure states, (6) Data Transformation Pipeline flowchart LR with subgraphs per step showing agent/model/output, (7) Entity Relationship erDiagram with 10 entities. All 7 diagrams validated via Node.js mermaid.parse() and Mermaid Live Editor. Also marked B-098–B-103 as Done in backlog (all shipped in PR #91 and #92). PR #116. |
 | 2026-02-20 | **B-086 complete: Patient longitudinal summary on timeline page.** Frontend-only change — `GET /api/summary/patient/{id}` already existed but was never called. Added `PatientSummary` + `GoalProgress` types to `types/index.ts`, `getPatientSummary()` API function in `api/summary.ts`, `usePatientSummary` query hook, and summary card panel on `PatientTimeline.tsx` between stats bar and session list. Panel shows progress narrative, mood trend badge, effective interventions, recurring themes, goal progress, risk trend summary, and recommended focus. Loading spinner during fetch, hidden on 404 (patients with no extraction data). Tests: 202 frontend unit (7 new: 3 hook, 2 API, 2 page), 17 Playwright smoke (patient summary route mock added). |
 | 2026-02-23 | **P2-010 complete: Architecture sequence diagrams.** Created `docs/ARCHITECTURE.md` with 4 Mermaid sequence diagrams: (1) Extraction Pipeline UI Upload — full 6-step orchestration from document upload through intake gate, agent-loop extraction (4 tools), risk re-extract + conservative merge, non-fatal summarization, non-fatal search indexing, and DB persist. (2) Extraction Pipeline Blob Trigger — async path from Azure Function trigger through blob lifecycle (incoming → processing → processed/failed), idempotency check, atomic patient upsert, fire-and-forget orchestration. (3) Q&A Dual-Path Flow — complexity classifier (nano, temp=0.0) routing to simple single-shot RAG (nano) or complex agentic loop (mini, 5 tools with patient isolation). (4) Agent Loop Runner — shared execution engine with 15 tool call limit, 5-min timeout, parallel tool execution, partial result handling. Includes model assignment table and pipeline summary. Unblocks B-004 (architecture diagrams) which unblocks P5-002 (data flow diagrams). |
 | 2026-02-20 | **B-087/088/089/093 complete: 4 quick wins from gap audit.** B-087: Top Interventions horizontal bar chart card on Dashboard (frontend-only, renders `topInterventions[]` from existing `PracticeSummary` API). B-088: Session summary regenerate/generate button on SessionDetail — new `api/sessionSummary.ts`, `useRegenerateSessionSummary` hook, button shows "Generate Summary" when no summary exists. B-089: Full-stack delete document — backend `DELETE /api/sessions/{id}/document` (blob + search index + DB), frontend red "Delete Document" button with `window.confirm`, `useDeleteDocument` hook. B-093: `CompareSessionsTool` for QA agent — compares 2+ sessions across mood, risk, interventions with change summary; registered in DI, added to agentic loop with `AllowedPatientId` guard, prompt updated. Also fixed `start-dev.sh` missing venv PATH export (caused `az` not found → LLM endpoints hang) and added `az login` warning to both start scripts. Tests: 726 backend (including 4 CompareSessionsTool + 3 DocumentsController delete), 195 frontend (including 7 new hook/page tests), 17 Playwright smoke (2 new assertions). PR #76. |
