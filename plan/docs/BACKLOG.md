@@ -194,10 +194,14 @@
 | B-095 | Pipeline step instrumentation — persist per-step extraction diagnostics | XL | 2 | Done | - |
 | B-096 | Extraction detail polish — confidence heatmap, risk merge viz, source attribution | M | 4 | Done | - |
 | B-097 | Legal disclaimer — "not for clinical use" banner, terms of use, liability notice | S | 4 | Done | - |
-| **B-084 Follow-ups (B-098–B-100)** |||||
+| **B-084 Follow-ups (B-098–B-104)** |||||
 | B-098 | Orchestrator: intake validation failure classification + test coverage | S | 2 | Ready | B-084 |
 | B-099 | Resume path: fix duplicate ExtractionStep rows on retry | S | 2 | Ready | B-084 |
 | B-100 | Minor API/UI cleanup: QA warning precision + ErrorMessage clearing semantics | S | 4 | Ready | B-084 |
+| B-101 | ClassifyFailure: use exception types instead of message string matching | S | 2 | Ready | B-084 |
+| B-102 | Add RowVersion concurrency token to SessionDocument | S | 2 | Ready | B-084 |
+| B-103 | Replace Task.Run fire-and-forget with IHostedService background queue | M | 2 | Ready | B-084 |
+| B-104 | Split SessionRepository into 3 concrete repository classes | L | 2 | Ready | B-084 |
 
 ---
 
@@ -756,6 +760,89 @@ Option (a) is simplest: before calling `BeginStep` in `ResumeFromFailedStepsAsyn
 
 **2. `UpdateDocumentStatusAsync` can't explicitly clear ErrorMessage**
 In the document repository, passing `errorMessage: null` to `UpdateDocumentStatusAsync` means "leave existing value" (due to `if (errorMessage != null)` guard). This is correct by convention but undocumented — callers can't use this method to clear a stale error. Add a comment explaining the invariant, or change to a nullable sentinel pattern.
+
+### B-101 Details (ClassifyFailure: Exception Types Instead of String Matching)
+
+**Found during:** B-084 code review (Opus agent, 2026-02-24)
+
+**Problem:** `ClassifyFailure` in `ExtractionOrchestrator.cs` classifies failures by matching `exception.Message` strings (e.g., `msg.Contains("429")`, `msg.Contains("content filter")`, `msg.Contains("404") && msg.Contains("blob")`). Azure SDK exception messages are not guaranteed stable across SDK versions — a NuGet update could silently break all failure classification.
+
+**Fix:**
+- Match on exception type hierarchy first, fall back to message matching only for unknown types
+- Key mappings:
+  - `Azure.RequestFailedException` with `Status == 429` → Transient ("rate limit")
+  - `Azure.RequestFailedException` with `Status >= 500` → Transient ("service unavailable")
+  - `Azure.Identity.CredentialUnavailableException` → Transient ("auth error")
+  - `TaskCanceledException` / `OperationCanceledException` → Transient ("timeout")
+  - `JsonException` → Transient ("invalid output")
+  - `Azure.RequestFailedException` with `Status == 404` + blob context → Permanent ("blob not found")
+  - Custom `IntakeValidationException` (if added by B-098) → Permanent
+- Also fix inconsistency: `msg.Contains("404")` uses default Ordinal while rest uses OrdinalIgnoreCase
+- Keep message-based fallback for untyped exceptions, but primary classification should be type-based
+
+**Files:** `src/SessionSight.Agents/Orchestration/ExtractionOrchestrator.cs` (~1 method), tests
+
+### B-102 Details (Add RowVersion to SessionDocument)
+
+**Found during:** B-084 code review (Opus agent, 2026-02-24)
+
+**Problem:** `SessionDocument` has no concurrency token. `UpdateDocumentStatusAsync` in `SessionRepository` uses tracked-entity load+save (`FindAsync` → modify → `SaveChangesAsync`). Two concurrent requests (e.g., two Retry clicks, or blob trigger + manual retry) can both read the same document entity before either saves, and the last write wins silently. `Session` already has `RowVersion` but `SessionDocument` does not.
+
+**Fix:**
+- Add `[Timestamp] public byte[] RowVersion { get; set; }` to `SessionDocument` entity
+- Add EF configuration: `.Property(d => d.RowVersion).IsRowVersion()`
+- Add EF migration
+- Handle `DbUpdateConcurrencyException` in `UpdateDocumentStatusAsync` — retry once with fresh read, or return false (caller already handles transition failures)
+- `TryTransitionDocumentStatusAsync` already uses `ExecuteUpdateAsync` with WHERE clause (atomic CAS) so it's unaffected — only the tracked-entity paths need the guard
+
+**Files:** `SessionDocument.cs`, `SessionDocumentConfiguration.cs`, `SessionRepository.cs`, EF migration, tests
+
+### B-103 Details (Replace Task.Run with IHostedService Background Queue)
+
+**Found during:** B-084 code review (Opus agent, 2026-02-24)
+
+**Problem:** `ExtractionController.cs:72` and `IngestionController.cs:136` both use `Task.Run(async () => { using var scope = ... })` to dispatch background extraction work. Issues:
+1. **No shutdown coordination** — `CancellationToken.None` means ASP.NET Core graceful shutdown has no visibility into in-flight extractions. A rolling deploy, SIGTERM, or Container Apps scale-to-zero will orphan the task. The session stays stuck in `Processing` forever with no recovery.
+2. **Unhandled exception edge cases** — if `IServiceScopeFactory.CreateScope()` throws during app disposal, the exception is silently swallowed by `Task.Run`.
+3. **Duplicate scaffolding** — both controllers have identical scope-creation + orchestrator-resolution + logging patterns.
+4. **Not testable** — the fire-and-forget dispatch can't be unit tested for DI resolution correctness.
+
+**Fix:**
+- Create `IExtractionJobDispatcher` interface + `ExtractionJobDispatcher : BackgroundService` implementation
+- Use `Channel<ExtractionJob>` (bounded, single reader) as the internal queue
+- `ExtractionJob` record: `{ Guid SessionId, CancellationToken ShutdownToken }`
+- `BackgroundService.ExecuteAsync` reads from channel, creates DI scope per job, runs orchestrator
+- `IHostApplicationLifetime.ApplicationStopping` token flows through to orchestrator as a linked token with `CancellationToken.None` override removed
+- Both controllers call `await _dispatcher.EnqueueAsync(sessionId)` instead of `Task.Run`
+- On shutdown: channel completes, in-flight job gets cancellation, orchestrator writes `Failed` with `FailureKind.Transient, ErrorMessage = "Server shutting down — retry automatically"` before exiting
+- Register as singleton in DI
+
+**Files:**
+- New: `src/SessionSight.Agents/Services/IExtractionJobDispatcher.cs`, `src/SessionSight.Agents/Services/ExtractionJobDispatcher.cs`
+- Modified: `ExtractionController.cs`, `IngestionController.cs`, `Program.cs` (DI registration)
+- Tests: dispatcher unit tests (enqueue, shutdown cancellation, scope creation)
+
+### B-104 Details (Split SessionRepository into 3 Concrete Classes)
+
+**Found during:** B-084 code review (Opus agent, 2026-02-24)
+
+**Problem:** `SessionRepository` implements `ISessionRepository`, `IDocumentRepository`, and `IExtractionResultRepository` in a single 400+ line class. All three interfaces resolve to the same scoped instance, sharing EF `DbContext` change-tracker state. When the orchestrator injects `IDocumentRepository` and `IExtractionResultRepository` separately (thinking they're independent), modifications via one leak into the other through the shared tracker. This caused the `ExecuteUpdateAsync` → tracked-entity bug that was fixed in B-084, and remains a latent source of similar bugs.
+
+**Fix:**
+- Split into 3 classes:
+  - `SessionRepository : ISessionRepository` — Session CRUD, patient-session queries
+  - `DocumentRepository : IDocumentRepository` — SessionDocument status transitions, failure fields, document queries
+  - `ExtractionResultRepository : IExtractionResultRepository` — ExtractionResult CRUD, step persistence
+- All three take `SessionSightDbContext` via constructor injection (still same DbContext per scope — EF scoping doesn't change)
+- The split eliminates the *class-level* shared state (private fields, helper methods that touch multiple entity types)
+- Move shared helpers (if any) to a `RepositoryBase` or extension methods
+- Update DI registration in `Program.cs`: 3 separate `AddScoped<IFoo, Foo>()` calls
+- **Important:** DbContext is still scoped (shared per request), so cross-entity change-tracker state is an EF design constraint, not eliminated by this refactor. The value is that each repository class has a focused surface area and can't accidentally modify entities it doesn't own via tracked references.
+
+**Files:**
+- New: `src/SessionSight.Infrastructure/Data/Repositories/DocumentRepository.cs`, `ExtractionResultRepository.cs`
+- Modified: `SessionRepository.cs` (remove IDocumentRepository + IExtractionResultRepository implementations), `Program.cs`
+- Tests: update any mocks that construct `SessionRepository` directly
 
 ### B-046 Details (Local Logging Baseline)
 - Scope: Configure API host logging so local debugging does not depend on temporary DIAG_LOG hacks.
