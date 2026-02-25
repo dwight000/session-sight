@@ -177,7 +177,7 @@
 | B-081 | Review and merge Dependabot PRs (~20 pending) | M | 6 | Done | - |
 | B-082 | Fix BlobNotFound + stuck Processing + file types + sample documents on Upload page | M | 6 | Done | - |
 | B-083 | Bump Azure OpenAI TPM, decouple extraction from HTTP lifecycle, fix retry UI, enable /health | S | 6 | Done | - |
-| B-084 | Resilient extraction pipeline: background processing, dead-letter handling, index retry (merges B-012, B-035) | XL | 6 | Ready | - |
+| B-084 | Resilient extraction pipeline: background processing, dead-letter handling, index retry (merges B-012, B-035) | XL | 6 | Done | - |
 | P6-007 | Demo data and walkthrough | M | 6 | Done | - |
 | **Gap Audit Items (B-085–B-093)** |||||
 | B-085 | Q&A Chat UI (patient-scoped clinical Q&A page) | L | 4 | Done | - |
@@ -194,6 +194,10 @@
 | B-095 | Pipeline step instrumentation — persist per-step extraction diagnostics | XL | 2 | Done | - |
 | B-096 | Extraction detail polish — confidence heatmap, risk merge viz, source attribution | M | 4 | Done | - |
 | B-097 | Legal disclaimer — "not for clinical use" banner, terms of use, liability notice | S | 4 | Done | - |
+| **B-084 Follow-ups (B-098–B-100)** |||||
+| B-098 | Orchestrator: intake validation failure classification + test coverage | S | 2 | Ready | B-084 |
+| B-099 | Resume path: fix duplicate ExtractionStep rows on retry | S | 2 | Ready | B-084 |
+| B-100 | Minor API/UI cleanup: QA warning precision + ErrorMessage clearing semantics | S | 4 | Ready | B-084 |
 
 ---
 
@@ -713,6 +717,46 @@ Both paths call the same `ExtractionOrchestrator.ProcessSessionAsync()`. The blo
 - B-094 (Live Extraction Progress UI) handles the frontend polling/display; B-084's architecture decision (background queue vs blob trigger) determines the trigger mechanism but not the display.
 - B-012, B-035 merged into this ticket (see header).
 
+### B-098 Details (Intake Validation Failure Classification)
+
+**Found during:** B-084 code review (Opus agent review, 2026-02-24)
+
+**Problem:** The intake validation early-return path in `ExtractionOrchestrator` calls `TryTransitionDocumentStatusAsync` to set `Failed`, which does NOT write `FailureKind` or `ErrorMessage`. This is the most important permanent failure case ("not a therapy note") — the user sees "Failed" with no explanation and a Retry button that will just fail again on the same document.
+
+**Fix:**
+1. In `ExtractionOrchestrator.ProcessSessionAsync`, replace the intake validation `TryTransitionDocumentStatusAsync` call (~line 236) with `UpdateDocumentStatusAsync` passing `FailureKind.Permanent` and `ErrorMessage = "Document does not appear to be a therapy session note"`.
+2. Check the surviving old JSON-parse early-return path (~line 323) for the same bypass — it also calls `TryTransitionDocumentStatusAsync` without failure classification.
+3. Add a unit test in `ExtractionOrchestratorTests` verifying that intake validation failure sets `FailureKind.Permanent` and a non-null `ErrorMessage`.
+
+**Files:** `src/SessionSight.Agents/Orchestration/ExtractionOrchestrator.cs`, `tests/SessionSight.Agents.Tests/Orchestration/ExtractionOrchestratorTests.cs`
+
+### B-099 Details (Resume Path Duplicate Step Rows)
+
+**Found during:** B-084 code review (Opus agent review, 2026-02-24)
+
+**Problem:** When the orchestrator resumes from failed steps (e.g., step 5 Summarize failed, user clicks Retry), `ResumeFromFailedStepsAsync` calls `BeginStep` which generates a new `Guid.NewGuid()` for the step ID. This inserts a NEW row rather than updating the old failed step row. After successful retry, the DB has two rows for step 5: old `Status = Failed` + new `Status = Succeeded`. The UI pipeline view may show duplicate steps.
+
+**Fix options:**
+- (a) Delete old failed step records before re-running (simplest)
+- (b) Query the existing step ID and update it in place rather than creating a new one
+- (c) Filter to the latest step per StepOrder in the API/UI query
+
+Option (a) is simplest: before calling `BeginStep` in `ResumeFromFailedStepsAsync`, delete existing step records for the steps being re-run.
+
+**Files:** `src/SessionSight.Agents/Orchestration/ExtractionOrchestrator.cs`, `src/SessionSight.Infrastructure/Repositories/ExtractionStepRepository.cs`
+
+### B-100 Details (Minor API/UI Cleanup)
+
+**Found during:** B-084 code review (Opus agent review, 2026-02-24)
+
+**Two items (small enough to combine):**
+
+**1. QA page amber warning is imprecise**
+`src/SessionSight.Web/src/pages/QA.tsx` fires the "sessions may be missing from search results" warning on `documentStatus === 'PartiallyCompleted'`. But PartiallyCompleted can mean summarize-only failure (search is fine). The correct check is `indexingStatus === 'Failed'`, but `indexingStatus` isn't on the sessions list DTO. Either add `indexingStatus` to the sessions list endpoint or add a comment documenting the approximation.
+
+**2. `UpdateDocumentStatusAsync` can't explicitly clear ErrorMessage**
+In the document repository, passing `errorMessage: null` to `UpdateDocumentStatusAsync` means "leave existing value" (due to `if (errorMessage != null)` guard). This is correct by convention but undocumented — callers can't use this method to clear a stale error. Add a comment explaining the invariant, or change to a nullable sentinel pattern.
+
 ### B-046 Details (Local Logging Baseline)
 - Scope: Configure API host logging so local debugging does not depend on temporary DIAG_LOG hacks.
 - Logging destination: `/tmp/sessionsight/` parent with subfolders (`api/`, `aspire/`, `vite/`); rolling API log files in `api/` with 7-day retention.
@@ -1004,6 +1048,7 @@ Both paths call the same `ExtractionOrchestrator.ProcessSessionAsync()`. The blo
 | B-096 | Extraction detail polish — confidence heatmap, risk merge view, source attribution | 2026-02-22 |
 | B-097 | Legal disclaimer — "not for clinical use" banner in sidebar and mobile nav | 2026-02-23 |
 | B-015 | Contract tests for API DTOs — JSON shape verification, found and fixed 4 frontend/backend drifts | 2026-02-23 |
+| B-084 | Resilient extraction pipeline — 202 background processing, failure classification, PartiallyCompleted status, content filter resilience, index retry, resume from failed step | 2026-02-24 |
 
 ---
 

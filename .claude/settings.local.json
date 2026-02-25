@@ -71,7 +71,12 @@
       "Bash(wc:*)",
       "Bash(COVERAGE_THRESHOLD=0.80 COVERAGE_THRESHOLD_PERCENT=80 COVERAGE_FORMATS=opencover,cobertura ./scripts/check-backend.sh:*)",
       "mcp__playwright__browser_close",
-      "mcp__playwright__browser_select_option"
+      "mcp__playwright__browser_select_option",
+      "Bash(GOLDEN_DATE=2026-02-22 ./scripts/run-e2e.sh:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(dotnet run:*)",
+      "Bash(PATH=\"/home/dwight/virtualenvs/my_venv/bin:$PATH\" az account:*)",
+      "Bash(tail:*)"
     ]
   }
 }

@@ -217,7 +217,10 @@ public class GoldenExtractionTests : IClassFixture<ApiFixture>
         // risk_final always comes from the persisted extraction data
         stageOutputs["risk_final"] = extractionData.GetProperty("riskAssessment");
 
-        // Reconstruct risk_reextracted and clinical_extractor from field decisions
+        // Reconstruct risk_reextracted and clinical_extractor from field decisions.
+        // Field names in decisions are snake_case (e.g. "homicidal_ideation") but the
+        // extraction DTO uses camelCase (e.g. "homicidalIdeation"). Map via
+        // ExpectedToActualRiskFieldMap so GetFieldValue lookups match.
         if (extractionDto.TryGetProperty("riskDiagnostics", out var diagnostics)
             && diagnostics.ValueKind == JsonValueKind.Object
             && diagnostics.TryGetProperty("fieldDecisions", out var decisions)
@@ -227,16 +230,21 @@ public class GoldenExtractionTests : IClassFixture<ApiFixture>
             var clinicalExtractor = new Dictionary<string, object?>();
             foreach (var decision in decisions.EnumerateArray())
             {
-                var field = decision.TryGetProperty("field", out var f) ? f.GetString() : null;
-                if (field is null) continue;
+                var snakeField = decision.TryGetProperty("field", out var f) ? f.GetString() : null;
+                if (snakeField is null) continue;
+
+                // Convert snake_case → camelCase to match extraction DTO property names
+                var camelField = ExpectedToActualRiskFieldMap.TryGetValue(snakeField, out var mapped)
+                    ? mapped
+                    : snakeField;
 
                 if (decision.TryGetProperty("reExtractedValue", out var reVal))
                 {
-                    reExtracted[field] = new { value = reVal.GetString() };
+                    reExtracted[camelField] = new { value = reVal.GetString() };
                 }
                 if (decision.TryGetProperty("originalValue", out var origVal))
                 {
-                    clinicalExtractor[field] = new { value = origVal.GetString() };
+                    clinicalExtractor[camelField] = new { value = origVal.GetString() };
                 }
             }
 
