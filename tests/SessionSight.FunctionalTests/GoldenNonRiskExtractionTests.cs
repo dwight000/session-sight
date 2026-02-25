@@ -41,7 +41,7 @@ public class GoldenNonRiskExtractionTests : IClassFixture<ApiFixture>
         var triggerResult = await TriggerExtractionAsync(goldenCase, sessionId);
         if (!triggerResult.ShouldContinueAssertions)
         {
-            return;
+            throw Xunit.Sdk.SkipException.ForSkip($"Content filter blocked extraction for golden case {goldenCase.NoteId}. Transient Azure-side issue.");
         }
 
         var extractionDto = await GetExtractionDtoAsync(sessionId);

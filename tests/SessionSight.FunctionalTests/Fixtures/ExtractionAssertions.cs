@@ -67,7 +67,8 @@ internal static class ExtractionAssertions
     internal static bool IsContentFilterFailure(string status, string? errorMessage)
         => status == "Failed"
            && errorMessage != null
-           && errorMessage.Contains("safety filter", StringComparison.OrdinalIgnoreCase);
+           && (errorMessage.Contains("safety filter", StringComparison.OrdinalIgnoreCase)
+               || errorMessage.Contains("content filter", StringComparison.OrdinalIgnoreCase));
 
     internal static string? GetFieldValue(JsonElement section, string fieldName)
     {

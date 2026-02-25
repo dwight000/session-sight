@@ -148,9 +148,9 @@ public class ExtractionPipelineTests : IClassFixture<ApiFixture>
             var errMsg = stepsDto.TryGetProperty("errorMessage", out var ep) ? ep.GetString() : null;
             if (ExtractionAssertions.IsContentFilterFailure(finalStatus, errMsg))
             {
-                _output.WriteLine($"SKIPPED: Content filter blocked extraction — {errMsg}");
-                _output.WriteLine("This is a transient Azure-side issue. Retry usually succeeds.");
-                return; // Skip remaining assertions — not a code bug
+                throw Xunit.Sdk.SkipException.ForSkip(
+                    $"Content filter blocked extraction — {errMsg}. " +
+                    "This is a transient Azure-side issue, not a code bug. Retry usually succeeds.");
             }
 
             finalStatus.Should().NotBe("Failed", $"Extraction failed: {errMsg ?? "unknown error"}");

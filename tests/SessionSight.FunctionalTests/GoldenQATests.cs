@@ -144,6 +144,20 @@ public class GoldenQATests : IClassFixture<ApiFixture>
         // Poll for completion
         var finalStatus = await ExtractionAssertions.WaitForExtractionAsync(
             _client, sessionId, TimeSpan.FromMinutes(5), _output);
+
+        if (finalStatus == "Failed")
+        {
+            var stepsCheck = await _client.GetAsync($"/api/sessions/{sessionId}/extraction/steps");
+            var stepsDto = await stepsCheck.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+            var errMsg = stepsDto.TryGetProperty("errorMessage", out var ep) ? ep.GetString() : null;
+            if (ExtractionAssertions.IsContentFilterFailure(finalStatus, errMsg))
+            {
+                throw Xunit.Sdk.SkipException.ForSkip(
+                    $"Content filter blocked extraction for QA case {goldenCase.NoteId}. " +
+                    "Transient Azure-side issue.");
+            }
+        }
+
         finalStatus.Should().BeOneOf("Completed", "PartiallyCompleted",
             $"Extraction should complete for QA case {goldenCase.NoteId}");
 
