@@ -32,7 +32,7 @@
     <!-- Azure Storage -->
     <PackageVersion Include="Azure.Storage.Blobs" Version="12.24.0" />
     <!-- OpenAPI -->
-    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="9.0.4" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="9.0.13" />
     <!-- Validation -->
     <PackageVersion Include="FluentValidation" Version="11.11.0" />
     <PackageVersion Include="FluentValidation.AspNetCore" Version="11.3.0" />
