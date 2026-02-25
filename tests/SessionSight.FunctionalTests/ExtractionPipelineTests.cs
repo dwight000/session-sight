@@ -25,6 +25,12 @@ public class SearchDocument
 /// <summary>
 /// End-to-end functional tests for the extraction pipeline.
 /// These tests require a running API instance (via Aspire or direct).
+///
+/// CONTENT FILTER WARNING: Azure's safety filter can transiently block therapy note
+/// extraction. When this happens, the test reports as Skipped/Failed (not Passed) with
+/// a clear "$XunitDynamicSkip$" message. A full extraction takes 3-5 minutes — if a test
+/// "passes" in under 30 seconds, it was content-filter-skipped, NOT a real success.
+/// Retry usually succeeds. If consistently blocked, try a different test PDF.
 /// </summary>
 [Trait("Category", "Functional")]
 public class ExtractionPipelineTests : IClassFixture<ApiFixture>

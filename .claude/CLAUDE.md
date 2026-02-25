@@ -283,7 +283,9 @@ SQL auth uses Managed Identity — no password parameter needed. Dependabot is e
 
 ### E2E Tests
 - **Full-stack E2E catches type mismatches** — mocked unit tests won't catch frontend/backend type drift
-- **Extraction timeout**: Use `fixture.LongClient` (5-min timeout) for extraction calls
+- **Extraction is 202 + polling**: `POST /api/extraction/{id}` returns 202 immediately; tests poll `/extraction/steps` for terminal status. No `LongClient` needed for extraction calls.
+- **Suspiciously fast E2E "passes" mean content filter blocked**: A full extraction takes 3-5 minutes. If an extraction E2E test "passes" in <30 seconds, it was likely blocked by Azure content filter and skipped. Always check the test output for `$XunitDynamicSkip$` or `content filter` messages. The test reports as Failed/Skipped with a clear message — never trust a fast "Passed" for extraction tests.
+- **Content filter blocks are transient**: Azure's safety filter can block therapy note extraction. Tests use `SkipException.ForSkip()` to mark these as skipped, not passed. Retry usually succeeds. If consistently blocked, try a different test PDF.
 - **Retry on infrastructure signals, not LLM signals**: Retry on `sources.length > 0`, NOT on `confidence > 0`
 - **Cost control for flaky extraction assertions**: If `--all` fails one extraction-field assertion but logs show `POST /api/extraction/{id}` and `GET /api/sessions/{id}/extraction` both `200`, rerun only that test via `./scripts/run-e2e.sh --filter "TestName"` before rerunning full suite
 

@@ -17,13 +17,26 @@ public class ContentFilterHelperTests
     }
 
     [Fact]
-    public void IsContentFilterBlocked_EmptyContent_ReturnsTrue()
+    public void IsContentFilterBlocked_EmptyContent_WithStopReason_ReturnsFalse()
     {
+        // Empty content with Stop finish reason is NOT content filter —
+        // tool call responses legitimately have empty Content.
         var completion = OpenAIChatModelFactory.ChatCompletion(
             finishReason: ChatFinishReason.Stop,
             content: new ChatMessageContent());
 
-        ContentFilterHelper.IsContentFilterBlocked(completion).Should().BeTrue();
+        ContentFilterHelper.IsContentFilterBlocked(completion).Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsContentFilterBlocked_EmptyContent_WithToolCallsReason_ReturnsFalse()
+    {
+        // Tool call responses have empty Content but are NOT content filter blocked.
+        var completion = OpenAIChatModelFactory.ChatCompletion(
+            finishReason: ChatFinishReason.ToolCalls,
+            content: new ChatMessageContent());
+
+        ContentFilterHelper.IsContentFilterBlocked(completion).Should().BeFalse();
     }
 
     [Fact]

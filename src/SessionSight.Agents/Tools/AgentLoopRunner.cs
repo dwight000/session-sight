@@ -112,7 +112,7 @@ public partial class AgentLoopRunner
                 // Content filter retry: if blocked, retry once before giving up
                 if (ContentFilterHelper.IsContentFilterBlocked(completion))
                 {
-                    LogContentFilterBlocked(_logger, loopRound);
+                    LogContentFilterBlocked(_logger, loopRound, completion.FinishReason.ToString(), completion.Content.Count);
                     llmSw.Restart();
                     response = await chatClient.CompleteChatAsync(messages, options, linkedToken);
                     llmSw.Stop();
@@ -120,7 +120,7 @@ public partial class AgentLoopRunner
 
                     if (ContentFilterHelper.IsContentFilterBlocked(completion))
                     {
-                        LogContentFilterBlockedFinal(_logger, loopRound);
+                        LogContentFilterBlockedFinal(_logger, loopRound, completion.FinishReason.ToString(), completion.Content.Count);
                         return AgentLoopResult.Partial(
                             "Response blocked by content filter after retry",
                             toolCallCount,
@@ -280,9 +280,9 @@ public partial class AgentLoopRunner
     [LoggerMessage(Level = LogLevel.Warning, Message = "Agent loop timed out after {Minutes} minutes with {ToolCalls} tool calls completed")]
     private static partial void LogLoopTimeout(ILogger logger, double minutes, int toolCalls);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Content filter blocked response at loop round {Round}, retrying")]
-    private static partial void LogContentFilterBlocked(ILogger logger, int round);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Content filter blocked response at loop round {Round} (FinishReason={FinishReason}, ContentCount={ContentCount}), retrying")]
+    private static partial void LogContentFilterBlocked(ILogger logger, int round, string finishReason, int contentCount);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Content filter blocked response at loop round {Round} after retry")]
-    private static partial void LogContentFilterBlockedFinal(ILogger logger, int round);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Content filter blocked response at loop round {Round} after retry (FinishReason={FinishReason}, ContentCount={ContentCount})")]
+    private static partial void LogContentFilterBlockedFinal(ILogger logger, int round, string finishReason, int contentCount);
 }
