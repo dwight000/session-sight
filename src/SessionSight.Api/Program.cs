@@ -133,6 +133,13 @@ builder.Services.AddScoped<ISessionIndexingService, SessionIndexingService>();
 // Extraction Orchestrator
 builder.Services.AddScoped<IExtractionOrchestrator, ExtractionOrchestrator>();
 
+// Extraction Job Dispatcher (background queue)
+builder.Services.AddSingleton<ExtractionJobDispatcher>();
+builder.Services.AddSingleton<IExtractionJobDispatcher>(sp =>
+    sp.GetRequiredService<ExtractionJobDispatcher>());
+builder.Services.AddHostedService(sp =>
+    sp.GetRequiredService<ExtractionJobDispatcher>());
+
 // Controllers + JSON serialization
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

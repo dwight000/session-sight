@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SessionSight.Agents.Orchestration;
+using SessionSight.Agents.Services;
 using SessionSight.Api.DTOs;
 using SessionSight.Core.Entities;
 using SessionSight.Core.Enums;
@@ -18,20 +18,20 @@ public partial class IngestionController : ControllerBase
     private readonly IPatientRepository _patientRepository;
     private readonly ISessionRepository _sessionRepository;
     private readonly IProcessingJobRepository _processingJobRepository;
-    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IExtractionJobDispatcher _dispatcher;
     private readonly ILogger<IngestionController> _logger;
 
     public IngestionController(
         IPatientRepository patientRepository,
         ISessionRepository sessionRepository,
         IProcessingJobRepository processingJobRepository,
-        IServiceScopeFactory scopeFactory,
+        IExtractionJobDispatcher dispatcher,
         ILogger<IngestionController> logger)
     {
         _patientRepository = patientRepository;
         _sessionRepository = sessionRepository;
         _processingJobRepository = processingJobRepository;
-        _scopeFactory = scopeFactory;
+        _dispatcher = dispatcher;
         _logger = logger;
     }
 
@@ -130,53 +130,8 @@ public partial class IngestionController : ControllerBase
             }
         }
 
-        // 3. Trigger extraction asynchronously (fire-and-forget)
-        // Use IServiceScopeFactory to create a fresh DI scope that outlives this HTTP request.
-        // Resolve logger from the background scope to avoid capturing the request-scoped _logger.
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                using var scope = _scopeFactory.CreateScope();
-                var logger = scope.ServiceProvider.GetRequiredService<ILogger<IngestionController>>();
-                var orchestrator = scope.ServiceProvider.GetRequiredService<IExtractionOrchestrator>();
-                LogStartingBackgroundExtraction(logger, session.Id);
-                var result = await orchestrator.ProcessSessionAsync(session.Id, CancellationToken.None);
-                LogBackgroundExtractionCompleted(logger, session.Id);
-
-                if (!string.IsNullOrEmpty(jobKey))
-                {
-                    var jobStatus = JobStatus.Failed;
-                    if (result.Success)
-                    {
-                        jobStatus = result.IsPartiallyCompleted
-                            ? JobStatus.PartiallyCompleted
-                            : JobStatus.Completed;
-                    }
-                    var jobRepo = scope.ServiceProvider.GetRequiredService<IProcessingJobRepository>();
-                    await jobRepo.UpdateStatusAsync(jobKey, jobStatus);
-                }
-            }
-            catch (Exception ex)
-            {
-                using var failScope = _scopeFactory.CreateScope();
-                var logger = failScope.ServiceProvider.GetRequiredService<ILogger<IngestionController>>();
-                LogBackgroundExtractionFailed(logger, ex, session.Id);
-
-                if (!string.IsNullOrEmpty(jobKey))
-                {
-                    try
-                    {
-                        var jobRepo = failScope.ServiceProvider.GetRequiredService<IProcessingJobRepository>();
-                        await jobRepo.UpdateStatusAsync(jobKey, JobStatus.Failed);
-                    }
-                    catch (Exception updateEx)
-                    {
-                        LogJobStatusUpdateFailed(logger, updateEx, jobKey);
-                    }
-                }
-            }
-        }, CancellationToken.None);
+        // 3. Trigger extraction via background dispatcher
+        await _dispatcher.EnqueueAsync(session.Id, jobKey);
 
         return Accepted(new ProcessNoteResponse(
             session.Id,
@@ -204,18 +159,6 @@ public partial class IngestionController : ControllerBase
     [LoggerMessage(Level = LogLevel.Information, Message = "Created session {SessionId} for patient {PatientId}")]
     private static partial void LogCreatedSession(ILogger logger, Guid sessionId, Guid patientId);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "Starting background extraction for session {SessionId}")]
-    private static partial void LogStartingBackgroundExtraction(ILogger logger, Guid sessionId);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Background extraction completed for session {SessionId}")]
-    private static partial void LogBackgroundExtractionCompleted(ILogger logger, Guid sessionId);
-
-    [LoggerMessage(Level = LogLevel.Error, Message = "Background extraction failed for session {SessionId}")]
-    private static partial void LogBackgroundExtractionFailed(ILogger logger, Exception ex, Guid sessionId);
-
     [LoggerMessage(Level = LogLevel.Information, Message = "Duplicate job key detected, skipping: {JobKey}")]
     private static partial void LogDuplicateJobKey(ILogger logger, string jobKey);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to update job status for key {JobKey}")]
-    private static partial void LogJobStatusUpdateFailed(ILogger logger, Exception exception, string jobKey);
 }

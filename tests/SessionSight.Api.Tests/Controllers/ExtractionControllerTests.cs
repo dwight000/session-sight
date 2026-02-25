@@ -1,8 +1,8 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using SessionSight.Agents.Services;
 using SessionSight.Api.Controllers;
 using SessionSight.Core.Entities;
 using SessionSight.Core.Enums;
@@ -14,7 +14,7 @@ public class ExtractionControllerTests
 {
     private readonly Mock<ISessionRepository> _mockRepo;
     private readonly Mock<IDocumentRepository> _mockDocRepo;
-    private readonly Mock<IServiceScopeFactory> _mockScopeFactory;
+    private readonly Mock<IExtractionJobDispatcher> _mockDispatcher;
     private readonly Mock<ILogger<ExtractionController>> _mockLogger;
     private readonly ExtractionController _controller;
 
@@ -22,12 +22,12 @@ public class ExtractionControllerTests
     {
         _mockRepo = new Mock<ISessionRepository>();
         _mockDocRepo = new Mock<IDocumentRepository>();
-        _mockScopeFactory = new Mock<IServiceScopeFactory>();
+        _mockDispatcher = new Mock<IExtractionJobDispatcher>();
         _mockLogger = new Mock<ILogger<ExtractionController>>();
         _controller = new ExtractionController(
             _mockRepo.Object,
             _mockDocRepo.Object,
-            _mockScopeFactory.Object,
+            _mockDispatcher.Object,
             _mockLogger.Object);
     }
 
@@ -85,7 +85,7 @@ public class ExtractionControllerTests
     }
 
     [Fact]
-    public async Task TriggerExtraction_PendingDocument_Returns202Accepted()
+    public async Task TriggerExtraction_PendingDocument_Returns202AndEnqueues()
     {
         // Arrange
         var sessionId = Guid.NewGuid();
@@ -105,6 +105,7 @@ public class ExtractionControllerTests
 
         // Assert
         result.Should().BeOfType<AcceptedResult>();
+        _mockDispatcher.Verify(d => d.EnqueueAsync(sessionId, null), Times.Once);
     }
 
     [Fact]
