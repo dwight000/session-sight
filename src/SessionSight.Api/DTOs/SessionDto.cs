@@ -14,6 +14,7 @@ public record SessionDto(
     int SessionNumber,
     bool HasDocument,
     DocumentStatus? DocumentStatus,
+    IndexingStatus? IndexingStatus,
     DateTime CreatedAt,
     DateTime UpdatedAt);
 

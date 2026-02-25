@@ -2,6 +2,8 @@ using System.Collections.Frozen;
 using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
+using Azure;
+using Azure.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SessionSight.Agents.Agents;
@@ -9,6 +11,7 @@ using SessionSight.Agents.Models;
 using SessionSight.Agents.Services;
 using SessionSight.Core.Entities;
 using SessionSight.Core.Enums;
+using SessionSight.Core.Exceptions;
 using SessionSight.Core.Interfaces;
 using AgentExtractionResult = SessionSight.Agents.Models.ExtractionResult;
 
@@ -233,8 +236,11 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             if (!intakeResult.IsValidTherapyNote)
             {
                 LogDocumentValidationFailed(_logger, intakeResult.ValidationError);
-                await _documentRepository.TryTransitionDocumentStatusAsync(
-                    sessionId, DocumentStatus.Processing, DocumentStatus.Failed, ct);
+                await _documentRepository.UpdateDocumentStatusAsync(
+                    sessionId, DocumentStatus.Failed,
+                    failureKind: FailureKind.Permanent,
+                    errorMessage: "Document does not appear to be a therapy session note",
+                    ct: ct);
 
                 return new OrchestrationResult
                 {
@@ -553,6 +559,27 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         };
     }
 
+    private static ExtractionStep UpdateOrBeginStep(
+        Core.Entities.ExtractionResult existing, ExtractionStepName stepName, int order, string model)
+    {
+        var prior = existing.Steps
+            .Where(s => s.StepName == stepName && s.Status != ExtractionStepStatus.Succeeded)
+            .OrderByDescending(s => s.StartedAt)
+            .FirstOrDefault();
+
+        if (prior != null)
+        {
+            prior.Status = ExtractionStepStatus.Running;
+            prior.StartedAt = DateTime.UtcNow;
+            prior.CompletedAt = null;
+            prior.ErrorMessage = null;
+            prior.ModelUsed = model;
+            return prior;
+        }
+
+        return BeginStep(existing.Id, stepName, order, model);
+    }
+
     private static void CompleteStep(ExtractionStep step, long durationMs)
     {
         step.Status = ExtractionStepStatus.Succeeded;
@@ -757,7 +784,9 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             RequiresReview = existing.RequiresReview
         };
 
-        var stepLookup = existing.Steps.ToDictionary(s => s.StepName);
+        var stepLookup = existing.Steps
+            .GroupBy(s => s.StepName)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.StartedAt).First());
         var needsSummarize = !stepLookup.TryGetValue(ExtractionStepName.Summarize, out var sumStep)
             || sumStep.Status != ExtractionStepStatus.Succeeded;
         var needsIndexing = !stepLookup.TryGetValue(ExtractionStepName.SearchIndex, out var idxStep)
@@ -777,7 +806,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         {
             if (needsSummarize)
             {
-                var step5 = BeginStep(extractionId, ExtractionStepName.Summarize, 5, string.Empty);
+                var step5 = UpdateOrBeginStep(existing, ExtractionStepName.Summarize, 5, string.Empty);
                 await TrySaveStepAsync(step5);
                 var sw5 = Stopwatch.StartNew();
                 try
@@ -817,7 +846,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             IndexingStatus indexingStatus;
             if (needsIndexing)
             {
-                var step6 = BeginStep(extractionId, ExtractionStepName.SearchIndex, 6, "text-embedding-3-large");
+                var step6 = UpdateOrBeginStep(existing, ExtractionStepName.SearchIndex, 6, "text-embedding-3-large");
                 await TrySaveStepAsync(step6);
                 var sw6 = Stopwatch.StartNew();
                 try
@@ -904,85 +933,99 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
     internal static (FailureKind Kind, string Message) ClassifyFailure(Exception ex)
     {
+        // Type-based classification (stable across SDK versions)
+        switch (ex)
+        {
+            case DocumentValidationException:
+                return (FailureKind.Permanent,
+                    "Document does not appear to be a therapy session note");
+
+            case RequestFailedException rfe when rfe.Status == 404:
+                return (FailureKind.Permanent, "Source document no longer exists");
+
+            case RequestFailedException rfe when rfe.Status == 429:
+                return (FailureKind.Transient,
+                    "Service rate limit reached \u2014 try again shortly");
+
+            case RequestFailedException rfe when rfe.Status >= 500:
+                return (FailureKind.Transient, "Service temporarily unavailable");
+
+            case CredentialUnavailableException:
+                return (FailureKind.Transient,
+                    "Authentication error \u2014 contact administrator");
+
+            case CircuitBreakerOpenException:
+                return (FailureKind.Transient,
+                    "Service temporarily unavailable (circuit breaker)");
+
+            case JsonException:
+                return (FailureKind.Transient,
+                    "Extraction produced invalid output \u2014 retry usually succeeds");
+
+            case TimeoutException:
+            case OperationCanceledException:
+                return (FailureKind.Transient, "Extraction timed out \u2014 try again");
+
+            case HttpRequestException:
+                return (FailureKind.Transient, "Service temporarily unavailable");
+        }
+
+        // Message-based fallback for untyped exceptions
         var msg = ex.Message;
 
-        // Permanent: document is not a therapy note (intake validation)
+        if (msg.Contains("content filter", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("content_filter", StringComparison.OrdinalIgnoreCase))
+            return (FailureKind.Transient,
+                "Content was flagged by safety filter \u2014 retry usually succeeds");
+
         if (msg.Contains("not a therapy", StringComparison.OrdinalIgnoreCase)
             || msg.Contains("Invalid document", StringComparison.OrdinalIgnoreCase))
-        {
-            return (FailureKind.Permanent, "Document does not appear to be a therapy session note");
-        }
+            return (FailureKind.Permanent,
+                "Document does not appear to be a therapy session note");
 
-        // Permanent: corrupt/unreadable document
-        if (msg.Contains("could not be read", StringComparison.OrdinalIgnoreCase)
-            || msg.Contains("could not be parsed", StringComparison.OrdinalIgnoreCase)
-            || msg.Contains("corrupt", StringComparison.OrdinalIgnoreCase)
+        if (msg.Contains("corrupt", StringComparison.OrdinalIgnoreCase)
             || msg.Contains("unreadable", StringComparison.OrdinalIgnoreCase))
-        {
             return (FailureKind.Permanent, "Document could not be read or parsed");
-        }
 
-        // Permanent: blob not found
+        if (msg.Contains("could not be read", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("could not be parsed", StringComparison.OrdinalIgnoreCase))
+            return (FailureKind.Permanent, "Document could not be read or parsed");
+
         if (msg.Contains("BlobNotFound", StringComparison.OrdinalIgnoreCase)
             || msg.Contains("blob does not exist", StringComparison.OrdinalIgnoreCase)
-            || msg.Contains("404") && msg.Contains("blob", StringComparison.OrdinalIgnoreCase))
-        {
+            || (msg.Contains("404", StringComparison.Ordinal)
+                && msg.Contains("blob", StringComparison.OrdinalIgnoreCase)))
             return (FailureKind.Permanent, "Source document no longer exists");
-        }
 
-        // Transient: rate limit
         if (msg.Contains("429", StringComparison.Ordinal)
             || msg.Contains("rate limit", StringComparison.OrdinalIgnoreCase)
             || msg.Contains("TooManyRequests", StringComparison.OrdinalIgnoreCase))
-        {
-            return (FailureKind.Transient, "Service rate limit reached \u2014 try again shortly");
-        }
+            return (FailureKind.Transient,
+                "Service rate limit reached \u2014 try again shortly");
 
-        // Transient: content filter
-        if (msg.Contains("content filter", StringComparison.OrdinalIgnoreCase)
-            || msg.Contains("content_filter", StringComparison.OrdinalIgnoreCase))
-        {
-            return (FailureKind.Transient, "Content was flagged by safety filter \u2014 retry usually succeeds");
-        }
+        if (msg.Contains("circuit breaker", StringComparison.OrdinalIgnoreCase))
+            return (FailureKind.Transient,
+                "Service temporarily unavailable (circuit breaker)");
 
-        // Transient: circuit breaker
-        if (msg.Contains("circuit breaker", StringComparison.OrdinalIgnoreCase)
-            || ex.GetType().Name.Contains("BrokenCircuit", StringComparison.OrdinalIgnoreCase))
-        {
-            return (FailureKind.Transient, "Service temporarily unavailable (circuit breaker)");
-        }
+        if (msg.Contains("CredentialUnavailable", StringComparison.OrdinalIgnoreCase))
+            return (FailureKind.Transient,
+                "Authentication error \u2014 contact administrator");
 
-        // Transient: credential
-        if (ex.GetType().Name.Contains("CredentialUnavailable", StringComparison.OrdinalIgnoreCase)
-            || msg.Contains("CredentialUnavailable", StringComparison.OrdinalIgnoreCase))
-        {
-            return (FailureKind.Transient, "Authentication error \u2014 contact administrator");
-        }
-
-        // Transient: JSON parse failure
         if (msg.Contains("Failed to parse extraction JSON", StringComparison.OrdinalIgnoreCase)
-            || msg.Contains("Failed to parse", StringComparison.OrdinalIgnoreCase) && msg.Contains("JSON", StringComparison.OrdinalIgnoreCase))
-        {
-            return (FailureKind.Transient, "Extraction produced invalid output \u2014 retry usually succeeds");
-        }
+            || (msg.Contains("Failed to parse", StringComparison.OrdinalIgnoreCase)
+                && msg.Contains("JSON", StringComparison.OrdinalIgnoreCase)))
+            return (FailureKind.Transient,
+                "Extraction produced invalid output \u2014 retry usually succeeds");
 
-        // Transient: timeout
-        if (ex is TimeoutException || ex is OperationCanceledException
-            || msg.Contains("timed out", StringComparison.OrdinalIgnoreCase)
+        if (msg.Contains("timed out", StringComparison.OrdinalIgnoreCase)
             || msg.Contains("timeout", StringComparison.OrdinalIgnoreCase))
-        {
             return (FailureKind.Transient, "Extraction timed out \u2014 try again");
-        }
 
-        // Transient: Azure 5xx / network
         if (msg.Contains("Internal Server Error", StringComparison.OrdinalIgnoreCase)
-                || msg.Contains("502", StringComparison.Ordinal)
-                || msg.Contains("503", StringComparison.Ordinal)
-                || msg.Contains("504", StringComparison.Ordinal)
-            || ex is HttpRequestException)
-        {
+            || msg.Contains("502", StringComparison.Ordinal)
+            || msg.Contains("503", StringComparison.Ordinal)
+            || msg.Contains("504", StringComparison.Ordinal))
             return (FailureKind.Transient, "Service temporarily unavailable");
-        }
 
         // Default: transient with the actual exception message
         return (FailureKind.Transient, $"Unexpected error: {Truncate(msg, 500)}");
