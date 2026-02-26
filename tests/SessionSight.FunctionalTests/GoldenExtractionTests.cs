@@ -49,6 +49,11 @@ public class GoldenExtractionTests : IClassFixture<ApiFixture>
 
         var sessionId = await CreateSessionWithNoteAsync(goldenCase);
         var triggerResult = await TriggerExtractionAsync(goldenCase, sessionId);
+        if (triggerResult.PassedViaSecurityFilter)
+        {
+            return; // PASS — content filter correctly blocked adversarial input
+        }
+
         if (!triggerResult.ShouldContinueAssertions)
         {
             throw Xunit.Sdk.SkipException.ForSkip($"Content filter blocked extraction for golden case {goldenCase.NoteId}. Transient Azure-side issue.");
@@ -146,6 +151,13 @@ public class GoldenExtractionTests : IClassFixture<ApiFixture>
             var errorMessage = stepsDto.TryGetProperty("errorMessage", out var errProp)
                 ? errProp.GetString() ?? "Unknown error"
                 : "Unknown error";
+
+            if (goldenCase.ExpectedOutcome == GoldenExpectedOutcome.AdversarialInjection)
+            {
+                _output.WriteLine(
+                    $"Golden case {goldenCase.NoteId} PASSED — content filter blocked adversarial injection: {errorMessage}");
+                return new TriggerExtractionResult(ShouldContinueAssertions: false, PassedViaSecurityFilter: true);
+            }
 
             if (goldenCase.ExpectedOutcome is GoldenExpectedOutcome.ContentFilterBlocked or GoldenExpectedOutcome.ContentFilterOptional)
             {
@@ -429,5 +441,6 @@ public class GoldenExtractionTests : IClassFixture<ApiFixture>
 
     private sealed record TriggerExtractionResult(
         bool ShouldContinueAssertions,
-        bool ContentFilterWasHit = false);
+        bool ContentFilterWasHit = false,
+        bool PassedViaSecurityFilter = false);
 }

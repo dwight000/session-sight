@@ -278,7 +278,8 @@ public enum GoldenExpectedOutcome
 {
     ExtractionSuccess,
     ContentFilterBlocked,
-    ContentFilterOptional
+    ContentFilterOptional,
+    AdversarialInjection
 }
 
 

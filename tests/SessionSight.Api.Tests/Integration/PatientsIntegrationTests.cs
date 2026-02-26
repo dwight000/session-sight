@@ -67,7 +67,7 @@ public class PatientsIntegrationTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var patients = await response.Content.ReadFromJsonAsync<PatientDto[]>();
         patients.Should().NotBeNull();
-        patients!.Length.Should().BeGreaterThanOrEqualTo(2);
+        patients!.Length.Should().BeGreaterOrEqualTo(2);
     }
 
     [Fact]
