@@ -107,8 +107,9 @@ internal static class GoldenCaseProviderBase
             "extraction_success" => GoldenExpectedOutcome.ExtractionSuccess,
             "content_filter_blocked" => GoldenExpectedOutcome.ContentFilterBlocked,
             "content_filter_optional" => GoldenExpectedOutcome.ContentFilterOptional,
+            "adversarial_injection" => GoldenExpectedOutcome.AdversarialInjection,
             _ => throw new InvalidOperationException(
-                $"Invalid expected_outcome '{value}' in {filePath}. Expected 'extraction_success', 'content_filter_blocked', or 'content_filter_optional'.")
+                $"Invalid expected_outcome '{value}' in {filePath}. Expected 'extraction_success', 'content_filter_blocked', 'content_filter_optional', or 'adversarial_injection'.")
         };
     }
 
