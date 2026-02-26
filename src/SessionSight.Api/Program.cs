@@ -40,7 +40,7 @@ builder.AddServiceDefaults();
 builder.AddSqlServerDbContext<SessionSight.Infrastructure.Data.SessionSightDbContext>("sessionsight");
 
 // Aspire-managed Azure Blob Storage
-builder.AddAzureBlobClient("documents");
+builder.AddAzureBlobServiceClient("documents");
 
 // Infrastructure DI (repositories, blob storage)
 builder.Services.AddScoped<SessionSight.Core.Interfaces.IPatientRepository, SessionSight.Infrastructure.Repositories.PatientRepository>();
