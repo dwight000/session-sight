@@ -5,6 +5,9 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    ignore:
+      - dependency-name: "FluentAssertions"
+        versions: [">=8.0.0"]  # v8+ uses Xceed proprietary license
 
   - package-ecosystem: "npm"
     directory: "/src/SessionSight.Web"
