@@ -89,7 +89,7 @@ _(none)_
 | B-033 | Internal service auth (Function->API) | M | 2 | Ready | P2-008 |
 | B-034 | Fix idempotency race condition (SQL MERGE with HOLDLOCK) | M | 2 | Done | P2-008 |
 | ~~B-035~~ | ~~Synchronous AI Search indexing (user-visible after B-085)~~ | - | - | Merged → B-084 | - |
-| B-036 | Document Intelligence failure handling | M | 2 | Ready | P2-008 |
+| B-036 | Document Intelligence failure handling | M | 2 | Done | P2-008 |
 | B-048 | Circuit breaker for Azure SDK clients (Polly or custom HttpPipelinePolicy) | M | 2 | Done | B-010 |
 | B-049 | ~~Extract shared LlmResponseParser from duplicated JSON parsing in 3 agents~~ (superseded by B-056) | M | 2 | Done | P2-004 |
 | B-050 | Fix fire-and-forget scoped service lifetime in IngestionController | S | 2 | Done | P2-008 |
@@ -1146,6 +1146,7 @@ In the document repository, passing `errorMessage: null` to `UpdateDocumentStatu
 | P5-002 | Data flow diagrams — document lifecycle (stateDiagram-v2), data transformation pipeline (flowchart LR), entity relationship (erDiagram) | 2026-02-25 |
 | B-013 | Dedupe strategy — closed as sufficiently addressed: same-session 409 Conflict, atomic TryTransition (B-064), patient unique constraint (B-034), JobKey unique index (B-011), AI Search MergeOrUpload idempotent | 2026-02-25 |
 | P5-003 | API usage examples — closed as covered: Scalar interactive docs, frontend TS API client, 9 contract tests, k6 load test workflow, ARCHITECTURE.md sequence diagrams, README endpoint table | 2026-02-25 |
+| B-036 | Document Intelligence failure handling — closed as addressed by B-032 (size/extension validation), B-048 (circuit breaker), B-084 (ClassifyFailure with 15+ exception types, step-level persistence, retry/resume) | 2026-02-25 |
 
 ---
 
