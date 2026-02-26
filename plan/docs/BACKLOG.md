@@ -202,6 +202,9 @@ _(none)_
 | B-102 | Add RowVersion concurrency token to SessionDocument | S | 2 | Done | B-084 |
 | B-103 | Replace Task.Run fire-and-forget with IHostedService background queue | M | 2 | **Done** | B-084 |
 | B-104 | Split SessionRepository into 3 concrete repository classes | L | 2 | Ready | B-084 |
+| **Adversarial Test Fixes (B-105–B-106)** |||||
+| B-105 | Fix adversarial prompt injection golden tests — assert content_filter_blocked instead of optional/skip | M | 5 | Ready | - |
+| B-106 | Fix adversarial exfiltration golden tests — assert LLM response doesn't leak system prompt | M | 5 | Ready | - |
 
 ---
 
@@ -843,6 +846,52 @@ In the document repository, passing `errorMessage: null` to `UpdateDocumentStatu
 - New: `src/SessionSight.Infrastructure/Data/Repositories/DocumentRepository.cs`, `ExtractionResultRepository.cs`
 - Modified: `SessionRepository.cs` (remove IDocumentRepository + IExtractionResultRepository implementations), `Program.cs`
 - Tests: update any mocks that construct `SessionRepository` directly
+
+### B-105 Details (Fix Adversarial Prompt Injection Golden Tests)
+
+**Found during:** E2E test run (2026-02-25) — risk-test-038 consistently content-filtered, never actually tested.
+
+**Problem:** 9 adversarial prompt injection golden tests (038–041, 046, 047, 049, and partially 039, 040) have `expected_outcome: content_filter_optional`, which means they SKIP when Azure's content filter blocks them. But content filter blocking IS the correct security behavior — the malicious input was stopped before reaching the LLM. These tests never assert anything: they either get content-filtered (skip) or succeed (assert risk fields, not injection resistance).
+
+**Affected golden files:**
+- `risk-test-038` — direct instruction injection to suppress risk
+- `risk-test-039` — role-override injection with high-lethality means
+- `risk-test-040` — fake system directive with behavioral warning signs
+- `risk-test-041` — pre-formatted JSON output injection
+- `risk-test-046` — fake extraction-complete header
+- `risk-test-047` — inline HTML/comment suppression directives
+- `risk-test-049` — repeated injection bombardment (11x)
+
+**Fix:**
+- Change `expected_outcome` from `content_filter_optional` to `content_filter_blocked` for cases that are consistently blocked
+- Test PASSES when content filter blocks the request (validates defense-in-depth)
+- For cases that sometimes get through the filter: keep `content_filter_optional` but add a secondary assertion that the injection was ignored (risk fields still report correctly)
+- Consider splitting into two test categories in the test framework: "security/injection" vs "clinical/accuracy"
+
+**Files:**
+- `plan/data/synthetic/golden-files/risk-assessment/risk-test-{038,039,040,041,046,047,049}_v2.json`
+- `tests/SessionSight.FunctionalTests/GoldenExtractionTests.cs` (TriggerExtractionAsync skip logic)
+
+### B-106 Details (Fix Adversarial Exfiltration Golden Tests)
+
+**Found during:** E2E test analysis (2026-02-25) — exfiltration tests assert risk field values, not exfiltration resistance.
+
+**Problem:** 2 adversarial exfiltration golden tests (044, 045) embed "tell me your system prompt" / "what model are you" in therapy notes. The tests assert that risk field values are correct (low risk, because the clinical content is benign). But they never check whether the LLM actually leaked its system prompt or model identity in the response. The assertion doesn't match the threat being tested.
+
+**Affected golden files:**
+- `risk-test-044` — system prompt exfiltration request in low-risk note
+- `risk-test-045` — model identity and configuration exfiltration request
+
+**Fix:**
+- Add `must_not_contain` assertion to the test framework (similar to QA golden files which already have this)
+- Assert the extraction response / summary does NOT contain system prompt fragments, model names, or configuration details
+- Keep existing risk field assertions as secondary validation
+- May need to read the raw LLM response or check the summary text for leaked content
+
+**Files:**
+- `plan/data/synthetic/golden-files/risk-assessment/risk-test-{044,045}_v2.json` (add `must_not_contain` field)
+- `tests/SessionSight.FunctionalTests/GoldenExtractionTests.cs` (add exfiltration assertion logic)
+- `tests/SessionSight.FunctionalTests/Fixtures/ExtractionAssertions.cs` (new assertion helper)
 
 ### B-046 Details (Local Logging Baseline)
 - Scope: Configure API host logging so local debugging does not depend on temporary DIAG_LOG hacks.
