@@ -225,7 +225,7 @@ internal static class ExtractionAssertions
             var output = step.GetProperty("outputTokens").GetInt32();
             var total = step.GetProperty("totalTokens").GetInt32();
             var name = step.GetProperty("stepName").GetString();
-            total.Should().BeGreaterThanOrEqualTo(input + output,
+            total.Should().BeGreaterOrEqualTo(input + output,
                 $"Step {name}: TotalTokens ({total}) should be >= InputTokens ({input}) + OutputTokens ({output})");
         }
 
@@ -276,9 +276,9 @@ internal static class ExtractionAssertions
         {
             tc.GetProperty("toolName").GetString().Should().NotBeNullOrWhiteSpace(
                 "Tool call should have a name");
-            tc.GetProperty("loopRound").GetInt32().Should().BeGreaterThanOrEqualTo(0,
+            tc.GetProperty("loopRound").GetInt32().Should().BeGreaterOrEqualTo(0,
                 "LoopRound should be non-negative");
-            tc.GetProperty("durationMs").GetInt64().Should().BeGreaterThanOrEqualTo(0,
+            tc.GetProperty("durationMs").GetInt64().Should().BeGreaterOrEqualTo(0,
                 "Tool call duration should be non-negative");
             tc.GetProperty("calledAt").GetDateTime().Should().BeAfter(minValidTime,
                 "Tool call CalledAt should be a real timestamp");

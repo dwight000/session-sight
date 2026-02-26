@@ -213,14 +213,14 @@ public class ExtractionPipelineTests : IClassFixture<ApiFixture>
 
         qaJson.GetProperty("question").GetString().Should().Be("What was discussed in the therapy session?");
         qaJson.GetProperty("answer").GetString().Should().NotBeNullOrWhiteSpace("Answer should contain content");
-        qaJson.GetProperty("confidence").GetDouble().Should().BeGreaterThanOrEqualTo(0, "Confidence should be non-negative");
+        qaJson.GetProperty("confidence").GetDouble().Should().BeGreaterOrEqualTo(0, "Confidence should be non-negative");
         qaJson.GetProperty("modelUsed").GetString().Should().NotBeNullOrWhiteSpace("ModelUsed should be set");
 
         qaJson.GetProperty("answer").GetString().Should().NotContain("error occurred",
             "Answer should not be the error fallback");
 
         var finalSources = qaJson.GetProperty("sources");
-        finalSources.GetArrayLength().Should().BeGreaterThanOrEqualTo(1, "Should have at least one source citation");
+        finalSources.GetArrayLength().Should().BeGreaterOrEqualTo(1, "Should have at least one source citation");
 
         var firstSource = finalSources[0];
         firstSource.GetProperty("sessionId").GetString().Should().Be(sessionId.ToString(),
