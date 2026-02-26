@@ -4,7 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Azure AI / Agent Framework (from spike) -->
-    <PackageVersion Include="Azure.AI.Agents.Persistent" Version="1.2.0-beta.8" />
+    <PackageVersion Include="Azure.AI.Agents.Persistent" Version="1.2.0-beta.9" />
     <PackageVersion Include="Azure.AI.DocumentIntelligence" Version="1.0.0" />
     <PackageVersion Include="Azure.AI.Inference" Version="1.0.0-beta.5" />
     <PackageVersion Include="Azure.AI.OpenAI" Version="2.1.0" />
