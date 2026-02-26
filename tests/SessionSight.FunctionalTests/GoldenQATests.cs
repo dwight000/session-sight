@@ -285,14 +285,14 @@ public class GoldenQATests : IClassFixture<ApiFixture>
         // min_confidence
         if (goldenCase.ExpectedAnswer.MinConfidence > 0)
         {
-            confidence.Should().BeGreaterThanOrEqualTo(goldenCase.ExpectedAnswer.MinConfidence,
+            confidence.Should().BeGreaterOrEqualTo(goldenCase.ExpectedAnswer.MinConfidence,
                 $"QA case {goldenCase.NoteId}: confidence {confidence:F2} below minimum {goldenCase.ExpectedAnswer.MinConfidence}");
         }
 
         // expect_sources_count_gte
         if (goldenCase.ExpectedAnswer.ExpectSourcesCountGte > 0)
         {
-            sourceCount.Should().BeGreaterThanOrEqualTo(goldenCase.ExpectedAnswer.ExpectSourcesCountGte,
+            sourceCount.Should().BeGreaterOrEqualTo(goldenCase.ExpectedAnswer.ExpectSourcesCountGte,
                 $"QA case {goldenCase.NoteId}: source count {sourceCount} below minimum {goldenCase.ExpectedAnswer.ExpectSourcesCountGte}");
         }
 

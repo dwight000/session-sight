@@ -85,7 +85,7 @@ public class ValidateAndScoreToolTests
         output.Errors[0].Severity.Should().Be("Error");
         output.Errors[1].Severity.Should().Be("Warning");
         // Confidence should still be returned even with validation errors
-        output.OverallConfidence.Should().BeGreaterThanOrEqualTo(0);
+        output.OverallConfidence.Should().BeGreaterOrEqualTo(0);
     }
 
     [Fact]
