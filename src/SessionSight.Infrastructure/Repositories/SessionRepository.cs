@@ -61,6 +61,33 @@ public partial class SessionRepository : ISessionRepository, IDocumentRepository
             .AsNoTracking()
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<Session>> GetSessionsNeedingReindexAsync(
+        Guid? patientId = null, Guid? sessionId = null, CancellationToken ct = default)
+    {
+        var query = _context.Sessions
+            .Include(s => s.Document)
+            .Include(s => s.Extraction)
+            .Where(s => s.Document != null
+                && (s.Document.Status == DocumentStatus.Completed
+                    || s.Document.Status == DocumentStatus.PartiallyCompleted)
+                && s.Document.IndexingStatus != IndexingStatus.Indexed);
+
+        if (patientId.HasValue)
+        {
+            query = query.Where(s => s.PatientId == patientId.Value);
+        }
+
+        if (sessionId.HasValue)
+        {
+            query = query.Where(s => s.Id == sessionId.Value);
+        }
+
+        return await query
+            .OrderBy(s => s.SessionDate)
+            .AsNoTracking()
+            .ToListAsync(ct);
+    }
+
     public async Task<Session> AddAsync(Session session, CancellationToken ct = default)
     {
         session.Id = Guid.NewGuid();

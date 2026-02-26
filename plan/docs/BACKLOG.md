@@ -81,7 +81,7 @@ _(none)_
 | P2-007 | Confidence scoring | M | 2 | Done | P2-004 |
 | P2-008 | Blob trigger + ExtractionOrchestrator + Doc Intelligence | XL | 2 | Done | P2-004 |
 | B-010 | Exponential backoff for Azure SDK clients (OpenAI/Search/DocIntel) | M | 2 | Done | P2-001 |
-| B-011 | Idempotent job IDs for blob trigger | M | 2 | Ready | P2-008 |
+| B-011 | Idempotent job IDs for blob trigger | M | 2 | Done | P2-008 |
 | ~~B-012~~ | ~~Dead-letter handling for failed ingestion~~ | - | - | Merged → B-084 | - |
 | B-013 | Dedupe strategy blob->SQL->AI Search | M | 2 | Done | P2-004 |
 | B-019 | Telemetry redaction for PHI in traces | M | 2 | Ready | P1-016 |
@@ -119,8 +119,8 @@ _(none)_
 | P3-003 | Embedding pipeline (text-embedding-3-large) | L | 3 | Done | P3-002 |
 | P3-004 | Q&A Agent with RAG (single-shot) | XL | 3 | Done | P3-003 |
 | P3-005 | Agentic Q&A with tools (search_sessions, get_session_detail, get_patient_timeline, aggregate_metrics) | L | 3 | Done | P3-004 |
-| B-003 | Synthetic data generator script | M | 3 | Ready | P2-004 |
-| B-014 | Reindex/backfill job for AI Search | M | 3 | Ready | P3-002 |
+| B-003 | Synthetic data generator script | M | 3 | Done | P2-004 |
+| B-014 | Reindex/backfill job for AI Search | M | 3 | Done | P3-002 |
 | **Pre-Phase 3 Checkpoint (Tabled Items)** |||||
 | B-020 | RBAC / Entra ID authentication | L | 3+ | Tabled | - |
 | B-021 | Audit logging & compliance | L | 3+ | Tabled | - |
@@ -1195,7 +1195,10 @@ In the document repository, passing `errorMessage: null` to `UpdateDocumentStatu
 | P5-002 | Data flow diagrams — document lifecycle (stateDiagram-v2), data transformation pipeline (flowchart LR), entity relationship (erDiagram) | 2026-02-25 |
 | B-013 | Dedupe strategy — closed as sufficiently addressed: same-session 409 Conflict, atomic TryTransition (B-064), patient unique constraint (B-034), JobKey unique index (B-011), AI Search MergeOrUpload idempotent | 2026-02-25 |
 | P5-003 | API usage examples — closed as covered: Scalar interactive docs, frontend TS API client, 9 contract tests, k6 load test workflow, ARCHITECTURE.md sequence diagrams, README endpoint table | 2026-02-25 |
-| B-036 | Document Intelligence failure handling — closed as addressed by B-032 (size/extension validation), B-048 (circuit breaker), B-084 (ClassifyFailure with 15+ exception types, step-level persistence, retry/resume) | 2026-02-25 |
+| B-036 | Document Intelligence failure handling — added ClassifyFailure cases for 400/415 (Permanent: unsupported format) and 401/403 (Transient: auth error), pre-call file format validation in DocumentIntelligenceParser (extension allowlist + PDF magic bytes check) | 2026-02-26 |
+| B-011 | Idempotent job IDs for blob trigger — already implemented via JobKey unique index in ExtractionJobDispatcher (B-103) and TryTransition atomic status checks (B-064), backlog was stale | 2026-02-26 |
+| B-003 | Synthetic data generator script — already implemented: 8 sample therapy note PDFs generated via fpdf2, sample document picker in Upload UI (B-082) | 2026-02-26 |
+| B-014 | Reindex/backfill job for AI Search — POST /api/admin/reindex endpoint with optional patientId/sessionId filters, background ReindexService that bridges Core→Agent models and calls SessionIndexingService, per-session IndexingStatus updates | 2026-02-26 |
 
 ---
 

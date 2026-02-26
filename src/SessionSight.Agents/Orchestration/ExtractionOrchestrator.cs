@@ -940,6 +940,14 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                 return (FailureKind.Permanent,
                     "Document does not appear to be a therapy session note");
 
+            case RequestFailedException rfe when rfe.Status is 400 or 415:
+                return (FailureKind.Permanent,
+                    "Document format not supported or file is corrupted");
+
+            case RequestFailedException rfe when rfe.Status is 401 or 403:
+                return (FailureKind.Transient,
+                    "Authentication error — contact administrator");
+
             case RequestFailedException rfe when rfe.Status == 404:
                 return (FailureKind.Permanent, "Source document no longer exists");
 

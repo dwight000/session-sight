@@ -10,6 +10,8 @@ public interface ISessionRepository
     Task<IEnumerable<Session>> GetByPatientIdInDateRangeAsync(Guid patientId, DateOnly? startDate, DateOnly? endDate, CancellationToken ct = default);
     Task<IEnumerable<Session>> GetAllInDateRangeAsync(DateOnly startDate, DateOnly endDate, CancellationToken ct = default);
     Task<IEnumerable<Session>> GetFlaggedSessionsAsync(DateOnly startDate, DateOnly endDate, CancellationToken ct = default);
+    Task<IReadOnlyList<Session>> GetSessionsNeedingReindexAsync(
+        Guid? patientId = null, Guid? sessionId = null, CancellationToken ct = default);
     Task<Session> AddAsync(Session session, CancellationToken ct = default);
     Task UpdateAsync(Session session, CancellationToken ct = default);
 }
