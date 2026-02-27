@@ -9,6 +9,8 @@ namespace SessionSight.Infrastructure.Repositories;
 
 public partial class SessionRepository : ISessionRepository, IDocumentRepository, IExtractionResultRepository
 {
+    // Used by UpdateAsync(Session) only — document status updates use ExecuteUpdateAsync
+    // which bypasses the change tracker and doesn't need concurrency retries.
     private const int MaxConcurrencyRetries = 3;
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(100);
 
@@ -130,9 +132,6 @@ public partial class SessionRepository : ISessionRepository, IDocumentRepository
     [LoggerMessage(Level = LogLevel.Error, Message = "Failed to update session {SessionId} after {MaxRetries} concurrency retries")]
     private static partial void LogConcurrencyFailed(ILogger logger, Guid sessionId, int maxRetries);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Concurrency conflict updating document for session {SessionId}, retry {Attempt}/{MaxRetries}")]
-    private static partial void LogDocumentConcurrencyRetry(ILogger logger, Guid sessionId, int attempt, int maxRetries);
-
     public async Task AddDocumentAsync(Session session, SessionDocument document, CancellationToken ct = default)
     {
         session.UpdatedAt = DateTime.UtcNow;
@@ -166,52 +165,32 @@ public partial class SessionRepository : ISessionRepository, IDocumentRepository
         IndexingStatus? indexingStatus = null, FailureKind? failureKind = null, string? errorMessage = null,
         CancellationToken ct = default)
     {
-        for (var attempt = 1; attempt <= MaxConcurrencyRetries; attempt++)
+        // Use ExecuteUpdateAsync to bypass the EF change tracker entirely.
+        // This avoids DbUpdateConcurrencyException caused by stale RowVersion
+        // when TryTransitionDocumentStatusAsync (also ExecuteUpdateAsync) incremented
+        // the DB RowVersion earlier in the same pipeline scope.
+        var now = DateTime.UtcNow;
+        var rows = await _context.Documents
+            .Where(d => d.SessionId == sessionId)
+            .ExecuteUpdateAsync(s =>
+                s.SetProperty(d => d.Status, status)
+                 .SetProperty(d => d.ProcessedAt,
+                    d => status == DocumentStatus.Completed || status == DocumentStatus.PartiallyCompleted
+                        ? now
+                        : d.ProcessedAt)
+                 .SetProperty(d => d.ExtractedText,
+                    d => extractedText != null ? extractedText : d.ExtractedText)
+                 .SetProperty(d => d.IndexingStatus,
+                    d => indexingStatus.HasValue ? indexingStatus.Value : d.IndexingStatus)
+                 .SetProperty(d => d.FailureKind,
+                    d => failureKind.HasValue ? failureKind.Value : d.FailureKind)
+                 .SetProperty(d => d.ErrorMessage,
+                    d => errorMessage != null ? errorMessage : d.ErrorMessage),
+            ct);
+
+        if (rows == 0)
         {
-            // Direct update to Document table only - avoids Session RowVersion concurrency issues
-            var document = await _context.Documents
-                .FirstOrDefaultAsync(d => d.SessionId == sessionId, ct);
-
-            if (document is null)
-            {
-                throw new InvalidOperationException($"No document found for session {sessionId}");
-            }
-
-            document.Status = status;
-            if (status == DocumentStatus.Completed || status == DocumentStatus.PartiallyCompleted)
-            {
-                document.ProcessedAt = DateTime.UtcNow;
-            }
-            if (extractedText != null)
-            {
-                document.ExtractedText = extractedText;
-            }
-            if (indexingStatus.HasValue)
-            {
-                document.IndexingStatus = indexingStatus.Value;
-            }
-            if (failureKind.HasValue)
-            {
-                document.FailureKind = failureKind.Value;
-            }
-            // null means "leave existing value" (not "clear"). ErrorMessage is cleared
-            // by TryTransitionDocumentStatusAsync when transitioning to Processing.
-            if (errorMessage != null)
-            {
-                document.ErrorMessage = errorMessage;
-            }
-
-            try
-            {
-                await _context.SaveChangesAsync(ct);
-                return;
-            }
-            catch (DbUpdateConcurrencyException) when (attempt < MaxConcurrencyRetries)
-            {
-                LogDocumentConcurrencyRetry(_logger, sessionId, attempt, MaxConcurrencyRetries);
-                await _context.Entry(document).ReloadAsync(ct);
-                await Task.Delay(RetryDelay, ct);
-            }
+            throw new InvalidOperationException($"No document found for session {sessionId}");
         }
     }
 

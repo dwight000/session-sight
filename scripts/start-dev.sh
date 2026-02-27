@@ -158,56 +158,25 @@ else
         log "  [$NUM/8] Created $FIRST $LAST + uploaded $PDF"
     done
 
-    # Launch all extractions in parallel
+    # Trigger extractions (async — returns 202 immediately, processes in background)
     if [[ ${#SESSION_IDS[@]} -gt 0 ]]; then
-        log "Launching ${#SESSION_IDS[@]} extractions in parallel (~5-8 min)..."
-        EXTRACTION_PIDS=()
+        log "Triggering ${#SESSION_IDS[@]} extractions (processing in background)..."
+        QUEUED=0
         for i in "${!SESSION_IDS[@]}"; do
             SID="${SESSION_IDS[$i]}"
             NAME="${PATIENT_NAMES[$i]}"
-            (
-                RESULT=$(curl -sk -X POST "$API/api/extraction/$SID" --max-time 300 -w "%{http_code}" -o /dev/null 2>/dev/null)
-                if [[ "$RESULT" == "200" ]]; then
-                    echo -e "\033[0;32m[DEV]\033[0m   ✓ Extraction complete: $NAME"
-                else
-                    echo -e "\033[0;31m[DEV]\033[0m   ✗ Extraction failed ($RESULT): $NAME"
-                fi
-            ) &
-            EXTRACTION_PIDS+=($!)
-        done
-
-        # Wait for all extractions with progress (timeout after 10 min)
-        COMPLETED=0
-        TOTAL=${#EXTRACTION_PIDS[@]}
-        EXTRACTION_WAIT=0
-        EXTRACTION_MAX_WAIT=600
-        while [[ $COMPLETED -lt $TOTAL && $EXTRACTION_WAIT -lt $EXTRACTION_MAX_WAIT ]]; do
-            COMPLETED=0
-            for PID in "${EXTRACTION_PIDS[@]}"; do
-                if ! kill -0 "$PID" 2>/dev/null; then
-                    COMPLETED=$((COMPLETED + 1))
-                fi
-            done
-            if [[ $COMPLETED -lt $TOTAL ]]; then
-                echo -ne "\r\033[0;32m[DEV]\033[0m   Extractions: $COMPLETED/$TOTAL complete..."
-                sleep 5
-                EXTRACTION_WAIT=$((EXTRACTION_WAIT + 5))
+            RESULT=$(curl -sk -X POST "$API/api/extraction/$SID" --max-time 30 -w "%{http_code}" -o /dev/null 2>/dev/null)
+            if [[ "$RESULT" == "202" ]]; then
+                log "  ✓ Extraction queued: $NAME"
+                QUEUED=$((QUEUED + 1))
+            else
+                error "  ✗ Extraction trigger failed ($RESULT): $NAME"
             fi
         done
-        if [[ $EXTRACTION_WAIT -ge $EXTRACTION_MAX_WAIT ]]; then
-            echo ""
-            error "Extraction timeout after ${EXTRACTION_MAX_WAIT}s ($COMPLETED/$TOTAL complete). Continuing with partial data."
-            # Kill any remaining extraction curls
-            for PID in "${EXTRACTION_PIDS[@]}"; do
-                kill "$PID" 2>/dev/null || true
-            done
-        else
-            echo -e "\r\033[0;32m[DEV]\033[0m   Extractions: $TOTAL/$TOTAL complete.    "
-        fi
-        wait 2>/dev/null
+        log "$QUEUED/${#SESSION_IDS[@]} extractions queued. Progress visible in the UI."
     fi
 
-    log "Demo data seeded: ${#SESSION_IDS[@]} patients with full extraction."
+    log "Demo data seeded: ${#SESSION_IDS[@]} patients."
 fi
 
 # Step 6: Start frontend
