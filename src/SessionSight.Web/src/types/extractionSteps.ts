@@ -1,5 +1,13 @@
 export type ExtractionStepStatus = 'Running' | 'Succeeded' | 'Failed' | 'Skipped'
 
+export type StepViewMode = 'raw' | 'conversation' | 'activity' | 'summary'
+
+export interface PromptSegment {
+  role: 'system' | 'user' | 'assistant' | 'tool'
+  content: string
+  toolCalls?: string | null
+}
+
 export type ExtractionStepName =
   | 'DocumentParse'
   | 'Intake'
@@ -26,6 +34,7 @@ export interface ExtractionLlmTrace {
   totalTokens: number
   durationMs: number
   promptText: string | null
+  promptSegmentsJson: string | null
   responseText: string | null
   calledAt: string
 }
@@ -51,6 +60,8 @@ export interface ExtractionStep {
 export interface ExtractionStepsResponse {
   extractionId: string
   documentStatus: string | null
+  failureKind: string | null
+  errorMessage: string | null
   steps: ExtractionStep[]
 }
 
@@ -65,6 +76,10 @@ export interface IntakeResult {
   isValid: boolean
   estimatedWordCount: number
   documentType: string
+  sessionDate?: string
+  language?: string
+  therapistName?: string
+  patientId?: string
 }
 
 export interface ClinicalExtractResult {
@@ -72,6 +87,7 @@ export interface ClinicalExtractResult {
   overallConfidence: number
   toolCallCount: number
   lowConfidenceFields?: string[]
+  errors?: string[]
 }
 
 export interface RiskAssessResult {
@@ -81,6 +97,10 @@ export interface RiskAssessResult {
   guardrailApplied?: boolean
   reviewReasons?: string[]
   fieldDecisions?: RiskFieldDecisionSummary[]
+  keywordMatches?: string[]
+  suicidalGuardrailApplied?: boolean
+  homicidalGuardrailApplied?: boolean
+  contentFilterBlocked?: boolean
 }
 
 export interface RiskFieldDecisionSummary {
@@ -90,6 +110,10 @@ export interface RiskFieldDecisionSummary {
 
 export interface SummarizeResult {
   oneLiner: string
+  interventionsUsed?: string[]
+  keyPoints?: string
+  nextSessionFocus?: string
+  riskLevel?: string
 }
 
 export interface SearchIndexResult {

@@ -50,8 +50,13 @@ public class ExtractionStepRepository : IExtractionStepRepository
                     .SetProperty(s => s.ErrorMessage, extractionStep.ErrorMessage),
                 ct);
 
-            // Insert child entities directly (they only exist after step completes)
-            if (extractionStep.ToolCalls.Count > 0)
+            // Insert child entities directly (they only exist after step completes).
+            // Skip if already saved incrementally (e.g. ClinicalExtract callback).
+            var existingChildCount = await _context.Set<ExtractionToolCall>()
+                .AsNoTracking()
+                .CountAsync(tc => tc.StepId == extractionStep.Id, ct);
+
+            if (extractionStep.ToolCalls.Count > 0 && existingChildCount == 0)
             {
                 // Ensure tool calls are not tracked from a prior attempt
                 foreach (var tc in extractionStep.ToolCalls)
@@ -64,7 +69,11 @@ public class ExtractionStepRepository : IExtractionStepRepository
                     _context.Entry(tc).State = EntityState.Detached;
             }
 
-            if (extractionStep.LlmTraces.Count > 0)
+            var existingTraceCount = await _context.Set<ExtractionLlmTrace>()
+                .AsNoTracking()
+                .CountAsync(lt => lt.StepId == extractionStep.Id, ct);
+
+            if (extractionStep.LlmTraces.Count > 0 && existingTraceCount == 0)
             {
                 foreach (var lt in extractionStep.LlmTraces)
                     _context.Entry(lt).State = EntityState.Detached;
@@ -76,6 +85,25 @@ public class ExtractionStepRepository : IExtractionStepRepository
                     _context.Entry(lt).State = EntityState.Detached;
             }
         }
+    }
+
+    public async Task SaveLlmTraceAsync(ExtractionLlmTrace trace, CancellationToken ct = default)
+    {
+        _context.Set<ExtractionLlmTrace>().Add(trace);
+        await _context.SaveChangesAsync(ct);
+        _context.Entry(trace).State = EntityState.Detached;
+    }
+
+    public async Task SaveToolCallsAsync(IEnumerable<ExtractionToolCall> toolCalls, CancellationToken ct = default)
+    {
+        var items = toolCalls as ExtractionToolCall[] ?? toolCalls.ToArray();
+        if (items.Length == 0) return;
+
+        _context.Set<ExtractionToolCall>().AddRange(items);
+        await _context.SaveChangesAsync(ct);
+
+        foreach (var tc in items)
+            _context.Entry(tc).State = EntityState.Detached;
     }
 
     public async Task<IReadOnlyList<ExtractionStep>> GetStepsByExtractionIdAsync(Guid extractionId, CancellationToken ct = default)

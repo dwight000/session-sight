@@ -146,8 +146,8 @@ test.describe('Upload Flow', () => {
 
       // Verify Processing Log section renders with completed steps
       await expect(page.getByRole('heading', { name: 'Processing Log' })).toBeVisible({ timeout: 10_000 })
-      await expect(page.getByText('Document Parse')).toBeVisible()
-      await expect(page.getByText('Search Index')).toBeVisible()
+      await expect(page.getByRole('button', { name: /Document Parse/ })).toBeVisible()
+      await expect(page.getByRole('button', { name: /Search Index/ })).toBeVisible()
     })
 
     // 5. Verify the session now shows as "Extracted" in sessions list

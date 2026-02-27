@@ -16,6 +16,7 @@ public sealed record ToolCallEntry(
 /// </summary>
 public sealed record LlmCallTrace(
     string? PromptText,
+    string? PromptSegmentsJson,
     string? ResponseText,
     string ModelUsed,
     int LoopRound,

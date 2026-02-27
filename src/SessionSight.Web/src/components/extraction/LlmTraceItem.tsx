@@ -23,10 +23,10 @@ export function LlmTraceItem({ trace }: LlmTraceItemProps) {
       </button>
       {open && (
         <div className="border-t border-gray-100 px-3 py-2 space-y-2">
-          {trace.promptText && (
+          {(trace.promptText || trace.promptSegmentsJson) && (
             <div>
               <p className="text-xs font-medium text-gray-500">Prompt</p>
-              <pre className="mt-1 max-h-64 overflow-auto rounded bg-gray-50 p-2 text-xs whitespace-pre-wrap">{trace.promptText}</pre>
+              <pre className="mt-1 max-h-64 overflow-auto rounded bg-gray-50 p-2 text-xs whitespace-pre-wrap">{trace.promptText ?? trace.promptSegmentsJson}</pre>
             </div>
           )}
           {trace.responseText && (

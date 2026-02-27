@@ -160,6 +160,13 @@ export const handlers = [
     return HttpResponse.json(mockExtractionStepsComplete)
   }),
 
+  // Document download handler (used by DocumentPreview iframe)
+  http.get('/api/sessions/:sessionId/document/download', () => {
+    return new HttpResponse(new Uint8Array(0), {
+      headers: { 'Content-Type': 'application/pdf' },
+    })
+  }),
+
   // Extraction result handler
   http.get('/api/sessions/:sessionId/extraction', () => {
     return HttpResponse.json(mockExtractionResult)

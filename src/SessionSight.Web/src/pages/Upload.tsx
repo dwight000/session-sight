@@ -15,6 +15,11 @@ interface SampleDoc {
   title: string
   description: string
   previewText: string
+  riskTier: 'low' | 'moderate' | 'high'
+  diagnosis: string
+  metaStrip: string
+  keyExtractions: { field: string; value: string }[]
+  clinicalNote: string
 }
 
 function formatDate(iso: string) {
@@ -39,6 +44,7 @@ export function Upload() {
   const [expandedSample, setExpandedSample] = useState<string | null>(null)
   const [loadingSample, setLoadingSample] = useState<string | null>(null)
   const [processingSessionId, setProcessingSessionId] = useState<string | null>(null)
+  const [selectedSample, setSelectedSample] = useState<SampleDoc | null>(null)
 
   // Poll extraction steps for the session being processed — drives status banners
   const { data: pipelineData } = useExtractionSteps(processingSessionId ?? '', !!processingSessionId)
@@ -79,6 +85,7 @@ export function Upload() {
       const blob = await response.blob()
       const file = new File([blob], sample.filename, { type: 'application/pdf' })
       setSelectedFile(file)
+      setSelectedSample(sample)
       setUploadError(null)
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
@@ -132,6 +139,33 @@ export function Upload() {
           Upload a therapy note document for processing. The note will be analyzed and extracted automatically.
         </p>
       </div>
+
+      {/* Expected outcome card — stays visible during extraction for comparison */}
+      {processingSessionId && selectedSample && (
+        <div className="rounded-md border border-gray-200 bg-white p-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Expected Outcome</span>
+            <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${
+              selectedSample.riskTier === 'high' ? 'bg-red-100 text-red-700' :
+              selectedSample.riskTier === 'moderate' ? 'bg-amber-100 text-amber-700' :
+              'bg-gray-100 text-gray-600'
+            }`}>
+              {selectedSample.riskTier === 'high' ? 'High Risk' :
+               selectedSample.riskTier === 'moderate' ? 'Moderate Risk' : 'Low Risk'}
+            </span>
+            <span className="text-sm font-medium text-gray-900">{selectedSample.title}</span>
+          </div>
+          <p className="mt-1 text-xs text-gray-500">{selectedSample.metaStrip}</p>
+          <div className="mt-2 bg-gray-50 rounded p-2 space-y-1">
+            {selectedSample.keyExtractions.map((ext) => (
+              <div key={ext.field} className="flex text-xs gap-2">
+                <span className="text-gray-500 font-medium shrink-0 w-28">{ext.field}</span>
+                <span className="text-gray-700">{ext.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Pipeline view — above the form when active */}
       {processingSessionId && (
@@ -292,7 +326,7 @@ export function Upload() {
                 type="button"
                 role="tab"
                 aria-selected={docSource === 'own'}
-                onClick={() => setDocSource('own')}
+                onClick={() => { setDocSource('own'); setSelectedSample(null) }}
                 className={`px-4 py-1.5 text-sm font-medium rounded-r-md ${
                   docSource === 'own'
                     ? 'bg-blue-50 text-blue-700'
@@ -305,38 +339,83 @@ export function Upload() {
           </div>
 
           {docSource === 'sample' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {samples.map((sample) => (
-                <div
-                  key={sample.id}
-                  className="rounded-md border border-gray-200 p-3 hover:border-blue-300 transition-colors"
-                >
-                  <p className="text-sm font-medium text-gray-900">{sample.title}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{sample.description}</p>
-                  {expandedSample === sample.id && (
-                    <p className="mt-2 text-xs text-gray-600 bg-gray-50 rounded p-2 whitespace-pre-wrap">
-                      {sample.previewText}...
-                    </p>
-                  )}
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setExpandedSample(expandedSample === sample.id ? null : sample.id)}
-                      className="text-xs text-gray-500 hover:text-gray-700 underline"
+            <div className="space-y-3">
+              {[...samples]
+                .sort((a, b) => {
+                  const order: Record<string, number> = { high: 0, moderate: 1, low: 2 }
+                  return (order[a.riskTier] ?? 2) - (order[b.riskTier] ?? 2)
+                })
+                .map((sample) => {
+                  const badgeStyles: Record<string, string> = {
+                    high: 'bg-red-100 text-red-700',
+                    moderate: 'bg-amber-100 text-amber-700',
+                    low: 'bg-gray-100 text-gray-600',
+                  }
+                  const badgeLabel: Record<string, string> = {
+                    high: 'High Risk',
+                    moderate: 'Moderate Risk',
+                    low: 'Low Risk',
+                  }
+                  return (
+                    <div
+                      key={sample.id}
+                      className="rounded-md border border-gray-200 p-4 hover:border-blue-300 transition-colors"
                     >
-                      {expandedSample === sample.id ? 'Hide' : 'Preview'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleUseSample(sample)}
-                      disabled={loadingSample === sample.id}
-                      className="text-xs font-medium text-blue-600 hover:text-blue-800 underline"
-                    >
-                      {loadingSample === sample.id ? 'Loading...' : 'Use This'}
-                    </button>
-                  </div>
-                </div>
-              ))}
+                      {/* Header row */}
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${badgeStyles[sample.riskTier] ?? badgeStyles.low}`}>
+                          {badgeLabel[sample.riskTier] ?? 'Low Risk'}
+                        </span>
+                        <span className="text-sm font-medium text-gray-900 flex-1">{sample.title}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleUseSample(sample)}
+                          disabled={loadingSample === sample.id}
+                          className="text-xs font-medium text-blue-600 hover:text-blue-800 underline whitespace-nowrap"
+                        >
+                          {loadingSample === sample.id ? 'Loading...' : 'Use This'}
+                        </button>
+                      </div>
+
+                      {/* Meta strip */}
+                      <p className="mt-1 text-xs text-gray-500">{sample.metaStrip}</p>
+
+                      {/* Key extractions */}
+                      <div className="mt-2 bg-gray-50 rounded p-2 space-y-1">
+                        {sample.keyExtractions.map((ext) => (
+                          <div key={ext.field} className="flex text-xs gap-2">
+                            <span className="text-gray-500 font-medium shrink-0 w-28">{ext.field}</span>
+                            <span className="text-gray-700">{ext.value}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Footer: Why this sample + Open PDF */}
+                      <div className="mt-2 flex items-start justify-between gap-2">
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedSample(expandedSample === sample.id ? null : sample.id)}
+                            className="text-xs text-gray-400 hover:text-gray-600"
+                          >
+                            {expandedSample === sample.id ? '▾ Why this sample' : '▸ Why this sample'}
+                          </button>
+                          {expandedSample === sample.id && (
+                            <p className="mt-1 text-xs text-gray-400 italic">{sample.clinicalNote}</p>
+                          )}
+                        </div>
+                        <a
+                          href={`/samples/${sample.filename}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-gray-400 hover:text-gray-600 whitespace-nowrap"
+                        >
+                          Open PDF ↗
+                        </a>
+                      </div>
+                    </div>
+                  )
+                })}
             </div>
           )}
 

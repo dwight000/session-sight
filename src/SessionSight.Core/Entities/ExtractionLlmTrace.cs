@@ -11,6 +11,7 @@ public class ExtractionLlmTrace
     public int TotalTokens { get; set; }
     public long DurationMs { get; set; }
     public string? PromptText { get; set; }
+    public string? PromptSegmentsJson { get; set; }
     public string? ResponseText { get; set; }
     public DateTime CalledAt { get; set; }
 

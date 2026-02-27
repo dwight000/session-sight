@@ -23,8 +23,12 @@ public interface IClinicalExtractorAgent : ISessionSightAgent
     /// </summary>
     /// <param name="intake">The intake result containing the parsed document.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="onRoundComplete">Optional callback invoked after each agent loop round for incremental trace saving.</param>
     /// <returns>Extraction result with all clinical sections.</returns>
-    Task<ExtractionResult> ExtractAsync(IntakeResult intake, CancellationToken cancellationToken = default);
+    Task<ExtractionResult> ExtractAsync(
+        IntakeResult intake,
+        Func<LlmCallTrace, IReadOnlyList<ToolCallEntry>, Task>? onRoundComplete = null,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -55,7 +59,10 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
 
     public string Name => "ClinicalExtractorAgent";
 
-    public async Task<ExtractionResult> ExtractAsync(IntakeResult intake, CancellationToken cancellationToken = default)
+    public async Task<ExtractionResult> ExtractAsync(
+        IntakeResult intake,
+        Func<LlmCallTrace, IReadOnlyList<ToolCallEntry>, Task>? onRoundComplete = null,
+        CancellationToken cancellationToken = default)
     {
         var noteText = intake.Document.MarkdownContent;
         var sessionId = Guid.NewGuid().ToString("D", System.Globalization.CultureInfo.InvariantCulture);
@@ -87,7 +94,8 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
 
         // JSON response format guarantees valid JSON from the API (see also: ExtractionPrompts.SystemPrompt CRITICAL instruction)
         var loopResult = await _agentLoopRunner.RunAsync(
-            chatClient, messages, ChatResponseFormat.CreateJsonObjectFormat(), temperature: 0.1f, ct: cancellationToken);
+            chatClient, messages, ChatResponseFormat.CreateJsonObjectFormat(), temperature: 0.1f,
+            onRoundComplete: onRoundComplete, ct: cancellationToken);
 
         LogAgentLoopCompleted(_logger, loopResult.ToolCallCount, loopResult.IsComplete);
 

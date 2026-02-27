@@ -1,7 +1,18 @@
-import type { ExtractionStep, ExtractionStepName } from '../../types/extractionSteps'
+import { useState } from 'react'
+import type { ExtractionStep, ExtractionStepName, StepViewMode, ClinicalExtractResult } from '../../types/extractionSteps'
 import { useExtractionSteps } from '../../hooks/useExtractionSteps'
-import { STEP_ORDER, STEP_DISPLAY_NAMES } from './stepConfig'
+import { STEP_ORDER, STEP_DISPLAY_NAMES, estimateCost, formatDurationMs } from './stepConfig'
 import { ExtractionStepCard } from './ExtractionStepCard'
+import { ViewModeSelector } from './ViewModeSelector'
+
+const GANTT_COLORS: Record<ExtractionStepName, string> = {
+  DocumentParse: 'bg-slate-400',
+  Intake: 'bg-sky-400',
+  ClinicalExtract: 'bg-indigo-500',
+  RiskAssess: 'bg-amber-500',
+  Summarize: 'bg-emerald-400',
+  SearchIndex: 'bg-gray-400',
+}
 
 interface ExtractionPipelineViewProps {
   sessionId: string
@@ -9,6 +20,7 @@ interface ExtractionPipelineViewProps {
 }
 
 export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipelineViewProps) {
+  const [viewMode, setViewMode] = useState<StepViewMode>('activity')
   const { data, isLoading, isError } = useExtractionSteps(sessionId, isLive)
 
   // Historical mode: no data or 404
@@ -51,6 +63,35 @@ export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipeline
     ? `${completedCount}/${totalSteps}${currentStepName ? ` \u2014 ${STEP_DISPLAY_NAMES[currentStepName]}` : ''}`
     : null
 
+  // U-1: Max duration for proportional bars
+  const maxDurationMs = data ? Math.max(...data.steps.map(s => s.durationMs), 1) : 0
+
+  // B-1: Pipeline summary stats (only for completed pipelines)
+  const pipelineComplete = data?.steps.length === 6 && !isLive
+  const pipelineStats = pipelineComplete ? (() => {
+    const steps = data!.steps
+    const totalDuration = steps.reduce((sum, s) => sum + s.durationMs, 0)
+    const totalTokens = steps.reduce((sum, s) => sum + s.totalTokens, 0)
+    const models = [...new Set(steps.map(s => s.modelUsed).filter(Boolean))]
+    const cost = steps.reduce((sum, s) => {
+      const c = estimateCost(s.modelUsed, s.inputTokens, s.outputTokens)
+      return sum + (c ?? 0)
+    }, 0)
+    let fieldInfo = ''
+    const clinicalStep = steps.find(s => s.stepName === 'ClinicalExtract')
+    if (clinicalStep?.resultSummaryJson) {
+      try {
+        const cr = JSON.parse(clinicalStep.resultSummaryJson) as ClinicalExtractResult
+        fieldInfo = ` · ${cr.fieldCount} fields at ${Math.round(cr.overallConfidence * 100)}%`
+      } catch { /* skip */ }
+    }
+    return {
+      text: `${steps.length} steps · ${models.length} model${models.length !== 1 ? 's' : ''} · ${formatDurationMs(totalDuration)} · ${totalTokens.toLocaleString()} tokens · $${cost.toFixed(3)}${fieldInfo}`,
+      steps,
+      totalDuration,
+    }
+  })() : null
+
   return (
     <div className="space-y-2">
       {progressLabel && (
@@ -70,6 +111,34 @@ export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipeline
           </p>
         </div>
       )}
+      <ViewModeSelector value={viewMode} onChange={setViewMode} />
+
+      {/* B-1: Pipeline totals banner + B-1b: Gantt bar */}
+      {pipelineStats && (
+        <div className="space-y-1.5">
+          <div className="text-xs text-gray-500">{pipelineStats.text}</div>
+          <div className="flex h-5 rounded-full overflow-hidden bg-gray-100" role="img" aria-label="Pipeline duration chart">
+            {pipelineStats.steps.map((s) => {
+              const pct = (s.durationMs / pipelineStats.totalDuration) * 100
+              return (
+                <div
+                  key={s.stepName}
+                  className={`${GANTT_COLORS[s.stepName]} relative group`}
+                  style={{ flexGrow: s.durationMs }}
+                  title={`${STEP_DISPLAY_NAMES[s.stepName]}: ${formatDurationMs(s.durationMs)}`}
+                >
+                  {pct > 15 && (
+                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-white truncate px-1">
+                      {STEP_DISPLAY_NAMES[s.stepName]} {formatDurationMs(s.durationMs)}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {STEP_ORDER.map((name) => (
         <ExtractionStepCard
           key={name}
@@ -77,8 +146,10 @@ export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipeline
           step={stepMap.get(name)}
           isCurrentStep={name === currentStepName}
           defaultExpanded={true}
-          showSubSectionsOpen={isLive}
+          showSubSectionsOpen={true}
           sessionId={sessionId}
+          viewMode={viewMode}
+          maxDurationMs={maxDurationMs}
         />
       ))}
     </div>

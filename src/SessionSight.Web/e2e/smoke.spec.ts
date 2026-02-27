@@ -230,6 +230,14 @@ const mockSamplesJson = [
     title: 'Anxiety / CBT Session',
     description: 'GAD with cognitive restructuring, individual session',
     previewText: 'Session Note - March 5, 2026 Patient: Sarah Chen...',
+    riskTier: 'low',
+    diagnosis: 'F41.1 — Generalized Anxiety Disorder',
+    metaStrip: 'GAD · Low Risk · PsyD · Individual · In-Person',
+    keyExtractions: [
+      { field: 'Mood', value: '6/10 (worried but managing)' },
+      { field: 'Interventions', value: 'Cognitive restructuring, relaxation training' },
+    ],
+    clinicalNote: 'Typical mid-treatment CBT case with good field coverage.',
   },
   {
     id: 'sample-risk-001',
@@ -237,6 +245,14 @@ const mockSamplesJson = [
     title: 'Active SI with Safety Plan',
     description: 'High risk - specific plan, stockpiled means, emergency contacts',
     previewText: 'Session Note - March 20, 2026 Patient: Rachel Morrison...',
+    riskTier: 'high',
+    diagnosis: 'F33.2 — MDD, recurrent, severe',
+    metaStrip: 'MDD Severe · High Risk · LCSW · Crisis · In-Person',
+    keyExtractions: [
+      { field: 'Risk Level', value: 'High — active ideation with specific plan' },
+      { field: 'Safety Plan', value: 'Updated this session' },
+    ],
+    clinicalNote: 'Demonstrates capture of granular lethality markers.',
   },
 ]
 
@@ -275,37 +291,43 @@ test('Upload page shows sample document cards by default', async ({ page }) => {
   await expect(page.getByRole('tab', { name: 'Sample Documents' })).toBeVisible()
   await expect(page.getByRole('tab', { name: 'Your Document' })).toBeVisible()
 
-  // Sample cards should be visible by default
-  await expect(page.getByText('Anxiety / CBT Session')).toBeVisible()
+  // Sample cards should be visible with risk badges and key extractions
   await expect(page.getByText('Active SI with Safety Plan')).toBeVisible()
+  await expect(page.getByText('Anxiety / CBT Session')).toBeVisible()
+  await expect(page.getByText('High Risk', { exact: true })).toBeVisible()
+  await expect(page.getByText('Low Risk', { exact: true })).toBeVisible()
+  await expect(page.getByText('6/10 (worried but managing)')).toBeVisible()
 })
 
-test('Upload page sample card preview toggles', async ({ page }) => {
+test('Upload page "Why this sample" toggles clinical note', async ({ page }) => {
   await mockUploadRoutes(page)
   await page.goto('/upload')
 
-  await expect(page.getByText('Anxiety / CBT Session')).toBeVisible()
+  await expect(page.getByText('Active SI with Safety Plan')).toBeVisible()
 
-  // Click Preview on first card
-  await page.getByText('Preview').first().click()
-  await expect(page.getByText('Session Note - March 5, 2026')).toBeVisible()
+  // Clinical note not visible initially
+  await expect(page.getByText('Demonstrates capture of granular lethality markers.')).not.toBeVisible()
 
-  // Click Hide to collapse
-  await page.getByText('Hide').first().click()
-  await expect(page.getByText('Session Note - March 5, 2026')).not.toBeVisible()
+  // Click "Why this sample" on first card (high risk renders first)
+  await page.getByText('Why this sample').first().click()
+  await expect(page.getByText('Demonstrates capture of granular lethality markers.')).toBeVisible()
+
+  // Click again to collapse
+  await page.getByText('Why this sample').first().click()
+  await expect(page.getByText('Demonstrates capture of granular lethality markers.')).not.toBeVisible()
 })
 
 test('Upload page Use This sets selected file', async ({ page }) => {
   await mockUploadRoutes(page)
   await page.goto('/upload')
 
-  await expect(page.getByText('Anxiety / CBT Session')).toBeVisible()
+  await expect(page.getByText('Active SI with Safety Plan')).toBeVisible()
 
-  // Click Use This on first card
+  // Click Use This on first card (high risk renders first)
   await page.getByText('Use This').first().click()
 
   // Should show selected file info
-  await expect(page.getByText(/Selected file:.*sample-nonrisk-001\.pdf/)).toBeVisible()
+  await expect(page.getByText(/Selected file:.*sample-risk-001\.pdf/)).toBeVisible()
 })
 
 test('Upload page Your Document tab shows file input', async ({ page }) => {
@@ -313,6 +335,9 @@ test('Upload page Your Document tab shows file input', async ({ page }) => {
   await page.goto('/upload')
 
   await expect(page.getByRole('heading', { name: 'Upload Session Note' })).toBeVisible()
+
+  // Wait for sample cards to load (ensures form is rendered)
+  await expect(page.getByText('Active SI with Safety Plan')).toBeVisible()
 
   // File input should NOT be visible on Sample Documents tab
   await expect(page.getByLabel('Document File')).not.toBeVisible()

@@ -40,6 +40,7 @@ export function estimateCost(model: string, inputTokens: number, outputTokens: n
 }
 
 export function formatDurationMs(ms: number): string {
+  if (ms === 0) return '<1ms'
   if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`
   return `${ms}ms`
 }
@@ -56,7 +57,11 @@ export function formatResultSummary(stepName: ExtractionStepName, json: string |
       case 'Intake': {
         const r = JSON.parse(json) as IntakeResult
         const validity = r.isValid ? 'Valid Session Note' : 'Invalid'
-        return `${validity} — ${r.estimatedWordCount} words`
+        const parts = [validity]
+        if (r.therapistName) parts.push(r.therapistName)
+        if (r.sessionDate) parts.push(r.sessionDate)
+        parts.push(`${r.estimatedWordCount} words`)
+        return parts.join(' \u00B7 ')
       }
       case 'ClinicalExtract': {
         const r = JSON.parse(json) as ClinicalExtractResult

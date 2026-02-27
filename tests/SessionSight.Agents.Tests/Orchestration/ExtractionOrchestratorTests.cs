@@ -154,7 +154,7 @@ public class ExtractionOrchestratorTests
             .Returns(parsedDoc);
         _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
             .Returns(intakeResult);
-        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<Func<SessionSight.Agents.Tools.LlmCallTrace, IReadOnlyList<SessionSight.Agents.Tools.ToolCallEntry>, Task>?>(), Arg.Any<CancellationToken>())
             .Returns(extractionResult);
         _riskAssessor.AssessAsync(Arg.Any<ExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(riskResult);
@@ -223,7 +223,7 @@ public class ExtractionOrchestratorTests
             .Returns(parsedDoc);
         _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
             .Returns(intakeResult);
-        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<Func<SessionSight.Agents.Tools.LlmCallTrace, IReadOnlyList<SessionSight.Agents.Tools.ToolCallEntry>, Task>?>(), Arg.Any<CancellationToken>())
             .Returns(extractionResult);
         _riskAssessor.AssessAsync(Arg.Any<ExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(riskResult);
@@ -243,7 +243,7 @@ public class ExtractionOrchestratorTests
             _documentStorage.DownloadAsync(Arg.Any<string>());
             _documentParser.ParseAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
             _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>());
-            _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>());
+            _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<Func<SessionSight.Agents.Tools.LlmCallTrace, IReadOnlyList<SessionSight.Agents.Tools.ToolCallEntry>, Task>?>(), Arg.Any<CancellationToken>());
             _riskAssessor.AssessAsync(Arg.Any<ExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         });
     }
@@ -271,7 +271,7 @@ public class ExtractionOrchestratorTests
             .Returns(parsedDoc);
         _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
             .Returns(intakeResult);
-        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<Func<SessionSight.Agents.Tools.LlmCallTrace, IReadOnlyList<SessionSight.Agents.Tools.ToolCallEntry>, Task>?>(), Arg.Any<CancellationToken>())
             .Returns(extractionResult);
         _riskAssessor.AssessAsync(Arg.Any<ExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(riskResult);
@@ -299,7 +299,7 @@ public class ExtractionOrchestratorTests
             .Returns(parsedDoc);
         _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
             .Returns(intakeResult);
-        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<Func<SessionSight.Agents.Tools.LlmCallTrace, IReadOnlyList<SessionSight.Agents.Tools.ToolCallEntry>, Task>?>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("LLM call failed"));
 
         // Act
@@ -336,7 +336,7 @@ public class ExtractionOrchestratorTests
             .Returns(parsedDoc);
         _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
             .Returns(intakeResult);
-        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<Func<SessionSight.Agents.Tools.LlmCallTrace, IReadOnlyList<SessionSight.Agents.Tools.ToolCallEntry>, Task>?>(), Arg.Any<CancellationToken>())
             .Returns(extractionResult);
         _riskAssessor.AssessAsync(Arg.Any<ExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(riskResult);
@@ -383,7 +383,7 @@ public class ExtractionOrchestratorTests
             .Returns(parsedDoc);
         _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
             .Returns(intakeResult);
-        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<Func<SessionSight.Agents.Tools.LlmCallTrace, IReadOnlyList<SessionSight.Agents.Tools.ToolCallEntry>, Task>?>(), Arg.Any<CancellationToken>())
             .Returns(failedExtraction);
 
         // Act
@@ -421,7 +421,7 @@ public class ExtractionOrchestratorTests
             .Returns(parsedDoc);
         _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
             .Returns(intakeResult);
-        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<Func<SessionSight.Agents.Tools.LlmCallTrace, IReadOnlyList<SessionSight.Agents.Tools.ToolCallEntry>, Task>?>(), Arg.Any<CancellationToken>())
             .Returns(extractionResult);
         _riskAssessor.AssessAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(riskResult);
@@ -461,7 +461,7 @@ public class ExtractionOrchestratorTests
             .Returns(parsedDoc);
         _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
             .Returns(intakeResult);
-        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<Func<SessionSight.Agents.Tools.LlmCallTrace, IReadOnlyList<SessionSight.Agents.Tools.ToolCallEntry>, Task>?>(), Arg.Any<CancellationToken>())
             .Returns(extractionResult);
         _riskAssessor.AssessAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(riskResult);
@@ -503,7 +503,7 @@ public class ExtractionOrchestratorTests
             .Returns(parsedDoc);
         _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
             .Returns(intakeResult);
-        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<Func<SessionSight.Agents.Tools.LlmCallTrace, IReadOnlyList<SessionSight.Agents.Tools.ToolCallEntry>, Task>?>(), Arg.Any<CancellationToken>())
             .Returns(extractionResult);
         _riskAssessor.AssessAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(riskResult);
@@ -641,7 +641,7 @@ public class ExtractionOrchestratorTests
             .Returns(parsedDoc);
         _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
             .Returns(intakeResult);
-        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<Func<SessionSight.Agents.Tools.LlmCallTrace, IReadOnlyList<SessionSight.Agents.Tools.ToolCallEntry>, Task>?>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new TimeoutException("Agent loop timed out"));
 
         // Act
@@ -673,7 +673,7 @@ public class ExtractionOrchestratorTests
             .Returns(parsedDoc);
         _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
             .Returns(intakeResult);
-        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<Func<SessionSight.Agents.Tools.LlmCallTrace, IReadOnlyList<SessionSight.Agents.Tools.ToolCallEntry>, Task>?>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("LLM failed"));
         // Status update also throws
         _documentRepository.UpdateDocumentStatusAsync(
@@ -802,7 +802,7 @@ public class ExtractionOrchestratorTests
         // Assert — core steps should NOT have been called
         await _documentParser.DidNotReceive().ParseAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _intakeAgent.DidNotReceive().ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>());
-        await _extractorAgent.DidNotReceive().ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>());
+        await _extractorAgent.DidNotReceive().ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<Func<SessionSight.Agents.Tools.LlmCallTrace, IReadOnlyList<SessionSight.Agents.Tools.ToolCallEntry>, Task>?>(), Arg.Any<CancellationToken>());
         await _riskAssessor.DidNotReceive().AssessAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
 
         // SearchIndex should have been re-attempted
@@ -833,7 +833,7 @@ public class ExtractionOrchestratorTests
             .Returns(parsedDoc);
         _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
             .Returns(intakeResult);
-        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<Func<SessionSight.Agents.Tools.LlmCallTrace, IReadOnlyList<SessionSight.Agents.Tools.ToolCallEntry>, Task>?>(), Arg.Any<CancellationToken>())
             .Returns(extractionResult);
         _riskAssessor.AssessAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(riskResult);
@@ -1174,7 +1174,7 @@ public class ExtractionOrchestratorTests
             .Returns(parsedDoc);
         _intakeAgent.ProcessAsync(Arg.Any<ParsedDocument>(), Arg.Any<CancellationToken>())
             .Returns(intakeResult);
-        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<CancellationToken>())
+        _extractorAgent.ExtractAsync(Arg.Any<IntakeResult>(), Arg.Any<Func<SessionSight.Agents.Tools.LlmCallTrace, IReadOnlyList<SessionSight.Agents.Tools.ToolCallEntry>, Task>?>(), Arg.Any<CancellationToken>())
             .Returns(extractionResult);
         _riskAssessor.AssessAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("content filter triggered"));
