@@ -133,6 +133,9 @@ builder.Services.AddScoped<ISessionIndexingService, SessionIndexingService>();
 // Extraction Orchestrator
 builder.Services.AddScoped<IExtractionOrchestrator, ExtractionOrchestrator>();
 
+// Reindex Service
+builder.Services.AddScoped<IReindexService, ReindexService>();
+
 // Extraction Job Dispatcher (background queue)
 builder.Services.AddSingleton<ExtractionJobDispatcher>();
 builder.Services.AddSingleton<IExtractionJobDispatcher>(sp =>

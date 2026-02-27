@@ -1106,6 +1106,33 @@ public class ExtractionOrchestratorTests
         message.Should().Contain("invalid output");
     }
 
+    [Theory]
+    [InlineData(400, FailureKind.Permanent, "not supported")]
+    [InlineData(415, FailureKind.Permanent, "not supported")]
+    [InlineData(401, FailureKind.Transient, "Authentication error")]
+    [InlineData(403, FailureKind.Transient, "Authentication error")]
+    public void ClassifyFailure_RequestFailedExceptionDocIntel_ReturnsExpected(
+        int statusCode, FailureKind expectedKind, string expectedMessagePart)
+    {
+        var ex = new RequestFailedException(statusCode, "Doc Intelligence error");
+        var (kind, message) = ExtractionOrchestrator.ClassifyFailure(ex);
+
+        kind.Should().Be(expectedKind);
+        message.Should().Contain(expectedMessagePart);
+    }
+
+    [Theory]
+    [InlineData(503)]
+    [InlineData(502)]
+    public void ClassifyFailure_RequestFailedException5xx_ReturnsTransient(int statusCode)
+    {
+        var ex = new RequestFailedException(statusCode, "Server error");
+        var (kind, message) = ExtractionOrchestrator.ClassifyFailure(ex);
+
+        kind.Should().Be(FailureKind.Transient);
+        message.Should().Contain("temporarily unavailable");
+    }
+
     [Fact]
     public async Task ProcessSessionAsync_DocumentParseThrows_FailsWithClassifiedError()
     {

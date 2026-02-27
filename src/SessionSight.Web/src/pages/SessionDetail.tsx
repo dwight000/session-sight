@@ -5,6 +5,7 @@ import { useSubmitReview } from '../hooks/useSubmitReview'
 import { useRegenerateSessionSummary } from '../hooks/useRegenerateSessionSummary'
 import { useDeleteDocument } from '../hooks/useDeleteDocument'
 import { useRetryExtraction } from '../hooks/useRetryExtraction'
+import { useReindexSession } from '../hooks/useReindexSession'
 import { Card } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -195,6 +196,7 @@ export function SessionDetail() {
   const regenerate = useRegenerateSessionSummary(sessionId!)
   const deleteDoc = useDeleteDocument(sessionId!)
   const retryMutation = useRetryExtraction()
+  const reindexMutation = useReindexSession()
   const navigate = useNavigate()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
@@ -257,9 +259,18 @@ export function SessionDetail() {
                 </p>
               )}
               {data.indexingStatus === 'Failed' && data.documentStatus !== 'Failed' && (
-                <p className="mt-1 text-sm text-amber-700">
-                  Search indexing failed — this session may not appear in Q&A search results.
-                </p>
+                <div className="mt-1 flex items-center gap-2">
+                  <p className="text-sm text-amber-700">
+                    Search indexing failed — this session may not appear in Q&A search results.
+                  </p>
+                  <Button
+                    variant="secondary"
+                    onClick={() => reindexMutation.mutate(sessionId!)}
+                    disabled={reindexMutation.isPending}
+                  >
+                    {reindexMutation.isPending ? 'Reindexing...' : 'Reindex'}
+                  </Button>
+                </div>
               )}
             </div>
             {data.failureKind !== 'Permanent' && (
