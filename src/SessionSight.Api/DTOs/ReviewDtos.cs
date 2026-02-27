@@ -23,7 +23,11 @@ public record ReviewDetailDto(
     List<string> ReviewReasons,
     string? SummaryJson,
     object Data,
-    List<SupervisorReviewDto> Reviews);
+    List<SupervisorReviewDto> Reviews,
+    string? DocumentStatus = null,
+    string? FailureKind = null,
+    string? ErrorMessage = null,
+    string? IndexingStatus = null);
 
 public record SubmitReviewRequest(
     [property: System.Text.Json.Serialization.JsonRequired] ReviewStatus Action,

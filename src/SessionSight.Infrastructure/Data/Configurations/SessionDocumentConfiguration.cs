@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SessionSight.Core.Entities;
+using SessionSight.Core.Enums;
 
 namespace SessionSight.Infrastructure.Data.Configurations;
 
@@ -14,5 +15,13 @@ public class SessionDocumentConfiguration : IEntityTypeConfiguration<SessionDocu
         builder.Property(d => d.BlobUri).HasMaxLength(2048).IsRequired();
         builder.Property(d => d.ContentType).HasMaxLength(100).IsRequired();
         builder.Property(d => d.Status).HasConversion<string>().HasMaxLength(50);
+        builder.Property(d => d.IndexingStatus).HasConversion<string>().HasMaxLength(50)
+            .HasDefaultValue(IndexingStatus.None);
+        builder.Property(d => d.FailureKind).HasConversion<string>().HasMaxLength(50)
+            .HasDefaultValue(FailureKind.None);
+        builder.Property(d => d.ErrorMessage).HasMaxLength(2000);
+        builder.Property(d => d.RowVersion)
+            .IsRowVersion()
+            .IsConcurrencyToken();
     }
 }

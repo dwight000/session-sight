@@ -59,6 +59,11 @@ public class ExtractionResult
     /// </summary>
     public int DiscrepancyCount { get; set; }
 
+    /// <summary>
+    /// Whether the risk re-extraction was blocked by Azure OpenAI content filter.
+    /// </summary>
+    public bool ContentFilterBlocked { get; set; }
+
     // ── Per-field audit trail (genuinely list-shaped → JSON) ──
 
     /// <summary>
@@ -67,4 +72,5 @@ public class ExtractionResult
     public string? RiskFieldDecisionsJson { get; set; }
 
     public ICollection<SupervisorReview> Reviews { get; set; } = new List<SupervisorReview>();
+    public ICollection<ExtractionStep> Steps { get; set; } = new List<ExtractionStep>();
 }

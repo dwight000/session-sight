@@ -45,6 +45,7 @@ public class DtoTests
             SelfHarmGuardrail: null,
             CriteriaValidationAttempts: 2,
             DiscrepancyCount: 1,
+            ContentFilterBlocked: false,
             FieldDecisions: [new RiskFieldDecisionDto(
                 "suicidal_ideation", "None", "Low", "Low",
                 "conservative_merge", ["keyword_match"], "Elevated based on note content")]);

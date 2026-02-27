@@ -40,13 +40,17 @@ builder.AddServiceDefaults();
 builder.AddSqlServerDbContext<SessionSight.Infrastructure.Data.SessionSightDbContext>("sessionsight");
 
 // Aspire-managed Azure Blob Storage
-builder.AddAzureBlobClient("documents");
+builder.AddAzureBlobServiceClient("documents");
 
 // Infrastructure DI (repositories, blob storage)
 builder.Services.AddScoped<SessionSight.Core.Interfaces.IPatientRepository, SessionSight.Infrastructure.Repositories.PatientRepository>();
-builder.Services.AddScoped<SessionSight.Core.Interfaces.ISessionRepository, SessionSight.Infrastructure.Repositories.SessionRepository>();
+builder.Services.AddScoped<SessionSight.Infrastructure.Repositories.SessionRepository>();
+builder.Services.AddScoped<SessionSight.Core.Interfaces.ISessionRepository>(sp => sp.GetRequiredService<SessionSight.Infrastructure.Repositories.SessionRepository>());
+builder.Services.AddScoped<SessionSight.Core.Interfaces.IDocumentRepository>(sp => sp.GetRequiredService<SessionSight.Infrastructure.Repositories.SessionRepository>());
+builder.Services.AddScoped<SessionSight.Core.Interfaces.IExtractionResultRepository>(sp => sp.GetRequiredService<SessionSight.Infrastructure.Repositories.SessionRepository>());
 builder.Services.AddScoped<SessionSight.Core.Interfaces.IDocumentStorage, SessionSight.Infrastructure.Storage.AzureBlobDocumentStorage>();
 builder.Services.AddScoped<SessionSight.Core.Interfaces.IReviewRepository, SessionSight.Infrastructure.Repositories.ReviewRepository>();
+builder.Services.AddScoped<SessionSight.Core.Interfaces.IExtractionStepRepository, SessionSight.Infrastructure.Repositories.ExtractionStepRepository>();
 builder.Services.AddScoped<SessionSight.Core.Interfaces.ITherapistRepository, SessionSight.Infrastructure.Repositories.TherapistRepository>();
 builder.Services.AddScoped<SessionSight.Core.Interfaces.IProcessingJobRepository, SessionSight.Infrastructure.Repositories.ProcessingJobRepository>();
 
@@ -65,12 +69,9 @@ builder.Services.AddScoped<ExtractionAgents>(sp => new ExtractionAgents(
     sp.GetRequiredService<ISummarizerAgent>()));
 builder.Services.AddSingleton<ISchemaValidator, SchemaValidator>();
 
-// Agent tools (existing from P2-006a)
+// Agent tools (extraction)
 builder.Services.AddSingleton<IAgentTool, CheckRiskKeywordsTool>();
-builder.Services.AddSingleton<IAgentTool, ValidateSchemaTool>();
-
-// Agent tools (new in P2-006b)
-builder.Services.AddSingleton<IAgentTool, ScoreConfidenceTool>();
+builder.Services.AddSingleton<IAgentTool, ValidateAndScoreTool>();
 builder.Services.AddScoped<IAgentTool, QueryPatientHistoryTool>();  // Scoped - needs repository
 builder.Services.AddSingleton<IAgentTool, LookupDiagnosisCodeTool>();
 
@@ -87,6 +88,10 @@ builder.Services.AddScoped<CompareSessionsTool>();
 // RiskAssessor configuration
 builder.Services.Configure<RiskAssessorOptions>(
     builder.Configuration.GetSection(RiskAssessorOptions.SectionName));
+
+// Pipeline diagnostics configuration
+builder.Services.Configure<PipelineDiagnosticsOptions>(
+    builder.Configuration.GetSection(PipelineDiagnosticsOptions.SectionName));
 
 // Document Intelligence configuration
 builder.Services.Configure<DocumentIntelligenceOptions>(
@@ -127,6 +132,16 @@ builder.Services.AddScoped<ISessionIndexingService, SessionIndexingService>();
 
 // Extraction Orchestrator
 builder.Services.AddScoped<IExtractionOrchestrator, ExtractionOrchestrator>();
+
+// Reindex Service
+builder.Services.AddScoped<IReindexService, ReindexService>();
+
+// Extraction Job Dispatcher (background queue)
+builder.Services.AddSingleton<ExtractionJobDispatcher>();
+builder.Services.AddSingleton<IExtractionJobDispatcher>(sp =>
+    sp.GetRequiredService<ExtractionJobDispatcher>());
+builder.Services.AddHostedService(sp =>
+    sp.GetRequiredService<ExtractionJobDispatcher>());
 
 // Controllers + JSON serialization
 builder.Services.AddControllers()

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
 import { ConfidenceBar } from '../components/ui/ConfidenceBar'
 import { usePatients } from '../hooks/usePatients'
+import { useSessions } from '../hooks/useSessions'
 import { useAskQuestion } from '../hooks/useAskQuestion'
 import type { QAResponse } from '../types'
 
@@ -18,7 +19,14 @@ export function QA() {
   const [error, setError] = useState<string | null>(null)
 
   const { data: patients } = usePatients()
+  const { data: patientSessions } = useSessions(
+    selectedPatientId ? { patientId: selectedPatientId } : undefined
+  )
   const mutation = useAskQuestion(selectedPatientId)
+
+  const hasIndexingFailures = patientSessions?.some(
+    (s) => s.indexingStatus === 'Failed'
+  ) ?? false
 
   const handlePatientChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedPatientId(e.target.value)
@@ -112,6 +120,14 @@ export function QA() {
           )}
         </form>
       </Card>
+
+      {hasIndexingFailures && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm text-amber-800">
+            Some sessions may not appear in search results due to indexing failures.
+          </p>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-md border border-red-200 bg-red-50 p-4">

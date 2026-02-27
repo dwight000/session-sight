@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using SessionSight.Agents.Orchestration;
+using SessionSight.Agents.Services;
 using SessionSight.Core.Enums;
 using SessionSight.Core.Interfaces;
 
@@ -12,36 +12,38 @@ namespace SessionSight.Api.Controllers;
 [Route("api/extraction")]
 public partial class ExtractionController : ControllerBase
 {
-    private readonly IExtractionOrchestrator _orchestrator;
     private readonly ISessionRepository _sessionRepository;
+    private readonly IDocumentRepository _documentRepository;
+    private readonly IExtractionJobDispatcher _dispatcher;
     private readonly ILogger<ExtractionController> _logger;
 
     public ExtractionController(
-        IExtractionOrchestrator orchestrator,
         ISessionRepository sessionRepository,
+        IDocumentRepository documentRepository,
+        IExtractionJobDispatcher dispatcher,
         ILogger<ExtractionController> logger)
     {
-        _orchestrator = orchestrator;
         _sessionRepository = sessionRepository;
+        _documentRepository = documentRepository;
+        _dispatcher = dispatcher;
         _logger = logger;
     }
 
     /// <summary>
     /// Triggers extraction processing for a session's uploaded document.
+    /// Returns 202 Accepted immediately; processing runs in the background.
+    /// Poll GET /api/sessions/{id}/extraction/steps for progress.
     /// </summary>
-    /// <param name="sessionId">The session ID with an uploaded document.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>The orchestration result with extraction status.</returns>
     [HttpPost("{sessionId:guid}")]
-    [ProducesResponseType(typeof(OrchestrationResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<OrchestrationResult>> TriggerExtraction(
+    public async Task<IActionResult> TriggerExtraction(
         Guid sessionId,
         CancellationToken ct)
     {
-        var session = await _sessionRepository.GetByIdAsync(sessionId);
+        var session = await _sessionRepository.GetByIdAsync(sessionId, ct);
         if (session is null)
         {
             return NotFound($"Session {sessionId} not found");
@@ -52,11 +54,13 @@ public partial class ExtractionController : ControllerBase
             return BadRequest("Session has no document uploaded");
         }
 
-        // Atomic transition: only one caller can move Pending/Failed → Processing
-        var transitioned = await _sessionRepository.TryTransitionDocumentStatusAsync(
-                sessionId, DocumentStatus.Pending, DocumentStatus.Processing)
-            || await _sessionRepository.TryTransitionDocumentStatusAsync(
-                sessionId, DocumentStatus.Failed, DocumentStatus.Processing);
+        // Atomic transition: only one caller can move Pending/Failed/PartiallyCompleted → Processing
+        var transitioned = await _documentRepository.TryTransitionDocumentStatusAsync(
+                sessionId, DocumentStatus.Pending, DocumentStatus.Processing, ct)
+            || await _documentRepository.TryTransitionDocumentStatusAsync(
+                sessionId, DocumentStatus.Failed, DocumentStatus.Processing, ct)
+            || await _documentRepository.TryTransitionDocumentStatusAsync(
+                sessionId, DocumentStatus.PartiallyCompleted, DocumentStatus.Processing, ct);
         if (!transitioned)
         {
             return Conflict("Extraction already in progress or completed");
@@ -64,22 +68,11 @@ public partial class ExtractionController : ControllerBase
 
         LogTriggeringExtraction(_logger, sessionId);
 
-        // Use a dedicated timeout instead of the HTTP request's CancellationToken.
-        // The extraction pipeline should run to completion even if the client disconnects.
-        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
-        var result = await _orchestrator.ProcessSessionAsync(sessionId, cts.Token);
+        await _dispatcher.EnqueueAsync(sessionId);
 
-        if (!result.Success)
-        {
-            LogExtractionFailed(_logger, sessionId, result.ErrorMessage);
-        }
-
-        return Ok(result);
+        return Accepted(new { sessionId });
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Triggering extraction for session {SessionId}")]
     private static partial void LogTriggeringExtraction(ILogger logger, Guid sessionId);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Extraction failed for session {SessionId}: {Error}")]
-    private static partial void LogExtractionFailed(ILogger logger, Guid sessionId, string? error);
 }

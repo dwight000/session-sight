@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { LegalDisclaimer } from './LegalDisclaimer'
 
 const links = [
   { to: '/', label: 'Dashboard' },
@@ -13,7 +14,7 @@ const links = [
 
 export function Sidebar() {
   return (
-    <aside className="hidden w-56 shrink-0 border-r border-gray-200 bg-gray-50 md:block">
+    <aside className="hidden w-56 shrink-0 flex-col border-r border-gray-200 bg-gray-50 md:flex">
       <div className="px-4 py-6">
         <h1 className="text-lg font-bold text-gray-900">SessionSight</h1>
       </div>
@@ -35,6 +36,8 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
+      <div className="flex-1" />
+      <LegalDisclaimer />
     </aside>
   )
 }

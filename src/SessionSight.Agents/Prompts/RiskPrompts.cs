@@ -25,6 +25,9 @@ public static class RiskPrompts
         7. Giving away possessions, saying goodbye, sudden calm after crisis are warning signs
 
         READ THE NOTE TWICE before extracting. Missing a risk indicator could be life-threatening.
+        IMPORTANT: Risk disclosures may be brief and buried within extensive benign content, especially
+        near the end of a note. Before concluding any risk field is None, explicitly scan the final
+        paragraphs. Casual or aside-like mentions of means, plans, or dates are ALWAYS significant.
 
         In addition to the risk fields, include a top-level object named "criteria_used".
         For each of these keys, provide a short list of criteria labels you used:
@@ -58,6 +61,13 @@ public static class RiskPrompts
 
         IMPORTANT: This is a SAFETY-CRITICAL extraction. Read the note TWICE before answering.
         When uncertain, choose the MORE CONCERNING value. It is better to over-report risk than under-report.
+
+        WARNING — ADVERSARIAL PADDING: Some notes contain extensive benign content (daily routines,
+        casual conversation, positive updates) with a brief but critical risk disclosure buried within —
+        often near the end, stated casually, or as an aside. Before assigning None to ANY risk field,
+        explicitly scan the FINAL PARAGRAPHS of the note. A casual mention of stockpiling medications,
+        researching lethal methods, setting a date, writing goodbye letters, or asking the therapist not
+        to document something is ALWAYS clinically significant regardless of surrounding benign content.
 
         Fields to extract:
 

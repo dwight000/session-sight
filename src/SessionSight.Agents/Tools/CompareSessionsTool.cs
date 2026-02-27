@@ -66,7 +66,7 @@ public class CompareSessionsTool : IAgentTool
                     return ToolResult.Error($"Invalid sessionId format: {idString} - must be a valid GUID");
                 }
 
-                var session = await _repository.GetByIdAsync(sessionGuid);
+                var session = await _repository.GetByIdAsync(sessionGuid, ct);
                 if (session is null)
                 {
                     return ToolResult.Error($"Session not found: {idString}");

@@ -14,6 +14,13 @@ namespace SessionSight.Agents.Services;
 /// </summary>
 public partial class DocumentIntelligenceParser : IDocumentParser
 {
+    private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".pdf", ".docx", ".doc", ".jpeg", ".jpg", ".png", ".tiff", ".tif", ".bmp"
+    };
+
+    private static readonly byte[] PdfMagicBytes = "%PDF"u8.ToArray();
+
     private readonly DocumentIntelligenceClient _client;
     private readonly DocumentIntelligenceOptions _options;
     private readonly ILogger<DocumentIntelligenceParser> _logger;
@@ -42,6 +49,8 @@ public partial class DocumentIntelligenceParser : IDocumentParser
             throw new DocumentValidationException(
                 $"Document size ({documentBytes.Length:N0} bytes) exceeds maximum allowed ({_options.MaxFileSizeBytes:N0} bytes)");
         }
+
+        ValidateFileFormat(fileName, documentBytes);
 
         var binaryData = BinaryData.FromBytes(documentBytes);
 
@@ -264,6 +273,24 @@ public partial class DocumentIntelligenceParser : IDocumentParser
         }
 
         return wordList.Average(word => word.Confidence);
+    }
+
+    internal static void ValidateFileFormat(string fileName, byte[] documentBytes)
+    {
+        var extension = Path.GetExtension(fileName);
+        if (string.IsNullOrEmpty(extension) || !SupportedExtensions.Contains(extension))
+        {
+            throw new DocumentValidationException(
+                $"Unsupported file format '{extension}'. Supported formats: {string.Join(", ", SupportedExtensions.Order())}");
+        }
+
+        if (extension.Equals(".pdf", StringComparison.OrdinalIgnoreCase)
+            && (documentBytes.Length < PdfMagicBytes.Length
+                || !documentBytes.AsSpan(0, PdfMagicBytes.Length).SequenceEqual(PdfMagicBytes)))
+        {
+            throw new DocumentValidationException(
+                "File has .pdf extension but does not appear to be a valid PDF document");
+        }
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Parsing document: {FileName}")]

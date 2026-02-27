@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { useSessions } from '../hooks/useSessions'
 import { usePatients } from '../hooks/usePatients'
 import { useUploadDocument } from '../hooks/useUploadDocument'
+import { useExtractionSteps } from '../hooks/useExtractionSteps'
 import { Button } from '../components/ui/Button'
 import { Spinner } from '../components/ui/Spinner'
+import { ExtractionPipelineView } from '../components/extraction/ExtractionPipelineView'
 
 interface SampleDoc {
   id: string
@@ -12,6 +15,11 @@ interface SampleDoc {
   title: string
   description: string
   previewText: string
+  riskTier: 'low' | 'moderate' | 'high'
+  diagnosis: string
+  metaStrip: string
+  keyExtractions: { field: string; value: string }[]
+  clinicalNote: string
 }
 
 function formatDate(iso: string) {
@@ -24,15 +32,23 @@ export function Upload() {
   const { data: sessions, isLoading: sessionsLoading } = useSessions({ hasDocument: false })
   const { data: patients } = usePatients()
   const uploadDocument = useUploadDocument()
+  const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const pipelineRef = useRef<HTMLDivElement>(null)
 
   const [selectedSessionId, setSelectedSessionId] = useState<string>('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [uploadResult, setUploadResult] = useState<{ success: boolean; sessionId?: string; error?: string } | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
   const [docSource, setDocSource] = useState<DocSource>('sample')
   const [samples, setSamples] = useState<SampleDoc[]>([])
   const [expandedSample, setExpandedSample] = useState<string | null>(null)
   const [loadingSample, setLoadingSample] = useState<string | null>(null)
+  const [processingSessionId, setProcessingSessionId] = useState<string | null>(null)
+  const [selectedSample, setSelectedSample] = useState<SampleDoc | null>(null)
+
+  // Poll extraction steps for the session being processed — drives status banners
+  const { data: pipelineData } = useExtractionSteps(processingSessionId ?? '', !!processingSessionId)
+  const pipelineStatus = pipelineData?.documentStatus
 
   useEffect(() => {
     fetch('/samples/samples.json')
@@ -40,6 +56,13 @@ export function Upload() {
       .then((data: SampleDoc[]) => setSamples(data))
       .catch(() => setSamples([]))
   }, [])
+
+  // Scroll pipeline into view when it appears
+  useEffect(() => {
+    if (processingSessionId) {
+      pipelineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [processingSessionId])
 
   // Build patient name lookup
   const patientNames = new Map<string, string>()
@@ -51,7 +74,7 @@ export function Upload() {
     const file = e.target.files?.[0]
     if (file) {
       setSelectedFile(file)
-      setUploadResult(null)
+      setUploadError(null)
     }
   }
 
@@ -62,12 +85,13 @@ export function Upload() {
       const blob = await response.blob()
       const file = new File([blob], sample.filename, { type: 'application/pdf' })
       setSelectedFile(file)
-      setUploadResult(null)
+      setSelectedSample(sample)
+      setUploadError(null)
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
     } catch {
-      setUploadResult({ success: false, error: `Failed to load sample: ${sample.title}` })
+      setUploadError(`Failed to load sample: ${sample.title}`)
     } finally {
       setLoadingSample(null)
     }
@@ -77,24 +101,27 @@ export function Upload() {
     e.preventDefault()
     if (!selectedSessionId || !selectedFile) return
 
-    setUploadResult(null)
+    setUploadError(null)
+    setProcessingSessionId(selectedSessionId)
     uploadDocument.mutate(
       { sessionId: selectedSessionId, file: selectedFile },
       {
-        onSuccess: (result) => {
-          if (result.success) {
-            setUploadResult({ success: true, sessionId: selectedSessionId })
-            setSelectedSessionId('')
-            setSelectedFile(null)
-            if (fileInputRef.current) {
-              fileInputRef.current.value = ''
-            }
-          } else {
-            setUploadResult({ success: false, error: result.errorMessage || 'Extraction failed' })
+        onSuccess: () => {
+          // 202 accepted — pipeline view takes over for progress. Clear form.
+          queryClient.invalidateQueries({ queryKey: ['extractionSteps', selectedSessionId] })
+          queryClient.invalidateQueries({ queryKey: ['extractionResult', selectedSessionId] })
+          queryClient.invalidateQueries({ queryKey: ['reviewDetail', selectedSessionId] })
+          setSelectedSessionId('')
+          setSelectedFile(null)
+          if (fileInputRef.current) {
+            fileInputRef.current.value = ''
           }
         },
         onError: (error) => {
-          setUploadResult({ success: false, error: (error as Error).message })
+          queryClient.invalidateQueries({ queryKey: ['extractionSteps', selectedSessionId] })
+          queryClient.invalidateQueries({ queryKey: ['extractionResult', selectedSessionId] })
+          queryClient.invalidateQueries({ queryKey: ['reviewDetail', selectedSessionId] })
+          setUploadError((error as Error).message)
         },
       }
     )
@@ -113,7 +140,42 @@ export function Upload() {
         </p>
       </div>
 
-      {uploadResult?.success && (
+      {/* Expected outcome card — stays visible during extraction for comparison */}
+      {processingSessionId && selectedSample && (
+        <div className="rounded-md border border-gray-200 bg-white p-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Expected Outcome</span>
+            <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${
+              selectedSample.riskTier === 'high' ? 'bg-red-100 text-red-700' :
+              selectedSample.riskTier === 'moderate' ? 'bg-amber-100 text-amber-700' :
+              'bg-gray-100 text-gray-600'
+            }`}>
+              {selectedSample.riskTier === 'high' ? 'High Risk' :
+               selectedSample.riskTier === 'moderate' ? 'Moderate Risk' : 'Low Risk'}
+            </span>
+            <span className="text-sm font-medium text-gray-900">{selectedSample.title}</span>
+          </div>
+          <p className="mt-1 text-xs text-gray-500">{selectedSample.metaStrip}</p>
+          <div className="mt-2 bg-gray-50 rounded p-2 space-y-1">
+            {selectedSample.keyExtractions.map((ext) => (
+              <div key={ext.field} className="flex text-xs gap-2">
+                <span className="text-gray-500 font-medium shrink-0 w-28">{ext.field}</span>
+                <span className="text-gray-700">{ext.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Pipeline view — above the form when active */}
+      {processingSessionId && (
+        <div ref={pipelineRef} className="rounded-md border border-blue-200 bg-blue-50/30 p-4">
+          <p className="mb-3 text-sm font-medium text-blue-800">Extraction Pipeline</p>
+          <ExtractionPipelineView sessionId={processingSessionId} isLive={true} />
+        </div>
+      )}
+
+      {pipelineStatus === 'Completed' && (
         <div className="rounded-md bg-green-50 p-4">
           <div className="flex">
             <div className="flex-shrink-0">
@@ -123,11 +185,11 @@ export function Upload() {
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-green-800">
-                Document uploaded and extraction completed successfully!
+                Extraction completed successfully!
               </p>
               <div className="mt-2">
                 <Link
-                  to={`/review/session/${uploadResult.sessionId}`}
+                  to={`/review/session/${processingSessionId}`}
                   className="text-sm font-medium text-green-700 underline hover:text-green-600"
                 >
                   View extraction results
@@ -138,7 +200,32 @@ export function Upload() {
         </div>
       )}
 
-      {uploadResult?.success === false && (
+      {pipelineStatus === 'PartiallyCompleted' && (
+        <div className="rounded-md bg-amber-50 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-amber-800">
+                Extraction partially completed — some steps need retry.
+              </p>
+              <div className="mt-2">
+                <Link
+                  to={`/review/session/${processingSessionId}`}
+                  className="text-sm font-medium text-amber-700 underline hover:text-amber-600"
+                >
+                  View extraction results
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pipelineStatus === 'Failed' && (
         <div className="rounded-md bg-red-50 p-4">
           <div className="flex">
             <div className="flex-shrink-0">
@@ -148,7 +235,24 @@ export function Upload() {
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-red-800">
-                {uploadResult.error}
+                Extraction failed. You can retry from the Sessions page.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {uploadError && (
+        <div className="rounded-md bg-red-50 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-red-800">
+                {uploadError}
               </p>
             </div>
           </div>
@@ -222,7 +326,7 @@ export function Upload() {
                 type="button"
                 role="tab"
                 aria-selected={docSource === 'own'}
-                onClick={() => setDocSource('own')}
+                onClick={() => { setDocSource('own'); setSelectedSample(null) }}
                 className={`px-4 py-1.5 text-sm font-medium rounded-r-md ${
                   docSource === 'own'
                     ? 'bg-blue-50 text-blue-700'
@@ -235,38 +339,83 @@ export function Upload() {
           </div>
 
           {docSource === 'sample' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {samples.map((sample) => (
-                <div
-                  key={sample.id}
-                  className="rounded-md border border-gray-200 p-3 hover:border-blue-300 transition-colors"
-                >
-                  <p className="text-sm font-medium text-gray-900">{sample.title}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{sample.description}</p>
-                  {expandedSample === sample.id && (
-                    <p className="mt-2 text-xs text-gray-600 bg-gray-50 rounded p-2 whitespace-pre-wrap">
-                      {sample.previewText}...
-                    </p>
-                  )}
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setExpandedSample(expandedSample === sample.id ? null : sample.id)}
-                      className="text-xs text-gray-500 hover:text-gray-700 underline"
+            <div className="space-y-3">
+              {[...samples]
+                .sort((a, b) => {
+                  const order: Record<string, number> = { high: 0, moderate: 1, low: 2 }
+                  return (order[a.riskTier] ?? 2) - (order[b.riskTier] ?? 2)
+                })
+                .map((sample) => {
+                  const badgeStyles: Record<string, string> = {
+                    high: 'bg-red-100 text-red-700',
+                    moderate: 'bg-amber-100 text-amber-700',
+                    low: 'bg-gray-100 text-gray-600',
+                  }
+                  const badgeLabel: Record<string, string> = {
+                    high: 'High Risk',
+                    moderate: 'Moderate Risk',
+                    low: 'Low Risk',
+                  }
+                  return (
+                    <div
+                      key={sample.id}
+                      className="rounded-md border border-gray-200 p-4 hover:border-blue-300 transition-colors"
                     >
-                      {expandedSample === sample.id ? 'Hide' : 'Preview'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleUseSample(sample)}
-                      disabled={loadingSample === sample.id}
-                      className="text-xs font-medium text-blue-600 hover:text-blue-800 underline"
-                    >
-                      {loadingSample === sample.id ? 'Loading...' : 'Use This'}
-                    </button>
-                  </div>
-                </div>
-              ))}
+                      {/* Header row */}
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${badgeStyles[sample.riskTier] ?? badgeStyles.low}`}>
+                          {badgeLabel[sample.riskTier] ?? 'Low Risk'}
+                        </span>
+                        <span className="text-sm font-medium text-gray-900 flex-1">{sample.title}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleUseSample(sample)}
+                          disabled={loadingSample === sample.id}
+                          className="text-xs font-medium text-blue-600 hover:text-blue-800 underline whitespace-nowrap"
+                        >
+                          {loadingSample === sample.id ? 'Loading...' : 'Use This'}
+                        </button>
+                      </div>
+
+                      {/* Meta strip */}
+                      <p className="mt-1 text-xs text-gray-500">{sample.metaStrip}</p>
+
+                      {/* Key extractions */}
+                      <div className="mt-2 bg-gray-50 rounded p-2 space-y-1">
+                        {sample.keyExtractions.map((ext) => (
+                          <div key={ext.field} className="flex text-xs gap-2">
+                            <span className="text-gray-500 font-medium shrink-0 w-28">{ext.field}</span>
+                            <span className="text-gray-700">{ext.value}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Footer: Why this sample + Open PDF */}
+                      <div className="mt-2 flex items-start justify-between gap-2">
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedSample(expandedSample === sample.id ? null : sample.id)}
+                            className="text-xs text-gray-400 hover:text-gray-600"
+                          >
+                            {expandedSample === sample.id ? '▾ Why this sample' : '▸ Why this sample'}
+                          </button>
+                          {expandedSample === sample.id && (
+                            <p className="mt-1 text-xs text-gray-400 italic">{sample.clinicalNote}</p>
+                          )}
+                        </div>
+                        <a
+                          href={`/samples/${sample.filename}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-gray-400 hover:text-gray-600 whitespace-nowrap"
+                        >
+                          Open PDF ↗
+                        </a>
+                      </div>
+                    </div>
+                  )
+                })}
             </div>
           )}
 
@@ -311,20 +460,6 @@ export function Upload() {
             </Button>
           </div>
 
-          {uploadDocument.isPending && (
-            <div className="rounded-md bg-blue-50 p-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <Spinner className="h-5 w-5 text-blue-500" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-blue-800">
-                    Uploading and extracting document... This may take up to 2 minutes.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
         </form>
       )}
     </div>

@@ -50,7 +50,7 @@ public partial class EmbeddingService : IEmbeddingService
 
         // Add timeout to prevent indefinite hangs
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromSeconds(30));
+        cts.CancelAfter(TimeSpan.FromSeconds(120));
 
         try
         {
@@ -64,7 +64,7 @@ public partial class EmbeddingService : IEmbeddingService
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             LogEmbeddingTimeout(_logger, _modelUsed);
-            throw new TimeoutException($"Embedding generation timed out after 30 seconds using model {_modelUsed}");
+            throw new TimeoutException($"Embedding generation timed out after 120 seconds using model {_modelUsed}");
         }
     }
 

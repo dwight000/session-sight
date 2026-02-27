@@ -136,14 +136,30 @@ public class GoldenQATests : IClassFixture<ApiFixture>
         uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created,
             $"Document upload should succeed for QA case {goldenCase.NoteId}");
 
-        // Trigger extraction
-        var extractionResponse = await _longClient.PostAsync($"/api/extraction/{sessionId}", null);
-        extractionResponse.StatusCode.Should().Be(HttpStatusCode.OK,
-            $"Extraction should succeed for QA case {goldenCase.NoteId}");
+        // Trigger extraction — 202 Accepted, runs in background
+        var extractionResponse = await _client.PostAsync($"/api/extraction/{sessionId}", null);
+        extractionResponse.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            $"Extraction should return 202 for QA case {goldenCase.NoteId}");
 
-        var extractionJson = await extractionResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
-        var success = extractionJson.GetProperty("success").GetBoolean();
-        success.Should().BeTrue($"Extraction should be successful for QA case {goldenCase.NoteId}");
+        // Poll for completion
+        var finalStatus = await ExtractionAssertions.WaitForExtractionAsync(
+            _client, sessionId, TimeSpan.FromMinutes(5), _output);
+
+        if (finalStatus == "Failed")
+        {
+            var stepsCheck = await _client.GetAsync($"/api/sessions/{sessionId}/extraction/steps");
+            var stepsDto = await stepsCheck.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+            var errMsg = stepsDto.TryGetProperty("errorMessage", out var ep) ? ep.GetString() : null;
+            if (ExtractionAssertions.IsContentFilterFailure(finalStatus, errMsg))
+            {
+                throw Xunit.Sdk.SkipException.ForSkip(
+                    $"Content filter blocked extraction for QA case {goldenCase.NoteId}. " +
+                    "Transient Azure-side issue.");
+            }
+        }
+
+        finalStatus.Should().BeOneOf("Completed", "PartiallyCompleted",
+            $"Extraction should complete for QA case {goldenCase.NoteId}");
 
         _output.WriteLine($"[QA-EVAL] {goldenCase.NoteId} | extraction completed for session {sessionId}");
 
@@ -269,15 +285,29 @@ public class GoldenQATests : IClassFixture<ApiFixture>
         // min_confidence
         if (goldenCase.ExpectedAnswer.MinConfidence > 0)
         {
-            confidence.Should().BeGreaterThanOrEqualTo(goldenCase.ExpectedAnswer.MinConfidence,
+            confidence.Should().BeGreaterOrEqualTo(goldenCase.ExpectedAnswer.MinConfidence,
                 $"QA case {goldenCase.NoteId}: confidence {confidence:F2} below minimum {goldenCase.ExpectedAnswer.MinConfidence}");
         }
 
         // expect_sources_count_gte
         if (goldenCase.ExpectedAnswer.ExpectSourcesCountGte > 0)
         {
-            sourceCount.Should().BeGreaterThanOrEqualTo(goldenCase.ExpectedAnswer.ExpectSourcesCountGte,
+            sourceCount.Should().BeGreaterOrEqualTo(goldenCase.ExpectedAnswer.ExpectSourcesCountGte,
                 $"QA case {goldenCase.NoteId}: source count {sourceCount} below minimum {goldenCase.ExpectedAnswer.ExpectSourcesCountGte}");
+        }
+
+        // expected_path: verify the complexity classifier routed correctly
+        if (!string.IsNullOrEmpty(goldenCase.ExpectedPath))
+        {
+            var actualPath = qaResponse.TryGetProperty("diagnostics", out var diag) &&
+                             diag.TryGetProperty("isComplex", out var ic)
+                ? (ic.GetBoolean() ? "complex" : "simple")
+                : "unknown";
+
+            _output.WriteLine($"[QA-EVAL] {goldenCase.NoteId} | path_assert: expected={goldenCase.ExpectedPath}, actual={actualPath}");
+
+            actualPath.Should().Be(goldenCase.ExpectedPath,
+                $"QA case {goldenCase.NoteId}: expected path '{goldenCase.ExpectedPath}' but classifier chose '{actualPath}'");
         }
     }
 

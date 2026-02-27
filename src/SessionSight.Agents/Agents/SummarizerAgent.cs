@@ -25,11 +25,7 @@ public partial class SummarizerAgent : ISummarizerAgent
     private readonly ISessionRepository _sessionRepository;
     private readonly ILogger<SummarizerAgent> _logger;
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
+    private static readonly JsonSerializerOptions JsonOptions = SharedJsonOptions.AgentDefault;
 
     public SummarizerAgent(
         IAIFoundryClientFactory clientFactory,
@@ -74,13 +70,51 @@ public partial class SummarizerAgent : ISummarizerAgent
                 ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
             };
 
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             var response = await chatClient.CompleteChatAsync(messages, options, ct);
+            sw.Stop();
+
+            // Content filter retry: if blocked, retry once before throwing
+            if (ContentFilterHelper.IsContentFilterBlocked(response.Value))
+            {
+                LogSessionSummaryContentFilter(_logger, extraction.SessionId);
+                sw.Restart();
+                response = await chatClient.CompleteChatAsync(messages, options, ct);
+                sw.Stop();
+                if (ContentFilterHelper.IsContentFilterBlocked(response.Value))
+                {
+                    throw new InvalidOperationException(
+                        "Session summary blocked by content filter after retry");
+                }
+            }
+
             var content = response.Value.Content[0].Text;
 
             var summary = ParseSessionSummary(content);
             summary.SessionId = Guid.Parse(extraction.SessionId);
             summary.ModelUsed = modelName;
             summary.GeneratedAt = DateTime.UtcNow;
+
+            if (response.Value.Usage is not null)
+            {
+                summary.InputTokens = response.Value.Usage.InputTokenCount;
+                summary.OutputTokens = response.Value.Usage.OutputTokenCount;
+                summary.TotalTokens = response.Value.Usage.TotalTokenCount;
+            }
+
+            summary.LlmTraces =
+            [
+                new Tools.LlmCallTrace(
+                    PromptText: null,
+                    PromptSegmentsJson: Tools.AgentLoopRunner.SerializeDeltaSegments(messages, 0),
+                    ResponseText: content,
+                    ModelUsed: modelName,
+                    LoopRound: 0,
+                    InputTokens: summary.InputTokens,
+                    OutputTokens: summary.OutputTokens,
+                    TotalTokens: summary.TotalTokens,
+                    DurationMs: sw.ElapsedMilliseconds)
+            ];
 
             LogSessionSummaryCompleted(_logger, extraction.SessionId);
             return summary;
@@ -112,7 +146,7 @@ public partial class SummarizerAgent : ISummarizerAgent
         var modelName = _modelRouter.SelectModel(ModelTask.Summarization);
 
         // Get patient's sessions with extractions
-        var sessions = (await _sessionRepository.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate))
+        var sessions = (await _sessionRepository.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate, ct))
             .Where(s => s.Extraction != null)
             .OrderBy(s => s.SessionDate)
             .ToList();
@@ -209,8 +243,8 @@ public partial class SummarizerAgent : ISummarizerAgent
         LogStartingPracticeSummary(_logger, startDate, endDate);
 
         // Get all sessions in range
-        var allSessions = (await _sessionRepository.GetAllInDateRangeAsync(startDate, endDate)).ToList();
-        var flaggedSessions = (await _sessionRepository.GetFlaggedSessionsAsync(startDate, endDate)).ToList();
+        var allSessions = (await _sessionRepository.GetAllInDateRangeAsync(startDate, endDate, ct)).ToList();
+        var flaggedSessions = (await _sessionRepository.GetFlaggedSessionsAsync(startDate, endDate, ct)).ToList();
 
         // Aggregate metrics locally (no LLM needed for counts)
         var summary = new PracticeSummary
@@ -246,7 +280,7 @@ public partial class SummarizerAgent : ISummarizerAgent
 
     internal static SessionSummary ParseSessionSummary(string content)
     {
-        var json = ExtractJson(content);
+        var json = LlmJsonHelper.ExtractJson(content);
 
         try
         {
@@ -291,7 +325,7 @@ public partial class SummarizerAgent : ISummarizerAgent
 
     internal static PatientSummary ParsePatientSummary(string content)
     {
-        var json = ExtractJson(content);
+        var json = LlmJsonHelper.ExtractJson(content);
 
         try
         {
@@ -397,8 +431,6 @@ public partial class SummarizerAgent : ISummarizerAgent
 
         return risk;
     }
-
-    internal static string ExtractJson(string content) => LlmJsonHelper.ExtractJson(content);
 
     private static RiskLevelBreakdown CalculateRiskDistribution(List<Session> sessions)
     {
@@ -517,6 +549,9 @@ public partial class SummarizerAgent : ISummarizerAgent
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Session summary failed for {SessionId}")]
     private static partial void LogSessionSummaryError(ILogger logger, Exception exception, string sessionId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Session summary content filter hit for {SessionId}, retrying")]
+    private static partial void LogSessionSummaryContentFilter(ILogger logger, string sessionId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Starting patient summary for {PatientId}")]
     private static partial void LogStartingPatientSummary(ILogger logger, Guid patientId);

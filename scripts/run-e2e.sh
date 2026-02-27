@@ -13,7 +13,7 @@
 # Optional flags:
 #   --hot                # Reuse running Aspire (fast iteration, implies --keep-db)
 #   --keep-db            # Keep existing database (don't recreate SQL container)
-#   --filter "TestName"  # Run specific test(s) matching pattern
+#   --filter "TestName"  # Run specific test(s) matching pattern (pipe-separated: "foo|bar")
 #   --headed             # Show visible browser (use with --frontend)
 #
 # What it does:
@@ -66,8 +66,8 @@ RUN_FRONTEND=false
 HEADED=""
 TEST_FILTER=""
 
-for arg in "$@"; do
-    case $arg in
+while [[ $# -gt 0 ]]; do
+    case $1 in
         --hot)
             HOT_MODE=true
             KEEP_DB=true
@@ -93,12 +93,13 @@ for arg in "$@"; do
             TEST_FILTER="$1"
             ;;
         --filter=*)
-            TEST_FILTER="${arg#*=}"
+            TEST_FILTER="${1#*=}"
             ;;
         *)
             # Ignore unknown arguments
             ;;
     esac
+    shift
 done
 
 # Require at least one of --backend, --frontend, or --all
@@ -277,8 +278,19 @@ if [[ "$RUN_BACKEND" = true ]]; then
     fi
 
     if [[ -n "$TEST_FILTER" ]]; then
-        log "Filter: $TEST_FILTER"
-        dotnet test tests/SessionSight.FunctionalTests --verbosity normal --filter "FullyQualifiedName~$TEST_FILTER"
+        # Support pipe-separated patterns: "foo|bar" → "FullyQualifiedName~foo | FullyQualifiedName~bar"
+        DOTNET_FILTER=""
+        IFS='|' read -ra PATTERNS <<< "$TEST_FILTER"
+        for pat in "${PATTERNS[@]}"; do
+            pat=$(echo "$pat" | xargs)  # trim whitespace
+            if [[ -n "$DOTNET_FILTER" ]]; then
+                DOTNET_FILTER="$DOTNET_FILTER | FullyQualifiedName~$pat"
+            else
+                DOTNET_FILTER="FullyQualifiedName~$pat"
+            fi
+        done
+        log "Filter: $DOTNET_FILTER"
+        dotnet test tests/SessionSight.FunctionalTests --verbosity normal --filter "$DOTNET_FILTER"
     else
         dotnet test tests/SessionSight.FunctionalTests --verbosity normal
     fi

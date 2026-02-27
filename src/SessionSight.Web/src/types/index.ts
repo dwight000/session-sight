@@ -19,7 +19,7 @@ export interface CreatePatientRequest {
 // Session types
 export type SessionType = 'Intake' | 'Individual' | 'Group' | 'Family' | 'Couples' | 'Crisis' | 'Assessment' | 'Termination'
 export type SessionModality = 'InPerson' | 'TelehealthVideo' | 'TelehealthPhone' | 'Hybrid'
-export type DocumentStatus = 'Pending' | 'Processing' | 'Completed' | 'Failed'
+export type DocumentStatus = 'Pending' | 'Processing' | 'Completed' | 'PartiallyCompleted' | 'Failed'
 
 export interface Session {
   id: string
@@ -32,6 +32,7 @@ export interface Session {
   sessionNumber: number
   hasDocument: boolean
   documentStatus: DocumentStatus | null
+  indexingStatus?: string
   createdAt: string
   updatedAt: string
 }
@@ -50,7 +51,7 @@ export interface CreateSessionRequest {
 export interface UploadDocumentResponse {
   documentId: string
   sessionId: string
-  fileName: string
+  originalFileName: string
   blobUri: string
   status: string
 }
@@ -81,6 +82,10 @@ export interface ReviewDetail {
   summaryJson: string | null
   data: ClinicalExtraction
   reviews: SupervisorReview[]
+  documentStatus?: DocumentStatus
+  failureKind?: string
+  errorMessage?: string
+  indexingStatus?: string
 }
 
 export interface SubmitReviewRequest {
@@ -218,6 +223,39 @@ export interface QAResponse {
   warning: string | null
   toolCallCount: number
   generatedAt: string
+}
+
+// Extraction result types
+export interface ExtractionResultResponse {
+  id: string
+  sessionId: string
+  data: ClinicalExtraction
+  riskDiagnostics: RiskDiagnostics | null
+}
+
+export interface RiskDiagnostics {
+  guardrailApplied: boolean
+  homicidalGuardrail?: GuardrailDetail | null
+  selfHarmGuardrail?: GuardrailDetail | null
+  criteriaValidationAttempts: number
+  discrepancyCount: number
+  contentFilterBlocked: boolean
+  fieldDecisions: RiskFieldDecision[]
+}
+
+export interface RiskFieldDecision {
+  field: string
+  originalValue: string
+  reExtractedValue: string
+  finalValue: string
+  ruleApplied: string
+  criteriaUsed: string[]
+  reasoningUsed: string
+}
+
+export interface GuardrailDetail {
+  applied: boolean
+  reason?: string | null
 }
 
 // Processing job types

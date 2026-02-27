@@ -2,11 +2,15 @@ name: Back-merge main → develop
 on:
   push:
     branches: [main]
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   back-merge:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}

@@ -242,4 +242,163 @@ public class QAAgentTests
     }
 
     #endregion
+
+    #region BuildContextString Tests
+
+    [Fact]
+    public void BuildContextString_IncludesInterventions()
+    {
+        var doc = new SessionSearchDocument
+        {
+            SessionId = "abc-123",
+            SessionDate = new DateTimeOffset(2024, 1, 15, 0, 0, 0, TimeSpan.Zero),
+            SessionType = "Individual",
+            Interventions = ["CognitiveRestructuring", "Relaxation"],
+            Content = "Ongoing anxiety",
+            Summary = "Session summary"
+        };
+        var results = new List<SearchResult<SessionSearchDocument>>
+        {
+            SearchModelFactory.SearchResult(doc, 0.9, null)
+        };
+
+        var context = QAAgent.BuildContextString(results);
+
+        context.Should().Contain("Interventions: CognitiveRestructuring, Relaxation");
+    }
+
+    [Fact]
+    public void BuildContextString_OmitsInterventionsWhenEmpty()
+    {
+        var doc = new SessionSearchDocument
+        {
+            SessionId = "abc-123",
+            SessionDate = new DateTimeOffset(2024, 1, 15, 0, 0, 0, TimeSpan.Zero),
+            Content = "Ongoing anxiety"
+        };
+        var results = new List<SearchResult<SessionSearchDocument>>
+        {
+            SearchModelFactory.SearchResult(doc, 0.9, null)
+        };
+
+        var context = QAAgent.BuildContextString(results);
+
+        context.Should().NotContain("Interventions:");
+    }
+
+    #endregion
+
+    #region ComplexityPrompt Content
+
+    [Fact]
+    public void ComplexityPrompt_ClassifiesSingleFieldQueriesAsSimple()
+    {
+        // The prompt should explicitly list single-field queries as simple examples
+        QAPrompts.ComplexityPrompt.Should().Contain("risk level");
+        QAPrompts.ComplexityPrompt.Should().Contain("single value");
+    }
+
+    [Fact]
+    public void ComplexityPrompt_ClassifiesTrendQueriesAsComplex()
+    {
+        QAPrompts.ComplexityPrompt.Should().Contain("over time");
+        QAPrompts.ComplexityPrompt.Should().Contain("trend");
+    }
+
+    #endregion
+
+    #region FallbackSourcesFromToolTrace Tests
+
+    [Fact]
+    public void FallbackSourcesFromToolTrace_WithSearchSessionsOutput_ExtractsSessionIds()
+    {
+        var response = new QAResponse();
+        var trace = new List<SessionSight.Agents.Tools.ToolCallEntry>
+        {
+            new("search_sessions", true, OutputJson: """
+                {
+                    "results": [
+                        {"sessionId": "abc-123", "score": 0.9},
+                        {"sessionId": "def-456", "score": 0.8}
+                    ]
+                }
+                """)
+        };
+
+        QAAgent.FallbackSourcesFromToolTrace(response, trace);
+
+        response.Sources.Should().HaveCount(2);
+        response.Sources.Select(s => s.SessionId).Should().Contain("abc-123");
+        response.Sources.Select(s => s.SessionId).Should().Contain("def-456");
+    }
+
+    [Fact]
+    public void FallbackSourcesFromToolTrace_WithGetSessionDetailOutput_ExtractsSessionId()
+    {
+        var response = new QAResponse();
+        var trace = new List<SessionSight.Agents.Tools.ToolCallEntry>
+        {
+            new("get_session_detail", true, OutputJson: """
+                {"sessionId": "abc-123", "data": {"mood": 5}}
+                """)
+        };
+
+        QAAgent.FallbackSourcesFromToolTrace(response, trace);
+
+        response.Sources.Should().HaveCount(1);
+        response.Sources[0].SessionId.Should().Be("abc-123");
+    }
+
+    [Fact]
+    public void FallbackSourcesFromToolTrace_WithNoRelevantTools_DoesNotAddSources()
+    {
+        var response = new QAResponse();
+        var trace = new List<SessionSight.Agents.Tools.ToolCallEntry>
+        {
+            new("aggregate_metrics", true, OutputJson: """
+                {"metricType": "risk_distribution", "distribution": {"High": 1}}
+                """)
+        };
+
+        QAAgent.FallbackSourcesFromToolTrace(response, trace);
+
+        response.Sources.Should().BeNullOrEmpty();
+    }
+
+    [Fact]
+    public void FallbackSourcesFromToolTrace_DeduplicatesSessionIds()
+    {
+        var response = new QAResponse();
+        var trace = new List<SessionSight.Agents.Tools.ToolCallEntry>
+        {
+            new("search_sessions", true, OutputJson: """
+                {"results": [{"sessionId": "abc-123"}, {"sessionId": "abc-123"}]}
+                """),
+            new("get_session_detail", true, OutputJson: """
+                {"sessionId": "abc-123"}
+                """)
+        };
+
+        QAAgent.FallbackSourcesFromToolTrace(response, trace);
+
+        response.Sources.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void FallbackSourcesFromToolTrace_SkipsFailedToolCalls()
+    {
+        var response = new QAResponse();
+        var trace = new List<SessionSight.Agents.Tools.ToolCallEntry>
+        {
+            new("search_sessions", false, OutputJson: """
+                {"results": [{"sessionId": "abc-123"}]}
+                """)
+        };
+
+        QAAgent.FallbackSourcesFromToolTrace(response, trace);
+
+        response.Sources.Should().BeNullOrEmpty();
+    }
+
+    #endregion
 }

@@ -71,6 +71,19 @@ describe('SessionDetail', () => {
     expect(screen.getByText('Overall Risk Level')).toBeInTheDocument()
   })
 
+  it('renders partial extracted fields (confidence-only) with em-dash instead of raw JSON', async () => {
+    renderSessionDetail()
+
+    await waitFor(() => {
+      expect(screen.getByText('Risk Assessment')).toBeInTheDocument()
+    })
+
+    // shRecency has {confidence: 0} with no value key — should show field name and em-dash, not raw JSON
+    expect(screen.getByText('Sh Recency')).toBeInTheDocument()
+    expect(screen.getByText('0%')).toBeInTheDocument()
+    expect(screen.queryByText('{"confidence":0}')).not.toBeInTheDocument()
+  })
+
   it('other accordion sections start closed, open on click', async () => {
     const user = userEvent.setup()
     renderSessionDetail()
@@ -79,14 +92,15 @@ describe('SessionDetail', () => {
       expect(screen.getByText('Session Info')).toBeInTheDocument()
     })
 
-    // Session Info content should not be visible initially
-    expect(screen.queryByText('Session Date')).not.toBeInTheDocument()
+    // Session Info content should not be visible initially (check for the field value, not label,
+    // since the label also appears in the ConfidenceHeatmap)
+    expect(screen.queryByText('2025-01-15')).not.toBeInTheDocument()
 
     // Click to open
     await user.click(screen.getByText('Session Info'))
 
-    // Now Session Date field should be visible
-    expect(screen.getByText('Session Date')).toBeInTheDocument()
+    // Now Session Date value should be visible
+    expect(screen.getByText('2025-01-15')).toBeInTheDocument()
   })
 
   it('shows extraction fields with confidence bars', async () => {
@@ -104,7 +118,8 @@ describe('SessionDetail', () => {
 
     // Open session info to check another section
     await user.click(screen.getByText('Session Info'))
-    expect(screen.getByText('98%')).toBeInTheDocument() // sessionDate confidence
+    // 98% appears in both ConfidenceHeatmap and Session Info after opening
+    expect(screen.getAllByText('98%').length).toBeGreaterThanOrEqual(1)
   })
 
   it('ReviewActionPanel hidden when status is Approved', async () => {
@@ -253,5 +268,39 @@ describe('SessionDetail', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /delete document/i })).toBeInTheDocument()
     })
+  })
+
+  it('shows Show source buttons in risk assessment section', async () => {
+    renderSessionDetail()
+
+    await waitFor(() => {
+      expect(screen.getByText('Risk Assessment')).toBeInTheDocument()
+    })
+
+    // Risk assessment is open by default and has source data
+    const showSourceButtons = screen.getAllByText('Show source')
+    expect(showSourceButtons.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('toggles source attribution panel on click', async () => {
+    const user = userEvent.setup()
+    renderSessionDetail()
+
+    await waitFor(() => {
+      expect(screen.getByText('Risk Assessment')).toBeInTheDocument()
+    })
+
+    // Click first "Show source" button
+    const showButtons = screen.getAllByText('Show source')
+    await user.click(showButtons[0])
+
+    // Source details should appear with blue background panel
+    expect(screen.getByText('Hide source')).toBeInTheDocument()
+    expect(screen.getByText(/Section:/)).toBeInTheDocument()
+    expect(screen.getByText(/Chars:/)).toBeInTheDocument()
+
+    // Click hide
+    await user.click(screen.getByText('Hide source'))
+    expect(screen.queryByText('Hide source')).not.toBeInTheDocument()
   })
 })

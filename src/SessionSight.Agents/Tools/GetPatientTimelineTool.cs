@@ -90,11 +90,11 @@ public class GetPatientTimelineTool : IAgentTool
             IEnumerable<Core.Entities.Session> sessions;
             if (startDate.HasValue || endDate.HasValue)
             {
-                sessions = await _repository.GetByPatientIdInDateRangeAsync(patientGuid, startDate, endDate);
+                sessions = await _repository.GetByPatientIdInDateRangeAsync(patientGuid, startDate, endDate, ct);
             }
             else
             {
-                sessions = await _repository.GetByPatientIdAsync(patientGuid);
+                sessions = await _repository.GetByPatientIdAsync(patientGuid, ct);
             }
 
             var ordered = sessions.OrderBy(s => s.SessionDate).ToList();

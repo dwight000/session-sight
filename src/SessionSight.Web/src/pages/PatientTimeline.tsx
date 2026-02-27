@@ -45,9 +45,8 @@ function toIsoDate(date: Date): string {
 
 function getDefaultRange() {
   const end = new Date()
-  const start = new Date()
-  start.setMonth(start.getMonth() - 6)
-  return { start: toIsoDate(start), end: toIsoDate(end) }
+  end.setDate(end.getDate() + 1)
+  return { start: '2000-01-01', end: toIsoDate(end) }
 }
 
 export function PatientTimeline() {
@@ -284,7 +283,7 @@ export function PatientTimeline() {
                 </div>
                 <div>
                   <p className="text-xs font-medium text-gray-500">Document</p>
-                  <p>Status: {entry.documentStatus ?? 'None'}</p>
+                  <p>Status: {entry.documentStatus === 'PartiallyCompleted' ? 'Partial' : entry.documentStatus ?? 'None'}</p>
                   {entry.documentFileName && <p className="truncate">{entry.documentFileName}</p>}
                   {entry.documentBlobUri && (
                     <a

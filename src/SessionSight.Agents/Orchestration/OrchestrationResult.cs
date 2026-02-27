@@ -30,6 +30,12 @@ public class OrchestrationResult
     public bool RequiresReview { get; set; }
 
     /// <summary>
+    /// Whether the extraction completed with non-fatal step failures
+    /// (e.g. summary or indexing failed but core extraction succeeded).
+    /// </summary>
+    public bool IsPartiallyCompleted { get; set; }
+
+    /// <summary>
     /// Error message if the extraction failed.
     /// </summary>
     public string? ErrorMessage { get; set; }

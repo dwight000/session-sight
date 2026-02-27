@@ -1,3 +1,5 @@
+using SessionSight.Agents.Tools;
+
 namespace SessionSight.Agents.Models;
 
 /// <summary>
@@ -44,6 +46,11 @@ public class SessionSummary
     /// When this summary was generated.
     /// </summary>
     public DateTime GeneratedAt { get; set; }
+
+    public int InputTokens { get; set; }
+    public int OutputTokens { get; set; }
+    public int TotalTokens { get; set; }
+    public IReadOnlyList<LlmCallTrace> LlmTraces { get; set; } = [];
 }
 
 /// <summary>

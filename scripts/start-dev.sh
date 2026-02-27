@@ -109,15 +109,20 @@ else
     log "Seeding demo data (8 patients with full extraction)..."
 
     # Patient definitions: externalId|firstName|lastName|dob|sessionType|modality|pdf|sessionDate
+    # Risk patients (DEMO-006/007/008) use relative dates so they land within the Dashboard's
+    # rolling 30-day window. Non-risk patients use future dates.
+    RISK_DATE_10=$(date -d '-10 days' '+%Y-%m-%d')
+    RISK_DATE_15=$(date -d '-15 days' '+%Y-%m-%d')
+    RISK_DATE_5=$(date -d '-5 days' '+%Y-%m-%d')
     PATIENTS=(
         "DEMO-001|Sarah|Chen|1991-06-14|Individual|InPerson|sample-nonrisk-001.pdf|2026-03-05"
         "DEMO-002|Marcus|Williams|1988-11-22|Individual|TelehealthVideo|sample-nonrisk-002.pdf|2026-03-10"
         "DEMO-003|Elena|Rodriguez|1995-02-08|Individual|InPerson|sample-nonrisk-003.pdf|2026-03-12"
         "DEMO-004|David|Thompson|1983-09-30|Individual|InPerson|sample-nonrisk-004.pdf|2026-03-14"
         "DEMO-005|Jennifer|Walsh|1979-04-17|Termination|InPerson|sample-nonrisk-005.pdf|2026-03-18"
-        "DEMO-006|Rachel|Morrison|1997-01-25|Crisis|InPerson|sample-risk-001.pdf|2026-03-20"
-        "DEMO-007|Harold|Jacobson|1948-08-03|Individual|InPerson|sample-risk-010.pdf|2026-03-22"
-        "DEMO-008|Brian|Okafor|1990-12-11|Intake|InPerson|sample-risk-030.pdf|2026-03-25"
+        "DEMO-006|Rachel|Morrison|1997-01-25|Crisis|InPerson|sample-risk-001.pdf|$RISK_DATE_10"
+        "DEMO-007|Harold|Jacobson|1948-08-03|Individual|InPerson|sample-risk-010.pdf|$RISK_DATE_15"
+        "DEMO-008|Brian|Okafor|1990-12-11|Intake|InPerson|sample-risk-030.pdf|$RISK_DATE_5"
     )
 
     SESSION_IDS=()
@@ -158,44 +163,25 @@ else
         log "  [$NUM/8] Created $FIRST $LAST + uploaded $PDF"
     done
 
-    # Launch all extractions in parallel
+    # Trigger extractions (async — returns 202 immediately, processes in background)
     if [[ ${#SESSION_IDS[@]} -gt 0 ]]; then
-        log "Launching ${#SESSION_IDS[@]} extractions in parallel (~5-8 min)..."
-        EXTRACTION_PIDS=()
+        log "Triggering ${#SESSION_IDS[@]} extractions (processing in background)..."
+        QUEUED=0
         for i in "${!SESSION_IDS[@]}"; do
             SID="${SESSION_IDS[$i]}"
             NAME="${PATIENT_NAMES[$i]}"
-            (
-                RESULT=$(curl -sk -X POST "$API/api/extraction/$SID" --max-time 300 -w "%{http_code}" -o /dev/null 2>/dev/null)
-                if [[ "$RESULT" == "200" ]]; then
-                    echo -e "\033[0;32m[DEV]\033[0m   ✓ Extraction complete: $NAME"
-                else
-                    echo -e "\033[0;31m[DEV]\033[0m   ✗ Extraction failed ($RESULT): $NAME"
-                fi
-            ) &
-            EXTRACTION_PIDS+=($!)
-        done
-
-        # Wait for all extractions with progress
-        COMPLETED=0
-        TOTAL=${#EXTRACTION_PIDS[@]}
-        while [[ $COMPLETED -lt $TOTAL ]]; do
-            COMPLETED=0
-            for PID in "${EXTRACTION_PIDS[@]}"; do
-                if ! kill -0 "$PID" 2>/dev/null; then
-                    COMPLETED=$((COMPLETED + 1))
-                fi
-            done
-            if [[ $COMPLETED -lt $TOTAL ]]; then
-                echo -ne "\r\033[0;32m[DEV]\033[0m   Extractions: $COMPLETED/$TOTAL complete..."
-                sleep 5
+            RESULT=$(curl -sk -X POST "$API/api/extraction/$SID" --max-time 30 -w "%{http_code}" -o /dev/null 2>/dev/null)
+            if [[ "$RESULT" == "202" ]]; then
+                log "  ✓ Extraction queued: $NAME"
+                QUEUED=$((QUEUED + 1))
+            else
+                error "  ✗ Extraction trigger failed ($RESULT): $NAME"
             fi
         done
-        echo -e "\r\033[0;32m[DEV]\033[0m   Extractions: $TOTAL/$TOTAL complete.    "
-        wait
+        log "$QUEUED/${#SESSION_IDS[@]} extractions queued. Progress visible in the UI."
     fi
 
-    log "Demo data seeded: ${#SESSION_IDS[@]} patients with full extraction."
+    log "Demo data seeded: ${#SESSION_IDS[@]} patients."
 fi
 
 # Step 6: Start frontend

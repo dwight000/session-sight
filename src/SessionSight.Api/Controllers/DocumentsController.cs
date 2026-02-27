@@ -21,6 +21,8 @@ public partial class DocumentsController : ControllerBase
     };
 
     private readonly ISessionRepository _sessionRepository;
+    private readonly IDocumentRepository _documentRepository;
+    private readonly IExtractionStepRepository _stepRepository;
     private readonly IDocumentStorage _documentStorage;
     private readonly ISearchIndexService _searchIndexService;
     private readonly ILogger<DocumentsController> _logger;
@@ -28,12 +30,16 @@ public partial class DocumentsController : ControllerBase
 
     public DocumentsController(
         ISessionRepository sessionRepository,
+        IDocumentRepository documentRepository,
+        IExtractionStepRepository stepRepository,
         IDocumentStorage documentStorage,
         ISearchIndexService searchIndexService,
         ILogger<DocumentsController> logger,
         IOptions<DocumentIntelligenceOptions> docOptions)
     {
         _sessionRepository = sessionRepository;
+        _documentRepository = documentRepository;
+        _stepRepository = stepRepository;
         _documentStorage = documentStorage;
         _searchIndexService = searchIndexService;
         _logger = logger;
@@ -73,7 +79,7 @@ public partial class DocumentsController : ControllerBase
             UploadedAt = DateTime.UtcNow
         };
 
-        await _sessionRepository.AddDocumentAsync(session, document);
+        await _documentRepository.AddDocumentAsync(session, document);
 
         return Created($"/api/sessions/{sessionId}/document",
             new UploadDocumentResponse(
@@ -84,6 +90,17 @@ public partial class DocumentsController : ControllerBase
                 DocumentStatus.Pending.ToString()));
     }
 
+    [HttpGet("document/download")]
+    public async Task<IActionResult> DownloadDocument(Guid sessionId)
+    {
+        var session = await _sessionRepository.GetByIdAsync(sessionId);
+        if (session is null) return NotFound();
+        if (session.Document is null) return NotFound("No document found for this session.");
+
+        var stream = await _documentStorage.DownloadAsync(session.Document.BlobUri);
+        return File(stream, session.Document.ContentType);
+    }
+
     [HttpGet("extraction")]
     public async Task<ActionResult<ExtractionResultDto>> GetExtraction(Guid sessionId)
     {
@@ -92,6 +109,20 @@ public partial class DocumentsController : ControllerBase
         if (session.Extraction is null) return NotFound("No extraction result found for this session.");
 
         return Ok(session.Extraction.ToDto());
+    }
+
+    [HttpGet("extraction/steps")]
+    public async Task<ActionResult<ExtractionStepsResponseDto>> GetExtractionSteps(Guid sessionId)
+    {
+        var session = await _sessionRepository.GetByIdAsync(sessionId);
+        if (session is null) return NotFound();
+        if (session.Extraction is null) return NotFound("No extraction result found for this session.");
+
+        var steps = await _stepRepository.GetStepsByExtractionIdAsync(session.Extraction.Id);
+        var docStatus = session.Document?.Status.ToString();
+        var failureKind = session.Document?.FailureKind.ToString();
+        var errorMessage = session.Document?.ErrorMessage;
+        return Ok(steps.ToStepsDto(session.Extraction.Id, docStatus, failureKind, errorMessage));
     }
 
     [HttpDelete("document")]
@@ -115,7 +146,7 @@ public partial class DocumentsController : ControllerBase
         }
 
         // Delete from database (extraction + document)
-        await _sessionRepository.DeleteDocumentAsync(sessionId);
+        await _documentRepository.DeleteDocumentAsync(sessionId);
 
         return NoContent();
     }

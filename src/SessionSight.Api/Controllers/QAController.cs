@@ -32,11 +32,6 @@ public class QAController : ControllerBase
         [FromBody] QARequest request,
         CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(request.Question))
-        {
-            return BadRequest("Question cannot be empty.");
-        }
-
         var patient = await _patientRepository.GetByIdAsync(patientId);
         if (patient is null)
         {

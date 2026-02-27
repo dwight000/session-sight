@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
 using SessionSight.Agents.Helpers;
@@ -30,11 +29,7 @@ public interface IIntakeAgent : ISessionSightAgent
 /// </summary>
 public partial class IntakeAgent : IIntakeAgent
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        NumberHandling = JsonNumberHandling.AllowReadingFromString
-    };
+    private static readonly JsonSerializerOptions JsonOptions = SharedJsonOptions.AgentWithNumberHandling;
 
     private readonly IAIFoundryClientFactory _clientFactory;
     private readonly IModelRouter _modelRouter;
@@ -72,16 +67,41 @@ public partial class IntakeAgent : IIntakeAgent
             ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
         };
 
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         var response = await chatClient.CompleteChatAsync(messages, options, cancellationToken);
+        sw.Stop();
         var content = response.Value.Content[0].Text;
 
-        return ParseResponse(content, document, modelName);
+        var result = ParseResponse(content, document, modelName);
+
+        if (response.Value.Usage is not null)
+        {
+            result.InputTokens = response.Value.Usage.InputTokenCount;
+            result.OutputTokens = response.Value.Usage.OutputTokenCount;
+            result.TotalTokens = response.Value.Usage.TotalTokenCount;
+        }
+
+        result.LlmTraces =
+        [
+            new Tools.LlmCallTrace(
+                PromptText: null,
+                PromptSegmentsJson: Tools.AgentLoopRunner.SerializeDeltaSegments(messages, 0),
+                ResponseText: content,
+                ModelUsed: modelName,
+                LoopRound: 0,
+                InputTokens: result.InputTokens,
+                OutputTokens: result.OutputTokens,
+                TotalTokens: result.TotalTokens,
+                DurationMs: sw.ElapsedMilliseconds)
+        ];
+
+        return result;
     }
 
     internal static IntakeResult ParseResponse(string content, ParsedDocument document, string modelName)
     {
         // Extract JSON from response (handle potential markdown code blocks)
-        var json = ExtractJson(content);
+        var json = LlmJsonHelper.ExtractJson(content);
 
         try
         {
@@ -126,8 +146,6 @@ public partial class IntakeAgent : IIntakeAgent
             Metadata = new ExtractedMetadata()
         };
     }
-
-    internal static string ExtractJson(string content) => LlmJsonHelper.ExtractJson(content);
 
     private static DateOnly? TryParseDate(string? dateStr)
     {

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using SessionSight.Agents.Agents;
 using SessionSight.Agents.Models;
+using SessionSight.Agents.Orchestration;
 using SessionSight.Api.DTOs;
 using SessionSight.Core.Enums;
 using SessionSight.Core.Interfaces;
@@ -16,6 +17,7 @@ namespace SessionSight.Api.Controllers;
 public class SummaryController : ControllerBase
 {
     private readonly ISummarizerAgent _summarizerAgent;
+    private readonly IExtractionOrchestrator _orchestrator;
     private readonly ISessionRepository _sessionRepository;
     private readonly IPatientRepository _patientRepository;
 
@@ -27,10 +29,12 @@ public class SummaryController : ControllerBase
 
     public SummaryController(
         ISummarizerAgent summarizerAgent,
+        IExtractionOrchestrator orchestrator,
         ISessionRepository sessionRepository,
         IPatientRepository patientRepository)
     {
         _summarizerAgent = summarizerAgent;
+        _orchestrator = orchestrator;
         _sessionRepository = sessionRepository;
         _patientRepository = patientRepository;
     }
@@ -45,7 +49,7 @@ public class SummaryController : ControllerBase
         [FromQuery] bool regenerate = false,
         CancellationToken ct = default)
     {
-        var session = await _sessionRepository.GetByIdAsync(sessionId);
+        var session = await _sessionRepository.GetByIdAsync(sessionId, ct);
         if (session is null)
         {
             return NotFound($"Session {sessionId} not found");
@@ -66,20 +70,8 @@ public class SummaryController : ControllerBase
             }
         }
 
-        // Generate new summary
-        var agentExtraction = new SessionSight.Agents.Models.ExtractionResult
-        {
-            SessionId = sessionId.ToString("D"),
-            Data = session.Extraction.Data,
-            OverallConfidence = session.Extraction.OverallConfidence,
-            RequiresReview = session.Extraction.RequiresReview
-        };
-
-        var summary = await _summarizerAgent.SummarizeSessionAsync(agentExtraction, ct);
-
-        // Store the new summary
-        var summaryJson = JsonSerializer.Serialize(summary, JsonOptions);
-        await _sessionRepository.UpdateExtractionSummaryAsync(session.Extraction.Id, summaryJson);
+        // Generate new summary via orchestrator (calls summarizer agent + persists JSON)
+        var summary = await _orchestrator.GenerateSessionSummaryAsync(sessionId, ct);
 
         return Ok(summary);
     }
@@ -126,7 +118,7 @@ public class SummaryController : ControllerBase
             return NotFound($"Patient {patientId} not found");
         }
 
-        var sessions = (await _sessionRepository.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate))
+        var sessions = (await _sessionRepository.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate, ct))
             .OrderBy(s => s.SessionDate)
             .ThenBy(s => s.SessionNumber)
             .ToList();
@@ -192,8 +184,8 @@ public class SummaryController : ControllerBase
         }
 
         var sessions = (startDate.HasValue || endDate.HasValue
-                ? await _sessionRepository.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate)
-                : await _sessionRepository.GetByPatientIdAsync(patientId))
+                ? await _sessionRepository.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate, ct)
+                : await _sessionRepository.GetByPatientIdAsync(patientId, ct))
             .OrderBy(s => s.SessionDate)
             .ThenBy(s => s.SessionNumber)
             .ToList();

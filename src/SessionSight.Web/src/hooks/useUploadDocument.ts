@@ -8,9 +8,8 @@ interface UploadAndExtractParams {
 
 interface UploadAndExtractResult {
   documentId: string
-  extractionId?: string
-  success: boolean
-  errorMessage?: string
+  accepted: true
+  sessionId: string
 }
 
 export function useUploadDocument() {
@@ -21,14 +20,13 @@ export function useUploadDocument() {
       // Step 1: Upload the document
       const uploadResult = await uploadDocument(sessionId, file)
 
-      // Step 2: Trigger extraction
+      // Step 2: Trigger extraction (returns 202 — processing runs in background)
       const extractionResult = await triggerExtraction(sessionId)
 
       return {
         documentId: uploadResult.documentId,
-        extractionId: extractionResult.extractionId,
-        success: extractionResult.success,
-        errorMessage: extractionResult.errorMessage,
+        accepted: extractionResult.accepted,
+        sessionId: extractionResult.sessionId,
       }
     },
     onSuccess: () => {

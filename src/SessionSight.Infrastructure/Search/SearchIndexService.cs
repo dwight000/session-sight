@@ -130,7 +130,7 @@ public partial class SearchIndexService : ISearchIndexService
         var searchOptions = new AzureSearchOptions
         {
             Size = maxResults,
-            Select = { "Id", "SessionId", "PatientId", "SessionDate", "SessionType", "Content", "Summary", "RiskLevel" }
+            Select = { "Id", "SessionId", "PatientId", "SessionDate", "SessionType", "Content", "Summary", "RiskLevel", "Interventions" }
         };
 
         if (!string.IsNullOrEmpty(patientIdFilter))

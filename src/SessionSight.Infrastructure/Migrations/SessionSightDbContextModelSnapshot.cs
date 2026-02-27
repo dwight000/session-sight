@@ -17,16 +17,67 @@ namespace SessionSight.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.4")
+                .HasAnnotation("ProductVersion", "9.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("SessionSight.Core.Entities.ExtractionLlmTrace", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CalledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("DurationMs")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("InputTokens")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LoopRound")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ModelUsed")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("OutputTokens")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PromptSegmentsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PromptText")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ResponseText")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("StepId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("TotalTokens")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StepId");
+
+                    b.ToTable("ExtractionLlmTraces");
+                });
 
             modelBuilder.Entity("SessionSight.Core.Entities.ExtractionResult", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("ContentFilterBlocked")
+                        .HasColumnType("bit");
 
                     b.Property<int>("CriteriaValidationAttempts")
                         .ValueGeneratedOnAdd()
@@ -104,6 +155,108 @@ namespace SessionSight.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Extractions");
+                });
+
+            modelBuilder.Entity("SessionSight.Core.Entities.ExtractionStep", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("DurationMs")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<decimal?>("EstimatedCostUsd")
+                        .HasPrecision(10, 6)
+                        .HasColumnType("decimal(10,6)");
+
+                    b.Property<Guid>("ExtractionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("InputTokens")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ModelUsed")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("OutputTokens")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ResultSummaryJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("StepName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("StepOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalTokens")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExtractionId");
+
+                    b.ToTable("ExtractionSteps");
+                });
+
+            modelBuilder.Entity("SessionSight.Core.Entities.ExtractionToolCall", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CalledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("DurationMs")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("InputJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("LoopRound")
+                        .HasColumnType("int");
+
+                    b.Property<string>("OutputJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("StepId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Succeeded")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ToolName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StepId");
+
+                    b.ToTable("ExtractionToolCalls");
                 });
 
             modelBuilder.Entity("SessionSight.Core.Entities.Patient", b =>
@@ -241,11 +394,29 @@ namespace SessionSight.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
                     b.Property<string>("ExtractedText")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("FailureKind")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasDefaultValue("None");
+
                     b.Property<long>("FileSizeBytes")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("IndexingStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasDefaultValue("None");
 
                     b.Property<string>("OriginalFileName")
                         .IsRequired()
@@ -254,6 +425,11 @@ namespace SessionSight.Infrastructure.Migrations
 
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.Property<Guid>("SessionId")
                         .HasColumnType("uniqueidentifier");
@@ -351,6 +527,17 @@ namespace SessionSight.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("SessionSight.Core.Entities.ExtractionLlmTrace", b =>
+                {
+                    b.HasOne("SessionSight.Core.Entities.ExtractionStep", "Step")
+                        .WithMany("LlmTraces")
+                        .HasForeignKey("StepId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Step");
+                });
+
             modelBuilder.Entity("SessionSight.Core.Entities.ExtractionResult", b =>
                 {
                     b.HasOne("SessionSight.Core.Entities.Session", "Session")
@@ -360,6 +547,28 @@ namespace SessionSight.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Session");
+                });
+
+            modelBuilder.Entity("SessionSight.Core.Entities.ExtractionStep", b =>
+                {
+                    b.HasOne("SessionSight.Core.Entities.ExtractionResult", "Extraction")
+                        .WithMany("Steps")
+                        .HasForeignKey("ExtractionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Extraction");
+                });
+
+            modelBuilder.Entity("SessionSight.Core.Entities.ExtractionToolCall", b =>
+                {
+                    b.HasOne("SessionSight.Core.Entities.ExtractionStep", "Step")
+                        .WithMany("ToolCalls")
+                        .HasForeignKey("StepId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Step");
                 });
 
             modelBuilder.Entity("SessionSight.Core.Entities.Session", b =>
@@ -406,6 +615,15 @@ namespace SessionSight.Infrastructure.Migrations
             modelBuilder.Entity("SessionSight.Core.Entities.ExtractionResult", b =>
                 {
                     b.Navigation("Reviews");
+
+                    b.Navigation("Steps");
+                });
+
+            modelBuilder.Entity("SessionSight.Core.Entities.ExtractionStep", b =>
+                {
+                    b.Navigation("LlmTraces");
+
+                    b.Navigation("ToolCalls");
                 });
 
             modelBuilder.Entity("SessionSight.Core.Entities.Patient", b =>

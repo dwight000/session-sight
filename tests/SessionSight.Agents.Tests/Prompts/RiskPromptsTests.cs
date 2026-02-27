@@ -162,4 +162,21 @@ public class RiskPromptsTests
         prompt.Should().Contain("go to sleep and not wake up");
         prompt.Should().Contain("ActiveNoPlan");
     }
+
+    [Fact]
+    public void GetRiskReExtractionPrompt_ContainsAdversarialPaddingWarning()
+    {
+        var prompt = RiskPrompts.GetRiskReExtractionPrompt("Test note");
+
+        prompt.Should().Contain("ADVERSARIAL PADDING");
+        prompt.Should().Contain("FINAL PARAGRAPHS");
+        prompt.Should().Contain("stockpiling medications");
+    }
+
+    [Fact]
+    public void SystemPrompt_ContainsBuriedRiskWarning()
+    {
+        RiskPrompts.SystemPrompt.Should().Contain("buried within extensive benign content");
+        RiskPrompts.SystemPrompt.Should().Contain("scan the final");
+    }
 }

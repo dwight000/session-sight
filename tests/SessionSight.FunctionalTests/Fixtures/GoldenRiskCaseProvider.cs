@@ -220,6 +220,9 @@ internal static class GoldenRiskCaseProvider
         [JsonPropertyName("expected_outcome")]
         public string? ExpectedOutcome { get; init; }
 
+        [JsonPropertyName("notes")]
+        public string? Notes { get; init; }
+
         [JsonPropertyName("expected_by_stage")]
         public List<GoldenRiskStageFile> ExpectedByStage { get; init; } = [];
 
@@ -275,7 +278,8 @@ public enum GoldenExpectedOutcome
 {
     ExtractionSuccess,
     ContentFilterBlocked,
-    ContentFilterOptional
+    ContentFilterOptional,
+    AdversarialInjection
 }
 
 

@@ -8,6 +8,7 @@ import { mockPatientTimeline } from '../fixtures/timeline'
 import { mockTherapists } from '../fixtures/therapists'
 import { mockProcessingJobs } from '../fixtures/processingJobs'
 import { mockQAResponse } from '../fixtures/qa'
+import { mockExtractionStepsComplete, mockExtractionResult } from '../fixtures/extractionSteps'
 
 export const handlers = [
   http.get('/api/review/queue', () => {
@@ -141,17 +142,34 @@ export const handlers = [
     return HttpResponse.json({
       documentId: 'new-doc-id',
       sessionId: 's1',
-      fileName: 'test.pdf',
+      originalFileName: 'test.pdf',
       blobUri: 'blob://test',
       status: 'Pending'
     })
   }),
 
-  http.post('/api/extraction/:sessionId', () => {
-    return HttpResponse.json({
-      success: true,
-      extractionId: 'new-extraction-id'
+  http.post('/api/extraction/:sessionId', ({ params }) => {
+    return HttpResponse.json(
+      { sessionId: params.sessionId },
+      { status: 202 }
+    )
+  }),
+
+  // Extraction steps handler
+  http.get('/api/sessions/:sessionId/extraction/steps', () => {
+    return HttpResponse.json(mockExtractionStepsComplete)
+  }),
+
+  // Document download handler (used by DocumentPreview iframe)
+  http.get('/api/sessions/:sessionId/document/download', () => {
+    return new HttpResponse(new Uint8Array(0), {
+      headers: { 'Content-Type': 'application/pdf' },
     })
+  }),
+
+  // Extraction result handler
+  http.get('/api/sessions/:sessionId/extraction', () => {
+    return HttpResponse.json(mockExtractionResult)
   }),
 
   // Q&A handler

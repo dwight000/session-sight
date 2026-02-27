@@ -8,5 +8,6 @@ public enum DocumentStatus
     Pending,
     Processing,
     Completed,
+    PartiallyCompleted,
     Failed
 }

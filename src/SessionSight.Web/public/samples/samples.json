@@ -4,55 +4,135 @@
     "filename": "sample-nonrisk-001.pdf",
     "title": "Anxiety / CBT Session",
     "description": "GAD with cognitive restructuring, individual session",
-    "previewText": "Session Note - March 5, 2026 Patient: Sarah Chen Therapist: Dr. Rebecca Torres, PsyD Presenting Concerns: Patient reports ongoing generalized anxiety with persistent worry about job performance and family responsibilities. Anxiety severity is moderat"
+    "previewText": "Session Note - March 5, 2026 Patient: Sarah Chen Therapist: Dr. Rebecca Torres, PsyD Presenting Concerns: Patient reports ongoing generalized anxiety with persistent worry about job performance and family responsibilities. Anxiety severity is moderat",
+    "riskTier": "low",
+    "diagnosis": "F41.1 — Generalized Anxiety Disorder",
+    "metaStrip": "GAD · Low Risk · PsyD · Individual · In-Person",
+    "keyExtractions": [
+      { "field": "Mood", "value": "6/10 (worried but managing)" },
+      { "field": "Interventions", "value": "Cognitive restructuring, relaxation training, psychoeducation" },
+      { "field": "Homework", "value": "Partially completed — breathing done, diary missed" },
+      { "field": "Treatment Phase", "value": "Middle — exposure hierarchy next" }
+    ],
+    "clinicalNote": "Typical mid-treatment CBT case with good field coverage. Shows partial homework completion and structured treatment progression."
   },
   {
     "id": "sample-nonrisk-002",
     "filename": "sample-nonrisk-002.pdf",
     "title": "Depression / Telehealth",
     "description": "MDD with behavioral activation, psychiatrist referral",
-    "previewText": "Session Note - March 10, 2026 Patient: Marcus Williams Therapist: Dr. James Park, LCSW Presenting Concerns: Patient presents with moderate depression, reporting persistent low mood and anhedonia for the past three months. Reports that symptoms worsen"
+    "previewText": "Session Note - March 10, 2026 Patient: Marcus Williams Therapist: Dr. James Park, LCSW Presenting Concerns: Patient presents with moderate depression, reporting persistent low mood and anhedonia for the past three months. Reports that symptoms worsen",
+    "riskTier": "low",
+    "diagnosis": "F32.1 — Major Depressive Disorder, moderate",
+    "metaStrip": "MDD · Low Risk · LCSW · Individual · Telehealth",
+    "keyExtractions": [
+      { "field": "Mood", "value": "3/10 (low and unmotivated), declined from last session" },
+      { "field": "Medication", "value": "Sertraline 50mg, partially adherent" },
+      { "field": "Referral", "value": "Psychiatry (Dr. Singh) for dose adjustment" },
+      { "field": "Treatment Phase", "value": "Early — behavioral activation focus" }
+    ],
+    "clinicalNote": "Struggling early-treatment depression case. Demonstrates medication management fields, psychiatry referral, and telehealth modality extraction."
   },
   {
     "id": "sample-nonrisk-003",
     "filename": "sample-nonrisk-003.pdf",
     "title": "PTSD / EMDR Session",
     "description": "Trauma processing after motor vehicle accident, SUD ratings",
-    "previewText": "Session Note - March 12, 2026 Patient: Elena Rodriguez Therapist: Dr. Amanda Foster, PhD Presenting Concerns: Patient presents with trauma-related symptoms following a motor vehicle accident eight months ago. Severity is moderate. Reports intrusive m"
+    "previewText": "Session Note - March 12, 2026 Patient: Elena Rodriguez Therapist: Dr. Amanda Foster, PhD Presenting Concerns: Patient presents with trauma-related symptoms following a motor vehicle accident eight months ago. Severity is moderate. Reports intrusive m",
+    "riskTier": "low",
+    "diagnosis": "F43.10 — Post-Traumatic Stress Disorder",
+    "metaStrip": "PTSD · Low Risk · PhD · Individual · In-Person",
+    "keyExtractions": [
+      { "field": "Mood", "value": "5/10 (tense but relieved), improved from last session" },
+      { "field": "EMDR", "value": "SUD dropped from 7 to 3 in-session" },
+      { "field": "Interventions", "value": "Bilateral stimulation, grounding, container visualization" },
+      { "field": "Homework", "value": "Fully completed" }
+    ],
+    "clinicalNote": "Most specialized modality in the set. Shows EMDR-specific fields (SUD scores, bilateral stimulation) and in-session measurement changes."
   },
   {
     "id": "sample-nonrisk-004",
     "filename": "sample-nonrisk-004.pdf",
     "title": "Substance Use / Motivational Interviewing",
     "description": "Alcohol use disorder, harm reduction, IOP consideration",
-    "previewText": "Session Note - March 14, 2026 Patient: David Thompson Therapist: Dr. Lisa Chang, LMHC Presenting Concerns: Patient presents with alcohol use disorder, moderate severity. Reports drinking 4-6 beers daily for the past two years, with recent increase fo"
+    "previewText": "Session Note - March 14, 2026 Patient: David Thompson Therapist: Dr. Lisa Chang, LMHC Presenting Concerns: Patient presents with alcohol use disorder, moderate severity. Reports drinking 4-6 beers daily for the past two years, with recent increase fo",
+    "riskTier": "low",
+    "diagnosis": "F10.20 — Alcohol Use Disorder, moderate",
+    "metaStrip": "AUD · Low Risk · LMHC · Individual · In-Person",
+    "keyExtractions": [
+      { "field": "Mood", "value": "4/10 (stressed and conflicted)" },
+      { "field": "Substance Use", "value": "4-6 beers daily, increasing" },
+      { "field": "Medication", "value": "Naltrexone discussed, PCP consult planned" },
+      { "field": "Level of Care", "value": "IOP discussed, patient not ready" }
+    ],
+    "clinicalNote": "Richest referral and level-of-care complexity. Shows harm reduction, medication discussion, and escalation-of-care fields."
   },
   {
     "id": "sample-nonrisk-005",
     "filename": "sample-nonrisk-005.pdf",
     "title": "Termination / Discharge",
     "description": "Adjustment disorder resolved, relapse prevention planning",
-    "previewText": "Session Note - March 18, 2026 Patient: Jennifer Walsh Therapist: Dr. Michael Chen, PsyD Presenting Concerns: Patient originally presented with adjustment disorder related to divorce, now largely resolved. Severity is mild at this point. Concerns have"
+    "previewText": "Session Note - March 18, 2026 Patient: Jennifer Walsh Therapist: Dr. Michael Chen, PsyD Presenting Concerns: Patient originally presented with adjustment disorder related to divorce, now largely resolved. Severity is mild at this point. Concerns have",
+    "riskTier": "low",
+    "diagnosis": "F43.23 — Adjustment Disorder, resolved",
+    "metaStrip": "Adjustment · Low Risk · PsyD · Termination · In-Person",
+    "keyExtractions": [
+      { "field": "Mood", "value": "8/10 (positive and confident), improved" },
+      { "field": "Diagnosis Status", "value": "Updated — symptoms resolved" },
+      { "field": "Discharge", "value": "Ready, 16-session arc completed" },
+      { "field": "Interventions", "value": "Relapse prevention planning, very effective" }
+    ],
+    "clinicalNote": "The only termination-phase case. Shows discharge planning, diagnosis resolution, and treatment completion fields."
   },
   {
     "id": "sample-risk-001",
     "filename": "sample-risk-001.pdf",
     "title": "Active SI with Safety Plan",
     "description": "High risk - specific plan, stockpiled means, emergency contacts",
-    "previewText": "Session Note - March 20, 2026 Patient: Rachel Morrison Therapist: Dr. Karen Abbott, LCSW Presenting Concerns: Patient presents with significant distress today. Reports thinking about suicide daily for the past two weeks. Has developed a specific plan"
+    "previewText": "Session Note - March 20, 2026 Patient: Rachel Morrison Therapist: Dr. Karen Abbott, LCSW Presenting Concerns: Patient presents with significant distress today. Reports thinking about suicide daily for the past two weeks. Has developed a specific plan",
+    "riskTier": "high",
+    "diagnosis": "F33.2 — MDD, recurrent, severe",
+    "metaStrip": "MDD Severe · High Risk · LCSW · Crisis · In-Person",
+    "keyExtractions": [
+      { "field": "Risk Level", "value": "High — active ideation with specific plan" },
+      { "field": "Suicidality", "value": "Daily for 2 weeks, overdose plan, goodbye letters written" },
+      { "field": "Safety Plan", "value": "Updated this session, means restriction in progress" },
+      { "field": "Treatment Escalation", "value": "Twice-weekly frequency, psychiatry referral placed" }
+    ],
+    "clinicalNote": "Demonstrates capture of granular lethality markers — plan specificity, means access, preparatory behaviors — alongside safety plan disposition."
   },
   {
     "id": "sample-risk-010",
     "filename": "sample-risk-010.pdf",
     "title": "Elderly Grief, Passive SI",
     "description": "Nuanced - wish for natural death vs active suicidality",
-    "previewText": "Session Note - March 22, 2026 Patient: Harold Jacobson Therapist: Dr. Patricia Reeves, PhD Presenting Concerns: Elderly patient discussing recent loss of spouse. Reports feeling that 'my time should come soon too' and often wishes to 'join her.' Clar"
+    "previewText": "Session Note - March 22, 2026 Patient: Harold Jacobson Therapist: Dr. Patricia Reeves, PhD Presenting Concerns: Elderly patient discussing recent loss of spouse. Reports feeling that 'my time should come soon too' and often wishes to 'join her.' Clar",
+    "riskTier": "moderate",
+    "diagnosis": "F43.8 — Prolonged Grief Disorder",
+    "metaStrip": "Grief · Moderate Risk · PhD · Individual · In-Person",
+    "keyExtractions": [
+      { "field": "Risk Level", "value": "Moderate — passive ideation, no intent or plan" },
+      { "field": "Suicidality", "value": "Passive wish for natural death to reunite with spouse" },
+      { "field": "Diagnosis", "value": "Prolonged Grief Disorder (F43.8)" },
+      { "field": "Interventions", "value": "Grief-focused — meaning-making, continuing bonds journaling" }
+    ],
+    "clinicalNote": "Illustrates the distinction between grief-contextualized passive ideation and active suicidality. System correctly stratifies risk based on intent, not just SI presence."
   },
   {
     "id": "sample-risk-030",
     "filename": "sample-risk-030.pdf",
     "title": "Intake Eval with Columbia Scale",
     "description": "Formal screening tool, all items negative, moderate depression",
-    "previewText": "Session Note - March 25, 2026 Patient: Brian Okafor Therapist: Dr. Susan Hartley, LPC Presenting Concerns: Patient presenting for intake evaluation following referral from PCP Dr. Adams for depression symptoms. Reports depressed mood for past 2 month"
+    "previewText": "Session Note - March 25, 2026 Patient: Brian Okafor Therapist: Dr. Susan Hartley, LPC Presenting Concerns: Patient presenting for intake evaluation following referral from PCP Dr. Adams for depression symptoms. Reports depressed mood for past 2 month",
+    "riskTier": "low",
+    "diagnosis": "F32.1 — MDD, single episode, moderate",
+    "metaStrip": "MDD · Low Risk · LPC · Intake · In-Person",
+    "keyExtractions": [
+      { "field": "Risk Level", "value": "Low — C-SSRS all items negative, no SI history" },
+      { "field": "Screening", "value": "PHQ-9 score 14 (moderate), C-SSRS administered" },
+      { "field": "Diagnosis", "value": "New diagnosis, first episode" },
+      { "field": "Assessment", "value": "Intake evaluation, PCP coordination planned" }
+    ],
+    "clinicalNote": "Shows extraction of standardized screening instruments (PHQ-9, C-SSRS) as discrete structured fields. Strong demo for intake documentation workflows."
   }
 ]

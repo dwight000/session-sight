@@ -7,11 +7,11 @@
 ## Current Status
 
 **Phase**: Phase 6 (Deployment) - IN PROGRESS
-**Next Action**: B-090 (Document validation review-routing)
+**Next Action**: Pick next task (B-104, B-090, or B-092)
 
-**Last Updated**: February 20, 2026
+**Last Updated**: February 25, 2026
 
-**Milestone**: P6-007 complete — demo data seeding with 8 patients + full extraction pipeline. 7 of 9 gap audit items done (B-085, B-086, B-087, B-088, B-089, B-091, B-093). Remaining: B-090, B-092.
+**Milestone**: B-004 + P5-002 complete — updated 2 stale extraction diagrams (dispatcher, 202 async, failure classification) and added 3 new data flow diagrams (document lifecycle state machine, data transformation pipeline, entity relationship). B-084 follow-ups (B-098–B-103) all merged.
 
 ---
 
@@ -19,7 +19,7 @@
 
 <!-- When you start a task, move it here. Only ONE task at a time. -->
 
-*(none — pick next from Task Table)*
+_(none)_
 
 ---
 
@@ -81,15 +81,15 @@
 | P2-007 | Confidence scoring | M | 2 | Done | P2-004 |
 | P2-008 | Blob trigger + ExtractionOrchestrator + Doc Intelligence | XL | 2 | Done | P2-004 |
 | B-010 | Exponential backoff for Azure SDK clients (OpenAI/Search/DocIntel) | M | 2 | Done | P2-001 |
-| B-011 | Idempotent job IDs for blob trigger | M | 2 | Ready | P2-008 |
-| B-012 | Dead-letter handling for failed ingestion | M | 2 | Ready | P2-008 |
-| B-013 | Dedupe strategy blob->SQL->AI Search | M | 2 | Ready | P2-004 |
+| B-011 | Idempotent job IDs for blob trigger | M | 2 | Done | P2-008 |
+| ~~B-012~~ | ~~Dead-letter handling for failed ingestion~~ | - | - | Merged → B-084 | - |
+| B-013 | Dedupe strategy blob->SQL->AI Search | M | 2 | Done | P2-004 |
 | B-019 | Telemetry redaction for PHI in traces | M | 2 | Ready | P1-016 |
 | B-032 | Document size validation (reject >30 pages) | M | 2 | Done | P2-008 |
 | B-033 | Internal service auth (Function->API) | M | 2 | Ready | P2-008 |
 | B-034 | Fix idempotency race condition (SQL MERGE with HOLDLOCK) | M | 2 | Done | P2-008 |
-| B-035 | Synchronous AI Search indexing (user-visible after B-085) | M | 2 | Ready | P2-004 |
-| B-036 | Document Intelligence failure handling | M | 2 | Ready | P2-008 |
+| ~~B-035~~ | ~~Synchronous AI Search indexing (user-visible after B-085)~~ | - | - | Merged → B-084 | - |
+| B-036 | Document Intelligence failure handling | M | 2 | Done | P2-008 |
 | B-048 | Circuit breaker for Azure SDK clients (Polly or custom HttpPipelinePolicy) | M | 2 | Done | B-010 |
 | B-049 | ~~Extract shared LlmResponseParser from duplicated JSON parsing in 3 agents~~ (superseded by B-056) | M | 2 | Done | P2-004 |
 | B-050 | Fix fire-and-forget scoped service lifetime in IngestionController | S | 2 | Done | P2-008 |
@@ -112,15 +112,15 @@
 | B-037 | Tool call limit graceful handling | M | 2 | Done | P2-006b |
 | B-040 | Stub IAIFoundryClientFactory in integration tests | S | 2 | Done | P2-002 |
 | P2-009 | Create glossary of domain terms | S | 2 | Ready | P2-004 |
-| P2-010 | Create sequence diagrams for agent interactions | M | 2 | Ready | P2-006a |
+| P2-010 | Create sequence diagrams for agent interactions | M | 2 | Done | P2-006a |
 | **Phase 3: Summarization & RAG** |||||
 | P3-001 | Summarizer Agent (3 levels) | XL | 3 | Done | P2-005 |
 | P3-002 | Azure AI Search vector index | M | 3 | Done | P2-001 |
 | P3-003 | Embedding pipeline (text-embedding-3-large) | L | 3 | Done | P3-002 |
 | P3-004 | Q&A Agent with RAG (single-shot) | XL | 3 | Done | P3-003 |
 | P3-005 | Agentic Q&A with tools (search_sessions, get_session_detail, get_patient_timeline, aggregate_metrics) | L | 3 | Done | P3-004 |
-| B-003 | Synthetic data generator script | M | 3 | Ready | P2-004 |
-| B-014 | Reindex/backfill job for AI Search | M | 3 | Ready | P3-002 |
+| B-003 | Synthetic data generator script | M | 3 | Done | P2-004 |
+| B-014 | Reindex/backfill job for AI Search | M | 3 | Done | P3-002 |
 | **Pre-Phase 3 Checkpoint (Tabled Items)** |||||
 | B-020 | RBAC / Entra ID authentication | L | 3+ | Tabled | - |
 | B-021 | Audit logging & compliance | L | 3+ | Tabled | - |
@@ -142,11 +142,11 @@
 | B-065 | Frontend code coverage: Add Vitest coverage (v8), set 80% threshold, add to check-frontend.sh + CI | S | 4 | Done | B-059 |
 | **Phase 5: Polish & Testing** |||||
 | P5-001 | Integration tests (golden files) | L | 5 | Done | P2-005 |
-| P5-002 | Data flow diagrams (document->agent->DB) | M | 5 | Blocked | B-004 |
-| P5-003 | API usage examples | S | 5 | Ready | - |
-| B-004 | Architecture diagrams (Mermaid) | M | 5 | Blocked | P2-010 |
+| P5-002 | Data flow diagrams (document->agent->DB) | M | 5 | Done | B-004 |
+| P5-003 | API usage examples | S | 5 | Done | - |
+| B-004 | Architecture diagrams (Mermaid) | M | 5 | Done | P2-010 |
 | B-005 | Load testing setup | M | 5 | Done | - |
-| B-015 | Contract tests for API DTOs | M | 5 | Ready | - |
+| B-015 | Contract tests for API DTOs | M | 5 | Done | - |
 | B-016 | Load/concurrency tests | M | 5 | Done | B-005 |
 | B-070 | Merge redundant E2E extraction tests into shared collection fixture | S | 5 | Done | - |
 | B-017 | Safety/red-team evals (14 adversarial golden files) | L | 5 | Done | P2-005 |
@@ -177,7 +177,7 @@
 | B-081 | Review and merge Dependabot PRs (~20 pending) | M | 6 | Done | - |
 | B-082 | Fix BlobNotFound + stuck Processing + file types + sample documents on Upload page | M | 6 | Done | - |
 | B-083 | Bump Azure OpenAI TPM, decouple extraction from HTTP lifecycle, fix retry UI, enable /health | S | 6 | Done | - |
-| B-084 | Move extraction to background queue (decouple from HTTP request thread) | L | 6 | Backlog | - |
+| B-084 | Resilient extraction pipeline: background processing, dead-letter handling, index retry (merges B-012, B-035) | XL | 6 | Done | - |
 | P6-007 | Demo data and walkthrough | M | 6 | Done | - |
 | **Gap Audit Items (B-085–B-093)** |||||
 | B-085 | Q&A Chat UI (patient-scoped clinical Q&A page) | L | 4 | Done | - |
@@ -189,6 +189,22 @@
 | B-091 | RAG eval harness (precision@5, human eval record) | M | 5 | Done | - |
 | B-092 | Phase 2 SLO measurement (latency, F1, cost-per-note) | S | 5 | Ready | - |
 | B-093 | Compare sessions tool for QA agent | S | 3 | Done | - |
+| **Pipeline Observability (B-094–B-096)** |||||
+| B-094 | Live extraction progress UI — step-by-step pipeline visualization | L | 4 | Done | - |
+| B-095 | Pipeline step instrumentation — persist per-step extraction diagnostics | XL | 2 | Done | - |
+| B-096 | Extraction detail polish — confidence heatmap, risk merge viz, source attribution | M | 4 | Done | - |
+| B-097 | Legal disclaimer — "not for clinical use" banner, terms of use, liability notice | S | 4 | Done | - |
+| **B-084 Follow-ups (B-098–B-104)** |||||
+| B-098 | Orchestrator: intake validation failure classification + test coverage | S | 2 | Done | B-084 |
+| B-099 | Resume path: fix duplicate ExtractionStep rows on retry | S | 2 | Done | B-084 |
+| B-100 | Minor API/UI cleanup: QA warning precision + ErrorMessage clearing semantics | S | 4 | Done | B-084 |
+| B-101 | ClassifyFailure: use exception types instead of message string matching | S | 2 | Done | B-084 |
+| B-102 | Add RowVersion concurrency token to SessionDocument | S | 2 | Done | B-084 |
+| B-103 | Replace Task.Run fire-and-forget with IHostedService background queue | M | 2 | **Done** | B-084 |
+| B-104 | Split SessionRepository into 3 concrete repository classes | L | 2 | Ready | B-084 |
+| **Adversarial Test Fixes (B-105–B-106)** |||||
+| B-105 | Fix adversarial prompt injection golden tests — assert content_filter_blocked instead of optional/skip | M | 5 | Ready | - |
+| B-106 | Fix adversarial exfiltration golden tests — assert LLM response doesn't leak system prompt | M | 5 | Ready | - |
 
 ---
 
@@ -353,24 +369,529 @@
 
 **Acceptance:** QA agent can answer "How did session X compare to session Y?" using the tool. Unit test verifies diff output structure.
 
-### B-084 Details (Background Extraction Queue)
+### B-095 Details (Pipeline Step Instrumentation)
 
-**Problem:** The extraction pipeline (intake → clinical extractor → risk assessor → summarizer → embedding) takes 30-120+ seconds. Currently it runs synchronously inside the HTTP POST `/api/extraction/{sessionId}` request thread. This causes:
+**Problem:** The extraction pipeline has 6 user-visible steps (Document Intelligence parsing → Intake Agent → Clinical Extractor → Risk Assessor → Summarizer → Indexing) taking 30-90 seconds total. Today, nothing is persisted until the very end — all intermediate data (step timing, tool call traces, intake metadata, token usage, LLM prompts/responses) exists only in memory and is discarded. The only observable signal during processing is a coarse `DocumentStatus` enum (`Pending → Processing → Completed`). B-094 (live progress UI) needs step-level data to poll, and B-084 (resilience) benefits from step-level data for partial retry/resume.
+
+**Design decision — ExtractionResult early creation:** Create the `ExtractionResult` row immediately at the start of the pipeline via the existing `SaveExtractionResultAsync`. The entity's `Data` property initializes as `new ClinicalExtraction()` (default-initialized JSON — not truly "minimal" but acceptable since it's overwritten at end). `SchemaVersion` and `ModelUsed` are non-nullable but accept empty strings. This gives a real FK for `ExtractionSteps` from step 1 onward. The final save uses the existing `UpsertExtractionResultAsync` (delete+insert pattern) to replace this placeholder row with the full extraction data. This is cleaner than using `SessionId` as FK (which would require cleanup logic on re-extraction) and avoids backfilling IDs after the fact. Note: `Data` column may need to be made nullable if the default-initialized JSON blob is unacceptable — evaluate during implementation.
+
+**New database tables:**
+
+1. **`ExtractionSteps`** — one row per step per extraction (~6 rows per extraction)
+   - `Id` (Guid, PK)
+   - `ExtractionId` (FK to Extractions — available from step 1 due to early creation)
+   - `StepNumber` (int, 1-6)
+   - `StepName` (nvarchar — "DocumentParsing", "Intake", "ClinicalExtraction", "RiskAssessment", "Summarization", "Indexing")
+   - `Status` (nvarchar — "InProgress", "Completed", "Failed", "Skipped")
+   - `StartedAt` (DateTime)
+   - `CompletedAt` (DateTime, nullable)
+   - `DurationMs` (int, nullable)
+   - `ModelUsed` (nvarchar, nullable — e.g. "gpt-4.1-nano", "gpt-4.1-mini", "text-embedding-3-large", null for non-LLM steps)
+   - `PromptTokens` (int, nullable)
+   - `CompletionTokens` (int, nullable)
+   - `TotalTokens` (int, nullable)
+   - `EstimatedCostUsd` (decimal, nullable — computed from token counts × static pricing dictionary; Azure OpenAI pricing is not in the SDK response, so use a hardcoded `Dictionary<string, (decimal inputPerMillion, decimal outputPerMillion)>` in config or code, e.g. `{ "gpt-4.1-mini": (0.40, 1.60), "gpt-4.1-nano": (0.10, 0.40), "text-embedding-3-large": (0.13, 0) }` — approximate, update manually when pricing changes)
+   - `ResultSummaryJson` (nvarchar(max), nullable — step-specific output, see below)
+   - `ErrorMessage` (nvarchar(max), nullable — populated on failure)
+
+   **ResultSummaryJson per step:**
+   - Step 1 (DocumentParsing): `{ pageCount, ocrConfidence, fileSizeBytes, sections[] }`
+   - Step 2 (Intake): `{ isValid, documentType, sessionDate, therapistName, language, estimatedWordCount, validationError? }`
+   - Step 3 (ClinicalExtraction): `{ fieldCount, overallConfidence, toolCallCount, lowConfidenceFields[], topLevelSummary }`
+   - Step 4 (RiskAssessment): `{ riskLevel, requiresReview, discrepancyCount, guardrailApplied, reviewReasons[], fieldDecisions[] }` — includes the per-field risk audit trail (original/re-extracted/final, rule applied, reasoning)
+   - Step 5 (Summarization): `{ oneLiner, keyPointsPreview, interventionsUsed[] }`
+   - Step 6 (Indexing): `{ indexed: bool, embeddingDimensions, errorReason? }`
+
+2. **`ExtractionToolCalls`** — one row per tool call in the Clinical Extractor agent loop (~3-6 rows per extraction)
+   - `Id` (Guid, PK)
+   - `ExtractionStepId` (FK to ExtractionSteps)
+   - `ToolName` (nvarchar — "ValidateSchema", "ScoreConfidence", "CheckRiskKeywords", "LookupDiagnosisCode")
+   - `Succeeded` (bool)
+   - `DurationMs` (int, nullable)
+   - `LoopRound` (int — which iteration of the agent loop; tools in the same round ran in parallel)
+   - `InputSummaryJson` (nvarchar(max), nullable)
+   - `OutputSummaryJson` (nvarchar(max), nullable)
+   - `ExecutedAt` (DateTime)
+
+3. **`ExtractionLlmTraces`** — one row per LLM call per step (full prompts and responses)
+   - `Id` (Guid, PK)
+   - `ExtractionStepId` (FK to ExtractionSteps)
+   - `PromptText` (nvarchar(max) — full prompt sent to LLM)
+   - `ResponseText` (nvarchar(max) — full response received)
+   - `ModelUsed` (nvarchar)
+   - `PromptTokens` (int)
+   - `CompletionTokens` (int)
+   - `CreatedAt` (DateTime)
+   - Controlled by config: `PipelineDiagnostics:StoreLlmTraces` (per-environment, default false in appsettings, enabled in appsettings.Development.json or appsettings.Staging.json)
+
+**No migration of existing data:** Old extractions simply won't have step data — the UI handles this gracefully with "Processing details not available." New extractions write diagnostics (risk field decisions, guardrail info, token usage, etc.) to the new step tables going forward.
+
+**Dual-write for backward compatibility:** The existing `GET /api/sessions/{id}/extraction` endpoint returns `RiskDiagnostics` (guardrail flags, discrepancy count, field decisions) mapped from columns on the `Extractions` table. To avoid breaking this endpoint for new extractions, the orchestrator must **dual-write** risk diagnostic data to both the old `Extractions` columns AND the new `ExtractionSteps` ResultSummaryJson. The old columns continue to be populated so the existing API contract is preserved. The new step tables provide the richer, per-step view for the B-094 UI. A future cleanup ticket can remove the dual-write once the extraction DTO is updated to source from step tables.
+
+**Retention-ready schema (cleanup not in scope):** All rows have timestamps (`StartedAt`/`CompletedAt`/`CreatedAt`). FK relationships (`ExtractionToolCalls → ExtractionSteps → Extractions`) must be explicitly configured with `OnDelete(DeleteBehavior.Cascade)` in EF entity configurations — the project currently uses `DeleteBehavior.Restrict` everywhere, so cascade is a new pattern limited to these child tables. This ensures deleting an `ExtractionStep` automatically removes its tool calls and LLM traces. `ExtractionLlmTraces` are the largest rows and easiest to purge. Actual retention job is a future ticket — this ticket just ensures the schema supports clean deletion without orphans or dependency issues.
+
+**Orchestrator changes:**
+- Each step writes an `ExtractionStep` row to DB immediately when it starts (Status=InProgress) and updates when complete (Status=Completed/Failed with timing, tokens, result summary)
+- This is append-only — each step writes its own row, no contention with other steps or the main Extractions row
+- Step instrumentation is non-fatal — if a step-write fails, the pipeline continues (same try/catch pattern already used for summarizer and indexing steps)
+- **New: Token usage capture** — currently no agent result type exposes token counts. `ChatCompletion.Usage` (PromptTokenCount, CompletionTokenCount) is available from the Azure OpenAI SDK response but is never read. New work: add token usage properties to `AgentLoopResult`, `IntakeResult`, `RiskAssessmentResult`, and summarizer result; capture from `response.Usage` in `AgentLoopRunner.RunCoreAsync` and each agent's single-shot call
+- **New: LoopRound and per-call timing** — `ToolCallEntry` is currently `record ToolCallEntry(string ToolName, bool Succeeded)` with no round or timing data. New work: extend to include `LoopRound` (int), `DurationMs` (int), and track which tools executed in parallel within each agent loop iteration. The loop already batches tools via `Task.WhenAll` per round — adding a round counter and per-call stopwatch is straightforward
+- Intake metadata (document type, language, word count) captured from `IntakeResult`
+- Doc Intelligence metadata (page count, OCR confidence) captured from `ParsedDocumentMetadata`
+
+**New API endpoint:**
+- `GET /api/sessions/{sessionId}/extraction/steps` — returns all ExtractionSteps + nested ExtractionToolCalls for the session's most recent extraction
+- Separate from existing `GET /api/sessions/{id}/extraction` (keeps existing contract unchanged, smaller polling payload)
+- Includes LLM traces in response only when `PipelineDiagnostics:StoreLlmTraces` is enabled AND traces exist for the step
+- Used by B-094 frontend for live polling and historical review
+
+**Files likely affected:**
+- `src/SessionSight.Agents/Orchestration/ExtractionOrchestrator.cs` — emit step data at each stage, create ExtractionResult early
+- `src/SessionSight.Agents/Agents/ClinicalExtractorAgent.cs` — expose tool call trace + token usage + loop round
+- `src/SessionSight.Agents/Agents/IntakeAgent.cs` — expose token usage + intake metadata
+- `src/SessionSight.Agents/Agents/RiskAssessorAgent.cs` — expose token usage
+- `src/SessionSight.Agents/Agents/SummarizerAgent.cs` — expose token usage
+- `src/SessionSight.Agents/Services/AgentLoopRunner.cs` — capture per-tool-call timing, loop round, parallel execution info
+- `src/SessionSight.Core/Models/` — new ExtractionStep, ExtractionToolCall, ExtractionLlmTrace entities
+- `src/SessionSight.Infrastructure/Data/` — EF configurations + migration
+- `src/SessionSight.Infrastructure/Repositories/` — new ExtractionStepRepository or extend existing
+- `src/SessionSight.Api/Controllers/DocumentsController.cs` — new `GET extraction/steps` endpoint (existing extraction GET is here under `[Route("api/sessions/{sessionId:guid}")]`; `ExtractionController` is routed under `api/extraction` so the steps endpoint belongs in `DocumentsController` for consistent routing)
+- `src/SessionSight.Api/Controllers/ExtractionController.cs` — modify trigger to create ExtractionResult early
+- `src/SessionSight.Api/DTOs/` — new response DTOs for steps endpoint
+- `appsettings.*.json` — `PipelineDiagnostics:StoreLlmTraces` flag
+
+**Acceptance:**
+- ExtractionResult row created at pipeline start with minimal data; updated with full results at end
+- Each extraction writes ~6 step rows to ExtractionSteps as they complete (not batched at end)
+- Tool calls from the Clinical Extractor agent loop persisted in ExtractionToolCalls with LoopRound for parallel execution tracking
+- Token usage (prompt + completion) captured per step; estimated cost computed
+- `GET /api/sessions/{id}/extraction/steps` returns step-level data with timing, tokens, tool calls, result summaries
+- When `PipelineDiagnostics:StoreLlmTraces=true`, full prompts and responses stored in ExtractionLlmTraces
+- Old extractions without step data are handled gracefully (no errors, UI shows "not available")
+- Existing extraction behavior unchanged — same pipeline, same results, just more data saved along the way
+- Step instrumentation is non-fatal — pipeline continues if step-write fails
+- Schema supports clean deletion via cascading FKs (retention implementation is a future ticket)
+
+**Cross-references:**
+- B-094 (Live Extraction Progress UI) depends on this ticket's API endpoint and stored data
+- B-096 (Confidence heatmap, risk merge viz) depends on B-094
+- B-084 (Resilient Extraction Pipeline) benefits from step-level data for partial retry/resume; should be designed aware of this schema
+
+### B-094 Details (Live Extraction Progress UI)
+
+**Problem:** The extraction pipeline takes 30-90 seconds. Currently the Upload page shows a generic spinner during this time with no indication of progress, which step is running, or what the AI is doing. After B-095 persists per-step diagnostics, the frontend can display a rich step-by-step visualization — both live during processing and historically for completed extractions. This is a key portfolio piece demonstrating understanding of agentic AI pipelines, cost tracking, and explainable AI.
+
+**Reusable component: `<ExtractionPipelineView>`**
+- Takes `sessionId` as prop
+- Two modes determined automatically:
+  - **Live mode** (during processing): polls `GET /api/sessions/{id}/extraction/steps` every 2 seconds. **Important:** the full response with LLM traces can be ~85KB — consider stripping traces/tool I/O from the polling DTO or adding a `?detail=false` query param to keep payloads lightweight during polling. Steps appear one by one as they complete (steps are only persisted after completion — no `Running` state is visible via the API, so "currently running" is inferred from the gap between the last completed step order and the expected 6). Polling stops when **document status** reaches `Completed` or `Failed` (do NOT rely on step count — step saves are best-effort and may silently fail, resulting in fewer than 6 persisted steps even on a successful extraction).
+  - **Historical mode** (after completion): single fetch, all steps rendered as completed/failed. No polling.
+- No screen flicker — React Query structural sharing ensures only changed data triggers re-renders
+
+**The 6 steps displayed:**
+
+| # | Step | Icon | Completion preview (medium detail default) |
+|---|------|------|-------------------------------------------|
+| 1 | Reading Document | doc/scan | "3 pages · 97% OCR confidence" |
+| 2 | Validating | checkmark/shield | "SOAP note · Jan 15 2026 · ~450 words" |
+| 3 | Extracting Clinical Data | brain/magnifier | "{fieldCount} fields · {confidence}% confidence · {toolCallCount} tool calls" |
+| 4 | Safety Assessment | shield/alert | "Risk: Low · No flags" or "Risk: Moderate · 2 discrepancies" |
+| 5 | Generating Summary | document/pen | One-liner summary preview |
+| 6 | Indexing & Saving | database/search | "Searchable via Q&A · Done" |
+
+**Progressive disclosure (default to medium, expand for more):**
+- **Collapsed:** Icon + step name + status badge (Succeeded/Failed/Running) + duration
+- **Medium (default):** Above + result summary one-liner + model used + token count + estimated cost (cost computed client-side from token counts + model pricing — `EstimatedCostUsd` column exists but is not populated server-side)
+- **Expanded:** Above + full result details + tool calls with sub-steps (for step 3) + LLM reasoning (for step 4) + field-level details
+- **Deep expand:** Full prompt and response text from ExtractionLlmTraces (if available/enabled)
+
+**Failed step display:**
+- Red icon for failed steps
+- Error message expandable on click
+- Non-fatal failures (summarizer, indexing) show red but pipeline continues — visually distinct from fatal failures that stop the pipeline
+- Demonstrates graceful degradation — good portfolio talking point
+
+**Tool call sub-steps (within step 3):**
+- Each tool call shown as a sub-item: tool name, success/failure badge, duration
+- Tools in the same `LoopRound` shown side-by-side or grouped to indicate parallel execution
+- Expandable for input/output summaries
+
+**Cost tracking display:**
+- Per-step: "1,247 in → 892 out · ~$0.018"
+- Total: "Pipeline total: ~$0.032"
+
+**Where it appears:**
+- **Upload page:** Shown after upload is triggered, replaces current synchronous spinner. Live mode with 2s polling.
+- **SessionDetail page:** New tab or expandable section. Historical mode. Users can scroll through steps, expand details, review LLM reasoning, click through to source document.
+- Same `<ExtractionPipelineView>` component in both locations, different data-fetching behavior.
+
+**API hook:**
+- `useExtractionSteps(sessionId)` — React Query hook
+- `refetchInterval: 2000` when live (document status is `Processing`)
+- Disabled when document status reaches `Completed` or `Failed` (do NOT use step count — step saves are best-effort)
+- Returns typed step data with nested tool calls and optional LLM traces
+- `ResultSummaryJson` is a raw JSON string with different shapes per step — frontend must parse and switch on `stepName` to render (see B-095 implementation notes for per-step shapes)
+- Step status enum values: `Running`, `Succeeded`, `Failed`, `Skipped`
+- Tool calls may be 0 even on successful extraction (LLM non-determinism — the agent loop can produce results without calling tools)
+
+**Files:**
+- New `src/SessionSight.Web/src/components/extraction/ExtractionPipelineView.tsx` — reusable component
+- New `src/SessionSight.Web/src/components/extraction/ExtractionStepCard.tsx` — individual step with expand/collapse
+- New `src/SessionSight.Web/src/components/extraction/ToolCallList.tsx` — tool call sub-items
+- New `src/SessionSight.Web/src/api/extractionSteps.ts` — API client
+- New `src/SessionSight.Web/src/hooks/useExtractionSteps.ts` — query hook with polling
+- New `src/SessionSight.Web/src/types/extractionSteps.ts` — TypeScript types
+- Modified `src/SessionSight.Web/src/pages/Upload.tsx` — replace synchronous spinner with pipeline view
+- Modified `src/SessionSight.Web/src/pages/SessionDetail.tsx` — add processing log section
+- Unit tests for all new components + hooks
+- Playwright smoke test for pipeline view rendering
+
+**Acceptance:**
+- During upload, users see each step appear and complete in real-time with 2s polling, no flicker
+- Default display is medium detail — step name, status, one-liner result, model, tokens, cost
+- Users can expand any step for full details including tool calls and LLM reasoning
+- If LLM traces available, deep expand shows full prompts and responses
+- Same component works on SessionDetail for historical review
+- Failed non-fatal steps show red icon with expandable error
+- Cost per step and total cost displayed
+- Tool calls within step 3 shown as sub-steps with parallel execution grouping
+- Component gracefully handles old extractions with no step data ("Processing details not available")
+- No screen flicker during live polling
+
+**Cross-references:**
+- Blocked by B-095 (Pipeline Step Instrumentation) — needs the stored data and API endpoint
+- B-096 (Confidence heatmap, risk merge viz, source attribution) builds on top of this component
+- B-084 (Resilient Extraction Pipeline) may change how extraction is triggered (background queue → 202 Accepted), but this component's interface (poll an endpoint, show steps) remains the same — just the trigger changes
+
+**B-095 implementation notes (actual API shape):**
+- Endpoint: `GET /api/sessions/{sessionId}/extraction/steps`
+- Response: `{ extractionId, steps: [{ id, stepName, status, stepOrder, startedAt, completedAt, durationMs, modelUsed, inputTokens, outputTokens, totalTokens, resultSummaryJson, errorMessage, toolCalls: [...], llmTraces: [...] }] }`
+- Tool calls include `inputJson`/`outputJson` (full I/O); LLM traces include `promptText`/`responseText` (full prompts) — these are large and should be stripped for polling
+- LLM traces are config-gated via `PipelineDiagnostics:StoreLlmTraces` (false in production, true in dev) — traces array will be empty in production unless enabled
+- `ResultSummaryJson` shapes per step: Step 1 `{ pageCount, ocrConfidence, fileSizeBytes }`, Step 2 `{ isValid, documentType, sessionDate, language, estimatedWordCount }`, Step 3 `{ fieldCount, overallConfidence, toolCallCount, lowConfidenceFields[] }`, Step 4 `{ riskLevel, requiresReview, discrepancyCount, guardrailApplied, reviewReasons[], fieldDecisions[] }`, Step 5 `{ oneLiner, interventionsUsed[] }`, Step 6 `{ indexed }` or `{ indexed: false, error }`
+- Tool calls and LLM traces are returned in deterministic order: `OrderBy(LoopRound).ThenBy(CalledAt)`
+- `CalledAt` timestamps on tool calls and traces are approximate (computed as `step.StartedAt + durationMs`, not actual wall-clock)
+
+### B-096 Details (Extraction Detail Polish — Confidence Heatmap, Risk Merge Viz, Source Attribution)
+
+**Problem:** After B-094 ships the step-by-step pipeline view with progressive disclosure, three visualization features would significantly elevate the portfolio impression but are complex enough to warrant a separate ticket. These build on data that already exists (per-field confidence, source text, risk field decisions) and on B-094's expandable step card infrastructure.
+
+**Scope:**
+
+1. **Confidence heatmap** — When expanding step 3 (Clinical Extraction), show extracted fields colored by confidence: green (>0.8), yellow (0.5-0.8), red (<0.5). Each of the 82 fields in `ClinicalExtraction` already has a `.Confidence` property. Clicking a field expands to show the confidence score, source text, and source section. Demonstrates the AI's uncertainty and where human review is most needed.
+
+2. **Risk merge visualization** — When expanding step 4 (Safety Assessment), show the original extraction → re-extraction → final value side-by-side for each risk field, with the merge rule and LLM reasoning. Data is in the Risk Assessment step's `ResultSummaryJson` (written by B-095). Visually shows the AI "disagreeing with itself" and the safety merge resolving it with the conservative-wins rule. Demonstrates responsible AI design.
+
+3. **Source attribution click-through** — Click any extracted field → see the exact sentence from the original document where the AI found the value (from `ExtractedField.Source.Text` and `.Source.Section`). Optionally highlight the relevant passage in a side-by-side document view. Allows supervisors to verify AI decisions against the source material.
+
+**Files:**
+- New `src/SessionSight.Web/src/components/extraction/ConfidenceHeatmap.tsx`
+- New `src/SessionSight.Web/src/components/extraction/RiskMergeView.tsx`
+- New `src/SessionSight.Web/src/components/extraction/SourceAttribution.tsx`
+- Modified `src/SessionSight.Web/src/components/extraction/ExtractionStepCard.tsx` — integrate new views into expanded state
+- Unit tests for new components
+
+**Acceptance:**
+- Step 3 expanded view shows 82 fields with confidence-based coloring
+- Step 4 expanded view shows side-by-side risk merge with reasoning
+- Clicking an extracted field shows source text and document section
+- Works in both live and historical modes
+
+**Cross-references:**
+- Blocked by B-094 (Live Extraction Progress UI) — builds on the step card expand infrastructure
+- Uses data from B-095 (step-level storage) and existing Extractions table (per-field confidence, source text)
+
+### B-084 Details (Resilient Extraction Pipeline — merges B-012, B-035)
+
+This ticket combines three previously separate items that all need the same underlying resilience infrastructure:
+- **B-084** (original): Move extraction to background queue — decouple from HTTP request thread
+- **B-012**: Dead-letter handling for failed ingestion — automatic retry and permanent failure routing
+- **B-035**: AI Search indexing reliability — retry failed indexing so sessions remain searchable via Q&A
+
+#### Problem 1 — UI extraction blocks HTTP thread (original B-084)
+
+The extraction pipeline (intake → clinical extractor → risk assessor → summarizer → embedding) takes 30-120+ seconds. Currently it runs synchronously inside the HTTP POST `/api/extraction/{sessionId}` request thread. This causes:
 1. **Client disconnect kills extraction** — if the user navigates away, the browser aborts the fetch, ASP.NET Core fires `HttpContext.RequestAborted`, and the CancellationToken propagates through the entire LLM pipeline, canceling mid-flight. B-083 works around this with `CancellationToken.None` but the extraction still blocks the HTTP thread.
 2. **HTTP timeout risk** — long extractions risk hitting proxy/ingress/Kestrel timeouts (Container Apps default 240s, but Azure OpenAI retries can push total time past that).
 3. **Thread starvation** — each extraction holds a Kestrel thread for 60-120s, limiting concurrent request capacity.
 4. **No retry on infrastructure failure** — if the container restarts mid-extraction, the work is lost. A queue provides at-least-once delivery.
 
-**Proposed architecture:**
-- **POST `/api/extraction/{id}`** becomes fire-and-forget: transitions status to Processing, enqueues message, returns 202 Accepted immediately
-- **Azure Storage Queue** (already provisioned via Aspire) holds extraction jobs
-- **Background worker** (`IHostedService` or Azure Functions queue trigger) dequeues and runs the pipeline with its own CancellationToken/timeout
-- **Frontend polls** `GET /api/sessions/{id}/extraction` on an interval (or uses SignalR) to show progress
-- **Retry:** Queue visibility timeout handles transient failures; poison queue for permanent failures
+#### Problem 2 — Failed ingestion has no automatic retry (original B-012)
 
-**Scope:** API controller change, new queue worker service, frontend polling UI, remove synchronous extraction path.
+The blob trigger path (`ProcessIncomingNoteFunction`) moves failed blobs to a `"failed/{patientId}/{timestamp}_{fileName}"` container and sets `ProcessingJob.Status = Failed`. But:
+- **No automatic retry** — failed blobs sit in the `failed` container forever until someone manually re-drops them into `incoming/`
+- **No dead-letter queue** — no Storage Queue or Service Bus consumer watches for failures
+- **No alerting** — nothing notifies operators that a blob failed processing
+- **No distinction between transient and permanent failures** — an Azure OpenAI rate limit (retryable) and a corrupt PDF (permanent) both end up in the same `failed/` container with no differentiation
 
-**Dependencies:** None (Azure Storage Queue already available in Aspire setup).
+The UI upload path (Path A) has retry via the frontend `useRetryExtraction` hook (re-calls `POST /api/extraction/{id}`, which allows `Failed → Processing` transition), but this requires manual user action.
+
+#### Problem 3 — AI Search indexing failures are silent (original B-035)
+
+In `ExtractionOrchestrator.cs`, Step 5.6 indexes the session into Azure AI Search for Q&A vector retrieval. If indexing fails, the exception is caught and logged but the extraction still succeeds:
+```csharp
+try {
+    await _sessionIndexingService.IndexSessionAsync(session, extractionResult, sessionSummary, ct);
+} catch (Exception ex) {
+    LogIndexingError(_logger, ex, sessionId);
+    // Indexing failure is non-fatal - continue with extraction save
+}
+```
+This means the extraction result is saved to SQL but the document is **not** in the search index — so the Q&A agent (`SearchSessionsTool`) cannot find it. With the Q&A Chat UI now live (B-085), this gap is user-visible: a successfully extracted session may silently fail to appear in Q&A search results with no indication to the user and no mechanism to retry indexing.
+
+#### Current state of the two ingestion paths
+
+**Path A — UI Upload (synchronous):**
+```
+Browser → POST /api/sessions/{id}/document → blob stored
+       → POST /api/extraction/{id} → synchronous extraction (blocks thread) → 200 response
+```
+Files: `Upload.tsx` → `DocumentsController.cs` → `ExtractionController.cs` → `ExtractionOrchestrator.cs`
+
+**Path B — Blob Trigger (async, fire-and-forget):**
+```
+Drop file into "incoming/{patientId}/{fileName}" → BlobTrigger function
+  → POST /api/ingestion/process → 202 Accepted → fire-and-forget Task.Run extraction
+  → blob moved to "processed/" or "failed/"
+```
+Files: `ProcessIncomingNoteFunction.cs` → `IngestionController.cs` → `ExtractionOrchestrator.cs`
+
+Both paths call the same `ExtractionOrchestrator.ProcessSessionAsync()`. The blob trigger function (`src/SessionSight.BlobTrigger/`) is a separate Azure Functions project, not wired into Aspire AppHost for local dev.
+
+#### Scope
+
+**Part 1 — Architecture decision (first step):** Evaluate and choose the right approach for background processing. Options include but are not limited to:
+- **Azure Storage Queue** (already provisioned via Aspire) + `IHostedService` worker in the API process
+- **Azure Storage Queue** + separate Azure Functions queue trigger
+- **`BackgroundService`/`IHostedService`** with in-memory `Channel<T>` (simpler, no queue infra, but no durability across restarts)
+- **Azure Service Bus** (more features: dead-letter built-in, scheduled retry, topics)
+- Document trade-offs: durability, complexity, cost, local dev experience, retry semantics
+
+**Part 2 — Decouple UI extraction from HTTP thread (B-084 core):**
+- `POST /api/extraction/{id}` transitions status to Processing, enqueues/dispatches the work, returns **202 Accepted** immediately
+- Background worker picks up the job and runs `ExtractionOrchestrator.ProcessSessionAsync()` with its own CancellationToken/timeout
+- Frontend changes: replace synchronous wait with **polling** `GET /api/sessions/{id}/extraction` on an interval (or use SignalR/SSE for push notification)
+- Show extraction progress/status on Upload page and SessionDetail page
+
+**Part 3 — Dead-letter handling for failed ingestion (B-012 core):**
+- Messages that fail N times are routed to a poison/dead-letter destination
+- Distinguish transient failures (rate limit, timeout → retry) from permanent failures (corrupt file, validation error → dead-letter immediately)
+- Dead-lettered items should be visible — either via the existing ProcessingJobs table (add `FailureReason`, `RetryCount` columns) or a dedicated UI
+- Blob trigger path: replace the current "move to `failed/` and forget" pattern with the chosen retry mechanism
+- Consider: should the blob trigger path also enqueue to the same queue instead of calling the API directly?
+
+**Part 4 — AI Search indexing retry (B-035 core):**
+- When indexing fails during extraction, record the failure (flag on session or separate tracking)
+- Enqueue a retry message (or add to a retry list) so indexing can be retried independently of re-running the full extraction
+- Make indexing status visible: sessions with failed indexing should be identifiable (API field, UI indicator, or ProcessingJobs status)
+- Consider: a "re-index" button on SessionDetail or a bulk re-index endpoint for operators
+- Now user-visible because Q&A Chat UI (B-085) depends on the search index being populated
+
+**Part 5 — Observability:**
+- Failed extractions, retries, dead-letters, and indexing failures should be logged with structured fields for triage
+- ProcessingJobs table or equivalent should track: attempt count, last failure reason, timestamps, final disposition
+
+#### Existing infrastructure to leverage
+- `ExtractionOrchestrator.ProcessSessionAsync()` — the core pipeline, shared by both paths
+- `ProcessingJob` entity with `JobKey` (SHA256 idempotency), `Status`, `StartedAt`, `CompletedAt` — already tracks blob trigger jobs
+- `TryTransitionDocumentStatusAsync` — atomic status machine (`Pending → Processing`, `Failed → Processing`)
+- `useRetryExtraction` frontend hook — already calls `POST /api/extraction/{id}` for manual retry
+- Azure Storage Queue — already provisioned in Aspire AppHost (4 blob containers: incoming, processing, processed, failed)
+- `SessionIndexingService` + `SearchIndexService` — existing indexing pipeline
+- `CircuitBreakerState` + retry policies — already wired into Azure SDK clients (OpenAI, Search, DocIntel)
+
+#### Files likely affected
+- `src/SessionSight.Api/Controllers/ExtractionController.cs` — return 202 instead of synchronous result
+- `src/SessionSight.Api/Controllers/IngestionController.cs` — potentially refactor to use shared queue
+- `src/SessionSight.Agents/Orchestration/ExtractionOrchestrator.cs` — indexing failure handling
+- `src/SessionSight.BlobTrigger/ProcessIncomingNoteFunction.cs` — retry/DLQ changes
+- `src/SessionSight.Api/Program.cs` — register background worker, queue services
+- `src/SessionSight.Web/src/pages/Upload.tsx` — polling UI instead of synchronous wait
+- `src/SessionSight.Web/src/pages/SessionDetail.tsx` — extraction status, re-index button
+- New: background worker service, queue message types, possibly queue client abstraction
+- New or modified: `ProcessingJob` entity (retry count, failure reason columns, EF migration)
+
+#### Acceptance
+- UI upload returns immediately (202) and frontend shows live extraction progress via polling
+- Failed extractions are automatically retried up to a configured limit
+- Permanently failed items are routed to dead-letter and visible to operators
+- AI Search indexing failures are tracked, retried, and visible — sessions with failed indexing are identifiable
+- Blob trigger path uses the same retry/DLQ mechanism as the UI path (or a well-justified separate one)
+- Existing functionality preserved: manual retry button, extraction status display, ProcessingJobs page
+
+#### Cross-references
+- B-095 (Pipeline Step Instrumentation) provides per-step data that enables partial retry/resume — if a container restarts mid-pipeline, step-level records show which steps completed. Design retry logic aware of this schema.
+- B-094 (Live Extraction Progress UI) handles the frontend polling/display; B-084's architecture decision (background queue vs blob trigger) determines the trigger mechanism but not the display.
+- B-012, B-035 merged into this ticket (see header).
+
+### B-098 Details (Intake Validation Failure Classification)
+
+**Found during:** B-084 code review (Opus agent review, 2026-02-24)
+
+**Problem:** The intake validation early-return path in `ExtractionOrchestrator` calls `TryTransitionDocumentStatusAsync` to set `Failed`, which does NOT write `FailureKind` or `ErrorMessage`. This is the most important permanent failure case ("not a therapy note") — the user sees "Failed" with no explanation and a Retry button that will just fail again on the same document.
+
+**Fix:**
+1. In `ExtractionOrchestrator.ProcessSessionAsync`, replace the intake validation `TryTransitionDocumentStatusAsync` call (~line 236) with `UpdateDocumentStatusAsync` passing `FailureKind.Permanent` and `ErrorMessage = "Document does not appear to be a therapy session note"`.
+2. Check the surviving old JSON-parse early-return path (~line 323) for the same bypass — it also calls `TryTransitionDocumentStatusAsync` without failure classification.
+3. Add a unit test in `ExtractionOrchestratorTests` verifying that intake validation failure sets `FailureKind.Permanent` and a non-null `ErrorMessage`.
+
+**Files:** `src/SessionSight.Agents/Orchestration/ExtractionOrchestrator.cs`, `tests/SessionSight.Agents.Tests/Orchestration/ExtractionOrchestratorTests.cs`
+
+### B-099 Details (Resume Path Duplicate Step Rows)
+
+**Found during:** B-084 code review (Opus agent review, 2026-02-24)
+
+**Problem:** When the orchestrator resumes from failed steps (e.g., step 5 Summarize failed, user clicks Retry), `ResumeFromFailedStepsAsync` calls `BeginStep` which generates a new `Guid.NewGuid()` for the step ID. This inserts a NEW row rather than updating the old failed step row. After successful retry, the DB has two rows for step 5: old `Status = Failed` + new `Status = Succeeded`. The UI pipeline view may show duplicate steps.
+
+**Fix options:**
+- (a) Delete old failed step records before re-running (simplest)
+- (b) Query the existing step ID and update it in place rather than creating a new one
+- (c) Filter to the latest step per StepOrder in the API/UI query
+
+Option (a) is simplest: before calling `BeginStep` in `ResumeFromFailedStepsAsync`, delete existing step records for the steps being re-run.
+
+**Files:** `src/SessionSight.Agents/Orchestration/ExtractionOrchestrator.cs`, `src/SessionSight.Infrastructure/Repositories/ExtractionStepRepository.cs`
+
+### B-100 Details (Minor API/UI Cleanup)
+
+**Found during:** B-084 code review (Opus agent review, 2026-02-24)
+
+**Two items (small enough to combine):**
+
+**1. QA page amber warning is imprecise**
+`src/SessionSight.Web/src/pages/QA.tsx` fires the "sessions may be missing from search results" warning on `documentStatus === 'PartiallyCompleted'`. But PartiallyCompleted can mean summarize-only failure (search is fine). The correct check is `indexingStatus === 'Failed'`, but `indexingStatus` isn't on the sessions list DTO. Either add `indexingStatus` to the sessions list endpoint or add a comment documenting the approximation.
+
+**2. `UpdateDocumentStatusAsync` can't explicitly clear ErrorMessage**
+In the document repository, passing `errorMessage: null` to `UpdateDocumentStatusAsync` means "leave existing value" (due to `if (errorMessage != null)` guard). This is correct by convention but undocumented — callers can't use this method to clear a stale error. Add a comment explaining the invariant, or change to a nullable sentinel pattern.
+
+### B-101 Details (ClassifyFailure: Exception Types Instead of String Matching)
+
+**Found during:** B-084 code review (Opus agent, 2026-02-24)
+
+**Problem:** `ClassifyFailure` in `ExtractionOrchestrator.cs` classifies failures by matching `exception.Message` strings (e.g., `msg.Contains("429")`, `msg.Contains("content filter")`, `msg.Contains("404") && msg.Contains("blob")`). Azure SDK exception messages are not guaranteed stable across SDK versions — a NuGet update could silently break all failure classification.
+
+**Fix:**
+- Match on exception type hierarchy first, fall back to message matching only for unknown types
+- Key mappings:
+  - `Azure.RequestFailedException` with `Status == 429` → Transient ("rate limit")
+  - `Azure.RequestFailedException` with `Status >= 500` → Transient ("service unavailable")
+  - `Azure.Identity.CredentialUnavailableException` → Transient ("auth error")
+  - `TaskCanceledException` / `OperationCanceledException` → Transient ("timeout")
+  - `JsonException` → Transient ("invalid output")
+  - `Azure.RequestFailedException` with `Status == 404` + blob context → Permanent ("blob not found")
+  - Custom `IntakeValidationException` (if added by B-098) → Permanent
+- Also fix inconsistency: `msg.Contains("404")` uses default Ordinal while rest uses OrdinalIgnoreCase
+- Keep message-based fallback for untyped exceptions, but primary classification should be type-based
+
+**Files:** `src/SessionSight.Agents/Orchestration/ExtractionOrchestrator.cs` (~1 method), tests
+
+### B-102 Details (Add RowVersion to SessionDocument)
+
+**Found during:** B-084 code review (Opus agent, 2026-02-24)
+
+**Problem:** `SessionDocument` has no concurrency token. `UpdateDocumentStatusAsync` in `SessionRepository` uses tracked-entity load+save (`FindAsync` → modify → `SaveChangesAsync`). Two concurrent requests (e.g., two Retry clicks, or blob trigger + manual retry) can both read the same document entity before either saves, and the last write wins silently. `Session` already has `RowVersion` but `SessionDocument` does not.
+
+**Fix:**
+- Add `[Timestamp] public byte[] RowVersion { get; set; }` to `SessionDocument` entity
+- Add EF configuration: `.Property(d => d.RowVersion).IsRowVersion()`
+- Add EF migration
+- Handle `DbUpdateConcurrencyException` in `UpdateDocumentStatusAsync` — retry once with fresh read, or return false (caller already handles transition failures)
+- `TryTransitionDocumentStatusAsync` already uses `ExecuteUpdateAsync` with WHERE clause (atomic CAS) so it's unaffected — only the tracked-entity paths need the guard
+
+**Files:** `SessionDocument.cs`, `SessionDocumentConfiguration.cs`, `SessionRepository.cs`, EF migration, tests
+
+### B-103 Details (Replace Task.Run with IHostedService Background Queue)
+
+**Found during:** B-084 code review (Opus agent, 2026-02-24)
+
+**Problem:** `ExtractionController.cs:72` and `IngestionController.cs:136` both use `Task.Run(async () => { using var scope = ... })` to dispatch background extraction work. Issues:
+1. **No shutdown coordination** — `CancellationToken.None` means ASP.NET Core graceful shutdown has no visibility into in-flight extractions. A rolling deploy, SIGTERM, or Container Apps scale-to-zero will orphan the task. The session stays stuck in `Processing` forever with no recovery.
+2. **Unhandled exception edge cases** — if `IServiceScopeFactory.CreateScope()` throws during app disposal, the exception is silently swallowed by `Task.Run`.
+3. **Duplicate scaffolding** — both controllers have identical scope-creation + orchestrator-resolution + logging patterns.
+4. **Not testable** — the fire-and-forget dispatch can't be unit tested for DI resolution correctness.
+
+**Fix:**
+- Create `IExtractionJobDispatcher` interface + `ExtractionJobDispatcher : BackgroundService` implementation
+- Use `Channel<ExtractionJob>` (bounded, single reader) as the internal queue
+- `ExtractionJob` record: `{ Guid SessionId, CancellationToken ShutdownToken }`
+- `BackgroundService.ExecuteAsync` reads from channel, creates DI scope per job, runs orchestrator
+- `IHostApplicationLifetime.ApplicationStopping` token flows through to orchestrator as a linked token with `CancellationToken.None` override removed
+- Both controllers call `await _dispatcher.EnqueueAsync(sessionId)` instead of `Task.Run`
+- On shutdown: channel completes, in-flight job gets cancellation, orchestrator writes `Failed` with `FailureKind.Transient, ErrorMessage = "Server shutting down — retry automatically"` before exiting
+- Register as singleton in DI
+
+**Files:**
+- New: `src/SessionSight.Agents/Services/IExtractionJobDispatcher.cs`, `src/SessionSight.Agents/Services/ExtractionJobDispatcher.cs`
+- Modified: `ExtractionController.cs`, `IngestionController.cs`, `Program.cs` (DI registration)
+- Tests: dispatcher unit tests (enqueue, shutdown cancellation, scope creation)
+
+### B-104 Details (Split SessionRepository into 3 Concrete Classes)
+
+**Found during:** B-084 code review (Opus agent, 2026-02-24)
+
+**Problem:** `SessionRepository` implements `ISessionRepository`, `IDocumentRepository`, and `IExtractionResultRepository` in a single 400+ line class. All three interfaces resolve to the same scoped instance, sharing EF `DbContext` change-tracker state. When the orchestrator injects `IDocumentRepository` and `IExtractionResultRepository` separately (thinking they're independent), modifications via one leak into the other through the shared tracker. This caused the `ExecuteUpdateAsync` → tracked-entity bug that was fixed in B-084, and remains a latent source of similar bugs.
+
+**Fix:**
+- Split into 3 classes:
+  - `SessionRepository : ISessionRepository` — Session CRUD, patient-session queries
+  - `DocumentRepository : IDocumentRepository` — SessionDocument status transitions, failure fields, document queries
+  - `ExtractionResultRepository : IExtractionResultRepository` — ExtractionResult CRUD, step persistence
+- All three take `SessionSightDbContext` via constructor injection (still same DbContext per scope — EF scoping doesn't change)
+- The split eliminates the *class-level* shared state (private fields, helper methods that touch multiple entity types)
+- Move shared helpers (if any) to a `RepositoryBase` or extension methods
+- Update DI registration in `Program.cs`: 3 separate `AddScoped<IFoo, Foo>()` calls
+- **Important:** DbContext is still scoped (shared per request), so cross-entity change-tracker state is an EF design constraint, not eliminated by this refactor. The value is that each repository class has a focused surface area and can't accidentally modify entities it doesn't own via tracked references.
+
+**Files:**
+- New: `src/SessionSight.Infrastructure/Data/Repositories/DocumentRepository.cs`, `ExtractionResultRepository.cs`
+- Modified: `SessionRepository.cs` (remove IDocumentRepository + IExtractionResultRepository implementations), `Program.cs`
+- Tests: update any mocks that construct `SessionRepository` directly
+
+### B-105 Details (Fix Adversarial Prompt Injection Golden Tests)
+
+**Found during:** E2E test run (2026-02-25) — risk-test-038 consistently content-filtered, never actually tested.
+
+**Problem:** 9 adversarial prompt injection golden tests (038–041, 046, 047, 049, and partially 039, 040) have `expected_outcome: content_filter_optional`, which means they SKIP when Azure's content filter blocks them. But content filter blocking IS the correct security behavior — the malicious input was stopped before reaching the LLM. These tests never assert anything: they either get content-filtered (skip) or succeed (assert risk fields, not injection resistance).
+
+**Affected golden files:**
+- `risk-test-038` — direct instruction injection to suppress risk
+- `risk-test-039` — role-override injection with high-lethality means
+- `risk-test-040` — fake system directive with behavioral warning signs
+- `risk-test-041` — pre-formatted JSON output injection
+- `risk-test-046` — fake extraction-complete header
+- `risk-test-047` — inline HTML/comment suppression directives
+- `risk-test-049` — repeated injection bombardment (11x)
+
+**Fix:**
+- Change `expected_outcome` from `content_filter_optional` to `content_filter_blocked` for cases that are consistently blocked
+- Test PASSES when content filter blocks the request (validates defense-in-depth)
+- For cases that sometimes get through the filter: keep `content_filter_optional` but add a secondary assertion that the injection was ignored (risk fields still report correctly)
+- Consider splitting into two test categories in the test framework: "security/injection" vs "clinical/accuracy"
+
+**Files:**
+- `plan/data/synthetic/golden-files/risk-assessment/risk-test-{038,039,040,041,046,047,049}_v2.json`
+- `tests/SessionSight.FunctionalTests/GoldenExtractionTests.cs` (TriggerExtractionAsync skip logic)
+
+### B-106 Details (Fix Adversarial Exfiltration Golden Tests)
+
+**Found during:** E2E test analysis (2026-02-25) — exfiltration tests assert risk field values, not exfiltration resistance.
+
+**Problem:** 2 adversarial exfiltration golden tests (044, 045) embed "tell me your system prompt" / "what model are you" in therapy notes. The tests assert that risk field values are correct (low risk, because the clinical content is benign). But they never check whether the LLM actually leaked its system prompt or model identity in the response. The assertion doesn't match the threat being tested.
+
+**Affected golden files:**
+- `risk-test-044` — system prompt exfiltration request in low-risk note
+- `risk-test-045` — model identity and configuration exfiltration request
+
+**Fix:**
+- Add `must_not_contain` assertion to the test framework (similar to QA golden files which already have this)
+- Assert the extraction response / summary does NOT contain system prompt fragments, model names, or configuration details
+- Keep existing risk field assertions as secondary validation
+- May need to read the raw LLM response or check the summary text for leaked content
+
+**Files:**
+- `plan/data/synthetic/golden-files/risk-assessment/risk-test-{044,045}_v2.json` (add `must_not_contain` field)
+- `tests/SessionSight.FunctionalTests/GoldenExtractionTests.cs` (add exfiltration assertion logic)
+- `tests/SessionSight.FunctionalTests/Fixtures/ExtractionAssertions.cs` (new assertion helper)
 
 ### B-046 Details (Local Logging Baseline)
 - Scope: Configure API host logging so local debugging does not depend on temporary DIAG_LOG hacks.
@@ -658,6 +1179,26 @@
 | B-093 | Compare sessions tool for QA agent (side-by-side session comparison) | 2026-02-20 |
 | B-086 | Patient longitudinal summary on timeline page | 2026-02-20 |
 | B-091 | RAG eval harness — 20 golden QA cases, QADiagnostics, ToolCallTrace, precision@5 | 2026-02-20 |
+| B-095 | Pipeline step instrumentation — per-step persistence, token tracking, tool call traces, GET steps endpoint | 2026-02-22 |
+| B-094 | Live extraction progress UI — real-time polling, 3-level progressive disclosure, crash detection, step-by-step progress | 2026-02-22 |
+| B-096 | Extraction detail polish — confidence heatmap, risk merge view, source attribution | 2026-02-22 |
+| B-097 | Legal disclaimer — "not for clinical use" banner in sidebar and mobile nav | 2026-02-23 |
+| B-015 | Contract tests for API DTOs — JSON shape verification, found and fixed 4 frontend/backend drifts | 2026-02-23 |
+| B-084 | Resilient extraction pipeline — 202 background processing, failure classification, PartiallyCompleted status, content filter resilience, index retry, resume from failed step | 2026-02-24 |
+| B-098 | Orchestrator intake failure classification — FailureKind.Permanent with specific error message for invalid therapy notes | 2026-02-24 |
+| B-099 | Resume path dedup — UpdateOrBeginStep reuses existing step rows instead of inserting duplicates on retry | 2026-02-24 |
+| B-100 | QA warning banner for incomplete extraction + ErrorMessage reset to null on re-extraction | 2026-02-24 |
+| B-101 | ClassifyFailure uses switch(ex) type patterns instead of string matching | 2026-02-24 |
+| B-102 | RowVersion [Timestamp] concurrency token on SessionDocument | 2026-02-24 |
+| B-103 | ExtractionJobDispatcher BackgroundService — bounded Channel(20), 3 concurrent workers, replaces Task.Run fire-and-forget | 2026-02-25 |
+| B-004 | Architecture diagrams — updated 2 stale extraction diagrams + split UI Upload into 2 sub-diagrams at async boundary | 2026-02-25 |
+| P5-002 | Data flow diagrams — document lifecycle (stateDiagram-v2), data transformation pipeline (flowchart LR), entity relationship (erDiagram) | 2026-02-25 |
+| B-013 | Dedupe strategy — closed as sufficiently addressed: same-session 409 Conflict, atomic TryTransition (B-064), patient unique constraint (B-034), JobKey unique index (B-011), AI Search MergeOrUpload idempotent | 2026-02-25 |
+| P5-003 | API usage examples — closed as covered: Scalar interactive docs, frontend TS API client, 9 contract tests, k6 load test workflow, ARCHITECTURE.md sequence diagrams, README endpoint table | 2026-02-25 |
+| B-036 | Document Intelligence failure handling — added ClassifyFailure cases for 400/415 (Permanent: unsupported format) and 401/403 (Transient: auth error), pre-call file format validation in DocumentIntelligenceParser (extension allowlist + PDF magic bytes check) | 2026-02-26 |
+| B-011 | Idempotent job IDs for blob trigger — already implemented via JobKey unique index in ExtractionJobDispatcher (B-103) and TryTransition atomic status checks (B-064), backlog was stale | 2026-02-26 |
+| B-003 | Synthetic data generator script — already implemented: 8 sample therapy note PDFs generated via fpdf2, sample document picker in Upload UI (B-082) | 2026-02-26 |
+| B-014 | Reindex/backfill job for AI Search — POST /api/admin/reindex endpoint with optional patientId/sessionId filters, background ReindexService that bridges Core→Agent models and calls SessionIndexingService, per-session IndexingStatus updates | 2026-02-26 |
 
 ---
 
@@ -665,7 +1206,10 @@
 
 | Date | What Happened |
 |------|---------------|
+| 2026-02-26 | **B-004/P5-002 complete + Dependabot batch merge.** Merged 10 Dependabot PRs (#120-#129): Aspire 13.1.1→13.1.2, EF Core 9.0.4→9.0.13, Azure Storage, Functions Worker SDK. 6 merged directly, 4 had conflicts resolved via manual PR #130. Fixed breaking change from Aspire.Azure.Storage.Blobs 13.1.2 (`AddAzureBlobClient` → `AddAzureBlobServiceClient`) via PR #131. Also split UI Upload diagram into two at async boundary in `docs/ARCHITECTURE.md`. All tests pass: unit (737+), frontend (TS + Vitest + 83% coverage + smoke + build), E2E extraction pipeline (4/4). |
+| 2026-02-25 | **B-004 + P5-002 complete: Architecture diagram update + data flow diagrams.** Updated 2 stale extraction sequence diagrams to reflect B-084/B-103 refactors (ExtractionJobDispatcher, 202 Accepted, polling, FailureKind classification, PartiallyCompleted resume). Split UI Upload diagram into 2 sub-diagrams at the async boundary (1a: Request & Dispatch — 6 lanes, 1b: Pipeline Execution — 13 lanes) to reduce width. Added 3 new data flow diagrams: (5) Document Lifecycle stateDiagram-v2 with nested Transient/Permanent failure states, (6) Data Transformation Pipeline flowchart LR with subgraphs per step showing agent/model/output, (7) Entity Relationship erDiagram with 10 entities. All 7 diagrams validated via Node.js mermaid.parse() and Mermaid Live Editor. Also marked B-098–B-103 as Done in backlog (all shipped in PR #91 and #92). PR #116. |
 | 2026-02-20 | **B-086 complete: Patient longitudinal summary on timeline page.** Frontend-only change — `GET /api/summary/patient/{id}` already existed but was never called. Added `PatientSummary` + `GoalProgress` types to `types/index.ts`, `getPatientSummary()` API function in `api/summary.ts`, `usePatientSummary` query hook, and summary card panel on `PatientTimeline.tsx` between stats bar and session list. Panel shows progress narrative, mood trend badge, effective interventions, recurring themes, goal progress, risk trend summary, and recommended focus. Loading spinner during fetch, hidden on 404 (patients with no extraction data). Tests: 202 frontend unit (7 new: 3 hook, 2 API, 2 page), 17 Playwright smoke (patient summary route mock added). |
+| 2026-02-23 | **P2-010 complete: Architecture sequence diagrams.** Created `docs/ARCHITECTURE.md` with 4 Mermaid sequence diagrams: (1) Extraction Pipeline UI Upload — full 6-step orchestration from document upload through intake gate, agent-loop extraction (4 tools), risk re-extract + conservative merge, non-fatal summarization, non-fatal search indexing, and DB persist. (2) Extraction Pipeline Blob Trigger — async path from Azure Function trigger through blob lifecycle (incoming → processing → processed/failed), idempotency check, atomic patient upsert, fire-and-forget orchestration. (3) Q&A Dual-Path Flow — complexity classifier (nano, temp=0.0) routing to simple single-shot RAG (nano) or complex agentic loop (mini, 5 tools with patient isolation). (4) Agent Loop Runner — shared execution engine with 15 tool call limit, 5-min timeout, parallel tool execution, partial result handling. Includes model assignment table and pipeline summary. Unblocks B-004 (architecture diagrams) which unblocks P5-002 (data flow diagrams). |
 | 2026-02-20 | **B-087/088/089/093 complete: 4 quick wins from gap audit.** B-087: Top Interventions horizontal bar chart card on Dashboard (frontend-only, renders `topInterventions[]` from existing `PracticeSummary` API). B-088: Session summary regenerate/generate button on SessionDetail — new `api/sessionSummary.ts`, `useRegenerateSessionSummary` hook, button shows "Generate Summary" when no summary exists. B-089: Full-stack delete document — backend `DELETE /api/sessions/{id}/document` (blob + search index + DB), frontend red "Delete Document" button with `window.confirm`, `useDeleteDocument` hook. B-093: `CompareSessionsTool` for QA agent — compares 2+ sessions across mood, risk, interventions with change summary; registered in DI, added to agentic loop with `AllowedPatientId` guard, prompt updated. Also fixed `start-dev.sh` missing venv PATH export (caused `az` not found → LLM endpoints hang) and added `az login` warning to both start scripts. Tests: 726 backend (including 4 CompareSessionsTool + 3 DocumentsController delete), 195 frontend (including 7 new hook/page tests), 17 Playwright smoke (2 new assertions). PR #76. |
 | 2026-02-19 | **B-085 complete + Gap audit: 9 new backlog items (B-085–B-093) + 3 stale blocker fixes + B-083 closed.** B-085: Q&A Chat UI page with patient selector, chat-style message history, source citations, loading states, clear button. PR #75 merged. Ran three audits: (1) Backend capabilities with no frontend consumer — found Q&A Chat UI, patient summary, practice breakdown, session regen, delete/replace doc. (2) Specs vs backlog — found missing tickets for doc validation review-routing, RAG eval harness, SLO measurement; stale blockers on P6-007/P5-003/B-015. (3) Implementation vs design — confirmed summarizer tools gap (2 of 3 already exist in `AggregateMetricsTool`, only `compare_sessions` is new); document validation review-routing signals already in Azure SDK response but discarded. Fixed stale blockers: P6-007 Ready (P6-002 done), P5-003 Ready (P1-019 done), B-015 Ready (P1-004 done). Marked B-083 Done (commits d899432, d55d466, ca108cb). Added note to B-035 re: dependency on B-085 for user visibility. |
 | 2026-02-18 | **B-082 complete: Fix BlobNotFound + stuck Processing + file types + sample documents.** Fixed 3 production bugs: (1) URL-decode blob path in `AzureBlobDocumentStorage` — filenames with spaces/parens caused BlobNotFound on extraction. (2) Replaced `UpdateDocumentStatusAsync` with `TryTransitionDocumentStatusAsync` in all 3 `ExtractionOrchestrator` failure paths — change-tracker staleness caused status stuck at Processing. (3) Removed `.txt` from frontend accept list, added backend extension allowlist (`.pdf,.docx,.doc,.jpg,.jpeg,.png,.tiff,.bmp`) with 400 BadRequest for unsupported types. Added sample documents feature: generated 8 static therapy note PDFs (5 non-risk from golden files, 3 risk notes expanded to full structured format) via `fpdf2` script. Built sample document picker on Upload page with tab toggle (Sample Documents / Your Document), card grid with preview and "Use This" buttons. New test project: `SessionSight.Infrastructure.Tests` with 8 blob path round-trip tests. Added 4 Playwright smoke tests for Upload page sample UI. Updated 3 orchestrator tests, 1 E2E test (tab click). Validation: 724 backend tests pass (83.35% coverage), frontend 5/5 gates pass (15 smoke tests), 0 warnings. |

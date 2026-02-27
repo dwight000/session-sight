@@ -10,7 +10,6 @@ using SessionSight.Agents.Tools;
 using SessionSight.Agents.Validation;
 using SessionSight.Core.Enums;
 using SessionSight.Core.Schema;
-using SessionSight.Core.ValueObjects;
 
 namespace SessionSight.Agents.Agents;
 
@@ -24,8 +23,12 @@ public interface IClinicalExtractorAgent : ISessionSightAgent
     /// </summary>
     /// <param name="intake">The intake result containing the parsed document.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="onRoundComplete">Optional callback invoked after each agent loop round for incremental trace saving.</param>
     /// <returns>Extraction result with all clinical sections.</returns>
-    Task<ExtractionResult> ExtractAsync(IntakeResult intake, CancellationToken cancellationToken = default);
+    Task<ExtractionResult> ExtractAsync(
+        IntakeResult intake,
+        Func<LlmCallTrace, IReadOnlyList<ToolCallEntry>, Task>? onRoundComplete = null,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -39,13 +42,6 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
     private readonly ISchemaValidator _validator;
     private readonly AgentLoopRunner _agentLoopRunner;
     private readonly ILogger<ClinicalExtractorAgent> _logger;
-
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString
-    };
 
     public ClinicalExtractorAgent(
         IAIFoundryClientFactory clientFactory,
@@ -63,7 +59,10 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
 
     public string Name => "ClinicalExtractorAgent";
 
-    public async Task<ExtractionResult> ExtractAsync(IntakeResult intake, CancellationToken cancellationToken = default)
+    public async Task<ExtractionResult> ExtractAsync(
+        IntakeResult intake,
+        Func<LlmCallTrace, IReadOnlyList<ToolCallEntry>, Task>? onRoundComplete = null,
+        CancellationToken cancellationToken = default)
     {
         var noteText = intake.Document.MarkdownContent;
         var sessionId = Guid.NewGuid().ToString("D", System.Globalization.CultureInfo.InvariantCulture);
@@ -95,7 +94,8 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
 
         // JSON response format guarantees valid JSON from the API (see also: ExtractionPrompts.SystemPrompt CRITICAL instruction)
         var loopResult = await _agentLoopRunner.RunAsync(
-            chatClient, messages, ChatResponseFormat.CreateJsonObjectFormat(), temperature: 0.1f, ct: cancellationToken);
+            chatClient, messages, ChatResponseFormat.CreateJsonObjectFormat(), temperature: 0.1f,
+            onRoundComplete: onRoundComplete, ct: cancellationToken);
 
         LogAgentLoopCompleted(_logger, loopResult.ToolCallCount, loopResult.IsComplete);
 
@@ -111,7 +111,11 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
                 LowConfidenceFields = [loopResult.PartialReason ?? "Extraction incomplete"],
                 ModelsUsed = [modelName],
                 Errors = [$"Partial extraction: {loopResult.PartialReason}"],
-                ToolCallCount = loopResult.ToolCallCount
+                ToolCallCount = loopResult.ToolCallCount,
+                InputTokens = loopResult.InputTokens,
+                OutputTokens = loopResult.OutputTokens,
+                TotalTokens = loopResult.TotalTokens,
+                ToolCallTrace = loopResult.ToolCallTrace
             };
         }
 
@@ -132,7 +136,12 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
                 RequiresReview = true,
                 Errors = ["Failed to parse extraction JSON from agent response"],
                 ModelsUsed = [modelName],
-                ToolCallCount = loopResult.ToolCallCount
+                ToolCallCount = loopResult.ToolCallCount,
+                InputTokens = loopResult.InputTokens,
+                OutputTokens = loopResult.OutputTokens,
+                TotalTokens = loopResult.TotalTokens,
+                ToolCallTrace = loopResult.ToolCallTrace,
+                LlmTraces = loopResult.LlmTraces
             };
         }
 
@@ -164,7 +173,12 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
             LowConfidenceFields = lowConfidenceFields,
             ModelsUsed = [modelName],
             Errors = validationResult.Errors.Select(e => e.Message).ToList(),
-            ToolCallCount = loopResult.ToolCallCount
+            ToolCallCount = loopResult.ToolCallCount,
+            InputTokens = loopResult.InputTokens,
+            OutputTokens = loopResult.OutputTokens,
+            TotalTokens = loopResult.TotalTokens,
+            ToolCallTrace = loopResult.ToolCallTrace,
+            LlmTraces = loopResult.LlmTraces
         };
     }
 
@@ -176,70 +190,18 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
             return null;
         }
 
-        var json = ExtractJson(content);
+        var json = LlmJsonHelper.ExtractJson(content);
+        var result = LlmExtractionParser.Parse(json);
 
-        // Try strict deserialization first
-        try
-        {
-            return JsonSerializer.Deserialize<ClinicalExtraction>(json, JsonOptions) ?? new ClinicalExtraction();
-        }
-        catch (JsonException)
-        {
-            // Fall through to lenient parsing
-        }
-
-        // Lenient: parse as JsonDocument and map sections individually
-        // This handles LLM responses with type mismatches (e.g., float for int, string for object)
-        try
-        {
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
-            var extraction = new ClinicalExtraction();
-
-            if (root.ValueKind != JsonValueKind.Object)
-                return null;
-
-            extraction.SessionInfo = TryParseSection<SessionInfoExtracted>(root, "sessionInfo");
-            extraction.PresentingConcerns = TryParseSection<PresentingConcernsExtracted>(root, "presentingConcerns");
-            extraction.MoodAssessment = TryParseSection<MoodAssessmentExtracted>(root, "moodAssessment");
-            extraction.RiskAssessment = TryParseSection<RiskAssessmentExtracted>(root, "riskAssessment");
-            extraction.MentalStatusExam = TryParseSection<MentalStatusExamExtracted>(root, "mentalStatusExam");
-            extraction.Interventions = TryParseSection<InterventionsExtracted>(root, "interventions");
-            extraction.Diagnoses = TryParseSection<DiagnosesExtracted>(root, "diagnoses");
-            extraction.TreatmentProgress = TryParseSection<TreatmentProgressExtracted>(root, "treatmentProgress");
-            extraction.NextSteps = TryParseSection<NextStepsExtracted>(root, "nextSteps");
-
+        if (result is null)
+            LogJsonParseFailure(_logger, null);
+        else if (result.SessionInfo != null)
             LogLenientParseUsed(_logger);
-            return extraction;
-        }
-        catch (JsonException ex)
-        {
-            LogJsonParseFailure(_logger, ex);
-            return null;
-        }
+
+        return result;
     }
 
-    private T TryParseSection<T>(JsonElement root, string sectionName) where T : new()
-    {
-        if (!root.TryGetProperty(sectionName, out var sectionElement) ||
-            sectionElement.ValueKind != JsonValueKind.Object)
-        {
-            return new T();
-        }
-
-        try
-        {
-            var sectionJson = sectionElement.GetRawText();
-            var parsed = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(sectionJson, JsonOptions);
-            return parsed is null ? new T() : MapToSection<T>(parsed);
-        }
-        catch (JsonException ex)
-        {
-            LogSectionParseFailure(_logger, sectionName, ex);
-            return new T();
-        }
-    }
-
+    // Test-only helper — used by 25+ tests in ClinicalExtractorAgentTests
     internal static string GetPromptForSection(string sectionName, string noteText)
     {
         return sectionName switch
@@ -257,257 +219,11 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
         };
     }
 
+    // Test-only helper — used by 50+ tests in ClinicalExtractorAgentTests
     internal static T ParseSectionResponse<T>(string sectionName, string content) where T : new()
     {
-        var json = ExtractJson(content);
-
-        try
-        {
-            var parsed = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json, JsonOptions);
-            if (parsed == null)
-            {
-                return new T();
-            }
-
-            return MapToSection<T>(parsed);
-        }
-        catch (JsonException)
-        {
-            return new T();
-        }
-    }
-
-    internal static string ExtractJson(string content) => LlmJsonHelper.ExtractJson(content);
-
-    private static T MapToSection<T>(Dictionary<string, JsonElement> parsed) where T : new()
-    {
-        var section = new T();
-        var properties = typeof(T).GetProperties();
-
-        foreach (var prop in properties)
-        {
-            // Convert PascalCase property name to camelCase for JSON lookup
-            var jsonKey = char.ToLowerInvariant(prop.Name[0]) + prop.Name[1..];
-
-            if (!parsed.TryGetValue(jsonKey, out var element))
-                continue;
-
-            if (!prop.PropertyType.IsGenericType ||
-                prop.PropertyType.GetGenericTypeDefinition() != typeof(ExtractedField<>))
-                continue;
-
-            var extractedField = MapToExtractedField(prop.PropertyType, element);
-            if (extractedField != null)
-            {
-                prop.SetValue(section, extractedField);
-            }
-        }
-
-        return section;
-    }
-
-    private static object? MapToExtractedField(Type fieldType, JsonElement element)
-    {
-        var valueType = fieldType.GetGenericArguments()[0];
-        var field = Activator.CreateInstance(fieldType);
-        if (field == null) return null;
-
-        var valueProperty = fieldType.GetProperty("Value");
-        var confidenceProperty = fieldType.GetProperty("Confidence");
-        var sourceProperty = fieldType.GetProperty("Source");
-
-        if (element.TryGetProperty("value", out var valueElement))
-        {
-            var value = DeserializeValue(valueElement, valueType);
-            valueProperty?.SetValue(field, value);
-        }
-
-        if (element.TryGetProperty("confidence", out var confElement))
-        {
-            double? conf = confElement.ValueKind switch
-            {
-                JsonValueKind.Number => confElement.GetDouble(),
-                JsonValueKind.String when double.TryParse(confElement.GetString(),
-                    System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out var d) => d,
-                _ => null
-            };
-            if (conf.HasValue)
-                confidenceProperty?.SetValue(field, conf.Value);
-        }
-
-        if (element.TryGetProperty("source", out var sourceElement) && sourceElement.ValueKind != JsonValueKind.Null)
-        {
-            var source = DeserializeSourceMapping(sourceElement);
-            sourceProperty?.SetValue(field, source);
-        }
-
-        return field;
-    }
-
-    private static object? DeserializeValue(JsonElement element, Type targetType)
-    {
-        if (element.ValueKind == JsonValueKind.Null)
-            return null;
-
-        var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
-
-        // Delegate to type-specific handlers to reduce complexity
-        return underlyingType switch
-        {
-            _ when underlyingType.IsEnum => DeserializeEnum(element, underlyingType),
-            _ when underlyingType == typeof(string) => element.GetString(),
-            _ when underlyingType == typeof(int) => TryGetInt(element),
-            _ when underlyingType == typeof(bool) => element.ValueKind == JsonValueKind.True,
-            _ when underlyingType == typeof(double) => TryGetDouble(element),
-            _ when underlyingType == typeof(DateOnly) => DeserializeDateOnly(element),
-            _ when underlyingType == typeof(TimeOnly) => DeserializeTimeOnly(element),
-            _ when underlyingType == typeof(List<string>) => DeserializeStringList(element),
-            _ when underlyingType == typeof(Dictionary<string, string>) => DeserializeStringDictionary(element),
-            _ when IsEnumList(underlyingType) => DeserializeEnumList(element, underlyingType),
-            _ => null
-        };
-    }
-
-    private static int? TryGetInt(JsonElement element)
-    {
-        if (element.ValueKind == JsonValueKind.Number)
-        {
-            if (element.TryGetInt32(out var i)) return i;
-            if (element.TryGetDouble(out var d)) return (int)d;
-            return null;
-        }
-
-        if (element.ValueKind == JsonValueKind.String &&
-            int.TryParse(element.GetString(), System.Globalization.NumberStyles.Integer,
-                System.Globalization.CultureInfo.InvariantCulture, out var parsed))
-            return parsed;
-
-        return null;
-    }
-
-    private static double? TryGetDouble(JsonElement element)
-    {
-        if (element.ValueKind == JsonValueKind.Number)
-            return element.TryGetDouble(out var d) ? d : null;
-
-        if (element.ValueKind == JsonValueKind.String &&
-            double.TryParse(element.GetString(), System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out var parsed))
-            return parsed;
-
-        return null;
-    }
-
-    private static object? DeserializeEnum(JsonElement element, Type enumType)
-    {
-        var stringValue = element.GetString();
-        if (string.IsNullOrEmpty(stringValue))
-            return null;
-        return Enum.TryParse(enumType, stringValue, ignoreCase: true, out var result) ? result : null;
-    }
-
-    private static readonly string[] DateFormats =
-    [
-        "yyyy-MM-dd",      // ISO: 2026-03-05
-        "M/d/yyyy",        // US: 3/5/2026
-        "MM/dd/yyyy",      // US padded: 03/05/2026
-        "MMMM d, yyyy",    // Full: March 5, 2026
-        "MMM d, yyyy",     // Abbrev: Mar 5, 2026
-        "d MMMM yyyy",     // Euro: 5 March 2026
-        "yyyy/MM/dd"       // Alt ISO: 2026/03/05
-    ];
-
-    private static DateOnly? DeserializeDateOnly(JsonElement element)
-    {
-        var dateStr = element.GetString();
-        if (string.IsNullOrWhiteSpace(dateStr))
-            return null;
-
-        // Try standard parsing first (handles many formats)
-        if (DateOnly.TryParse(dateStr, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var date))
-            return date;
-
-        // Try explicit formats for edge cases
-        if (DateOnly.TryParseExact(dateStr, DateFormats, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out date))
-            return date;
-
-        return null;
-    }
-
-    private static TimeOnly? DeserializeTimeOnly(JsonElement element)
-    {
-        var timeStr = element.GetString();
-        return TimeOnly.TryParse(timeStr, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var time) ? time : null;
-    }
-
-    private static List<string> DeserializeStringList(JsonElement element)
-    {
-        if (element.ValueKind != JsonValueKind.Array)
-            return [];
-
-        return element.EnumerateArray()
-            .Select(item => item.GetString())
-            .Where(str => str != null)
-            .ToList()!;
-    }
-
-    private static Dictionary<string, string> DeserializeStringDictionary(JsonElement element)
-    {
-        if (element.ValueKind != JsonValueKind.Object)
-            return [];
-
-        return element.EnumerateObject()
-            .Where(prop => prop.Value.GetString() != null)
-            .ToDictionary(prop => prop.Name, prop => prop.Value.GetString()!);
-    }
-
-    private static bool IsEnumList(Type type) =>
-        type.IsGenericType &&
-        type.GetGenericTypeDefinition() == typeof(List<>) &&
-        type.GetGenericArguments()[0].IsEnum;
-
-    private static object? DeserializeEnumList(JsonElement element, Type listType)
-    {
-        if (element.ValueKind != JsonValueKind.Array)
-            return null;
-
-        var itemType = listType.GetGenericArguments()[0];
-        var list = (System.Collections.IList)Activator.CreateInstance(listType)!;
-
-        foreach (var item in element.EnumerateArray())
-        {
-            var str = item.GetString();
-            if (!string.IsNullOrEmpty(str) && Enum.TryParse(itemType, str, ignoreCase: true, out var enumValue))
-                list.Add(enumValue);
-        }
-
-        return list;
-    }
-
-    private static SourceMapping? DeserializeSourceMapping(JsonElement element)
-    {
-        if (element.ValueKind == JsonValueKind.String)
-            return new SourceMapping { Text = element.GetString() ?? string.Empty };
-
-        if (element.ValueKind != JsonValueKind.Object)
-            return null;
-
-        var mapping = new SourceMapping();
-
-        if (element.TryGetProperty("text", out var textElement))
-            mapping.Text = textElement.GetString() ?? string.Empty;
-
-        if (element.TryGetProperty("startChar", out var startElement) && startElement.TryGetInt32(out var start))
-            mapping.StartChar = start;
-
-        if (element.TryGetProperty("endChar", out var endElement) && endElement.TryGetInt32(out var end))
-            mapping.EndChar = end;
-
-        if (element.TryGetProperty("section", out var sectionElement))
-            mapping.Section = sectionElement.GetString();
-
-        return mapping;
+        var json = LlmJsonHelper.ExtractJson(content);
+        return LlmExtractionParser.ParseSection<T>(json);
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Starting clinical extraction for session {SessionId}")]
@@ -526,14 +242,11 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
     private static partial void LogEmptyExtractionResponse(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to parse extraction response as JSON")]
-    private static partial void LogJsonParseFailure(ILogger logger, Exception exception);
+    private static partial void LogJsonParseFailure(ILogger logger, Exception? exception);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Extraction JSON parse returned null - malformed response")]
     private static partial void LogJsonParseReturnedNull(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Used lenient JSON parsing for extraction response")]
     private static partial void LogLenientParseUsed(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to parse section '{SectionName}' from extraction response")]
-    private static partial void LogSectionParseFailure(ILogger logger, string sectionName, Exception exception);
 }

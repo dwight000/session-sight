@@ -4,6 +4,8 @@ import { useReviewDetail } from '../hooks/useReviewDetail'
 import { useSubmitReview } from '../hooks/useSubmitReview'
 import { useRegenerateSessionSummary } from '../hooks/useRegenerateSessionSummary'
 import { useDeleteDocument } from '../hooks/useDeleteDocument'
+import { useRetryExtraction } from '../hooks/useRetryExtraction'
+import { useReindexSession } from '../hooks/useReindexSession'
 import { Card } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -12,6 +14,7 @@ import { ConfidenceBar } from '../components/ui/ConfidenceBar'
 import { Spinner } from '../components/ui/Spinner'
 import type { ReviewStatus, SessionSummary } from '../types'
 import { formatFieldValue, formatFieldName, isExtractedField } from '../utils/format'
+import { ExtractionPipelineView } from '../components/extraction/ExtractionPipelineView'
 
 const statusVariant: Record<ReviewStatus, string> = {
   NotFlagged: 'default',
@@ -48,6 +51,7 @@ function ExtractionSection({
   data: Record<string, unknown>
 }) {
   const [open, setOpen] = useState(name === 'riskAssessment')
+  const [activeSourceKey, setActiveSourceKey] = useState<string | null>(null)
 
   if (!data || typeof data !== 'object') return null
 
@@ -66,16 +70,37 @@ function ExtractionSection({
         <div className="border-t border-gray-200 px-4 py-3">
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {entries.map(([key, val]) => {
-              if (isExtractedField(val)) {
+              // Partial extracted field: backend returns {"confidence":0} for unextractable fields
+              const isPartialField = typeof val === 'object' && val !== null && 'confidence' in val && !('value' in val)
+              if (isExtractedField(val) || isPartialField) {
+                const confidence = (val as { confidence: number }).confidence
+                const valObj = val as Record<string, unknown>
+                const value = 'value' in valObj ? valObj.value : undefined
+                const source = 'source' in valObj ? valObj.source as { text?: string; section?: string; startChar: number; endChar: number } | null : null
+                const sourceExpanded = activeSourceKey === key
                 return (
                   <div key={key} className="rounded-md bg-gray-50 p-3">
                     <p className="text-xs font-medium text-gray-500">{formatFieldName(key)}</p>
-                    <p className="mt-1 text-sm text-gray-900">{formatFieldValue(val.value)}</p>
-                    <ConfidenceBar value={val.confidence} className="mt-1" />
-                    {val.source?.text && (
-                      <p className="mt-1 text-xs text-gray-400 italic truncate" title={val.source.text}>
-                        Source: {val.source.text}
-                      </p>
+                    <p className="mt-1 text-sm text-gray-900">{formatFieldValue(value)}</p>
+                    <ConfidenceBar value={confidence} className="mt-1" />
+                    {source?.text && (
+                      <>
+                        <button
+                          onClick={() => setActiveSourceKey(sourceExpanded ? null : key)}
+                          className="mt-1 text-xs text-blue-600 hover:text-blue-800 cursor-pointer"
+                        >
+                          {sourceExpanded ? 'Hide source' : 'Show source'}
+                        </button>
+                        {sourceExpanded && (
+                          <div className="mt-1 rounded border border-blue-100 bg-blue-50 p-2 text-xs">
+                            {source.section && (
+                              <p><span className="font-medium text-gray-500">Section:</span> {source.section}</p>
+                            )}
+                            <p className="break-words"><span className="font-medium text-gray-500">Text:</span> {source.text}</p>
+                            <p><span className="font-medium text-gray-500">Chars:</span> {source.startChar}–{source.endChar}</p>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )
@@ -170,7 +195,10 @@ export function SessionDetail() {
   const { data, isLoading, error } = useReviewDetail(sessionId!)
   const regenerate = useRegenerateSessionSummary(sessionId!)
   const deleteDoc = useDeleteDocument(sessionId!)
+  const retryMutation = useRetryExtraction()
+  const reindexMutation = useReindexSession()
   const navigate = useNavigate()
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   if (isLoading) return <Spinner />
 
@@ -216,6 +244,52 @@ export function SessionDetail() {
         <Badge variant={statusVariant[data.reviewStatus]}>{data.reviewStatus}</Badge>
         <span className="text-sm text-gray-500">{Math.round(data.overallConfidence * 100)}% confidence</span>
       </div>
+
+      {/* Failure context banners */}
+      {(data.documentStatus === 'Failed' || data.documentStatus === 'PartiallyCompleted') && (
+        <div className={`rounded-md p-4 ${data.documentStatus === 'Failed' ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200'}`}>
+          <div className="flex items-start justify-between">
+            <div>
+              <p className={`text-sm font-medium ${data.documentStatus === 'Failed' ? 'text-red-800' : 'text-amber-800'}`}>
+                {data.documentStatus === 'Failed' ? 'Extraction failed' : 'Extraction partially completed'}
+              </p>
+              {data.errorMessage && (
+                <p className={`mt-1 text-sm ${data.documentStatus === 'Failed' ? 'text-red-700' : 'text-amber-700'}`}>
+                  {data.errorMessage}
+                </p>
+              )}
+              {data.indexingStatus === 'Failed' && data.documentStatus !== 'Failed' && (
+                <div className="mt-1 flex items-center gap-2">
+                  <p className="text-sm text-amber-700">
+                    Search indexing failed — this session may not appear in Q&A search results.
+                  </p>
+                  <Button
+                    variant="secondary"
+                    onClick={() => reindexMutation.mutate(sessionId!)}
+                    disabled={reindexMutation.isPending}
+                  >
+                    {reindexMutation.isPending ? 'Reindexing...' : 'Reindex'}
+                  </Button>
+                </div>
+              )}
+            </div>
+            {data.failureKind !== 'Permanent' && (
+              <Button
+                variant="secondary"
+                onClick={() => retryMutation.mutate(sessionId!)}
+                disabled={retryMutation.isPending}
+              >
+                {retryMutation.isPending ? 'Retrying...' : 'Retry'}
+              </Button>
+            )}
+          </div>
+          {data.failureKind === 'Permanent' && (
+            <p className="mt-2 text-xs text-gray-500">
+              This error is permanent and retry will not help.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Summary panel */}
       {summary ? (
@@ -293,6 +367,12 @@ export function SessionDetail() {
         </Card>
       )}
 
+      {/* Processing Log */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-gray-700">Processing Log</h3>
+        <ExtractionPipelineView sessionId={sessionId!} isLive={false} />
+      </div>
+
       {/* Extraction accordion */}
       <div className="space-y-2">
         <h3 className="text-sm font-medium text-gray-700">Clinical Extraction Data</h3>
@@ -335,16 +415,42 @@ export function SessionDetail() {
           <Button
             variant="danger"
             disabled={deleteDoc.isPending}
-            onClick={() => {
-              if (window.confirm('Delete this document and its extraction? This cannot be undone.')) {
-                deleteDoc.mutate(undefined, {
-                  onSuccess: () => navigate('/upload'),
-                })
-              }
-            }}
+            onClick={() => setShowDeleteConfirm(true)}
           >
             {deleteDoc.isPending ? 'Deleting...' : 'Delete Document'}
           </Button>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900">Delete Document</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Delete this document and its extraction? This cannot be undone.
+            </p>
+            <div className="mt-4 flex justify-end gap-3">
+              <Button
+                variant="secondary"
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                disabled={deleteDoc.isPending}
+                onClick={() => {
+                  deleteDoc.mutate(undefined, {
+                    onSuccess: () => navigate('/upload'),
+                  })
+                  setShowDeleteConfirm(false)
+                }}
+              >
+                {deleteDoc.isPending ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
