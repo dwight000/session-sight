@@ -6,8 +6,8 @@
   "clinical_profile": "Harold Jacobson / Grief / Passive SI",
   "question": "Does this patient express any suicidal ideation?",
   "expected_answer": {
-    "must_contain": ["passive"],
-    "must_not_contain": ["active", "plan", "intent"],
+    "must_contain": ["passive", "ideation"],
+    "must_not_contain": ["active suicidal ideation", "active SI", "has a plan", "has intent"],
     "min_confidence": 0.6,
     "expect_sources_count_gte": 1
   },
