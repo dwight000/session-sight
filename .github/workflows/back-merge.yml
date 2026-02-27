@@ -26,6 +26,12 @@ jobs:
               --body "Auto back-merge failed due to conflicts. Please resolve manually."
             exit 0
           }
-          git push origin develop
+          git push origin develop || {
+            echo "Direct push blocked by branch protection — creating PR instead"
+            git push origin develop:refs/heads/auto-back-merge-${{ github.sha }} || true
+            gh pr create --base develop --head main \
+              --title "chore: Back-merge main into develop" \
+              --body "Automatic back-merge from main. No conflicts — safe to merge."
+          }
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
