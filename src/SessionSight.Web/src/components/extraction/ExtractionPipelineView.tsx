@@ -1,7 +1,9 @@
-import type { ExtractionStep, ExtractionStepName } from '../../types/extractionSteps'
+import { useState } from 'react'
+import type { ExtractionStep, ExtractionStepName, StepViewMode } from '../../types/extractionSteps'
 import { useExtractionSteps } from '../../hooks/useExtractionSteps'
 import { STEP_ORDER, STEP_DISPLAY_NAMES } from './stepConfig'
 import { ExtractionStepCard } from './ExtractionStepCard'
+import { ViewModeSelector } from './ViewModeSelector'
 
 interface ExtractionPipelineViewProps {
   sessionId: string
@@ -9,6 +11,7 @@ interface ExtractionPipelineViewProps {
 }
 
 export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipelineViewProps) {
+  const [viewMode, setViewMode] = useState<StepViewMode>('activity')
   const { data, isLoading, isError } = useExtractionSteps(sessionId, isLive)
 
   // Historical mode: no data or 404
@@ -70,6 +73,7 @@ export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipeline
           </p>
         </div>
       )}
+      <ViewModeSelector value={viewMode} onChange={setViewMode} />
       {STEP_ORDER.map((name) => (
         <ExtractionStepCard
           key={name}
@@ -77,8 +81,9 @@ export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipeline
           step={stepMap.get(name)}
           isCurrentStep={name === currentStepName}
           defaultExpanded={true}
-          showSubSectionsOpen={isLive}
+          showSubSectionsOpen={true}
           sessionId={sessionId}
+          viewMode={viewMode}
         />
       ))}
     </div>

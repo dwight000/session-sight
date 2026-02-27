@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
 using SessionSight.Agents.Helpers;
@@ -35,9 +36,10 @@ public partial class AgentLoopRunner
         List<ChatMessage> messages,
         ChatResponseFormat? responseFormat,
         float? temperature = null,
+        Func<LlmCallTrace, IReadOnlyList<ToolCallEntry>, Task>? onRoundComplete = null,
         CancellationToken ct = default)
     {
-        return RunCoreAsync(chatClient, messages, _tools, responseFormat, temperature, ct);
+        return RunCoreAsync(chatClient, messages, _tools, responseFormat, temperature, ct, onRoundComplete);
     }
 
     public Task<AgentLoopResult> RunAsync(
@@ -57,7 +59,8 @@ public partial class AgentLoopRunner
         IEnumerable<IAgentTool> tools,
         ChatResponseFormat? responseFormat,
         float? temperature,
-        CancellationToken ct)
+        CancellationToken ct,
+        Func<LlmCallTrace, IReadOnlyList<ToolCallEntry>, Task>? onRoundComplete = null)
     {
 #pragma warning restore S3776
         var toolCallCount = 0;
@@ -69,6 +72,7 @@ public partial class AgentLoopRunner
         var totalInputTokens = 0;
         var totalOutputTokens = 0;
         var totalTotalTokens = 0;
+        var promptStartForDelta = 0;
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(LoopTimeout);
@@ -144,10 +148,12 @@ public partial class AgentLoopRunner
                     totalTotalTokens += roundTotalTokens;
                 }
 
-                // Capture LLM trace for this round
+                // Capture LLM trace for this round with delta segments
                 var responseText = completion.Content.Count > 0 ? completion.Content[0].Text : null;
+                var deltaSegmentsJson = SerializeDeltaSegments(messages, promptStartForDelta);
                 llmTraces.Add(new LlmCallTrace(
-                    PromptText: SerializeMessagesForTrace(messages),
+                    PromptText: null,
+                    PromptSegmentsJson: deltaSegmentsJson,
                     ResponseText: responseText,
                     ModelUsed: completion.Model ?? string.Empty,
                     LoopRound: loopRound,
@@ -158,6 +164,7 @@ public partial class AgentLoopRunner
 
                 // Add assistant message to conversation
                 messages.Add(new AssistantChatMessage(completion));
+                promptStartForDelta = messages.Count;
 
                 // Check if model wants to call tools
                 if (completion.ToolCalls?.Count > 0)
@@ -171,12 +178,18 @@ public partial class AgentLoopRunner
                     var results = await Task.WhenAll(tasks);
 
                     // Record trace entries and add tool results to conversation
+                    var roundToolCalls = new List<ToolCallEntry>();
                     foreach (var (id, result, toolName, round, durationMs, inputJson) in results)
                     {
                         var outputJson = result.Data?.ToString();
-                        trace.Add(new ToolCallEntry(toolName, result.Success, round, durationMs, inputJson, outputJson));
+                        var entry = new ToolCallEntry(toolName, result.Success, round, durationMs, inputJson, outputJson);
+                        trace.Add(entry);
+                        roundToolCalls.Add(entry);
                         messages.Add(new ToolChatMessage(id, outputJson ?? string.Empty));
                     }
+
+                    if (onRoundComplete != null)
+                        await onRoundComplete(llmTraces[^1], roundToolCalls);
 
                     loopRound++;
                     continue;
@@ -185,13 +198,19 @@ public partial class AgentLoopRunner
                 // No tool calls = agent is done
                 if (completion.FinishReason == ChatFinishReason.Stop)
                 {
+                    if (onRoundComplete != null)
+                        await onRoundComplete(llmTraces[^1], Array.Empty<ToolCallEntry>());
+
                     var content = completion.Content.Count > 0 ? completion.Content[0].Text : "";
                     return AgentLoopResult.Complete(content, toolCallCount, trace,
                         totalInputTokens, totalOutputTokens, totalTotalTokens,
                         llmTraces);
                 }
 
-                // Unexpected finish reason
+                // Unexpected finish reason — still fire callback so trace is saved incrementally
+                if (onRoundComplete != null)
+                    await onRoundComplete(llmTraces[^1], Array.Empty<ToolCallEntry>());
+
                 LogUnexpectedFinishReason(_logger, completion.FinishReason);
                 return AgentLoopResult.Partial(
                     $"Unexpected completion: {completion.FinishReason}",
@@ -234,32 +253,33 @@ public partial class AgentLoopRunner
         return (toolCall.Id, result, toolCall.FunctionName, loopRound, sw.ElapsedMilliseconds, inputJson);
     }
 
-    private static string SerializeMessagesForTrace(List<ChatMessage> messages)
+    internal static string SerializeDeltaSegments(List<ChatMessage> messages, int startIndex)
     {
-        var parts = new List<string>();
-        foreach (var msg in messages)
+        var segments = new List<object>();
+        for (var i = startIndex; i < messages.Count; i++)
         {
+            var msg = messages[i];
             switch (msg)
             {
                 case SystemChatMessage sys:
-                    parts.Add($"[SYSTEM]\n{string.Join("\n", sys.Content.Where(p => p.Text is not null).Select(p => p.Text))}");
+                    segments.Add(new { role = "system", content = string.Join("\n", sys.Content.Where(p => p.Text is not null).Select(p => p.Text)) });
                     break;
                 case UserChatMessage usr:
-                    parts.Add($"[USER]\n{string.Join("\n", usr.Content.Where(p => p.Text is not null).Select(p => p.Text))}");
+                    segments.Add(new { role = "user", content = string.Join("\n", usr.Content.Where(p => p.Text is not null).Select(p => p.Text)) });
                     break;
                 case AssistantChatMessage asst:
                     var text = string.Join("\n", asst.Content.Where(p => p.Text is not null).Select(p => p.Text));
                     var toolCallNames = asst.ToolCalls.Count > 0
-                        ? $"\n[Tool Calls: {string.Join(", ", asst.ToolCalls.Select(tc => tc.FunctionName))}]"
-                        : string.Empty;
-                    parts.Add($"[ASSISTANT]\n{text}{toolCallNames}");
+                        ? string.Join(", ", asst.ToolCalls.Select(tc => tc.FunctionName))
+                        : null;
+                    segments.Add(new { role = "assistant", content = text, toolCalls = toolCallNames });
                     break;
                 case ToolChatMessage tool:
-                    parts.Add($"[TOOL]\n{string.Join("\n", tool.Content.Where(p => p.Text is not null).Select(p => p.Text))}");
+                    segments.Add(new { role = "tool", content = string.Join("\n", tool.Content.Where(p => p.Text is not null).Select(p => p.Text)) });
                     break;
             }
         }
-        return string.Join("\n---\n", parts);
+        return JsonSerializer.Serialize(segments);
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Agent hit tool call limit of {Limit}")]

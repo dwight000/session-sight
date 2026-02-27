@@ -45,6 +45,7 @@ public static class ExtractionResultMappings
                 lt.TotalTokens,
                 lt.DurationMs,
                 lt.PromptText,
+                lt.PromptSegmentsJson,
                 lt.ResponseText,
                 lt.CalledAt
             )).ToList()

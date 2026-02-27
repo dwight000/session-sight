@@ -105,7 +105,8 @@ public partial class SummarizerAgent : ISummarizerAgent
             summary.LlmTraces =
             [
                 new Tools.LlmCallTrace(
-                    PromptText: prompt,
+                    PromptText: null,
+                    PromptSegmentsJson: Tools.AgentLoopRunner.SerializeDeltaSegments(messages, 0),
                     ResponseText: content,
                     ModelUsed: modelName,
                     LoopRound: 0,

@@ -1,10 +1,66 @@
+using System.Text.Json;
 using FluentAssertions;
+using OpenAI.Chat;
 using SessionSight.Agents.Tools;
 
 namespace SessionSight.Agents.Tests.Tools;
 
 public class AgentLoopRunnerTokenTests
 {
+    #region SerializeDeltaSegments Tests
+
+    [Fact]
+    public void SerializeDeltaSegments_SystemAndUser_ProducesJsonWithBothRoles()
+    {
+        var messages = new List<ChatMessage>
+        {
+            new SystemChatMessage("You are a clinical assistant"),
+            new UserChatMessage("Extract metadata from this note")
+        };
+
+        var json = AgentLoopRunner.SerializeDeltaSegments(messages, 0);
+
+        var segments = JsonSerializer.Deserialize<JsonElement>(json);
+        segments.GetArrayLength().Should().Be(2);
+        segments[0].GetProperty("role").GetString().Should().Be("system");
+        segments[0].GetProperty("content").GetString().Should().Contain("clinical assistant");
+        segments[1].GetProperty("role").GetString().Should().Be("user");
+        segments[1].GetProperty("content").GetString().Should().Contain("Extract metadata");
+    }
+
+    [Fact]
+    public void SerializeDeltaSegments_WithStartIndex_OnlyIncludesMessagesFromIndex()
+    {
+        var messages = new List<ChatMessage>
+        {
+            new SystemChatMessage("system prompt"),
+            new UserChatMessage("user message"),
+            new UserChatMessage("second user message")
+        };
+
+        var json = AgentLoopRunner.SerializeDeltaSegments(messages, 2);
+
+        var segments = JsonSerializer.Deserialize<JsonElement>(json);
+        segments.GetArrayLength().Should().Be(1);
+        segments[0].GetProperty("content").GetString().Should().Be("second user message");
+    }
+
+    [Fact]
+    public void SerializeDeltaSegments_EmptyRange_ProducesEmptyArray()
+    {
+        var messages = new List<ChatMessage>
+        {
+            new SystemChatMessage("system prompt"),
+        };
+
+        var json = AgentLoopRunner.SerializeDeltaSegments(messages, 1);
+
+        var segments = JsonSerializer.Deserialize<JsonElement>(json);
+        segments.GetArrayLength().Should().Be(0);
+    }
+
+    #endregion
+
     [Fact]
     public void Complete_WithTokens_PopulatesAllTokenFields()
     {
@@ -98,16 +154,17 @@ public class AgentLoopRunnerTokenTests
     public void LlmCallTrace_PreservesAllFields()
     {
         var trace = new LlmCallTrace(
-            "Extract metadata from document",
-            """{"isValid":true}""",
-            "gpt-4.1-nano",
+            PromptText: null,
+            PromptSegmentsJson: "[{\"role\":\"user\",\"content\":\"Extract metadata from document\"}]",
+            ResponseText: """{"isValid":true}""",
+            ModelUsed: "gpt-4.1-nano",
             LoopRound: 0,
             InputTokens: 200,
             OutputTokens: 100,
             TotalTokens: 300,
             DurationMs: 450);
 
-        trace.PromptText.Should().Contain("Extract metadata");
+        trace.PromptSegmentsJson.Should().Contain("Extract metadata");
         trace.ResponseText.Should().Contain("isValid");
         trace.ModelUsed.Should().Be("gpt-4.1-nano");
         trace.LoopRound.Should().Be(0);
@@ -122,8 +179,8 @@ public class AgentLoopRunnerTokenTests
     {
         var llmTraces = new List<LlmCallTrace>
         {
-            new("prompt1", "response1", "gpt-4.1-mini", 0, 100, 50, 150, 200),
-            new("prompt2", "response2", "gpt-4.1-mini", 1, 80, 40, 120, 180)
+            new(null, null, "response1", "gpt-4.1-mini", 0, 100, 50, 150, 200),
+            new(null, null, "response2", "gpt-4.1-mini", 1, 80, 40, 120, 180)
         };
 
         var result = AgentLoopResult.Complete("done",
@@ -148,7 +205,7 @@ public class AgentLoopRunnerTokenTests
     {
         var llmTraces = new List<LlmCallTrace>
         {
-            new("prompt", "response", "gpt-4.1-mini", 0, 100, 50, 150, 200)
+            new(null, null, "response", "gpt-4.1-mini", 0, 100, 50, 150, 200)
         };
 
         var result = AgentLoopResult.Partial("timeout",

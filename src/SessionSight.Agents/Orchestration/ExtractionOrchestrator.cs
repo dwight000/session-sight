@@ -260,7 +260,49 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             try
             {
                 LogRunningClinicalExtractor(_logger);
-                extractionResult = await _agents.Extractor.ExtractAsync(intakeResult, ct);
+                extractionResult = await _agents.Extractor.ExtractAsync(intakeResult,
+                    onRoundComplete: async (trace, toolCalls) =>
+                    {
+                        try
+                        {
+                            if (_diagOptions.StoreLlmTraces)
+                            {
+                                var llmTrace = new ExtractionLlmTrace
+                                {
+                                    Id = Guid.NewGuid(),
+                                    StepId = step3.Id,
+                                    ModelUsed = trace.ModelUsed,
+                                    LoopRound = trace.LoopRound,
+                                    InputTokens = trace.InputTokens,
+                                    OutputTokens = trace.OutputTokens,
+                                    TotalTokens = trace.TotalTokens,
+                                    DurationMs = trace.DurationMs,
+                                    PromptSegmentsJson = trace.PromptSegmentsJson,
+                                    ResponseText = trace.ResponseText,
+                                    CalledAt = DateTime.UtcNow
+                                };
+                                await _stepRepository.SaveLlmTraceAsync(llmTrace, ct);
+                            }
+
+                            var tcEntities = toolCalls.Select(tc => new ExtractionToolCall
+                            {
+                                Id = Guid.NewGuid(),
+                                StepId = step3.Id,
+                                ToolName = tc.ToolName,
+                                LoopRound = tc.LoopRound,
+                                Succeeded = tc.Succeeded,
+                                DurationMs = tc.DurationMs,
+                                CalledAt = DateTime.UtcNow,
+                                InputJson = tc.InputJson,
+                                OutputJson = tc.OutputJson
+                            });
+                            await _stepRepository.SaveToolCallsAsync(tcEntities, ct);
+                        }
+                        catch (Exception ex)
+                        {
+                            LogIncrementalSaveFailed(_logger, ex);
+                        }
+                    }, cancellationToken: ct);
                 sw3.Stop();
                 extractionResult.SessionId = sessionId.ToString("D", System.Globalization.CultureInfo.InvariantCulture);
                 modelsUsed.AddRange(extractionResult.ModelsUsed);
@@ -270,22 +312,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                 step3.OutputTokens = extractionResult.OutputTokens;
                 step3.TotalTokens = extractionResult.TotalTokens;
 
-                // Populate tool calls from extraction trace
-                foreach (var tc in extractionResult.ToolCallTrace)
-                {
-                    step3.ToolCalls.Add(new ExtractionToolCall
-                    {
-                        Id = Guid.NewGuid(),
-                        StepId = step3.Id,
-                        ToolName = tc.ToolName,
-                        LoopRound = tc.LoopRound,
-                        Succeeded = tc.Succeeded,
-                        DurationMs = tc.DurationMs,
-                        CalledAt = step3.StartedAt.AddMilliseconds(tc.DurationMs),
-                        InputJson = tc.InputJson,
-                        OutputJson = tc.OutputJson
-                    });
-                }
+                // Tool calls and LLM traces for step3 are saved incrementally via the
+                // onRoundComplete callback above — no post-loop population needed.
 
                 // Fail pipeline on content filter block (extraction was empty/partial)
                 if (extractionResult.Errors.Any(e => e.Contains("content filter", StringComparison.OrdinalIgnoreCase)))
@@ -312,8 +340,6 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                     toolCallCount = extractionResult.ToolCallCount,
                     lowConfidenceFields = extractionResult.LowConfidenceFields
                 }, JsonOptions);
-
-                PopulateLlmTraces(step3, extractionResult.LlmTraces);
             }
             catch (Exception ex)
             {
@@ -624,9 +650,9 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                 OutputTokens = trace.OutputTokens,
                 TotalTokens = trace.TotalTokens,
                 DurationMs = trace.DurationMs,
-                PromptText = trace.PromptText,
+                PromptSegmentsJson = trace.PromptSegmentsJson,
                 ResponseText = trace.ResponseText,
-                CalledAt = step.StartedAt.AddMilliseconds(trace.DurationMs)
+                CalledAt = DateTime.UtcNow
             });
         }
     }
@@ -1098,4 +1124,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to save step {StepName} for extraction {ExtractionId}")]
     private static partial void LogStepSaveError(ILogger logger, Exception exception, ExtractionStepName stepName, Guid extractionId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Incremental save failed during ClinicalExtract")]
+    private static partial void LogIncrementalSaveFailed(ILogger logger, Exception exception);
 }

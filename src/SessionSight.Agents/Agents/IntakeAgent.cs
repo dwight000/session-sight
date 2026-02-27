@@ -84,7 +84,8 @@ public partial class IntakeAgent : IIntakeAgent
         result.LlmTraces =
         [
             new Tools.LlmCallTrace(
-                PromptText: IntakePrompts.BuildUserPrompt(document),
+                PromptText: null,
+                PromptSegmentsJson: Tools.AgentLoopRunner.SerializeDeltaSegments(messages, 0),
                 ResponseText: content,
                 ModelUsed: modelName,
                 LoopRound: 0,

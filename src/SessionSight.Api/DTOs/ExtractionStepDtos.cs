@@ -41,5 +41,6 @@ public record ExtractionLlmTraceDto(
     int TotalTokens,
     long DurationMs,
     string? PromptText,
+    string? PromptSegmentsJson,
     string? ResponseText,
     DateTime CalledAt);

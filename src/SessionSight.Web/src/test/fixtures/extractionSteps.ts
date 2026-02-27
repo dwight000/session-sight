@@ -53,7 +53,8 @@ export const mockLlmTrace: ExtractionLlmTrace = {
   outputTokens: 80,
   totalTokens: 230,
   durationMs: 2100,
-  promptText: 'Extract clinical fields from the following note...',
+  promptText: null,
+  promptSegmentsJson: '[{"role":"system","content":"Extract clinical fields..."},{"role":"user","content":"Note text..."}]',
   responseText: '{"mood":"euthymic","affect":"congruent"}',
   calledAt: '2025-06-01T10:00:02Z',
 }

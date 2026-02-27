@@ -275,6 +275,59 @@ public class DocumentsControllerTests
         _documentRepositoryMock.Verify(r => r.DeleteDocumentAsync(sessionId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact]
+    public async Task DownloadDocument_SessionNotFound_ReturnsNotFound()
+    {
+        var sessionId = Guid.NewGuid();
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Session?)null);
+
+        var result = await _controller.DownloadDocument(sessionId);
+
+        result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Fact]
+    public async Task DownloadDocument_NoDocument_ReturnsNotFound()
+    {
+        var sessionId = Guid.NewGuid();
+        var session = new Session { Id = sessionId, Document = null };
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(session);
+
+        var result = await _controller.DownloadDocument(sessionId);
+
+        result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task DownloadDocument_WithDocument_ReturnsFileStream()
+    {
+        var sessionId = Guid.NewGuid();
+        var blobUri = "https://storage.blob.core.windows.net/docs/test.pdf";
+        var session = new Session
+        {
+            Id = sessionId,
+            Document = new SessionDocument
+            {
+                Id = Guid.NewGuid(),
+                BlobUri = blobUri,
+                ContentType = "application/pdf",
+                OriginalFileName = "therapy-note.pdf"
+            }
+        };
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(session);
+        var content = new byte[] { 0x25, 0x50, 0x44, 0x46 };
+        _documentStorageMock.Setup(s => s.DownloadAsync(blobUri))
+            .ReturnsAsync(new MemoryStream(content));
+
+        var result = await _controller.DownloadDocument(sessionId);
+
+        var fileResult = result.Should().BeOfType<FileStreamResult>().Subject;
+        fileResult.ContentType.Should().Be("application/pdf");
+    }
+
     private static IFormFile CreateMockFile(string fileName = "test.pdf", string contentType = "application/pdf", long? length = null)
     {
         var fileMock = new Mock<IFormFile>();

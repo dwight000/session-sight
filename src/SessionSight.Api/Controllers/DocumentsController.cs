@@ -90,6 +90,17 @@ public partial class DocumentsController : ControllerBase
                 DocumentStatus.Pending.ToString()));
     }
 
+    [HttpGet("document/download")]
+    public async Task<IActionResult> DownloadDocument(Guid sessionId)
+    {
+        var session = await _sessionRepository.GetByIdAsync(sessionId);
+        if (session is null) return NotFound();
+        if (session.Document is null) return NotFound("No document found for this session.");
+
+        var stream = await _documentStorage.DownloadAsync(session.Document.BlobUri);
+        return File(stream, session.Document.ContentType);
+    }
+
     [HttpGet("extraction")]
     public async Task<ActionResult<ExtractionResultDto>> GetExtraction(Guid sessionId)
     {

@@ -17,6 +17,7 @@ public class ExtractionLlmTraceConfiguration : IEntityTypeConfiguration<Extracti
 
         builder.Property(e => e.ModelUsed).HasMaxLength(100).IsRequired();
         builder.Property(e => e.PromptText).HasColumnType("nvarchar(max)");
+        builder.Property(e => e.PromptSegmentsJson).HasColumnType("nvarchar(max)");
         builder.Property(e => e.ResponseText).HasColumnType("nvarchar(max)");
 
         builder.HasIndex(e => e.StepId);

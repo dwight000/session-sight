@@ -1,8 +1,12 @@
 import { useState } from 'react'
-import type { ExtractionStep, ExtractionStepName } from '../../types/extractionSteps'
+import type { ExtractionStep, ExtractionStepName, StepViewMode } from '../../types/extractionSteps'
 import { STEP_DISPLAY_NAMES, formatDurationMs, formatResultSummary, estimateCost } from './stepConfig'
 import { ToolCallSection } from './ToolCallSection'
 import { LlmTraceSection } from './LlmTraceSection'
+import { ConversationView } from './ConversationView'
+import { ActivityView } from './ActivityView'
+import { SummaryView } from './SummaryView'
+import { DocumentPreview } from './DocumentPreview'
 import { ConfidenceHeatmap } from './ConfidenceHeatmap'
 import { RiskMergeView } from './RiskMergeView'
 import { useExtractionResult } from '../../hooks/useExtractionResult'
@@ -14,9 +18,10 @@ interface ExtractionStepCardProps {
   defaultExpanded: boolean
   showSubSectionsOpen?: boolean
   sessionId?: string
+  viewMode?: StepViewMode
 }
 
-export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpanded, showSubSectionsOpen, sessionId }: ExtractionStepCardProps) {
+export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpanded, showSubSectionsOpen, sessionId, viewMode = 'raw' }: ExtractionStepCardProps) {
   const [open, setOpen] = useState(defaultExpanded)
 
   const isPending = !step && !isCurrentStep
@@ -163,9 +168,27 @@ export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpan
             <div className="rounded bg-red-50 p-2 text-xs text-red-700">{step.errorMessage}</div>
           )}
 
-          {/* Sub-accordions */}
-          <ToolCallSection toolCalls={step.toolCalls} defaultOpen={showSubSectionsOpen} />
-          <LlmTraceSection traces={step.llmTraces} defaultOpen={showSubSectionsOpen} />
+          {/* Document preview (DocumentParse only) */}
+          {stepName === 'DocumentParse' && sessionId && (
+            <DocumentPreview sessionId={sessionId} defaultOpen={showSubSectionsOpen} />
+          )}
+
+          {/* Sub-accordions — view mode dependent */}
+          {viewMode === 'raw' && (
+            <>
+              <ToolCallSection toolCalls={step.toolCalls} defaultOpen={showSubSectionsOpen} />
+              <LlmTraceSection traces={step.llmTraces} defaultOpen={showSubSectionsOpen} />
+            </>
+          )}
+          {viewMode === 'conversation' && (
+            <ConversationView toolCalls={step.toolCalls} traces={step.llmTraces} defaultOpen={showSubSectionsOpen} />
+          )}
+          {viewMode === 'activity' && (
+            <ActivityView toolCalls={step.toolCalls} traces={step.llmTraces} defaultOpen={showSubSectionsOpen} />
+          )}
+          {viewMode === 'summary' && (
+            <SummaryView toolCalls={step.toolCalls} traces={step.llmTraces} />
+          )}
 
           {/* Extraction detail panels */}
           {needsExtractionData && extractionLoading && (

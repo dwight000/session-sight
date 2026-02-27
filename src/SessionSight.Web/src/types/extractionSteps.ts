@@ -1,5 +1,13 @@
 export type ExtractionStepStatus = 'Running' | 'Succeeded' | 'Failed' | 'Skipped'
 
+export type StepViewMode = 'raw' | 'conversation' | 'activity' | 'summary'
+
+export interface PromptSegment {
+  role: 'system' | 'user' | 'assistant' | 'tool'
+  content: string
+  toolCalls?: string | null
+}
+
 export type ExtractionStepName =
   | 'DocumentParse'
   | 'Intake'
@@ -26,6 +34,7 @@ export interface ExtractionLlmTrace {
   totalTokens: number
   durationMs: number
   promptText: string | null
+  promptSegmentsJson: string | null
   responseText: string | null
   calledAt: string
 }
