@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { server } from '../../../src/test/mocks/server'
 import { renderWithProviders } from '../../../src/test/render'
 import { ExtractionPipelineView } from '../../../src/components/extraction/ExtractionPipelineView'
-import { mockExtractionStepsPartial } from '../../../src/test/fixtures/extractionSteps'
+import { mockExtractionStepsPartial, mockExtractionStepsComplete } from '../../../src/test/fixtures/extractionSteps'
 
 describe('ExtractionPipelineView', () => {
   it('renders all 6 step names', async () => {
@@ -60,5 +60,49 @@ describe('ExtractionPipelineView', () => {
     await waitFor(() => {
       expect(screen.getByText(/2\/6/)).toBeInTheDocument()
     })
+  })
+
+  it('shows pipeline totals banner for completed pipeline', async () => {
+    server.use(
+      http.get('/api/sessions/:sessionId/extraction/steps', () => {
+        return HttpResponse.json(mockExtractionStepsComplete)
+      }),
+    )
+
+    renderWithProviders(<ExtractionPipelineView sessionId="sess-001" isLive={false} />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/6 steps/)).toBeInTheDocument()
+    })
+    expect(screen.getByText(/tokens/)).toBeInTheDocument()
+  })
+
+  it('shows Gantt bar for completed pipeline', async () => {
+    server.use(
+      http.get('/api/sessions/:sessionId/extraction/steps', () => {
+        return HttpResponse.json(mockExtractionStepsComplete)
+      }),
+    )
+
+    renderWithProviders(<ExtractionPipelineView sessionId="sess-001" isLive={false} />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('img', { name: 'Pipeline duration chart' })).toBeInTheDocument()
+    })
+  })
+
+  it('does not show pipeline banner in live mode', async () => {
+    server.use(
+      http.get('/api/sessions/:sessionId/extraction/steps', () => {
+        return HttpResponse.json(mockExtractionStepsComplete)
+      }),
+    )
+
+    renderWithProviders(<ExtractionPipelineView sessionId="sess-001" isLive={true} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Document Parse')).toBeInTheDocument()
+    })
+    expect(screen.queryByText(/6 steps/)).not.toBeInTheDocument()
   })
 })

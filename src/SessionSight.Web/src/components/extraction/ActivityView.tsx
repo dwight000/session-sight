@@ -14,11 +14,30 @@ interface TimelineEvent {
   type: 'system' | 'note' | 'llm' | 'tool' | 'complete'
   title: string
   subtitle?: string
+  description?: string
+  phase?: string
+  isFinal?: boolean
+  responsePreview?: string
+  noTextResponse?: boolean
+  validationNote?: string
+  timestamp?: string
   duration?: string
   details?: string
   toolCalls?: ExtractionToolCall[]
   dotClass: string
   dotSize?: string
+}
+
+function formatTime12h(iso: string): string {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
+}
+
+const TOOL_DESCRIPTIONS: Record<string, string> = {
+  check_risk_keywords: 'scanning for risk keywords',
+  lookup_diagnosis_code: 'validating diagnosis codes',
+  validate_and_score: 'validating extraction against schema',
 }
 
 function getToolSummary(tc: ExtractionToolCall): string {
@@ -69,6 +88,10 @@ export function ActivityView({ toolCalls, traces, defaultOpen }: ActivityViewPro
   // Build flat event list
   const events: TimelineEvent[] = []
 
+  // Pre-compute round metadata for phase labels and Final badge
+  const firstResponseRound = timeline.find((r) => r.responseText)?.round ?? -1
+  const lastResponseRound = [...timeline].reverse().find((r) => r.responseText)?.round ?? -1
+
   for (const round of timeline) {
     // First round: system prompt + note
     if (round.round === 0) {
@@ -78,6 +101,8 @@ export function ActivityView({ toolCalls, traces, defaultOpen }: ActivityViewPro
           id: 'system',
           type: 'system',
           title: 'System prompt loaded',
+          description: 'AI role and instructions configured',
+          timestamp: round.llmTrace ? formatTime12h(round.llmTrace.calledAt) : undefined,
           details: systemSeg.content,
           dotClass: 'border-2 border-gray-300 bg-white',
         })
@@ -90,6 +115,7 @@ export function ActivityView({ toolCalls, traces, defaultOpen }: ActivityViewPro
           type: 'note',
           title: `Therapy note submitted (${wordCount} words)`,
           subtitle: userSeg.content.slice(0, 100) + (userSeg.content.length > 100 ? '\u2026' : ''),
+          timestamp: round.llmTrace ? formatTime12h(round.llmTrace.calledAt) : undefined,
           details: userSeg.content,
           dotClass: 'border-2 border-gray-300 bg-white',
         })
@@ -103,6 +129,8 @@ export function ActivityView({ toolCalls, traces, defaultOpen }: ActivityViewPro
         id: `tool-results-${round.round}`,
         type: 'system',
         title: `${toolSegments.length} tool result${toolSegments.length !== 1 ? 's' : ''} returned to AI`,
+        description: 'AI reviewing tool feedback before next round',
+        timestamp: round.llmTrace ? formatTime12h(round.llmTrace.calledAt) : undefined,
         details: toolSegments.map((s) => s.content).join('\n\n'),
         dotClass: 'border-2 border-green-400 bg-white',
       })
@@ -110,18 +138,76 @@ export function ActivityView({ toolCalls, traces, defaultOpen }: ActivityViewPro
 
     // LLM call event
     if (round.llmTrace) {
+      const displayRound = round.round + 1
       const toolCount = round.toolCalls.length
       const isToolOnly = !round.responseText && toolCount > 0
       const toolLabel = isToolOnly
         ? ` \u2192 called ${toolCount} tool${toolCount !== 1 ? 's' : ''}`
         : ''
+
+      let llmDescription: string | undefined
+      if (isToolOnly) {
+        const descs = round.toolCalls
+          .map((tc) => TOOL_DESCRIPTIONS[tc.toolName])
+          .filter(Boolean)
+        if (descs.length > 0) {
+          const joined = descs.join(', ')
+          llmDescription = joined.charAt(0).toUpperCase() + joined.slice(1)
+        }
+      } else if (round.round === 0) {
+        llmDescription = 'AI reading note and generating initial extraction'
+      } else {
+        llmDescription = 'AI refining extraction based on tool feedback'
+      }
+
+      // Phase label
+      let phase: string | undefined
+      if (isToolOnly) {
+        phase = 'Gathering Data'
+      } else if (round.round === firstResponseRound) {
+        phase = 'Extraction'
+      } else {
+        phase = 'Refinement'
+      }
+
+      // Final badge: last round that produced a text response
+      const isFinal = !isToolOnly && round.round === lastResponseRound
+
+      // Response preview (collapsed view of the response box)
+      const responsePreview = round.responseText
+        ? round.responseText.slice(0, 80) + (round.responseText.length > 80 ? '\u2026' : '')
+        : undefined
+
+      // Validation-aware callout: check previous round for validate_and_score errors
+      let validationNote: string | undefined
+      if (!isToolOnly && round.round > 0) {
+        const prevRound = timeline.find((r) => r.round === round.round - 1)
+        const validateCall = prevRound?.toolCalls.find((tc) => tc.toolName === 'validate_and_score')
+        if (validateCall?.outputJson) {
+          try {
+            const out = JSON.parse(validateCall.outputJson)
+            const errorCount = out.Errors?.length ?? 0
+            if (errorCount > 0) {
+              validationNote = `Refined after validation found ${errorCount} issue${errorCount !== 1 ? 's' : ''}`
+            }
+          } catch { /* skip */ }
+        }
+      }
+
       events.push({
         id: `llm-${round.round}`,
         type: 'llm',
         title: isToolOnly
-          ? `AI responded with ${toolCount} tool call${toolCount !== 1 ? 's' : ''} (Round ${round.round})`
-          : `LLM call (Round ${round.round})${toolLabel}`,
+          ? `AI responded with ${toolCount} tool call${toolCount !== 1 ? 's' : ''} (Round ${displayRound})`
+          : `LLM call (Round ${displayRound})${toolLabel}`,
         subtitle: `${round.llmTrace.modelUsed} \u00B7 ${round.inputTokens} in / ${round.outputTokens} out`,
+        description: llmDescription,
+        timestamp: formatTime12h(round.llmTrace.calledAt),
+        phase,
+        isFinal,
+        responsePreview,
+        noTextResponse: isToolOnly,
+        validationNote,
         duration: formatDurationMs(round.durationMs),
         details: round.responseText || undefined,
         toolCalls: !round.responseText && toolCount > 0 ? round.toolCalls : undefined,
@@ -138,6 +224,7 @@ export function ActivityView({ toolCalls, traces, defaultOpen }: ActivityViewPro
         type: 'tool',
         title: tc.toolName,
         subtitle: getToolSummary(tc),
+        timestamp: formatTime12h(tc.calledAt),
         duration: formatDurationMs(tc.durationMs),
         details: [
           tc.inputJson ? `Input: ${tc.inputJson}` : null,
@@ -197,11 +284,38 @@ export function ActivityView({ toolCalls, traces, defaultOpen }: ActivityViewPro
             >
               <div className="flex items-center gap-2">
                 <span className="font-medium">{event.title}</span>
-                {event.duration && <span className="ml-auto text-gray-400">{event.duration}</span>}
+                {event.phase && (
+                  <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">{event.phase}</span>
+                )}
+                {event.isFinal && (
+                  <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">Final</span>
+                )}
+                {event.timestamp && <span className="ml-auto text-gray-400 tabular-nums">{event.timestamp}</span>}
+                {event.duration && <span className={`text-gray-400${event.timestamp ? '' : ' ml-auto'}`}>{event.duration}</span>}
                 {expandable && <span className="text-gray-400 flex-shrink-0">{isOpen ? '\u25B2' : '\u25BC'}</span>}
               </div>
               {event.subtitle && <div className="text-gray-400">{event.subtitle}</div>}
+              {event.description && (
+                <div className="text-gray-400 italic">{event.description}</div>
+              )}
+              {event.validationNote && (
+                <div className="text-amber-600 italic">{event.validationNote}</div>
+              )}
             </button>
+
+            {/* No text response box for tool-only LLM rounds */}
+            {event.noTextResponse && (
+              <div className="mt-1 rounded bg-gray-50 px-2 py-1.5 text-[11px] text-gray-400 italic">
+                No text response — AI deferred to tool calls
+              </div>
+            )}
+
+            {/* Response preview when collapsed */}
+            {!isOpen && event.responsePreview && (
+              <div className="mt-1 rounded bg-gray-50 px-2 py-1 text-[11px] font-mono text-gray-400 truncate">
+                {event.responsePreview}
+              </div>
+            )}
 
             {isOpen && event.details && (
               <pre className="mt-1 max-h-40 overflow-auto rounded bg-gray-50 p-2 text-xs whitespace-pre-wrap break-words">

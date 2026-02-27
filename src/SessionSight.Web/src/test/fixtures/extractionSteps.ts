@@ -62,10 +62,12 @@ export const mockLlmTrace: ExtractionLlmTrace = {
 export const mockExtractionStepsComplete: ExtractionStepsResponse = {
   extractionId: 'ext-001',
   documentStatus: 'Completed',
+  failureKind: null,
+  errorMessage: null,
   steps: [
     makeStep('DocumentParse', 0, {
       durationMs: 1200,
-      modelUsed: '',
+      modelUsed: 'azure-doc-intel',
       inputTokens: 0,
       outputTokens: 0,
       totalTokens: 0,
@@ -77,7 +79,7 @@ export const mockExtractionStepsComplete: ExtractionStepsResponse = {
       inputTokens: 400,
       outputTokens: 50,
       totalTokens: 450,
-      resultSummaryJson: '{"isValid":true,"estimatedWordCount":607,"documentType":"progress"}',
+      resultSummaryJson: '{"isValid":true,"estimatedWordCount":607,"documentType":"progress","therapistName":"Dr. Torres","patientId":"Sarah Chen","sessionDate":"2025-06-01","language":"en"}',
     }),
     makeStep('ClinicalExtract', 2, {
       durationMs: 15000,
@@ -93,7 +95,7 @@ export const mockExtractionStepsComplete: ExtractionStepsResponse = {
       inputTokens: 600,
       outputTokens: 150,
       totalTokens: 750,
-      resultSummaryJson: '{"riskLevel":"Low","requiresReview":false}',
+      resultSummaryJson: '{"riskLevel":"Low","requiresReview":false,"keywordMatches":["suicidal","self-harm"],"guardrailApplied":false,"fieldDecisions":[{"field":"suicidal_ideation","originalValue":"None","reExtractedValue":"None","finalValue":"None","ruleApplied":"no_merge_change"}]}',
     }),
     makeStep('Summarize', 4, {
       durationMs: 5200,
@@ -101,11 +103,11 @@ export const mockExtractionStepsComplete: ExtractionStepsResponse = {
       inputTokens: 800,
       outputTokens: 200,
       totalTokens: 1000,
-      resultSummaryJson: '{"oneLiner":"Patient shows improved mood with consistent CBT engagement"}',
+      resultSummaryJson: '{"oneLiner":"Patient shows improved mood with consistent CBT engagement","interventionsUsed":["CBT","Breathing exercises"],"keyPoints":"Mood improved, CBT techniques reinforced","nextSessionFocus":"Continue CBT exposure work","riskLevel":"Low"}',
     }),
     makeStep('SearchIndex', 5, {
       durationMs: 800,
-      modelUsed: '',
+      modelUsed: 'text-embedding-3-large',
       inputTokens: 0,
       outputTokens: 0,
       totalTokens: 0,
@@ -117,6 +119,8 @@ export const mockExtractionStepsComplete: ExtractionStepsResponse = {
 export const mockExtractionStepsPartial: ExtractionStepsResponse = {
   extractionId: 'ext-002',
   documentStatus: 'Processing',
+  failureKind: null,
+  errorMessage: null,
   steps: [
     mockExtractionStepsComplete.steps[0],
     mockExtractionStepsComplete.steps[1],
@@ -126,6 +130,8 @@ export const mockExtractionStepsPartial: ExtractionStepsResponse = {
 export const mockExtractionStepsFailed: ExtractionStepsResponse = {
   extractionId: 'ext-003',
   documentStatus: 'Failed',
+  failureKind: null,
+  errorMessage: null,
   steps: [
     mockExtractionStepsComplete.steps[0],
     mockExtractionStepsComplete.steps[1],
@@ -141,6 +147,8 @@ export const mockExtractionStepsFailed: ExtractionStepsResponse = {
 export const mockExtractionStepsPartiallyCompleted: ExtractionStepsResponse = {
   extractionId: 'ext-004',
   documentStatus: 'PartiallyCompleted',
+  failureKind: null,
+  errorMessage: null,
   steps: [
     mockExtractionStepsComplete.steps[0],
     mockExtractionStepsComplete.steps[1],

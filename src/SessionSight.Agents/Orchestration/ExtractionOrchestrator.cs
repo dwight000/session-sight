@@ -216,7 +216,9 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                         documentType = intakeResult.Metadata.DocumentType,
                         sessionDate = intakeResult.Metadata.SessionDate?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
                         language = intakeResult.Metadata.Language,
-                        estimatedWordCount = intakeResult.Metadata.EstimatedWordCount
+                        estimatedWordCount = intakeResult.Metadata.EstimatedWordCount,
+                        therapistName = intakeResult.Metadata.TherapistName,
+                        patientId = intakeResult.Metadata.PatientId
                     }, JsonOptions);
                 }
 
@@ -338,7 +340,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                     fieldCount = CountExtractedFields(extractionResult),
                     overallConfidence = extractionResult.OverallConfidence,
                     toolCallCount = extractionResult.ToolCallCount,
-                    lowConfidenceFields = extractionResult.LowConfidenceFields
+                    lowConfidenceFields = extractionResult.LowConfidenceFields,
+                    errors = extractionResult.Errors
                 }, JsonOptions);
             }
             catch (Exception ex)
@@ -400,7 +403,11 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                         d.ReExtractedValue,
                         d.FinalValue,
                         d.RuleApplied
-                    })
+                    }),
+                    keywordMatches = riskResult.KeywordMatches,
+                    suicidalGuardrailApplied = riskResult.Diagnostics.SelfHarmGuardrailApplied,
+                    homicidalGuardrailApplied = riskResult.Diagnostics.HomicidalGuardrailApplied,
+                    contentFilterBlocked = riskResult.Diagnostics.ContentFilterBlocked
                 }, JsonOptions);
 
                 PopulateLlmTraces(step4, riskResult.LlmTraces);
@@ -449,7 +456,10 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                 step5.ResultSummaryJson = JsonSerializer.Serialize(new
                 {
                     oneLiner = sessionSummary.OneLiner,
-                    interventionsUsed = sessionSummary.InterventionsUsed
+                    interventionsUsed = sessionSummary.InterventionsUsed,
+                    keyPoints = sessionSummary.KeyPoints,
+                    nextSessionFocus = sessionSummary.NextSessionFocus,
+                    riskLevel = sessionSummary.RiskFlags?.RiskLevel
                 }, JsonOptions);
 
                 PopulateLlmTraces(step5, sessionSummary.LlmTraces);
@@ -849,7 +859,10 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                     step5.ResultSummaryJson = JsonSerializer.Serialize(new
                     {
                         oneLiner = sessionSummary.OneLiner,
-                        interventionsUsed = sessionSummary.InterventionsUsed
+                        interventionsUsed = sessionSummary.InterventionsUsed,
+                        keyPoints = sessionSummary.KeyPoints,
+                        nextSessionFocus = sessionSummary.NextSessionFocus,
+                        riskLevel = sessionSummary.RiskFlags?.RiskLevel
                     }, JsonOptions);
 
                     // Persist the new summary

@@ -44,11 +44,11 @@ describe('ActivityView', () => {
     expect(screen.getByText(/Therapy note submitted/)).toBeInTheDocument()
   })
 
-  it('shows LLM call events', () => {
+  it('shows LLM call events with 1-based round numbers', () => {
     render(<ActivityView toolCalls={[]} traces={[makeTrace(0), makeTrace(1)]} />)
 
-    expect(screen.getByText('LLM call (Round 0)')).toBeInTheDocument()
     expect(screen.getByText('LLM call (Round 1)')).toBeInTheDocument()
+    expect(screen.getByText('LLM call (Round 2)')).toBeInTheDocument()
   })
 
   it('shows tool call events', () => {
@@ -85,7 +85,7 @@ describe('ActivityView', () => {
   it('LLM call with empty response and no tools is not expandable', () => {
     render(<ActivityView toolCalls={[]} traces={[makeTrace(0, { responseText: '' })]} />)
 
-    const llmButton = screen.getByText('LLM call (Round 0)').closest('button')
+    const llmButton = screen.getByText('LLM call (Round 1)').closest('button')
     expect(llmButton).toBeDisabled()
   })
 
@@ -171,5 +171,92 @@ describe('ActivityView', () => {
     // Structured tool call cards shown with I/O (nested, no separate dots)
     expect(screen.getByText('check_risk')).toBeInTheDocument()
     expect(screen.getByText('lookup_code')).toBeInTheDocument()
+  })
+
+  it('shows plain-language description for system prompt', () => {
+    render(<ActivityView toolCalls={[]} traces={[makeTrace(0)]} />)
+    expect(screen.getByText('AI role and instructions configured')).toBeInTheDocument()
+  })
+
+  it('shows description for LLM round 0', () => {
+    render(<ActivityView toolCalls={[]} traces={[makeTrace(0)]} />)
+    expect(screen.getByText('AI reading note and generating initial extraction')).toBeInTheDocument()
+  })
+
+  it('shows description for LLM round 1+', () => {
+    render(<ActivityView toolCalls={[]} traces={[makeTrace(0), makeTrace(1)]} />)
+    expect(screen.getByText('AI refining extraction based on tool feedback')).toBeInTheDocument()
+  })
+
+  it('shows tool description for known tool calls', () => {
+    render(
+      <ActivityView
+        toolCalls={[makeToolCall(0, 'check_risk_keywords')]}
+        traces={[makeTrace(0, { responseText: '' })]}
+      />,
+    )
+    expect(screen.getByText('Scanning for risk keywords')).toBeInTheDocument()
+  })
+
+  it('shows tool results description', () => {
+    const round1Trace = makeTrace(1, {
+      promptSegmentsJson: JSON.stringify([
+        { role: 'tool', content: '{"result":"tool output"}' },
+      ]),
+    })
+    render(<ActivityView toolCalls={[]} traces={[makeTrace(0), round1Trace]} />)
+    expect(screen.getByText('AI reviewing tool feedback before next round')).toBeInTheDocument()
+  })
+
+  it('shows phase labels on LLM events', () => {
+    render(
+      <ActivityView
+        toolCalls={[makeToolCall(0, 'check_risk_keywords')]}
+        traces={[makeTrace(0, { responseText: '' }), makeTrace(1)]}
+      />,
+    )
+    expect(screen.getByText('Gathering Data')).toBeInTheDocument()
+    expect(screen.getByText('Extraction')).toBeInTheDocument()
+  })
+
+  it('shows Refinement phase on later rounds', () => {
+    render(<ActivityView toolCalls={[]} traces={[makeTrace(0), makeTrace(1)]} />)
+    expect(screen.getByText('Extraction')).toBeInTheDocument()
+    expect(screen.getByText('Refinement')).toBeInTheDocument()
+  })
+
+  it('shows Final badge on last round with response', () => {
+    render(<ActivityView toolCalls={[]} traces={[makeTrace(0), makeTrace(1)]} />)
+    expect(screen.getByText('Final')).toBeInTheDocument()
+  })
+
+  it('shows no-text-response box for tool-only rounds', () => {
+    render(
+      <ActivityView
+        toolCalls={[makeToolCall(0, 'check_risk_keywords')]}
+        traces={[makeTrace(0, { responseText: '' })]}
+      />,
+    )
+    expect(screen.getByText(/No text response/)).toBeInTheDocument()
+  })
+
+  it('shows response preview when collapsed', () => {
+    render(<ActivityView toolCalls={[]} traces={[makeTrace(0)]} />)
+    // defaultOpen is false, so preview should be visible
+    expect(screen.getByText(/extraction data/)).toBeInTheDocument()
+  })
+
+  it('shows validation callout when previous round had validation errors', () => {
+    const validateTool: ExtractionToolCall = {
+      ...makeToolCall(0, 'validate_and_score'),
+      outputJson: '{"Errors":["Missing mood field","Invalid date format"]}',
+    }
+    const round1Trace = makeTrace(1, {
+      promptSegmentsJson: JSON.stringify([
+        { role: 'tool', content: '{"Errors":["Missing mood field"]}' },
+      ]),
+    })
+    render(<ActivityView toolCalls={[validateTool]} traces={[makeTrace(0), round1Trace]} />)
+    expect(screen.getByText(/Refined after validation found 2 issues/)).toBeInTheDocument()
   })
 })
