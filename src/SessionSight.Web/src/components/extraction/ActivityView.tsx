@@ -31,7 +31,12 @@ interface TimelineEvent {
 function formatTime12h(iso: string): string {
   const d = new Date(iso)
   if (isNaN(d.getTime())) return ''
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
+  const base = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
+  const ms = d.getMilliseconds()
+  if (ms === 0) return base
+  // Insert .NNN before the AM/PM
+  const pad = String(ms).padStart(3, '0')
+  return base.replace(/( [AP]M)$/, `.${pad}$1`)
 }
 
 const TOOL_DESCRIPTIONS: Record<string, string> = {
