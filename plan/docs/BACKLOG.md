@@ -1085,20 +1085,25 @@ Add new `ModelTask` values: `RiskDebateChallenger`, `RiskDebateJudge`. Config-dr
 
 ### B-110 Details (Bicep for Foundry Marketplace Models)
 
-**Finding from B-107:** Marketplace models deploy as **same resource type** as OpenAI — `Microsoft.CognitiveServices/accounts/deployments`. The differentiator is the `format` property (`'Anthropic'`, `'Meta'`, `'MistralAI'`, etc.).
+**Finding from B-107:** All Foundry models deploy as same resource type — `Microsoft.CognitiveServices/accounts/deployments@2024-04-01-preview`. The differentiator is the `format` property.
+
+**Verified format strings:** `'OpenAI'`, `'Mistral AI'` (note space), `'xAI'`, `'Meta'`, `'Microsoft'`, `'DeepSeek'`
 
 **Approach:** Add challenger model deployment to existing `infra/modules/openai.bicep`:
 ```bicep
-resource mistralDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025-06-01' = {
+resource challengerDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-04-01-preview' = {
   parent: openai
-  name: 'mistral-small'
+  name: 'Mistral-Large-3'
   sku: { name: 'GlobalStandard', capacity: 1 }
-  properties: { model: { format: 'MistralAI', name: 'mistral-small', version: '1' } }
+  properties: { model: { format: 'Mistral AI', name: 'Mistral-Large-3', version: '1' } }
 }
 ```
 
-**Prerequisites:** `az term accept --publisher mistralai --product mistral-small` (one-time).
+**Important:** Models sold directly by Azure (Mistral-Large-3, Grok, Llama) do NOT require marketplace terms acceptance. Partner/marketplace models (Mistral-small-2503) DO require it.
+
 **Consider:** Rename `openai.bicep` → `ai-models.bicep` since it now deploys non-OpenAI models.
+
+**Note:** User has not deployed any non-OpenAI models yet. First deployment may need manual verification that the model is available in the tenant's Foundry resource before automating in Bicep. Run `az cognitiveservices account list-models -n sessionsight-openai-dev -g rg-sessionsight-dev --query "[?contains(name,'istral')]"` to check.
 
 ### B-111 Details (RiskDebate Pipeline Step)
 
@@ -1109,20 +1114,25 @@ resource mistralDeployment 'Microsoft.CognitiveServices/accounts/deployments@202
 Intake → Extractor → RiskAssessor → [RiskDebate if triggered] → Summarizer → Embedding
 ```
 
+**Debate is TEXT-ONLY** — receives RiskAssessor output as input, no tool calling. Any model works regardless of tool-calling support.
+
 **Debate structure (2 rounds + judge):**
 1. Advocate (GPT-4.1-nano) — defends the RiskAssessor's initial assessment, citing evidence
-2. Challenger (Mistral Small) — argues the opposing position, citing counter-evidence
+2. Challenger (Mistral-Large-3 or configurable non-OpenAI model) — argues the opposing position
 3. Advocate rebuts challenger's points
 4. Challenger rebuts advocate's points
 5. Judge (GPT-4.1-mini) — weighs both sides, produces final risk level + confidence
 
-**Why these model assignments:**
-- GPT-4.1-nano advocates (same family as RiskAssessor, cheap)
-- Mistral challenges (different model family = different reasoning style)
-- GPT-4.1-mini judges (different tier from advocate, proven reliable)
-- All use the same `IChatClient` adapter — just different deployment names
+**Persistence:** New `ExtractionStep` row with step name `RiskDebate`, consistent with existing pipeline steps. Both original RiskAssessor result AND debate result are preserved (audit trail), but debate result overrides the active risk assessment.
 
-**Cost:** ~$0.05-0.08 per debate (5 LLM calls). Only triggers on ~20-30% of notes (configurable). Adds ~$0.01-0.02 per average extraction.
+**Verified non-OpenAI models (East US 2, sold directly by Azure):**
+- `Mistral-Large-3` (format: `'Mistral AI'`) — strong reasoning
+- `grok-3-mini` (format: `'xAI'`) — cheap, fast
+- `Llama-3.3-70B-Instruct` (format: `'Meta'`) — viable for text-only
+
+**Note:** These models are NOT yet deployed in the tenant. B-110 adds the Bicep deployment. All callable through existing `Azure.AI.OpenAI` SDK — same endpoint, same auth.
+
+**Cost:** ~$0.02 per debate (5 LLM calls with Mistral-Large-3). Adds ~$0.004-0.006 per average extraction with borderline trigger.
 
 ### B-112 Details (RiskDebate Configuration)
 
@@ -1144,7 +1154,7 @@ TriggerMode options: `"always"`, `"borderline"` (confidence in threshold range),
 
 ### B-113 Details (RiskDebate UI)
 
-**Scope:** New view in the extraction step card for the RiskDebate step. Shows the debate transcript — advocate argument, challenger argument, rebuttals, and judge synthesis. Color-coded by role. Collapsible rounds.
+**Scope:** New view in the extraction step card for the RiskDebate step, consistent with existing pipeline step UX. Shows the debate transcript — advocate argument, challenger argument, rebuttals, and judge synthesis. Color-coded by role (advocate/challenger/judge). Collapsible rounds. Must show both original RiskAssessor result and debate-revised result for historical audit trail, with the debate result marked as the active override.
 
 ### B-114 Details (Multi-Model Debate Integration Tests)
 

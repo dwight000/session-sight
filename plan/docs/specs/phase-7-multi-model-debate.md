@@ -103,12 +103,32 @@ ModelRouter                               ← currently returns string, will ret
 | `Azure.AI.Projects` | Spike-only, never used in production |
 | `Azure.AI.Agents.Persistent` | Spike-only, never used in production |
 
+### Key Design Decision: Debate is Text-Only (No Tool Calling)
+
+The debate agents receive the RiskAssessor's output as text input and argue purely through narrative. No tool calling needed. This means:
+- **Any model works** regardless of tool-calling support (Llama is viable)
+- Simpler prompts, lower cost, fewer failure modes
+- The AgentLoopRunner's tool-calling refactor (B-108) is for the existing pipeline only — debate agents don't use tools
+
+### Verified Model Availability (East US 2, March 2026)
+
+Models sold **directly by Azure** (no marketplace subscription needed):
+| Model | Provider | Format String | Tool Calling | Notes |
+|-------|----------|---------------|-------------|-------|
+| `Mistral-Large-3` | Mistral | `'Mistral AI'` | Yes | Best non-OpenAI option |
+| `grok-3-mini` | xAI | `'xAI'` | Yes | Cheap, fast |
+| `grok-3` | xAI | `'xAI'` | Yes | Stronger reasoning |
+| `Llama-3.3-70B-Instruct` | Meta | `'Meta'` | No | Viable for text-only debate |
+| `Llama-4-Maverick-17B-128E-Instruct-FP8` | Meta | `'Meta'` | No | Viable for text-only debate |
+
+**All callable through the existing `Azure.AI.OpenAI` SDK** — same endpoint, same `DefaultAzureCredential`. Verified by Microsoft docs.
+
+**Note:** These models are NOT yet deployed in the user's Foundry resource. B-110 adds the Bicep deployment.
+
 ### Known Risks (final)
-- Mistral/Llama availability may vary by region — verify in East US 2 before Bicep
-- Marketplace terms acceptance required per provider — one-time `az term accept`
-- Different models have varying tool-calling quality — test with golden files, simplify debate to text-only if needed
-- `strict` JSON schema not in M.E.AI (not needed — debate uses narrative text + structured verdict)
+- Non-OpenAI model not yet deployed in tenant — B-110 adds Bicep, may need manual first deploy to verify availability
 - Content filter: all Foundry models go through Azure content filter — handle `ChatFinishReason.ContentFilter` uniformly
+- Model reasoning quality varies — test debate output with golden files to ensure meaningful argumentation
 - Token usage and content filter properties differ between SDKs — `AgentLoopRunner` needs per-provider handling
 
 ## Bicep / IaC Impact
@@ -119,17 +139,17 @@ ModelRouter                               ← currently returns string, will ret
 - `infra/modules/aiProject.bicep` — AI Foundry Project
 
 ### New Bicep Needed (confirmed by spike)
-- **Claude deploys as same resource type as OpenAI** — `Microsoft.CognitiveServices/accounts/deployments` with `format: 'Anthropic'`
-- No new Bicep module needed — add Claude deployments to existing `openai.bicep` (consider renaming to `ai-models.bicep`)
-- **Prerequisites:** Enterprise/MCA-E subscription + one-time `az term accept --publisher anthropic --product claude --plan claude-sonnet-4-5`
+- **All Foundry models use same resource type** — `Microsoft.CognitiveServices/accounts/deployments`
+- No new Bicep module needed — add challenger deployment to existing `openai.bicep` (consider renaming to `ai-models.bicep`)
+- Verified Bicep format strings: `'Mistral AI'`, `'xAI'`, `'Meta'`, `'OpenAI'`
 - Bicep example:
 ```bicep
-resource claudeDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025-06-01' = {
-  parent: aiServices
-  name: 'claude-haiku-4-5'
+resource challengerDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-04-01-preview' = {
+  parent: openai
+  name: 'Mistral-Large-3'
   sku: { name: 'GlobalStandard', capacity: 1 }
   properties: {
-    model: { format: 'Anthropic', name: 'claude-haiku-4-5', version: '1' }
+    model: { format: 'Mistral AI', name: 'Mistral-Large-3', version: '1' }
   }
 }
 ```
@@ -144,8 +164,8 @@ resource claudeDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025
     "ConfidenceThreshold": [0.3, 0.7],
     "MaxRounds": 2,
     "AdvocateModel": "gpt-4.1-nano",
-    "ChallengerModel": "claude-sonnet",
-    "JudgeModel": "gemini-pro"
+    "ChallengerModel": "Mistral-Large-3",
+    "JudgeModel": "gpt-4.1-mini"
   }
 }
 ```
@@ -159,14 +179,18 @@ resource claudeDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025
 
 ## Cost Estimate
 
-| Component | Cost per invocation |
-|-----------|-------------------|
-| Advocate (2 rounds, GPT-4.1-nano) | ~$0.001 |
-| Challenger (2 rounds, Claude Sonnet) | ~$0.004 |
-| Judge (1 call, Gemini/GPT-4.1-mini) | ~$0.002 |
-| **Total per debate** | **~$0.005-0.01** |
+Estimated per-debate cost (~5K input / 2K output tokens per call, 5 calls total):
 
-With `borderline` trigger (~20-30% of notes): adds ~$0.001-0.003 per average extraction.
+| Component | Model | Est. per-call | Calls | Total |
+|-----------|-------|--------------|-------|-------|
+| Advocate | GPT-4.1-nano ($0.10/$0.40 MTok) | ~$0.001 | 2 | $0.002 |
+| Challenger | Mistral-Large-3 (~$0.50/$1.50 MTok) | ~$0.006 | 2 | $0.012 |
+| Judge | GPT-4.1-mini ($0.40/$1.60 MTok) | ~$0.005 | 1 | $0.005 |
+| **Total per debate** | | | | **~$0.02** |
+
+With `borderline` trigger (~20-30% of notes): adds ~$0.004-0.006 per average extraction.
+
+**Cheaper alternatives:** Llama-3.3-70B (~$0.15/$0.60 MTok) or grok-3-mini (~$0.30/$0.50 MTok) as challenger would reduce per-debate cost to ~$0.01.
 
 ## Prior Art in This Repo
 
