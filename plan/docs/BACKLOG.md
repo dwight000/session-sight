@@ -7,11 +7,11 @@
 ## Current Status
 
 **Phase**: Phase 7 (Multi-Model Agent Debate) - IN PROGRESS
-**Next Action**: B-111 (RiskDebate pipeline step)
+**Next Action**: B-112 (RiskDebate configuration)
 
 **Last Updated**: March 2, 2026
 
-**Milestone**: B-107 spike, B-108 IChatClient refactor, B-110 AIServices Bicep, and B-109 multi-family routing all complete. B-111 (RiskDebate pipeline step) is now unblocked.
+**Milestone**: B-111 (RiskDebate pipeline step) complete. Full debate pipeline (advocate/challenger/judge) with multi-model support (GPT-4.1 + Mistral-Large-3), configurable triggers, graceful degradation, and 83.5% coverage. B-112 (runtime configuration) is next.
 
 ---
 
@@ -19,7 +19,7 @@
 
 <!-- When you start a task, move it here. Only ONE task at a time. -->
 
-_(none — B-107, B-108, B-109, B-110 complete; next: B-111)_
+_(none — B-111 complete; next: B-112)_
 
 ---
 
@@ -210,7 +210,7 @@ _(none — B-107, B-108, B-109, B-110 complete; next: B-111)_
 | B-108 | Refactor AgentLoopRunner to accept IChatClient (Microsoft.Extensions.AI) instead of OpenAI ChatClient | L | 7 | **Done** | B-107 |
 | B-109 | Extend ModelRouter for multi-family routing — add model provider + deployment config per ModelTask | M | 7 | **Done** | B-108 |
 | B-110 | Bicep module for Foundry marketplace model deployments (Claude, Gemini serverless endpoints) | M | 7 | **Done** | B-107 |
-| B-111 | Implement RiskDebate pipeline step — configurable advocate/challenger/judge with multi-model support | XL | 7 | Ready | B-108, B-109, B-110 |
+| B-111 | Implement RiskDebate pipeline step — configurable advocate/challenger/judge with multi-model support | XL | 7 | **Done** | B-108, B-109, B-110 |
 | B-112 | RiskDebate configuration — trigger modes (always/borderline/flagged/off), confidence thresholds, model selection | S | 7 | Ready | B-111 |
 | B-113 | RiskDebate UI — debate transcript visualization in extraction step card | M | 7 | Ready | B-111 |
 | B-114 | Integration tests for multi-model debate (golden file + cost assertions) | M | 7 | Ready | B-111 |
@@ -1381,6 +1381,7 @@ TriggerMode options: `"always"`, `"borderline"` (confidence in threshold range),
 | B-108 | Refactor AgentLoopRunner to accept IChatClient (Microsoft.Extensions.AI) — all agents, tools, tests migrated from OpenAI ChatClient | 2026-03-02 |
 | B-110 | AIServices Bicep resource — `Microsoft.CognitiveServices/accounts` with `kind:AIServices` for non-OpenAI model deployments (Mistral-Large-3) | 2026-03-02 |
 | B-109 | ModelRouter multi-family routing — `ModelProvider` enum, `ModelSelection` record, dual-client `AIFoundryClientFactory`, 3 debate `ModelTask` values, lazy AIServices client | 2026-03-02 |
+| B-111 | RiskDebate pipeline step — 5-call debate (advocate/challenger/rebuttals/judge) with GPT-4.1-nano advocate, Mistral-Large-3 challenger, GPT-4.1-mini judge. Configurable triggers (Off/Always/Flagged/Borderline), graceful degradation on failure, content filter handling. Step 5 between RiskAssess and Summarize (renumbered 6/7). 29 new tests, 83.5% coverage. | 2026-03-02 |
 
 ---
 
@@ -1388,6 +1389,7 @@ TriggerMode options: `"always"`, `"borderline"` (confidence in threshold range),
 
 | Date | What Happened |
 |------|---------------|
+| 2026-03-02 | **B-111 complete: RiskDebate pipeline step.** Implemented the full multi-model adversarial debate pipeline. 5 new files: `RiskDebateAgent.cs` (IRiskDebateAgent + implementation — 5 sequential LLM calls: advocate→challenger→rebuttals→judge), `RiskDebateOptions.cs` (TriggerMode enum + options), `RiskDebateResult.cs` (DebateRound record + result model), `RiskDebatePrompts.cs` (5 prompt builders), `RiskDebateAgentTests.cs` (29 tests). Modified 6 files: `ExtractionStepName` (+RiskDebate enum), `ExtractionOrchestrator` (expanded ExtractionAgents record, non-fatal step 5, renumbered Summarize→6/SearchIndex→7, ShouldTriggerDebate + BuildMergedRiskFromDebate helpers), `Program.cs` (DI registration), `appsettings.json` (RiskDebate section disabled by default), both orchestrator test files (mock updates). Multi-model: advocate=gpt-4.1-nano, challenger=Mistral-Large-3 via AIServices, judge=gpt-4.1-mini. Content filter: graceful for advocate/challenger, throws for judge (orchestrator catches). 942 tests pass, 83.5% coverage. |
 | 2026-03-02 | **B-109 complete (+ B-108/B-110 backlog catch-up).** B-109: ModelRouter multi-family routing — added `ModelProvider` enum (`AzureOpenAI`, `AzureAIServices`), `ModelSelection` record, 3 new `ModelTask` debate values (Advocate/Challenger/Judge), `MistralLarge3` constant. `AIFoundryClientFactory` now holds dual clients with lazy-init AIServices client (fail-fast only when non-OpenAI model requested). Updated all 6 agent call sites + `EmbeddingService`. Config: `AzureAIServices:Endpoint` in appsettings + AppHost env wire. Tests: `ModelRouterTests` expanded (11 tasks + provider assertions), `SummarizerAgentTests` mock fixed (stale `gpt-4o-mini` → `ModelSelection`), `IntegrationTestBase` stub updated. 914 unit tests pass, 0 errors. Also marked B-108 and B-110 Done in backlog (committed in prior session but backlog not updated). B-111 (RiskDebate pipeline step) now unblocked. |
 | 2026-02-26 | **B-004/P5-002 complete + Dependabot batch merge.** Merged 10 Dependabot PRs (#120-#129): Aspire 13.1.1→13.1.2, EF Core 9.0.4→9.0.13, Azure Storage, Functions Worker SDK. 6 merged directly, 4 had conflicts resolved via manual PR #130. Fixed breaking change from Aspire.Azure.Storage.Blobs 13.1.2 (`AddAzureBlobClient` → `AddAzureBlobServiceClient`) via PR #131. Also split UI Upload diagram into two at async boundary in `docs/ARCHITECTURE.md`. All tests pass: unit (737+), frontend (TS + Vitest + 83% coverage + smoke + build), E2E extraction pipeline (4/4). |
 | 2026-02-25 | **B-004 + P5-002 complete: Architecture diagram update + data flow diagrams.** Updated 2 stale extraction sequence diagrams to reflect B-084/B-103 refactors (ExtractionJobDispatcher, 202 Accepted, polling, FailureKind classification, PartiallyCompleted resume). Split UI Upload diagram into 2 sub-diagrams at the async boundary (1a: Request & Dispatch — 6 lanes, 1b: Pipeline Execution — 13 lanes) to reduce width. Added 3 new data flow diagrams: (5) Document Lifecycle stateDiagram-v2 with nested Transient/Permanent failure states, (6) Data Transformation Pipeline flowchart LR with subgraphs per step showing agent/model/output, (7) Entity Relationship erDiagram with 10 entities. All 7 diagrams validated via Node.js mermaid.parse() and Mermaid Live Editor. Also marked B-098–B-103 as Done in backlog (all shipped in PR #91 and #92). PR #116. |

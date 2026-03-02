@@ -24,6 +24,7 @@ public record ExtractionAgents(
     IIntakeAgent Intake,
     IClinicalExtractorAgent Extractor,
     IRiskAssessorAgent RiskAssessor,
+    IRiskDebateAgent RiskDebate,
     ISummarizerAgent Summarizer);
 
 /// <summary>
@@ -41,6 +42,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
     private readonly ISessionIndexingService _sessionIndexingService;
     // Used by LLM trace gating (B-095 future)
     private readonly PipelineDiagnosticsOptions _diagOptions;
+    private readonly RiskDebateOptions _debateOptions;
     private readonly ILogger<ExtractionOrchestrator> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -58,6 +60,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         IDocumentStorage documentStorage,
         ISessionIndexingService sessionIndexingService,
         IOptions<PipelineDiagnosticsOptions> diagOptions,
+        IOptions<RiskDebateOptions> debateOptions,
         ILogger<ExtractionOrchestrator> logger)
     {
         _documentParser = documentParser;
@@ -69,6 +72,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         _documentStorage = documentStorage;
         _sessionIndexingService = sessionIndexingService;
         _diagOptions = diagOptions.Value;
+        _debateOptions = debateOptions.Value;
         _logger = logger;
     }
 
@@ -434,26 +438,81 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             }
             extractionResult.Data.RiskAssessment = riskResult.FinalExtraction;
 
-            // Step 5: Generate session summary
-            var step5 = BeginStep(extractionId, ExtractionStepName.Summarize, 5, string.Empty);
-            await TrySaveStepAsync(step5);
-            var sw5 = Stopwatch.StartNew();
+            // Step 5: Risk Debate — optional, non-fatal
+            if (ShouldTriggerDebate(riskResult, _debateOptions))
+            {
+                var stepDebate = BeginStep(extractionId, ExtractionStepName.RiskDebate, 5, string.Empty);
+                await TrySaveStepAsync(stepDebate);
+                var swDebate = Stopwatch.StartNew();
+                try
+                {
+                    LogRunningRiskDebate(_logger);
+                    var debateResult = await _agents.RiskDebate.DebateAsync(
+                        riskResult, parsedDoc.MarkdownContent, ct);
+                    swDebate.Stop();
+
+                    // Override risk assessment with debate verdict
+                    extractionResult.Data.RiskAssessment = BuildMergedRiskFromDebate(
+                        riskResult, debateResult);
+                    if (debateResult.RequiresReview)
+                    {
+                        extractionResult.RequiresReview = true;
+                        foreach (var r in debateResult.ReviewReasons)
+                            extractionResult.LowConfidenceFields.Add($"Debate: {r}");
+                    }
+                    modelsUsed.Add(debateResult.AdvocateModel);
+                    modelsUsed.Add(debateResult.ChallengerModel);
+                    modelsUsed.Add(debateResult.JudgeModel);
+
+                    stepDebate.ModelUsed = debateResult.JudgeModel;
+                    stepDebate.InputTokens = debateResult.InputTokens;
+                    stepDebate.OutputTokens = debateResult.OutputTokens;
+                    stepDebate.TotalTokens = debateResult.TotalTokens;
+
+                    CompleteStep(stepDebate, swDebate.ElapsedMilliseconds);
+                    stepDebate.ResultSummaryJson = JsonSerializer.Serialize(new
+                    {
+                        finalRiskLevel = debateResult.FinalRiskLevel.ToString(),
+                        finalConfidence = debateResult.FinalConfidence,
+                        requiresReview = debateResult.RequiresReview,
+                        rounds = debateResult.Rounds.Count,
+                        judgeSynthesis = debateResult.JudgeSynthesis
+                    }, JsonOptions);
+
+                    PopulateLlmTraces(stepDebate, debateResult.LlmTraces);
+                }
+                catch (Exception ex)
+                {
+                    swDebate.Stop();
+                    FailStep(stepDebate, swDebate.ElapsedMilliseconds, ex.Message);
+                    LogRiskDebateError(_logger, ex);
+                }
+                finally
+                {
+                    await TrySaveStepAsync(stepDebate);
+                }
+            }
+
+            // Step 6: Generate session summary
+            var step6 = BeginStep(extractionId, ExtractionStepName.Summarize, 6, string.Empty);
+            await TrySaveStepAsync(step6);
+            var sw6 = Stopwatch.StartNew();
             SessionSummary? sessionSummary = null;
             var summarizeFailed = false;
             try
             {
                 LogRunningSummarizer(_logger);
                 sessionSummary = await _agents.Summarizer.SummarizeSessionAsync(extractionResult, ct);
-                sw5.Stop();
+                sw6.Stop();
                 modelsUsed.Add(sessionSummary.ModelUsed);
 
-                step5.ModelUsed = sessionSummary.ModelUsed;
-                step5.InputTokens = sessionSummary.InputTokens;
-                step5.OutputTokens = sessionSummary.OutputTokens;
-                step5.TotalTokens = sessionSummary.TotalTokens;
+                step6.ModelUsed = sessionSummary.ModelUsed;
+                step6.InputTokens = sessionSummary.InputTokens;
+                step6.OutputTokens = sessionSummary.OutputTokens;
+                step6.TotalTokens = sessionSummary.TotalTokens;
 
-                CompleteStep(step5, sw5.ElapsedMilliseconds);
-                step5.ResultSummaryJson = JsonSerializer.Serialize(new
+                CompleteStep(step6, sw6.ElapsedMilliseconds);
+                step6.ResultSummaryJson = JsonSerializer.Serialize(new
                 {
                     oneLiner = sessionSummary.OneLiner,
                     interventionsUsed = sessionSummary.InterventionsUsed,
@@ -462,42 +521,42 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                     riskLevel = sessionSummary.RiskFlags?.RiskLevel
                 }, JsonOptions);
 
-                PopulateLlmTraces(step5, sessionSummary.LlmTraces);
+                PopulateLlmTraces(step6, sessionSummary.LlmTraces);
             }
             catch (Exception ex)
             {
-                sw5.Stop();
+                sw6.Stop();
                 summarizeFailed = true;
-                FailStep(step5, sw5.ElapsedMilliseconds, ex.Message);
+                FailStep(step6, sw6.ElapsedMilliseconds, ex.Message);
                 LogSummarizerError(_logger, ex, sessionId);
                 // Summary generation failure is non-fatal - continue
             }
             finally
             {
-                await TrySaveStepAsync(step5);
+                await TrySaveStepAsync(step6);
             }
 
-            // Step 6: Index session for search (embedding + search index)
-            var step6 = BeginStep(extractionId, ExtractionStepName.SearchIndex, 6, "text-embedding-3-large");
-            await TrySaveStepAsync(step6);
-            var sw6 = Stopwatch.StartNew();
+            // Step 7: Index session for search (embedding + search index)
+            var step7 = BeginStep(extractionId, ExtractionStepName.SearchIndex, 7, "text-embedding-3-large");
+            await TrySaveStepAsync(step7);
+            var sw7 = Stopwatch.StartNew();
             IndexingStatus indexingStatus;
             try
             {
                 LogIndexingStarted(_logger, sessionId);
                 await _sessionIndexingService.IndexSessionAsync(session, extractionResult, sessionSummary, ct);
-                sw6.Stop();
+                sw7.Stop();
                 indexingStatus = IndexingStatus.Indexed;
-                CompleteStep(step6, sw6.ElapsedMilliseconds);
-                step6.ResultSummaryJson = JsonSerializer.Serialize(new { indexed = true }, JsonOptions);
+                CompleteStep(step7, sw7.ElapsedMilliseconds);
+                step7.ResultSummaryJson = JsonSerializer.Serialize(new { indexed = true }, JsonOptions);
                 LogIndexingCompleted(_logger, sessionId);
             }
             catch (Exception ex)
             {
-                sw6.Stop();
+                sw7.Stop();
                 indexingStatus = IndexingStatus.Failed;
-                FailStep(step6, sw6.ElapsedMilliseconds, ex.Message);
-                step6.ResultSummaryJson = JsonSerializer.Serialize(new
+                FailStep(step7, sw7.ElapsedMilliseconds, ex.Message);
+                step7.ResultSummaryJson = JsonSerializer.Serialize(new
                 {
                     indexed = false,
                     errorReason = Truncate(ex.Message, 500)
@@ -507,7 +566,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             }
             finally
             {
-                await TrySaveStepAsync(step6);
+                await TrySaveStepAsync(step7);
             }
 
             // Final save: update the placeholder row (preserves step rows)
@@ -579,6 +638,45 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                 ElapsedMilliseconds = stopwatch.ElapsedMilliseconds
             };
         }
+    }
+
+    internal static bool ShouldTriggerDebate(RiskAssessmentResult riskResult, RiskDebateOptions options)
+    {
+        if (!options.Enabled || options.TriggerMode == RiskDebateTriggerMode.Off)
+            return false;
+
+        return options.TriggerMode switch
+        {
+            RiskDebateTriggerMode.Always => true,
+            RiskDebateTriggerMode.Flagged => riskResult.RequiresReview,
+            RiskDebateTriggerMode.Borderline => IsBorderlineConfidence(riskResult, options),
+            _ => false
+        };
+    }
+
+    private static bool IsBorderlineConfidence(RiskAssessmentResult riskResult, RiskDebateOptions options)
+    {
+        var confidence = riskResult.FinalExtraction.RiskLevelOverall.Confidence;
+        return confidence >= options.LowConfidenceThreshold
+            && confidence <= options.HighConfidenceThreshold;
+    }
+
+    private static Core.Schema.RiskAssessmentExtracted BuildMergedRiskFromDebate(
+        RiskAssessmentResult riskResult,
+        RiskDebateResult debateResult)
+    {
+        // Start from the risk assessor's final extraction and override only the overall risk fields
+        var merged = riskResult.FinalExtraction;
+        merged.RiskLevelOverall = new Core.Schema.ExtractedField<Core.Enums.RiskLevelOverall>
+        {
+            Value = debateResult.FinalRiskLevel,
+            Confidence = debateResult.FinalConfidence,
+            Source = new Core.ValueObjects.SourceMapping
+            {
+                Text = $"RiskDebate judge ({debateResult.JudgeModel})"
+            }
+        };
+        return merged;
     }
 
     private static ExtractionStep BeginStep(Guid extractionId, ExtractionStepName stepName, int order, string model)
@@ -832,7 +930,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         var summarizeFailed = false;
         SessionSummary? sessionSummary = null;
 
-        // Load existing summary if step 5 already succeeded
+        // Load existing summary if step 6 (Summarize) already succeeded
         if (!needsSummarize && existing.SummaryJson != null)
         {
             sessionSummary = JsonSerializer.Deserialize<SessionSummary>(existing.SummaryJson, JsonOptions);
@@ -842,21 +940,21 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         {
             if (needsSummarize)
             {
-                var step5 = UpdateOrBeginStep(existing, ExtractionStepName.Summarize, 5, string.Empty);
-                await TrySaveStepAsync(step5);
-                var sw5 = Stopwatch.StartNew();
+                var step6 = UpdateOrBeginStep(existing, ExtractionStepName.Summarize, 6, string.Empty);
+                await TrySaveStepAsync(step6);
+                var sw6 = Stopwatch.StartNew();
                 try
                 {
                     LogRunningSummarizer(_logger);
                     sessionSummary = await _agents.Summarizer.SummarizeSessionAsync(agentResult, ct);
-                    sw5.Stop();
+                    sw6.Stop();
                     modelsUsed.Add(sessionSummary.ModelUsed);
-                    step5.ModelUsed = sessionSummary.ModelUsed;
-                    step5.InputTokens = sessionSummary.InputTokens;
-                    step5.OutputTokens = sessionSummary.OutputTokens;
-                    step5.TotalTokens = sessionSummary.TotalTokens;
-                    CompleteStep(step5, sw5.ElapsedMilliseconds);
-                    step5.ResultSummaryJson = JsonSerializer.Serialize(new
+                    step6.ModelUsed = sessionSummary.ModelUsed;
+                    step6.InputTokens = sessionSummary.InputTokens;
+                    step6.OutputTokens = sessionSummary.OutputTokens;
+                    step6.TotalTokens = sessionSummary.TotalTokens;
+                    CompleteStep(step6, sw6.ElapsedMilliseconds);
+                    step6.ResultSummaryJson = JsonSerializer.Serialize(new
                     {
                         oneLiner = sessionSummary.OneLiner,
                         interventionsUsed = sessionSummary.InterventionsUsed,
@@ -871,39 +969,39 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                 }
                 catch (Exception ex)
                 {
-                    sw5.Stop();
+                    sw6.Stop();
                     summarizeFailed = true;
-                    FailStep(step5, sw5.ElapsedMilliseconds, ex.Message);
+                    FailStep(step6, sw6.ElapsedMilliseconds, ex.Message);
                     LogSummarizerError(_logger, ex, sessionId);
                 }
                 finally
                 {
-                    await TrySaveStepAsync(step5);
+                    await TrySaveStepAsync(step6);
                 }
             }
 
             IndexingStatus indexingStatus;
             if (needsIndexing)
             {
-                var step6 = UpdateOrBeginStep(existing, ExtractionStepName.SearchIndex, 6, "text-embedding-3-large");
-                await TrySaveStepAsync(step6);
-                var sw6 = Stopwatch.StartNew();
+                var step7 = UpdateOrBeginStep(existing, ExtractionStepName.SearchIndex, 7, "text-embedding-3-large");
+                await TrySaveStepAsync(step7);
+                var sw7 = Stopwatch.StartNew();
                 try
                 {
                     LogIndexingStarted(_logger, sessionId);
                     await _sessionIndexingService.IndexSessionAsync(session, agentResult, sessionSummary, ct);
-                    sw6.Stop();
+                    sw7.Stop();
                     indexingStatus = IndexingStatus.Indexed;
-                    CompleteStep(step6, sw6.ElapsedMilliseconds);
-                    step6.ResultSummaryJson = JsonSerializer.Serialize(new { indexed = true }, JsonOptions);
+                    CompleteStep(step7, sw7.ElapsedMilliseconds);
+                    step7.ResultSummaryJson = JsonSerializer.Serialize(new { indexed = true }, JsonOptions);
                     LogIndexingCompleted(_logger, sessionId);
                 }
                 catch (Exception ex)
                 {
-                    sw6.Stop();
+                    sw7.Stop();
                     indexingStatus = IndexingStatus.Failed;
-                    FailStep(step6, sw6.ElapsedMilliseconds, ex.Message);
-                    step6.ResultSummaryJson = JsonSerializer.Serialize(new
+                    FailStep(step7, sw7.ElapsedMilliseconds, ex.Message);
+                    step7.ResultSummaryJson = JsonSerializer.Serialize(new
                     {
                         indexed = false,
                         errorReason = Truncate(ex.Message, 500)
@@ -912,7 +1010,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                 }
                 finally
                 {
-                    await TrySaveStepAsync(step6);
+                    await TrySaveStepAsync(step7);
                 }
             }
             else
@@ -1107,6 +1205,12 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Running Risk Assessor Agent")]
     private static partial void LogRunningRiskAssessor(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Running Risk Debate Agent")]
+    private static partial void LogRunningRiskDebate(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Risk Debate Agent failed, continuing with original risk assessment")]
+    private static partial void LogRiskDebateError(ILogger logger, Exception exception);
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Running Summarizer Agent")]
     private static partial void LogRunningSummarizer(ILogger logger);

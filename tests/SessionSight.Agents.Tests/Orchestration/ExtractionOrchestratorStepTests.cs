@@ -22,6 +22,7 @@ public class ExtractionOrchestratorStepTests
     private readonly IIntakeAgent _intakeAgent;
     private readonly IClinicalExtractorAgent _extractorAgent;
     private readonly IRiskAssessorAgent _riskAssessor;
+    private readonly IRiskDebateAgent _riskDebate;
     private readonly ISummarizerAgent _summarizer;
     private readonly ISessionRepository _sessionRepository;
     private readonly IDocumentRepository _documentRepository;
@@ -37,6 +38,7 @@ public class ExtractionOrchestratorStepTests
         _intakeAgent = Substitute.For<IIntakeAgent>();
         _extractorAgent = Substitute.For<IClinicalExtractorAgent>();
         _riskAssessor = Substitute.For<IRiskAssessorAgent>();
+        _riskDebate = Substitute.For<IRiskDebateAgent>();
         _summarizer = Substitute.For<ISummarizerAgent>();
         _sessionRepository = Substitute.For<ISessionRepository>();
         _documentRepository = Substitute.For<IDocumentRepository>();
@@ -53,12 +55,13 @@ public class ExtractionOrchestratorStepTests
             Arg.Any<Guid>(), DocumentStatus.Pending, DocumentStatus.Processing)
             .Returns(true);
 
-        var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _summarizer);
+        var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _riskDebate, _summarizer);
         var diagOptions = Options.Create(new PipelineDiagnosticsOptions());
+        var debateOptions = Options.Create(new RiskDebateOptions());
         _orchestrator = new ExtractionOrchestrator(
             _documentParser, agents, _sessionRepository, _documentRepository,
             _extractionResultRepository, _stepRepository,
-            _documentStorage, _sessionIndexingService, diagOptions, logger);
+            _documentStorage, _sessionIndexingService, diagOptions, debateOptions, logger);
     }
 
     private void SetupFullPipeline(Guid sessionId)
@@ -137,7 +140,7 @@ public class ExtractionOrchestratorStepTests
         savedSteps.Should().HaveCount(12);
         // Deduplicate by Id (same entity saved twice — object is mutated between saves)
         var distinctSteps = savedSteps.DistinctBy(s => s.Id).ToList();
-        distinctSteps.Select(s => s.StepOrder).Should().BeEquivalentTo([1, 2, 3, 4, 5, 6]);
+        distinctSteps.Select(s => s.StepOrder).Should().BeEquivalentTo([1, 2, 3, 4, 6, 7]);
         distinctSteps.Select(s => s.StepName).Should().BeEquivalentTo([
             ExtractionStepName.DocumentParse,
             ExtractionStepName.Intake,
@@ -351,12 +354,13 @@ public class ExtractionOrchestratorStepTests
 
         // Create orchestrator with StoreLlmTraces enabled
         var diagOptions = Options.Create(new PipelineDiagnosticsOptions { StoreLlmTraces = true });
-        var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _summarizer);
+        var debateOptions = Options.Create(new RiskDebateOptions());
+        var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _riskDebate, _summarizer);
         var logger = Substitute.For<ILogger<ExtractionOrchestrator>>();
         var orchestrator = new ExtractionOrchestrator(
             _documentParser, agents, _sessionRepository, _documentRepository,
             _extractionResultRepository, _stepRepository,
-            _documentStorage, _sessionIndexingService, diagOptions, logger);
+            _documentStorage, _sessionIndexingService, diagOptions, debateOptions, logger);
 
         var savedSteps = new List<ExtractionStep>();
         await _stepRepository.SaveStepAsync(Arg.Do<ExtractionStep>(s => savedSteps.Add(s)), Arg.Any<CancellationToken>());

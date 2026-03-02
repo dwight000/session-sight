@@ -60,12 +60,14 @@ builder.Services.AddSingleton<IModelRouter, ModelRouter>();
 builder.Services.AddScoped<IIntakeAgent, IntakeAgent>();
 builder.Services.AddScoped<IClinicalExtractorAgent, ClinicalExtractorAgent>();
 builder.Services.AddScoped<IRiskAssessorAgent, RiskAssessorAgent>();
+builder.Services.AddScoped<IRiskDebateAgent, RiskDebateAgent>();
 builder.Services.AddScoped<ISummarizerAgent, SummarizerAgent>();
 builder.Services.AddScoped<IQAAgent, QAAgent>();
 builder.Services.AddScoped<ExtractionAgents>(sp => new ExtractionAgents(
     sp.GetRequiredService<IIntakeAgent>(),
     sp.GetRequiredService<IClinicalExtractorAgent>(),
     sp.GetRequiredService<IRiskAssessorAgent>(),
+    sp.GetRequiredService<IRiskDebateAgent>(),
     sp.GetRequiredService<ISummarizerAgent>()));
 builder.Services.AddSingleton<ISchemaValidator, SchemaValidator>();
 
@@ -88,6 +90,10 @@ builder.Services.AddScoped<CompareSessionsTool>();
 // RiskAssessor configuration
 builder.Services.Configure<RiskAssessorOptions>(
     builder.Configuration.GetSection(RiskAssessorOptions.SectionName));
+
+// RiskDebate configuration
+builder.Services.Configure<RiskDebateOptions>(
+    builder.Configuration.GetSection(RiskDebateOptions.SectionName));
 
 // Pipeline diagnostics configuration
 builder.Services.Configure<PipelineDiagnosticsOptions>(
