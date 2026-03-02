@@ -1,28 +1,30 @@
-using OpenAI.Chat;
+using System.Text.Json;
+using Microsoft.Extensions.AI;
 
 namespace SessionSight.Agents.Tools;
 
 /// <summary>
-/// Extension methods for converting agent tools to OpenAI ChatTool format.
+/// Extension methods for converting agent tools to M.E.AI AITool format.
 /// </summary>
 public static class AgentToolExtensions
 {
     /// <summary>
-    /// Converts an <see cref="IAgentTool"/> to an OpenAI <see cref="ChatTool"/>.
+    /// Converts an <see cref="IAgentTool"/> to an <see cref="AITool"/> declaration.
     /// </summary>
-    public static ChatTool ToChatTool(this IAgentTool tool)
+    public static AITool ToAITool(this IAgentTool tool)
     {
-        return ChatTool.CreateFunctionTool(
+        using var doc = JsonDocument.Parse(tool.InputSchema);
+        return AIFunctionFactory.CreateDeclaration(
             tool.Name,
             tool.Description,
-            tool.InputSchema);
+            doc.RootElement.Clone());
     }
 
     /// <summary>
-    /// Converts a collection of agent tools to OpenAI ChatTools.
+    /// Converts a collection of agent tools to AITools.
     /// </summary>
-    public static IEnumerable<ChatTool> ToChatTools(this IEnumerable<IAgentTool> tools)
+    public static IEnumerable<AITool> ToAITools(this IEnumerable<IAgentTool> tools)
     {
-        return tools.Select(t => t.ToChatTool());
+        return tools.Select(t => t.ToAITool());
     }
 }

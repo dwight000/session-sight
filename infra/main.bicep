@@ -57,6 +57,7 @@ var sharedSqlServerName = '${prefix}-sql-dev'
 var sharedOpenaiName = '${prefix}-openai-dev'
 var sharedSearchName = '${prefix}-search-dev'
 var sharedDocIntName = '${prefix}-docint-dev'
+var sharedAiServicesName = '${prefix}-aiservices-dev'
 
 // Per-env database and search index names
 var sqlDatabaseName = isDevEnvironment ? 'sessionsight' : 'sessionsight-${environmentName}'
@@ -66,6 +67,7 @@ var searchIndexName = isDevEnvironment ? 'sessionsight-sessions' : 'sessionsight
 var openaiEndpointValue = 'https://${sharedOpenaiName}.openai.azure.com/'
 var searchEndpointValue = 'https://${sharedSearchName}.search.windows.net'
 var docIntelligenceEndpointValue = 'https://${sharedDocIntName}.cognitiveservices.azure.com/'
+var aiServicesEndpointValue = 'https://${sharedAiServicesName}.cognitiveservices.azure.com/'
 
 // === Resource Group ===
 // Only dev creates the RG; stage deploys into the existing dev RG
@@ -139,6 +141,19 @@ module openai 'modules/openai.bicep' = if (isDevEnvironment) {
     name: sharedOpenaiName
     location: location
     tags: tags
+  }
+  dependsOn: [rg]
+}
+
+module aiServices 'modules/ai-services.bicep' = if (isDevEnvironment) {
+  name: 'aiServices'
+  scope: resourceGroup(resourceGroupName)
+  params: {
+    name: sharedAiServicesName
+    location: location
+    tags: tags
+    cognitiveServicesUserPrincipalId: !empty(developerUserObjectId) ? developerUserObjectId : ''
+    cognitiveServicesUserPrincipalType: 'User'
   }
   dependsOn: [rg]
 }
@@ -363,6 +378,8 @@ output searchEndpoint string = searchEndpointValue
 output searchIndexName string = searchIndexName
 output docIntelligenceName string = sharedDocIntName
 output docIntelligenceEndpoint string = docIntelligenceEndpointValue
+output aiServicesName string = sharedAiServicesName
+output aiServicesEndpoint string = aiServicesEndpointValue
 output aiHubName string = isDevEnvironment ? aiHub.outputs.name : ''
 output aiProjectName string = isDevEnvironment ? aiProject.outputs.name : ''
 output aiProjectEndpoint string = isDevEnvironment ? 'https://${location}.api.azureml.ms/agents/v1.0/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceGroupName}/providers/Microsoft.MachineLearningServices/workspaces/${aiProject.outputs.name}' : ''

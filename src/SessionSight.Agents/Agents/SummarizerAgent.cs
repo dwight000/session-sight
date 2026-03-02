@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using OpenAI.Chat;
+using Microsoft.Extensions.AI;
 using SessionSight.Agents.Helpers;
 using SessionSight.Agents.Models;
 using SessionSight.Agents.Prompts;
@@ -59,47 +59,47 @@ public partial class SummarizerAgent : ISummarizerAgent
 
             var messages = new List<ChatMessage>
             {
-                new SystemChatMessage(SummarizerPrompts.SystemPrompt),
-                new UserChatMessage(prompt)
+                new(ChatRole.System, SummarizerPrompts.SystemPrompt),
+                new(ChatRole.User, prompt)
             };
 
-            var options = new ChatCompletionOptions
+            var options = new ChatOptions
             {
                 Temperature = 0.3f,
-                MaxOutputTokenCount = 1024,
-                ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
+                MaxOutputTokens = 1024,
+                ResponseFormat = ChatResponseFormat.Json
             };
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            var response = await chatClient.CompleteChatAsync(messages, options, ct);
+            var response = await chatClient.GetResponseAsync(messages, options, ct);
             sw.Stop();
 
             // Content filter retry: if blocked, retry once before throwing
-            if (ContentFilterHelper.IsContentFilterBlocked(response.Value))
+            if (ContentFilterHelper.IsContentFilterBlocked(response))
             {
                 LogSessionSummaryContentFilter(_logger, extraction.SessionId);
                 sw.Restart();
-                response = await chatClient.CompleteChatAsync(messages, options, ct);
+                response = await chatClient.GetResponseAsync(messages, options, ct);
                 sw.Stop();
-                if (ContentFilterHelper.IsContentFilterBlocked(response.Value))
+                if (ContentFilterHelper.IsContentFilterBlocked(response))
                 {
                     throw new InvalidOperationException(
                         "Session summary blocked by content filter after retry");
                 }
             }
 
-            var content = response.Value.Content[0].Text;
+            var content = response.Text!;
 
             var summary = ParseSessionSummary(content);
             summary.SessionId = Guid.Parse(extraction.SessionId);
             summary.ModelUsed = modelName;
             summary.GeneratedAt = DateTime.UtcNow;
 
-            if (response.Value.Usage is not null)
+            if (response.Usage is not null)
             {
-                summary.InputTokens = response.Value.Usage.InputTokenCount;
-                summary.OutputTokens = response.Value.Usage.OutputTokenCount;
-                summary.TotalTokens = response.Value.Usage.TotalTokenCount;
+                summary.InputTokens = (int)(response.Usage.InputTokenCount ?? 0);
+                summary.OutputTokens = (int)(response.Usage.OutputTokenCount ?? 0);
+                summary.TotalTokens = (int)(response.Usage.TotalTokenCount ?? 0);
             }
 
             summary.LlmTraces =
@@ -186,19 +186,19 @@ public partial class SummarizerAgent : ISummarizerAgent
 
             var messages = new List<ChatMessage>
             {
-                new SystemChatMessage(SummarizerPrompts.SystemPrompt),
-                new UserChatMessage(prompt)
+                new(ChatRole.System, SummarizerPrompts.SystemPrompt),
+                new(ChatRole.User, prompt)
             };
 
-            var options = new ChatCompletionOptions
+            var options = new ChatOptions
             {
                 Temperature = 0.3f,
-                MaxOutputTokenCount = 2048,
-                ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
+                MaxOutputTokens = 2048,
+                ResponseFormat = ChatResponseFormat.Json
             };
 
-            var response = await chatClient.CompleteChatAsync(messages, options, ct);
-            var content = response.Value.Content[0].Text;
+            var response = await chatClient.GetResponseAsync(messages, options, ct);
+            var content = response.Text!;
 
             var summary = ParsePatientSummary(content);
             summary.PatientId = patientId;

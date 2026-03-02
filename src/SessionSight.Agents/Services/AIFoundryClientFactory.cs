@@ -1,8 +1,8 @@
 using Azure.AI.OpenAI;
 using Azure.Identity;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using OpenAI.Chat;
 using OpenAI.Embeddings;
 using SessionSight.Core.Resilience;
 
@@ -10,7 +10,7 @@ namespace SessionSight.Agents.Services;
 
 public interface IAIFoundryClientFactory
 {
-    ChatClient CreateChatClient(string deploymentName);
+    IChatClient CreateChatClient(string deploymentName);
     EmbeddingClient CreateEmbeddingClient(string deploymentName);
 }
 
@@ -34,12 +34,12 @@ public partial class AIFoundryClientFactory : IAIFoundryClientFactory
     }
 
     /// <summary>
-    /// Creates a ChatClient for the specified deployment.
-    /// Uses Azure OpenAI SDK which works with Cognitive Services OpenAI resources.
+    /// Creates an IChatClient for the specified deployment.
+    /// Uses Azure OpenAI SDK under the hood, exposed via M.E.AI abstraction.
     /// </summary>
-    public ChatClient CreateChatClient(string deploymentName)
+    public IChatClient CreateChatClient(string deploymentName)
     {
-        return _openAIClient.GetChatClient(deploymentName);
+        return _openAIClient.GetChatClient(deploymentName).AsIChatClient();
     }
 
     /// <summary>

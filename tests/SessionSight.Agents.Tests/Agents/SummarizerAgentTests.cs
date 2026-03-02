@@ -1,7 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using OpenAI.Chat;
+using Microsoft.Extensions.AI;
 using SessionSight.Agents.Agents;
 using SessionSight.Agents.Models;
 using SessionSight.Agents.Routing;

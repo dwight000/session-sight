@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
-using OpenAI.Chat;
 using SessionSight.Agents.Helpers;
 
 namespace SessionSight.Agents.Tools;
@@ -24,7 +24,7 @@ public partial class AgentLoopRunner
     }
 
     public Task<AgentLoopResult> RunAsync(
-        ChatClient chatClient,
+        IChatClient chatClient,
         List<ChatMessage> messages,
         CancellationToken ct = default)
     {
@@ -32,7 +32,7 @@ public partial class AgentLoopRunner
     }
 
     public Task<AgentLoopResult> RunAsync(
-        ChatClient chatClient,
+        IChatClient chatClient,
         List<ChatMessage> messages,
         ChatResponseFormat? responseFormat,
         float? temperature = null,
@@ -43,7 +43,7 @@ public partial class AgentLoopRunner
     }
 
     public Task<AgentLoopResult> RunAsync(
-        ChatClient chatClient,
+        IChatClient chatClient,
         List<ChatMessage> messages,
         IEnumerable<IAgentTool> tools,
         float? temperature = null,
@@ -54,7 +54,7 @@ public partial class AgentLoopRunner
 
 #pragma warning disable S3776 // Cognitive complexity - agent loop requires sequential control flow
     private async Task<AgentLoopResult> RunCoreAsync(
-        ChatClient chatClient,
+        IChatClient chatClient,
         List<ChatMessage> messages,
         IEnumerable<IAgentTool> tools,
         ChatResponseFormat? responseFormat,
@@ -67,7 +67,7 @@ public partial class AgentLoopRunner
         var trace = new List<ToolCallEntry>();
         var llmTraces = new List<LlmCallTrace>();
         var toolArray = tools as IAgentTool[] ?? tools.ToArray();
-        var toolList = toolArray.ToChatTools().ToList();
+        var toolList = toolArray.ToAITools().ToList();
         var loopRound = 0;
         var totalInputTokens = 0;
         var totalOutputTokens = 0;
@@ -94,7 +94,7 @@ public partial class AgentLoopRunner
                         llmTraces);
                 }
 
-                var options = new ChatCompletionOptions();
+                var options = new ChatOptions();
                 if (responseFormat is not null)
                 {
                     options.ResponseFormat = responseFormat;
@@ -103,28 +103,23 @@ public partial class AgentLoopRunner
                 {
                     options.Temperature = temperature.Value;
                 }
-                foreach (var tool in toolList)
-                {
-                    options.Tools.Add(tool);
-                }
+                options.Tools = toolList;
 
                 var llmSw = Stopwatch.StartNew();
-                var response = await chatClient.CompleteChatAsync(messages, options, linkedToken);
+                var response = await chatClient.GetResponseAsync(messages, options, linkedToken);
                 llmSw.Stop();
-                var completion = response.Value;
 
                 // Content filter retry: if blocked, retry once before giving up
-                if (ContentFilterHelper.IsContentFilterBlocked(completion))
+                if (ContentFilterHelper.IsContentFilterBlocked(response))
                 {
-                    LogContentFilterBlocked(_logger, loopRound, completion.FinishReason.ToString(), completion.Content.Count);
+                    LogContentFilterBlocked(_logger, loopRound, response.FinishReason?.ToString() ?? "unknown", response.Messages.Count);
                     llmSw.Restart();
-                    response = await chatClient.CompleteChatAsync(messages, options, linkedToken);
+                    response = await chatClient.GetResponseAsync(messages, options, linkedToken);
                     llmSw.Stop();
-                    completion = response.Value;
 
-                    if (ContentFilterHelper.IsContentFilterBlocked(completion))
+                    if (ContentFilterHelper.IsContentFilterBlocked(response))
                     {
-                        LogContentFilterBlockedFinal(_logger, loopRound, completion.FinishReason.ToString(), completion.Content.Count);
+                        LogContentFilterBlockedFinal(_logger, loopRound, response.FinishReason?.ToString() ?? "unknown", response.Messages.Count);
                         return AgentLoopResult.Partial(
                             "Response blocked by content filter after retry",
                             toolCallCount,
@@ -138,54 +133,58 @@ public partial class AgentLoopRunner
                 var roundInputTokens = 0;
                 var roundOutputTokens = 0;
                 var roundTotalTokens = 0;
-                if (completion.Usage is not null)
+                if (response.Usage is not null)
                 {
-                    roundInputTokens = completion.Usage.InputTokenCount;
-                    roundOutputTokens = completion.Usage.OutputTokenCount;
-                    roundTotalTokens = completion.Usage.TotalTokenCount;
+                    roundInputTokens = (int)(response.Usage.InputTokenCount ?? 0);
+                    roundOutputTokens = (int)(response.Usage.OutputTokenCount ?? 0);
+                    roundTotalTokens = (int)(response.Usage.TotalTokenCount ?? 0);
                     totalInputTokens += roundInputTokens;
                     totalOutputTokens += roundOutputTokens;
                     totalTotalTokens += roundTotalTokens;
                 }
 
                 // Capture LLM trace for this round with delta segments
-                var responseText = completion.Content.Count > 0 ? completion.Content[0].Text : null;
+                var responseText = response.Text;
                 var deltaSegmentsJson = SerializeDeltaSegments(messages, promptStartForDelta);
                 llmTraces.Add(new LlmCallTrace(
                     PromptText: null,
                     PromptSegmentsJson: deltaSegmentsJson,
                     ResponseText: responseText,
-                    ModelUsed: completion.Model ?? string.Empty,
+                    ModelUsed: response.ModelId ?? string.Empty,
                     LoopRound: loopRound,
                     InputTokens: roundInputTokens,
                     OutputTokens: roundOutputTokens,
                     TotalTokens: roundTotalTokens,
                     DurationMs: llmSw.ElapsedMilliseconds));
 
-                // Add assistant message to conversation
-                messages.Add(new AssistantChatMessage(completion));
+                // Add response messages to conversation history
+                messages.AddRange(response.Messages);
                 promptStartForDelta = messages.Count;
 
                 // Check if model wants to call tools
-                if (completion.ToolCalls?.Count > 0)
-                {
-                    toolCallCount += completion.ToolCalls.Count;
+                var functionCalls = response.Messages
+                    .SelectMany(m => m.Contents.OfType<FunctionCallContent>())
+                    .ToList();
 
-                    LogAgentToolCalls(_logger, completion.ToolCalls.Count, toolCallCount);
+                if (functionCalls.Count > 0)
+                {
+                    toolCallCount += functionCalls.Count;
+
+                    LogAgentToolCalls(_logger, functionCalls.Count, toolCallCount);
 
                     // Execute tools in parallel with timing
-                    var tasks = completion.ToolCalls.Select(tc => ExecuteToolCallAsync(toolArray, tc, loopRound, linkedToken));
+                    var tasks = functionCalls.Select(fc => ExecuteToolCallAsync(toolArray, fc, loopRound, linkedToken));
                     var results = await Task.WhenAll(tasks);
 
                     // Record trace entries and add tool results to conversation
                     var roundToolCalls = new List<ToolCallEntry>();
-                    foreach (var (id, result, toolName, round, durationMs, inputJson) in results)
+                    foreach (var (callId, result, toolName, round, durationMs, inputJson) in results)
                     {
                         var outputJson = result.Data?.ToString();
                         var entry = new ToolCallEntry(toolName, result.Success, round, durationMs, inputJson, outputJson);
                         trace.Add(entry);
                         roundToolCalls.Add(entry);
-                        messages.Add(new ToolChatMessage(id, outputJson ?? string.Empty));
+                        messages.Add(new ChatMessage(ChatRole.Tool, [new FunctionResultContent(callId, outputJson ?? string.Empty)]));
                     }
 
                     if (onRoundComplete != null)
@@ -196,12 +195,12 @@ public partial class AgentLoopRunner
                 }
 
                 // No tool calls = agent is done
-                if (completion.FinishReason == ChatFinishReason.Stop)
+                if (response.FinishReason == ChatFinishReason.Stop)
                 {
                     if (onRoundComplete != null)
                         await onRoundComplete(llmTraces[^1], Array.Empty<ToolCallEntry>());
 
-                    var content = completion.Content.Count > 0 ? completion.Content[0].Text : "";
+                    var content = response.Text ?? "";
                     return AgentLoopResult.Complete(content, toolCallCount, trace,
                         totalInputTokens, totalOutputTokens, totalTotalTokens,
                         llmTraces);
@@ -211,9 +210,9 @@ public partial class AgentLoopRunner
                 if (onRoundComplete != null)
                     await onRoundComplete(llmTraces[^1], Array.Empty<ToolCallEntry>());
 
-                LogUnexpectedFinishReason(_logger, completion.FinishReason);
+                LogUnexpectedFinishReason(_logger, response.FinishReason?.ToString());
                 return AgentLoopResult.Partial(
-                    $"Unexpected completion: {completion.FinishReason}",
+                    $"Unexpected completion: {response.FinishReason}",
                     toolCallCount,
                     trace,
                     totalInputTokens, totalOutputTokens, totalTotalTokens,
@@ -232,25 +231,25 @@ public partial class AgentLoopRunner
         }
     }
 
-    private async Task<(string Id, ToolResult Result, string ToolName, int LoopRound, long DurationMs, string? InputJson)> ExecuteToolCallAsync(
+    private async Task<(string CallId, ToolResult Result, string ToolName, int LoopRound, long DurationMs, string? InputJson)> ExecuteToolCallAsync(
         IEnumerable<IAgentTool> tools,
-        ChatToolCall toolCall,
+        FunctionCallContent functionCall,
         int loopRound,
         CancellationToken ct)
     {
-        var inputJson = toolCall.FunctionArguments.ToString();
-        var tool = tools.FirstOrDefault(t => t.Name == toolCall.FunctionName);
+        var inputJson = JsonSerializer.Serialize(functionCall.Arguments);
+        var tool = tools.FirstOrDefault(t => t.Name == functionCall.Name);
         if (tool is null)
         {
-            LogUnknownToolRequested(_logger, toolCall.FunctionName);
-            return (toolCall.Id, ToolResult.Error($"Unknown tool: {toolCall.FunctionName}"), toolCall.FunctionName, loopRound, 0, inputJson);
+            LogUnknownToolRequested(_logger, functionCall.Name);
+            return (functionCall.CallId, ToolResult.Error($"Unknown tool: {functionCall.Name}"), functionCall.Name, loopRound, 0, inputJson);
         }
 
-        LogExecutingTool(_logger, toolCall.FunctionName);
+        LogExecutingTool(_logger, functionCall.Name);
         var sw = Stopwatch.StartNew();
-        var result = await tool.ExecuteAsync(toolCall.FunctionArguments, ct);
+        var result = await tool.ExecuteAsync(BinaryData.FromObjectAsJson(functionCall.Arguments), ct);
         sw.Stop();
-        return (toolCall.Id, result, toolCall.FunctionName, loopRound, sw.ElapsedMilliseconds, inputJson);
+        return (functionCall.CallId, result, functionCall.Name, loopRound, sw.ElapsedMilliseconds, inputJson);
     }
 
     internal static string SerializeDeltaSegments(List<ChatMessage> messages, int startIndex)
@@ -259,24 +258,29 @@ public partial class AgentLoopRunner
         for (var i = startIndex; i < messages.Count; i++)
         {
             var msg = messages[i];
-            switch (msg)
+            if (msg.Role == ChatRole.System)
             {
-                case SystemChatMessage sys:
-                    segments.Add(new { role = "system", content = string.Join("\n", sys.Content.Where(p => p.Text is not null).Select(p => p.Text)) });
-                    break;
-                case UserChatMessage usr:
-                    segments.Add(new { role = "user", content = string.Join("\n", usr.Content.Where(p => p.Text is not null).Select(p => p.Text)) });
-                    break;
-                case AssistantChatMessage asst:
-                    var text = string.Join("\n", asst.Content.Where(p => p.Text is not null).Select(p => p.Text));
-                    var toolCallNames = asst.ToolCalls.Count > 0
-                        ? string.Join(", ", asst.ToolCalls.Select(tc => tc.FunctionName))
-                        : null;
-                    segments.Add(new { role = "assistant", content = text, toolCalls = toolCallNames });
-                    break;
-                case ToolChatMessage tool:
-                    segments.Add(new { role = "tool", content = string.Join("\n", tool.Content.Where(p => p.Text is not null).Select(p => p.Text)) });
-                    break;
+                segments.Add(new { role = "system", content = msg.Text ?? string.Empty });
+            }
+            else if (msg.Role == ChatRole.User)
+            {
+                segments.Add(new { role = "user", content = msg.Text ?? string.Empty });
+            }
+            else if (msg.Role == ChatRole.Assistant)
+            {
+                var text = msg.Text ?? string.Empty;
+                var fcContents = msg.Contents.OfType<FunctionCallContent>().ToList();
+                var toolCallNames = fcContents.Count > 0
+                    ? string.Join(", ", fcContents.Select(fc => fc.Name))
+                    : null;
+                segments.Add(new { role = "assistant", content = text, toolCalls = toolCallNames });
+            }
+            else if (msg.Role == ChatRole.Tool)
+            {
+                var resultTexts = msg.Contents
+                    .OfType<FunctionResultContent>()
+                    .Select(fr => fr.Result?.ToString() ?? string.Empty);
+                segments.Add(new { role = "tool", content = string.Join("\n", resultTexts) });
             }
         }
         return JsonSerializer.Serialize(segments);
@@ -295,14 +299,14 @@ public partial class AgentLoopRunner
     private static partial void LogExecutingTool(ILogger logger, string name);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Unexpected finish reason: {Reason}")]
-    private static partial void LogUnexpectedFinishReason(ILogger logger, ChatFinishReason reason);
+    private static partial void LogUnexpectedFinishReason(ILogger logger, string? reason);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Agent loop timed out after {Minutes} minutes with {ToolCalls} tool calls completed")]
     private static partial void LogLoopTimeout(ILogger logger, double minutes, int toolCalls);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Content filter blocked response at loop round {Round} (FinishReason={FinishReason}, ContentCount={ContentCount}), retrying")]
-    private static partial void LogContentFilterBlocked(ILogger logger, int round, string finishReason, int contentCount);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Content filter blocked response at loop round {Round} (FinishReason={FinishReason}, MessageCount={MessageCount}), retrying")]
+    private static partial void LogContentFilterBlocked(ILogger logger, int round, string finishReason, int messageCount);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Content filter blocked response at loop round {Round} after retry (FinishReason={FinishReason}, ContentCount={ContentCount})")]
-    private static partial void LogContentFilterBlockedFinal(ILogger logger, int round, string finishReason, int contentCount);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Content filter blocked response at loop round {Round} after retry (FinishReason={FinishReason}, MessageCount={MessageCount})")]
+    private static partial void LogContentFilterBlockedFinal(ILogger logger, int round, string finishReason, int messageCount);
 }

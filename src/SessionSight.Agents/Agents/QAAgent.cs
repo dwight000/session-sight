@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using OpenAI.Chat;
+using Microsoft.Extensions.AI;
 using SessionSight.Agents.Helpers;
 using SessionSight.Agents.Models;
 using SessionSight.Agents.Prompts;
@@ -148,18 +148,18 @@ public partial class QAAgent : IQAAgent
 
             var messages = new List<ChatMessage>
             {
-                new SystemChatMessage(QAPrompts.SystemPrompt),
-                new UserChatMessage(prompt)
+                new(ChatRole.System, QAPrompts.SystemPrompt),
+                new(ChatRole.User, prompt)
             };
 
-            var options = new ChatCompletionOptions
+            var options = new ChatOptions
             {
                 Temperature = 0.2f,
-                MaxOutputTokenCount = 1024
+                MaxOutputTokens = 1024
             };
 
-            var response = await chatClient.CompleteChatAsync(messages, options, ct);
-            var content = response.Value.Content[0].Text;
+            var response = await chatClient.GetResponseAsync(messages, options, ct);
+            var content = response.Text!;
 
             var qaResponse = ParseQAResponse(content);
             qaResponse.Question = question;
@@ -202,8 +202,8 @@ public partial class QAAgent : IQAAgent
 
             var messages = new List<ChatMessage>
             {
-                new SystemChatMessage(QAPrompts.AgenticSystemPrompt),
-                new UserChatMessage(QAPrompts.GetAgenticUserPrompt(question, patientId))
+                new(ChatRole.System, QAPrompts.AgenticSystemPrompt),
+                new(ChatRole.User, QAPrompts.GetAgenticUserPrompt(question, patientId))
             };
 
             // Scope tools to the requested patient to prevent cross-patient data access
@@ -389,18 +389,18 @@ public partial class QAAgent : IQAAgent
 
             var messages = new List<ChatMessage>
             {
-                new SystemChatMessage(QAPrompts.ComplexityPrompt),
-                new UserChatMessage(question)
+                new(ChatRole.System, QAPrompts.ComplexityPrompt),
+                new(ChatRole.User, question)
             };
 
-            var options = new ChatCompletionOptions
+            var options = new ChatOptions
             {
                 Temperature = 0f,
-                MaxOutputTokenCount = 10
+                MaxOutputTokens = 10
             };
 
-            var response = await chatClient.CompleteChatAsync(messages, options, ct);
-            var result = response.Value.Content[0].Text.Trim().ToLowerInvariant();
+            var response = await chatClient.GetResponseAsync(messages, options, ct);
+            var result = response.Text!.Trim().ToLowerInvariant();
 
             return result.Contains("complex", StringComparison.OrdinalIgnoreCase);
         }

@@ -1,6 +1,6 @@
 using System.Text.Json;
 using FluentAssertions;
-using OpenAI.Chat;
+using Microsoft.Extensions.AI;
 using SessionSight.Agents.Tools;
 
 namespace SessionSight.Agents.Tests.Tools;
@@ -14,8 +14,8 @@ public class AgentLoopRunnerTokenTests
     {
         var messages = new List<ChatMessage>
         {
-            new SystemChatMessage("You are a clinical assistant"),
-            new UserChatMessage("Extract metadata from this note")
+            new(ChatRole.System, "You are a clinical assistant"),
+            new(ChatRole.User, "Extract metadata from this note")
         };
 
         var json = AgentLoopRunner.SerializeDeltaSegments(messages, 0);
@@ -33,9 +33,9 @@ public class AgentLoopRunnerTokenTests
     {
         var messages = new List<ChatMessage>
         {
-            new SystemChatMessage("system prompt"),
-            new UserChatMessage("user message"),
-            new UserChatMessage("second user message")
+            new(ChatRole.System, "system prompt"),
+            new(ChatRole.User, "user message"),
+            new(ChatRole.User, "second user message")
         };
 
         var json = AgentLoopRunner.SerializeDeltaSegments(messages, 2);
@@ -50,7 +50,7 @@ public class AgentLoopRunnerTokenTests
     {
         var messages = new List<ChatMessage>
         {
-            new SystemChatMessage("system prompt"),
+            new(ChatRole.System, "system prompt"),
         };
 
         var json = AgentLoopRunner.SerializeDeltaSegments(messages, 1);
