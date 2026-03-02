@@ -84,13 +84,14 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         var criteriaValidationAttemptsUsed = 1;
 
         // Step 1: Re-extract with focused safety prompt
-        var modelName = _modelRouter.SelectModel(ModelTask.RiskAssessment);
+        var selection = _modelRouter.SelectModel(ModelTask.RiskAssessment);
+        var modelName = selection.DeploymentName;
         result.ModelUsed = modelName;
         var contentFilterBlocked = false;
 
         try
         {
-            var reExtracted = await ReExtractRiskAsync(originalNoteText, modelName, extraction.SessionId, ct);
+            var reExtracted = await ReExtractRiskAsync(originalNoteText, selection, extraction.SessionId, ct);
             result.ValidatedExtraction = reExtracted.Risk;
             criteriaUsed = reExtracted.CriteriaUsed;
             reasoningUsed = reExtracted.ReasoningUsed;
@@ -166,11 +167,12 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
 
     private async Task<RiskReExtractionResponse> ReExtractRiskAsync(
         string noteText,
-        string modelName,
+        ModelSelection selection,
         string sessionId,
         CancellationToken ct)
     {
-        var chatClient = _clientFactory.CreateChatClient(modelName);
+        var modelName = selection.DeploymentName;
+        var chatClient = _clientFactory.CreateChatClient(selection);
         var prompt = RiskPrompts.GetRiskReExtractionPrompt(noteText);
         var messages = new List<ChatMessage>
         {

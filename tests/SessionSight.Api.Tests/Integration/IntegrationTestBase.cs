@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using OpenAI.Embeddings;
+using SessionSight.Agents.Routing;
 using SessionSight.Agents.Services;
 using SessionSight.Core.Interfaces;
 using SessionSight.Infrastructure.Data;
@@ -105,7 +106,7 @@ internal class StubDocumentStorage : IDocumentStorage
 /// </summary>
 internal class StubAIFoundryClientFactory : IAIFoundryClientFactory
 {
-    public IChatClient CreateChatClient(string deploymentName)
+    public IChatClient CreateChatClient(ModelSelection selection)
         => throw new NotSupportedException("AI services are not available in integration tests. Use unit tests with mocks for agent testing.");
 
     public EmbeddingClient CreateEmbeddingClient(string deploymentName)

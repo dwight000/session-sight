@@ -7,11 +7,11 @@
 ## Current Status
 
 **Phase**: Phase 7 (Multi-Model Agent Debate) - IN PROGRESS
-**Next Action**: B-107 research spike
+**Next Action**: B-111 (RiskDebate pipeline step)
 
 **Last Updated**: March 2, 2026
 
-**Milestone**: Starting multi-model agent debate feature — research spike to validate Azure AI Foundry marketplace model deployment (Claude, Gemini), Microsoft.Extensions.AI abstraction over AgentLoopRunner, and Bicep IaC for non-OpenAI models.
+**Milestone**: B-107 spike, B-108 IChatClient refactor, B-110 AIServices Bicep, and B-109 multi-family routing all complete. B-111 (RiskDebate pipeline step) is now unblocked.
 
 ---
 
@@ -19,7 +19,7 @@
 
 <!-- When you start a task, move it here. Only ONE task at a time. -->
 
-_(none — B-107 spike completed, next: B-108)_
+_(none — B-107, B-108, B-109, B-110 complete; next: B-111)_
 
 ---
 
@@ -207,9 +207,9 @@ _(none — B-107 spike completed, next: B-108)_
 | B-106 | Fix adversarial exfiltration golden tests — assert LLM response doesn't leak system prompt | M | 5 | Ready | - |
 | **Phase 7: Multi-Model Agent Debate** |||||
 | B-107 | Research spike: multi-model SDK feasibility, Foundry marketplace models, IChatClient abstraction, Bicep | XL | Spike | **Done** | - |
-| B-108 | Refactor AgentLoopRunner to accept IChatClient (Microsoft.Extensions.AI) instead of OpenAI ChatClient | L | 7 | Ready | B-107 |
-| B-109 | Extend ModelRouter for multi-family routing — add model provider + deployment config per ModelTask | M | 7 | Ready | B-108 |
-| B-110 | Bicep module for Foundry marketplace model deployments (Claude, Gemini serverless endpoints) | M | 7 | Ready | B-107 |
+| B-108 | Refactor AgentLoopRunner to accept IChatClient (Microsoft.Extensions.AI) instead of OpenAI ChatClient | L | 7 | **Done** | B-107 |
+| B-109 | Extend ModelRouter for multi-family routing — add model provider + deployment config per ModelTask | M | 7 | **Done** | B-108 |
+| B-110 | Bicep module for Foundry marketplace model deployments (Claude, Gemini serverless endpoints) | M | 7 | **Done** | B-107 |
 | B-111 | Implement RiskDebate pipeline step — configurable advocate/challenger/judge with multi-model support | XL | 7 | Ready | B-108, B-109, B-110 |
 | B-112 | RiskDebate configuration — trigger modes (always/borderline/flagged/off), confidence thresholds, model selection | S | 7 | Ready | B-111 |
 | B-113 | RiskDebate UI — debate transcript visualization in extraction step card | M | 7 | Ready | B-111 |
@@ -1377,6 +1377,10 @@ TriggerMode options: `"always"`, `"borderline"` (confidence in threshold range),
 | B-011 | Idempotent job IDs for blob trigger — already implemented via JobKey unique index in ExtractionJobDispatcher (B-103) and TryTransition atomic status checks (B-064), backlog was stale | 2026-02-26 |
 | B-003 | Synthetic data generator script — already implemented: 8 sample therapy note PDFs generated via fpdf2, sample document picker in Upload UI (B-082) | 2026-02-26 |
 | B-014 | Reindex/backfill job for AI Search — POST /api/admin/reindex endpoint with optional patientId/sessionId filters, background ReindexService that bridges Core→Agent models and calls SessionIndexingService, per-session IndexingStatus updates | 2026-02-26 |
+| B-107 | Research spike: multi-model SDK feasibility, Foundry marketplace models, IChatClient abstraction, Bicep — Phase 7 planning complete | 2026-03-02 |
+| B-108 | Refactor AgentLoopRunner to accept IChatClient (Microsoft.Extensions.AI) — all agents, tools, tests migrated from OpenAI ChatClient | 2026-03-02 |
+| B-110 | AIServices Bicep resource — `Microsoft.CognitiveServices/accounts` with `kind:AIServices` for non-OpenAI model deployments (Mistral-Large-3) | 2026-03-02 |
+| B-109 | ModelRouter multi-family routing — `ModelProvider` enum, `ModelSelection` record, dual-client `AIFoundryClientFactory`, 3 debate `ModelTask` values, lazy AIServices client | 2026-03-02 |
 
 ---
 
@@ -1384,6 +1388,7 @@ TriggerMode options: `"always"`, `"borderline"` (confidence in threshold range),
 
 | Date | What Happened |
 |------|---------------|
+| 2026-03-02 | **B-109 complete (+ B-108/B-110 backlog catch-up).** B-109: ModelRouter multi-family routing — added `ModelProvider` enum (`AzureOpenAI`, `AzureAIServices`), `ModelSelection` record, 3 new `ModelTask` debate values (Advocate/Challenger/Judge), `MistralLarge3` constant. `AIFoundryClientFactory` now holds dual clients with lazy-init AIServices client (fail-fast only when non-OpenAI model requested). Updated all 6 agent call sites + `EmbeddingService`. Config: `AzureAIServices:Endpoint` in appsettings + AppHost env wire. Tests: `ModelRouterTests` expanded (11 tasks + provider assertions), `SummarizerAgentTests` mock fixed (stale `gpt-4o-mini` → `ModelSelection`), `IntegrationTestBase` stub updated. 914 unit tests pass, 0 errors. Also marked B-108 and B-110 Done in backlog (committed in prior session but backlog not updated). B-111 (RiskDebate pipeline step) now unblocked. |
 | 2026-02-26 | **B-004/P5-002 complete + Dependabot batch merge.** Merged 10 Dependabot PRs (#120-#129): Aspire 13.1.1→13.1.2, EF Core 9.0.4→9.0.13, Azure Storage, Functions Worker SDK. 6 merged directly, 4 had conflicts resolved via manual PR #130. Fixed breaking change from Aspire.Azure.Storage.Blobs 13.1.2 (`AddAzureBlobClient` → `AddAzureBlobServiceClient`) via PR #131. Also split UI Upload diagram into two at async boundary in `docs/ARCHITECTURE.md`. All tests pass: unit (737+), frontend (TS + Vitest + 83% coverage + smoke + build), E2E extraction pipeline (4/4). |
 | 2026-02-25 | **B-004 + P5-002 complete: Architecture diagram update + data flow diagrams.** Updated 2 stale extraction sequence diagrams to reflect B-084/B-103 refactors (ExtractionJobDispatcher, 202 Accepted, polling, FailureKind classification, PartiallyCompleted resume). Split UI Upload diagram into 2 sub-diagrams at the async boundary (1a: Request & Dispatch — 6 lanes, 1b: Pipeline Execution — 13 lanes) to reduce width. Added 3 new data flow diagrams: (5) Document Lifecycle stateDiagram-v2 with nested Transient/Permanent failure states, (6) Data Transformation Pipeline flowchart LR with subgraphs per step showing agent/model/output, (7) Entity Relationship erDiagram with 10 entities. All 7 diagrams validated via Node.js mermaid.parse() and Mermaid Live Editor. Also marked B-098–B-103 as Done in backlog (all shipped in PR #91 and #92). PR #116. |
 | 2026-02-20 | **B-086 complete: Patient longitudinal summary on timeline page.** Frontend-only change — `GET /api/summary/patient/{id}` already existed but was never called. Added `PatientSummary` + `GoalProgress` types to `types/index.ts`, `getPatientSummary()` API function in `api/summary.ts`, `usePatientSummary` query hook, and summary card panel on `PatientTimeline.tsx` between stats bar and session list. Panel shows progress narrative, mood trend badge, effective interventions, recurring themes, goal progress, risk trend summary, and recommended focus. Loading spinner during fetch, hidden on 404 (patients with no extraction data). Tests: 202 frontend unit (7 new: 3 hook, 2 API, 2 page), 17 Playwright smoke (patient summary route mock added). |

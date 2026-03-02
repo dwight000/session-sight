@@ -29,7 +29,8 @@ public class SummarizerAgentTests
         _sessionRepository = Substitute.For<ISessionRepository>();
         _logger = Substitute.For<ILogger<SummarizerAgent>>();
 
-        _modelRouter.SelectModel(ModelTask.Summarization).Returns("gpt-4o-mini");
+        _modelRouter.SelectModel(ModelTask.Summarization)
+            .Returns(new ModelSelection(ModelRouter.Gpt41Nano, ModelProvider.AzureOpenAI));
 
         _agent = new SummarizerAgent(
             _clientFactory,

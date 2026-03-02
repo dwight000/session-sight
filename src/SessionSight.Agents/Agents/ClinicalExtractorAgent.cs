@@ -69,8 +69,9 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
 
         LogStartingClinicalExtraction(_logger, sessionId);
 
-        var modelName = _modelRouter.SelectModel(ModelTask.Extraction);
-        var chatClient = _clientFactory.CreateChatClient(modelName);
+        var selection = _modelRouter.SelectModel(ModelTask.Extraction);
+        var modelName = selection.DeploymentName;
+        var chatClient = _clientFactory.CreateChatClient(selection);
 
         // Build initial messages with extraction prompt
         var messages = new List<ChatMessage>

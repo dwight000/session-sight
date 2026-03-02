@@ -49,10 +49,11 @@ public partial class IntakeAgent : IIntakeAgent
 
     public async Task<IntakeResult> ProcessAsync(ParsedDocument document, CancellationToken cancellationToken = default)
     {
-        var modelName = _modelRouter.SelectModel(ModelTask.DocumentIntake);
+        var selection = _modelRouter.SelectModel(ModelTask.DocumentIntake);
+        var modelName = selection.DeploymentName;
         LogProcessingDocument(_logger, modelName);
 
-        var chatClient = _clientFactory.CreateChatClient(modelName);
+        var chatClient = _clientFactory.CreateChatClient(selection);
 
         var messages = new List<ChatMessage>
         {

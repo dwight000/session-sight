@@ -33,7 +33,8 @@ public partial class EmbeddingService : IEmbeddingService
         IModelRouter router,
         ILogger<EmbeddingService> logger)
     {
-        _modelUsed = router.SelectModel(ModelTask.Embedding);
+        var selection = router.SelectModel(ModelTask.Embedding);
+        _modelUsed = selection.DeploymentName;
         _client = factory.CreateEmbeddingClient(_modelUsed);
         _logger = logger;
     }

@@ -106,7 +106,7 @@ public partial class QAAgent : IQAAgent
                 Question = question,
                 Answer = "I don't have session data to answer this question. No indexed sessions were found for this patient.",
                 Confidence = 0,
-                ModelUsed = _modelRouter.SelectModel(ModelTask.QASimple),
+                ModelUsed = _modelRouter.SelectModel(ModelTask.QASimple).DeploymentName,
                 GeneratedAt = DateTime.UtcNow,
                 Diagnostics = diagnostics
             };
@@ -139,11 +139,12 @@ public partial class QAAgent : IQAAgent
         diagnostics.SearchResultCount = resultsList.Count;
 
         // Select model and call LLM
-        var modelName = _modelRouter.SelectModel(ModelTask.QASimple);
+        var selection = _modelRouter.SelectModel(ModelTask.QASimple);
+        var modelName = selection.DeploymentName;
 
         try
         {
-            var chatClient = _clientFactory.CreateChatClient(modelName);
+            var chatClient = _clientFactory.CreateChatClient(selection);
             var prompt = QAPrompts.GetAnswerPrompt(question, contextString);
 
             var messages = new List<ChatMessage>
@@ -194,11 +195,12 @@ public partial class QAAgent : IQAAgent
 
     private async Task<QAResponse> AnswerComplexAsync(string question, Guid patientId, QADiagnostics diagnostics, CancellationToken ct)
     {
-        var modelName = _modelRouter.SelectModel(ModelTask.QAComplex);
+        var selection = _modelRouter.SelectModel(ModelTask.QAComplex);
+        var modelName = selection.DeploymentName;
 
         try
         {
-            var chatClient = _clientFactory.CreateChatClient(modelName);
+            var chatClient = _clientFactory.CreateChatClient(selection);
 
             var messages = new List<ChatMessage>
             {
@@ -384,8 +386,8 @@ public partial class QAAgent : IQAAgent
     {
         try
         {
-            var modelName = _modelRouter.SelectModel(ModelTask.QASimple);
-            var chatClient = _clientFactory.CreateChatClient(modelName);
+            var selection = _modelRouter.SelectModel(ModelTask.QASimple);
+            var chatClient = _clientFactory.CreateChatClient(selection);
 
             var messages = new List<ChatMessage>
             {

@@ -47,14 +47,15 @@ public partial class SummarizerAgent : ISummarizerAgent
     {
         LogStartingSessionSummary(_logger, extraction.SessionId);
 
-        var modelName = _modelRouter.SelectModel(ModelTask.Summarization);
+        var selection = _modelRouter.SelectModel(ModelTask.Summarization);
+        var modelName = selection.DeploymentName;
 
         // Serialize extraction data for the prompt
         var extractionJson = JsonSerializer.Serialize(extraction.Data, JsonOptions);
 
         try
         {
-            var chatClient = _clientFactory.CreateChatClient(modelName);
+            var chatClient = _clientFactory.CreateChatClient(selection);
             var prompt = SummarizerPrompts.GetSessionSummaryPrompt(extractionJson);
 
             var messages = new List<ChatMessage>
@@ -143,7 +144,8 @@ public partial class SummarizerAgent : ISummarizerAgent
     {
         LogStartingPatientSummary(_logger, patientId);
 
-        var modelName = _modelRouter.SelectModel(ModelTask.Summarization);
+        var selection = _modelRouter.SelectModel(ModelTask.Summarization);
+        var modelName = selection.DeploymentName;
 
         // Get patient's sessions with extractions
         var sessions = (await _sessionRepository.GetByPatientIdInDateRangeAsync(patientId, startDate, endDate, ct))
@@ -181,7 +183,7 @@ public partial class SummarizerAgent : ISummarizerAgent
 
         try
         {
-            var chatClient = _clientFactory.CreateChatClient(modelName);
+            var chatClient = _clientFactory.CreateChatClient(selection);
             var prompt = SummarizerPrompts.GetPatientSummaryPrompt(sessionsJson, sessions.Count);
 
             var messages = new List<ChatMessage>
