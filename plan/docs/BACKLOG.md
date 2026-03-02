@@ -214,6 +214,7 @@ _(none — B-107 spike completed, next: B-108)_
 | B-112 | RiskDebate configuration — trigger modes (always/borderline/flagged/off), confidence thresholds, model selection | S | 7 | Ready | B-111 |
 | B-113 | RiskDebate UI — debate transcript visualization in extraction step card | M | 7 | Ready | B-111 |
 | B-114 | Integration tests for multi-model debate (golden file + cost assertions) | M | 7 | Ready | B-111 |
+| B-115 | Cleanup: consolidate AIServices + OpenAI resources, remove deprecated packages/spike code, rename Bicep modules | M | 7 | Ready | B-114 |
 
 ---
 
@@ -1099,11 +1100,38 @@ resource challengerDeployment 'Microsoft.CognitiveServices/accounts/deployments@
 }
 ```
 
-**Important:** Models sold directly by Azure (Mistral-Large-3, Grok, Llama) do NOT require marketplace terms acceptance. Partner/marketplace models (Mistral-small-2503) DO require it.
+**BLOCKER FOUND (March 2, 2026):** The existing resource (`sessionsight-openai-dev`) is `kind: 'OpenAI'` — it ONLY supports OpenAI models. Verified via `az cognitiveservices account list-models`: returns only `format: 'OpenAI'` entries. Mistral, Grok, Llama are not available.
 
-**Consider:** Rename `openai.bicep` → `ai-models.bicep` since it now deploys non-OpenAI models.
+**Solution:** Create a SECOND CognitiveServices resource with `kind: 'AIServices'` for non-OpenAI models. Keep existing `kind: 'OpenAI'` resource untouched (zero risk to current pipeline).
 
-**Note:** User has not deployed any non-OpenAI models yet. First deployment may need manual verification that the model is available in the tenant's Foundry resource before automating in Bicep. Run `az cognitiveservices account list-models -n sessionsight-openai-dev -g rg-sessionsight-dev --query "[?contains(name,'istral')]"` to check.
+**New Bicep module:** `infra/modules/ai-services.bicep`
+```bicep
+resource aiServices 'Microsoft.CognitiveServices/accounts@2024-04-01-preview' = {
+  name: '${baseName}-aiservices'
+  location: location
+  kind: 'AIServices'          // <-- enables all model providers
+  sku: { name: 'S0' }
+  properties: {
+    customSubDomainName: '${baseName}-aiservices'
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
+resource challengerDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-04-01-preview' = {
+  parent: aiServices
+  name: 'Mistral-Large-3'
+  sku: { name: 'GlobalStandard', capacity: 1 }
+  properties: {
+    model: { format: 'Mistral AI', name: 'Mistral-Large-3', version: '1' }
+  }
+}
+```
+
+**Also needed:** `Cognitive Services User` role assignment on the new resource for DefaultAzureCredential auth. Copy pattern from existing `openai.bicep`.
+
+**New connection string / endpoint** for the challenger: `https://${baseName}-aiservices.services.ai.azure.com/` — `ModelRouter` must return the correct endpoint per model.
+
+**B-115 will consolidate** — after everything works, consider migrating OpenAI models into the AIServices resource and deleting the old OpenAI resource.
 
 ### B-111 Details (RiskDebate Pipeline Step)
 
@@ -1151,6 +1179,20 @@ Intake → Extractor → RiskAssessor → [RiskDebate if triggered] → Summariz
 }
 ```
 TriggerMode options: `"always"`, `"borderline"` (confidence in threshold range), `"flagged"` (only when risk flags present), `"off"`
+
+### B-115 Details (Cleanup & Consolidation)
+
+**After everything works**, clean up the dual-resource setup and remove legacy artifacts:
+
+1. **Consolidate resources** — migrate OpenAI model deployments from `kind: 'OpenAI'` resource into `kind: 'AIServices'` resource. Delete the old OpenAI resource. Single endpoint for all models.
+2. **Rename Bicep** — `openai.bicep` → `ai-models.bicep`, remove `ai-services.bicep`, single module for all model deployments.
+3. **Remove deprecated packages** from `Directory.Packages.props`: `Azure.AI.Inference`, `Azure.AI.Projects`, `Azure.AI.Agents.Persistent` (if not already done in B-108).
+4. **Remove spike code** — `plan/spike/agent-framework/` (old spike) can be archived or deleted. `plan/spike/multi-model/` spike report stays (it's documentation).
+5. **Update connection strings** — AppHost, appsettings, user-secrets all point to single AIServices endpoint.
+6. **Update CLAUDE.md** — architecture overview, key paths, troubleshooting sections to reflect multi-model setup.
+7. **Test full pipeline end-to-end** after consolidation to verify zero regression.
+
+**Risk:** Migrating OpenAI deployments between resource kinds may require delete+recreate of deployments. Schedule during low-usage window. Test in dev first.
 
 ### B-113 Details (RiskDebate UI)
 
