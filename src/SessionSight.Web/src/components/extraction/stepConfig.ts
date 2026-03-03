@@ -32,6 +32,7 @@ export const STEP_DISPLAY_NAMES: Record<ExtractionStepName, string> = {
 const MODEL_PRICING: Record<string, [number, number]> = {
   'gpt-4.1-mini': [0.4, 1.6],
   'gpt-4.1-nano': [0.1, 0.4],
+  'Mistral-Large-3': [0.5, 1.5],
 }
 
 export function estimateCost(model: string, inputTokens: number, outputTokens: number): number | null {
