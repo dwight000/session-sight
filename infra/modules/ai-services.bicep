@@ -55,6 +55,7 @@ resource mistralLarge3Deployment 'Microsoft.CognitiveServices/accounts/deploymen
     model: {
       format: 'Mistral AI'
       name: 'Mistral-Large-3'
+      version: '1'
     }
   }
 }

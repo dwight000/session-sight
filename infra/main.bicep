@@ -152,7 +152,7 @@ module aiServices 'modules/ai-services.bicep' = if (isDevEnvironment) {
     name: sharedAiServicesName
     location: location
     tags: tags
-    deployMistralLarge3: false // Enable after manual capacity approval for the subscription
+    deployMistralLarge3: true
     cognitiveServicesUserPrincipalId: !empty(developerUserObjectId) ? developerUserObjectId : ''
     cognitiveServicesUserPrincipalType: 'User'
   }
