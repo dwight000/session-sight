@@ -127,7 +127,7 @@ jobs:
             --template-file infra/main.bicep \
             --parameters infra/main.parameters.${ENV}.json \
             --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
-            --parameters deployContainerApps=${{ github.event.inputs.deployContainerApps || 'false' }} \
+            --parameters deployContainerApps=${{ github.event.inputs.deployContainerApps || (github.event_name == 'push' && 'true') || 'false' }} \
             --parameters ghcrToken='${{ github.event.inputs.ghcrToken || secrets.GHCR_TOKEN }}'
 
       - name: Provision Managed Identity SQL users
