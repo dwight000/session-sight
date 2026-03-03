@@ -57,11 +57,12 @@ public class ExtractionOrchestratorStepTests
 
         var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _riskDebate, _summarizer);
         var diagOptions = Options.Create(new PipelineDiagnosticsOptions());
-        var debateOptions = Options.Create(new RiskDebateOptions());
+        var debateMonitor = Substitute.For<IOptionsMonitor<RiskDebateOptions>>();
+        debateMonitor.CurrentValue.Returns(new RiskDebateOptions());
         _orchestrator = new ExtractionOrchestrator(
             _documentParser, agents, _sessionRepository, _documentRepository,
             _extractionResultRepository, _stepRepository,
-            _documentStorage, _sessionIndexingService, diagOptions, debateOptions, logger);
+            _documentStorage, _sessionIndexingService, diagOptions, debateMonitor, logger);
     }
 
     private void SetupFullPipeline(Guid sessionId)
@@ -354,13 +355,14 @@ public class ExtractionOrchestratorStepTests
 
         // Create orchestrator with StoreLlmTraces enabled
         var diagOptions = Options.Create(new PipelineDiagnosticsOptions { StoreLlmTraces = true });
-        var debateOptions = Options.Create(new RiskDebateOptions());
+        var debateMonitor = Substitute.For<IOptionsMonitor<RiskDebateOptions>>();
+        debateMonitor.CurrentValue.Returns(new RiskDebateOptions());
         var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _riskDebate, _summarizer);
         var logger = Substitute.For<ILogger<ExtractionOrchestrator>>();
         var orchestrator = new ExtractionOrchestrator(
             _documentParser, agents, _sessionRepository, _documentRepository,
             _extractionResultRepository, _stepRepository,
-            _documentStorage, _sessionIndexingService, diagOptions, debateOptions, logger);
+            _documentStorage, _sessionIndexingService, diagOptions, debateMonitor, logger);
 
         var savedSteps = new List<ExtractionStep>();
         await _stepRepository.SaveStepAsync(Arg.Do<ExtractionStep>(s => savedSteps.Add(s)), Arg.Any<CancellationToken>());

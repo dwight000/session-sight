@@ -7,11 +7,11 @@
 ## Current Status
 
 **Phase**: Phase 7 (Multi-Model Agent Debate) - IN PROGRESS
-**Next Action**: B-112 (RiskDebate configuration)
+**Next Action**: B-113 (RiskDebate UI)
 
 **Last Updated**: March 2, 2026
 
-**Milestone**: B-111 (RiskDebate pipeline step) complete. Full debate pipeline (advocate/challenger/judge) with multi-model support (GPT-4.1 + Mistral-Large-3), configurable triggers, graceful degradation, and 83.5% coverage. B-112 (runtime configuration) is next.
+**Milestone**: B-112 (RiskDebate configuration) complete. Debate internals fully configurable via appsettings: MaxRounds, per-role model overrides, hot-reload via IOptionsMonitor. Local dev defaults to Enabled+Always. 83.5% coverage. B-113 (UI) and B-114 (integration tests) are next.
 
 ---
 
@@ -19,7 +19,7 @@
 
 <!-- When you start a task, move it here. Only ONE task at a time. -->
 
-_(none — B-111 complete; next: B-112)_
+_(none — B-112 complete; next: B-113 or B-114)_
 
 ---
 
@@ -211,7 +211,7 @@ _(none — B-111 complete; next: B-112)_
 | B-109 | Extend ModelRouter for multi-family routing — add model provider + deployment config per ModelTask | M | 7 | **Done** | B-108 |
 | B-110 | Bicep module for Foundry marketplace model deployments (Claude, Gemini serverless endpoints) | M | 7 | **Done** | B-107 |
 | B-111 | Implement RiskDebate pipeline step — configurable advocate/challenger/judge with multi-model support | XL | 7 | **Done** | B-108, B-109, B-110 |
-| B-112 | RiskDebate configuration — trigger modes (always/borderline/flagged/off), confidence thresholds, model selection | S | 7 | Ready | B-111 |
+| B-112 | RiskDebate configuration — MaxRounds, per-role model overrides, IOptionsMonitor hot-reload, local dev defaults | S | 7 | **Done** | B-111 |
 | B-113 | RiskDebate UI — debate transcript visualization in extraction step card | M | 7 | Ready | B-111 |
 | B-114 | Integration tests for multi-model debate (golden file + cost assertions) | M | 7 | Ready | B-111 |
 | B-115 | Cleanup: consolidate AIServices + OpenAI resources, remove deprecated packages/spike code, rename Bicep modules | M | 7 | Ready | B-114 |
@@ -1382,6 +1382,7 @@ TriggerMode options: `"always"`, `"borderline"` (confidence in threshold range),
 | B-110 | AIServices Bicep resource — `Microsoft.CognitiveServices/accounts` with `kind:AIServices` for non-OpenAI model deployments (Mistral-Large-3) | 2026-03-02 |
 | B-109 | ModelRouter multi-family routing — `ModelProvider` enum, `ModelSelection` record, dual-client `AIFoundryClientFactory`, 3 debate `ModelTask` values, lazy AIServices client | 2026-03-02 |
 | B-111 | RiskDebate pipeline step — 5-call debate (advocate/challenger/rebuttals/judge) with GPT-4.1-nano advocate, Mistral-Large-3 challenger, GPT-4.1-mini judge. Configurable triggers (Off/Always/Flagged/Borderline), graceful degradation on failure, content filter handling. Step 5 between RiskAssess and Summarize (renumbered 6/7). 29 new tests, 83.5% coverage. | 2026-03-02 |
+| B-112 | RiskDebate configuration — MaxRounds (configurable round count replacing hardcoded 2), per-role model overrides (AdvocateModelOverride/ChallengerModelOverride/JudgeModelOverride), IOptionsMonitor hot-reload in orchestrator+agent, local dev defaults (Enabled+Always). 3 new tests, 83.5% coverage. | 2026-03-02 |
 
 ---
 

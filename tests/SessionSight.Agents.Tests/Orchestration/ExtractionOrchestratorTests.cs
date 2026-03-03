@@ -64,7 +64,8 @@ public class ExtractionOrchestratorTests
 
         var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _riskDebate, _summarizer);
         var diagOptions = Options.Create(new PipelineDiagnosticsOptions());
-        var debateOptions = Options.Create(new RiskDebateOptions());
+        var debateMonitor = Substitute.For<IOptionsMonitor<RiskDebateOptions>>();
+        debateMonitor.CurrentValue.Returns(new RiskDebateOptions());
         _orchestrator = new ExtractionOrchestrator(
             _documentParser,
             agents,
@@ -75,7 +76,7 @@ public class ExtractionOrchestratorTests
             _documentStorage,
             _sessionIndexingService,
             diagOptions,
-            debateOptions,
+            debateMonitor,
             _logger);
     }
 

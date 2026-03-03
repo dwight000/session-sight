@@ -42,7 +42,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
     private readonly ISessionIndexingService _sessionIndexingService;
     // Used by LLM trace gating (B-095 future)
     private readonly PipelineDiagnosticsOptions _diagOptions;
-    private readonly RiskDebateOptions _debateOptions;
+    private readonly IOptionsMonitor<RiskDebateOptions> _debateOptions;
     private readonly ILogger<ExtractionOrchestrator> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -60,7 +60,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         IDocumentStorage documentStorage,
         ISessionIndexingService sessionIndexingService,
         IOptions<PipelineDiagnosticsOptions> diagOptions,
-        IOptions<RiskDebateOptions> debateOptions,
+        IOptionsMonitor<RiskDebateOptions> debateOptions,
         ILogger<ExtractionOrchestrator> logger)
     {
         _documentParser = documentParser;
@@ -72,7 +72,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
         _documentStorage = documentStorage;
         _sessionIndexingService = sessionIndexingService;
         _diagOptions = diagOptions.Value;
-        _debateOptions = debateOptions.Value;
+        _debateOptions = debateOptions;
         _logger = logger;
     }
 
@@ -439,7 +439,7 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
             extractionResult.Data.RiskAssessment = riskResult.FinalExtraction;
 
             // Step 5: Risk Debate — optional, non-fatal
-            if (ShouldTriggerDebate(riskResult, _debateOptions))
+            if (ShouldTriggerDebate(riskResult, _debateOptions.CurrentValue))
             {
                 var stepDebate = BeginStep(extractionId, ExtractionStepName.RiskDebate, 5, string.Empty);
                 await TrySaveStepAsync(stepDebate);

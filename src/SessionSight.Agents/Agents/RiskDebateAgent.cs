@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SessionSight.Agents.Helpers;
 using SessionSight.Agents.Models;
 using SessionSight.Agents.Prompts;
@@ -24,6 +25,7 @@ public partial class RiskDebateAgent : IRiskDebateAgent
 {
     private readonly IAIFoundryClientFactory _clientFactory;
     private readonly IModelRouter _modelRouter;
+    private readonly IOptionsMonitor<RiskDebateOptions> _options;
     private readonly ILogger<RiskDebateAgent> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -34,10 +36,12 @@ public partial class RiskDebateAgent : IRiskDebateAgent
     public RiskDebateAgent(
         IAIFoundryClientFactory clientFactory,
         IModelRouter modelRouter,
+        IOptionsMonitor<RiskDebateOptions> options,
         ILogger<RiskDebateAgent> logger)
     {
         _clientFactory = clientFactory;
         _modelRouter = modelRouter;
+        _options = options;
         _logger = logger;
     }
 
@@ -48,12 +52,17 @@ public partial class RiskDebateAgent : IRiskDebateAgent
         string noteText,
         CancellationToken ct = default)
     {
+        var options = _options.CurrentValue;
+        var maxRounds = Math.Max(1, options.MaxRounds);
         var riskJson = JsonSerializer.Serialize(riskResult.FinalExtraction, JsonOptions);
 
-        // Resolve 3 clients upfront
-        var advocateSelection = _modelRouter.SelectModel(ModelTask.RiskDebateAdvocate);
-        var challengerSelection = _modelRouter.SelectModel(ModelTask.RiskDebateChallenger);
-        var judgeSelection = _modelRouter.SelectModel(ModelTask.RiskDebateJudge);
+        // Resolve 3 clients upfront, applying config overrides
+        var advocateSelection = ApplyOverride(
+            _modelRouter.SelectModel(ModelTask.RiskDebateAdvocate), options.AdvocateModelOverride);
+        var challengerSelection = ApplyOverride(
+            _modelRouter.SelectModel(ModelTask.RiskDebateChallenger), options.ChallengerModelOverride);
+        var judgeSelection = ApplyOverride(
+            _modelRouter.SelectModel(ModelTask.RiskDebateJudge), options.JudgeModelOverride);
 
         var advocateClient = _clientFactory.CreateChatClient(advocateSelection);
         var challengerClient = _clientFactory.CreateChatClient(challengerSelection);
@@ -73,68 +82,57 @@ public partial class RiskDebateAgent : IRiskDebateAgent
         var totalOutput = 0;
         var totalTokens = 0;
 
-        // Round 1: Opening arguments
-        var (advocateArg1, trace1) = await CallAsync(
-            advocateClient,
-            RiskDebatePrompts.AdvocateSystemPrompt,
-            RiskDebatePrompts.BuildAdvocatePrompt(riskJson, noteText),
-            advocateSelection.DeploymentName, 0.3f, ct);
-        AccumulateTokens(trace1, ref totalInput, ref totalOutput, ref totalTokens);
-        traces.Add(trace1);
+        string? lastAdvocateArg = null;
+        string? lastChallengerArg = null;
+        var advocateBlocked = false;
+        var challengerBlocked = false;
 
-        var (challengerArg1, trace2) = await CallAsync(
-            challengerClient,
-            RiskDebatePrompts.ChallengerSystemPrompt,
-            RiskDebatePrompts.BuildChallengerPrompt(riskJson, noteText),
-            challengerSelection.DeploymentName, 0.3f, ct);
-        AccumulateTokens(trace2, ref totalInput, ref totalOutput, ref totalTokens);
-        traces.Add(trace2);
+        for (var round = 1; round <= maxRounds; round++)
+        {
+            var advocatePrompt = round == 1
+                ? RiskDebatePrompts.BuildAdvocatePrompt(riskJson, noteText)
+                : RiskDebatePrompts.BuildAdvocateRebuttalPrompt(lastChallengerArg ?? "[No argument provided]");
 
-        result.Rounds.Add(new DebateRound(1,
-            advocateArg1 ?? "[Content filter blocked]",
-            challengerArg1 ?? "[Content filter blocked]"));
+            var challengerPrompt = round == 1
+                ? RiskDebatePrompts.BuildChallengerPrompt(riskJson, noteText)
+                : RiskDebatePrompts.BuildChallengerRebuttalPrompt(lastAdvocateArg ?? "[No argument provided]");
 
-        // Round 2: Rebuttals
-        var (advocateArg2, trace3) = await CallAsync(
-            advocateClient,
-            RiskDebatePrompts.AdvocateSystemPrompt,
-            RiskDebatePrompts.BuildAdvocateRebuttalPrompt(challengerArg1 ?? "[No argument provided]"),
-            advocateSelection.DeploymentName, 0.3f, ct);
-        AccumulateTokens(trace3, ref totalInput, ref totalOutput, ref totalTokens);
-        traces.Add(trace3);
+            var (advArg, traceAdv) = await CallAsync(
+                advocateClient, RiskDebatePrompts.AdvocateSystemPrompt, advocatePrompt,
+                advocateSelection.DeploymentName, 0.3f, ct);
+            AccumulateTokens(traceAdv, ref totalInput, ref totalOutput, ref totalTokens);
+            traces.Add(traceAdv);
 
-        var (challengerArg2, trace4) = await CallAsync(
-            challengerClient,
-            RiskDebatePrompts.ChallengerSystemPrompt,
-            RiskDebatePrompts.BuildChallengerRebuttalPrompt(advocateArg1 ?? "[No argument provided]"),
-            challengerSelection.DeploymentName, 0.3f, ct);
-        AccumulateTokens(trace4, ref totalInput, ref totalOutput, ref totalTokens);
-        traces.Add(trace4);
+            var (chalArg, traceChal) = await CallAsync(
+                challengerClient, RiskDebatePrompts.ChallengerSystemPrompt, challengerPrompt,
+                challengerSelection.DeploymentName, 0.3f, ct);
+            AccumulateTokens(traceChal, ref totalInput, ref totalOutput, ref totalTokens);
+            traces.Add(traceChal);
 
-        result.Rounds.Add(new DebateRound(2,
-            advocateArg2 ?? "[Content filter blocked]",
-            challengerArg2 ?? "[Content filter blocked]"));
+            lastAdvocateArg = advArg;
+            lastChallengerArg = chalArg;
+            if (advArg is null) advocateBlocked = true;
+            if (chalArg is null) challengerBlocked = true;
+
+            result.Rounds.Add(new DebateRound(round,
+                advArg ?? "[Content filter blocked]",
+                chalArg ?? "[Content filter blocked]"));
+        }
 
         // Track content filter blocks as review reasons
-        if (advocateArg1 is null || advocateArg2 is null)
+        if (advocateBlocked)
             result.ReviewReasons.Add("Advocate response blocked by content filter");
-        if (challengerArg1 is null || challengerArg2 is null)
+        if (challengerBlocked)
             result.ReviewReasons.Add("Challenger response blocked by content filter");
 
         // Judge synthesizes final verdict
-        var transcript = new RiskDebatePrompts.DebateTranscript(
-            advocateArg1 ?? "[Content filter blocked]",
-            challengerArg1 ?? "[Content filter blocked]",
-            advocateArg2 ?? "[Content filter blocked]",
-            challengerArg2 ?? "[Content filter blocked]");
-
-        var (judgeText, trace5) = await CallJsonAsync(
+        var (judgeText, judgeTrace) = await CallJsonAsync(
             judgeClient,
             RiskDebatePrompts.JudgeSystemPrompt,
-            RiskDebatePrompts.BuildJudgePrompt(transcript, riskJson),
+            RiskDebatePrompts.BuildJudgePrompt(result.Rounds, riskJson),
             judgeSelection.DeploymentName, 0.1f, ct);
-        AccumulateTokens(trace5, ref totalInput, ref totalOutput, ref totalTokens);
-        traces.Add(trace5);
+        AccumulateTokens(judgeTrace, ref totalInput, ref totalOutput, ref totalTokens);
+        traces.Add(judgeTrace);
 
         // Parse judge verdict
         var verdict = ParseJudgeVerdict(judgeText);
@@ -153,6 +151,9 @@ public partial class RiskDebateAgent : IRiskDebateAgent
 
         return result;
     }
+
+    private static ModelSelection ApplyOverride(ModelSelection selection, string? overrideModel) =>
+        string.IsNullOrWhiteSpace(overrideModel) ? selection : selection with { DeploymentName = overrideModel };
 
     private async Task<(string? Text, LlmCallTrace Trace)> CallAsync(
         IChatClient client,

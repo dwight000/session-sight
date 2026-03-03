@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using SessionSight.Agents.Agents;
 using SessionSight.Agents.Models;
@@ -219,6 +220,10 @@ public class RiskDebateAgentTests
         options.TriggerMode.Should().Be(RiskDebateTriggerMode.Borderline);
         options.LowConfidenceThreshold.Should().Be(0.3);
         options.HighConfidenceThreshold.Should().Be(0.7);
+        options.MaxRounds.Should().Be(2);
+        options.AdvocateModelOverride.Should().BeNull();
+        options.ChallengerModelOverride.Should().BeNull();
+        options.JudgeModelOverride.Should().BeNull();
     }
 
     // --- RiskDebateResult defaults ---
@@ -375,14 +380,75 @@ public class RiskDebateAgentTests
     [Fact]
     public void BuildJudgePrompt_ContainsAllRoundsAndRisk()
     {
-        var transcript = new RiskDebatePrompts.DebateTranscript("adv1", "chall1", "adv2", "chall2");
-        var result = RiskDebatePrompts.BuildJudgePrompt(transcript, "{riskJson}");
+        var rounds = new List<DebateRound>
+        {
+            new(1, "adv1", "chall1"),
+            new(2, "adv2", "chall2")
+        };
+        var result = RiskDebatePrompts.BuildJudgePrompt(rounds, "{riskJson}");
 
         result.Should().Contain("adv1");
         result.Should().Contain("chall1");
         result.Should().Contain("adv2");
         result.Should().Contain("chall2");
         result.Should().Contain("{riskJson}");
+        result.Should().Contain("Round 1:");
+        result.Should().Contain("Round 2:");
+    }
+
+    // --- MaxRounds and model override tests ---
+
+    [Fact]
+    public async Task DebateAsync_MaxRounds1_ProducesOneRoundNoRebuttal()
+    {
+        var options = new RiskDebateOptions { MaxRounds = 1 };
+        var (agent, clients) = CreateDebateAgent(
+            judgeJson: """{"finalRiskLevel":"Moderate","finalConfidence":0.6}""",
+            debateOptions: options);
+        var riskResult = CreateRiskResult(confidence: 0.5);
+
+        var result = await agent.DebateAsync(riskResult, "Test note");
+
+        result.Rounds.Should().HaveCount(1);
+        result.Rounds[0].RoundNumber.Should().Be(1);
+        // 2 opening calls + 1 judge = 3 total LLM calls
+        result.LlmTraces.Should().HaveCount(3);
+        // 3 calls * 10 input each = 30
+        result.InputTokens.Should().Be(30);
+    }
+
+    [Fact]
+    public async Task DebateAsync_ModelOverride_UsesOverriddenDeploymentName()
+    {
+        var options = new RiskDebateOptions
+        {
+            ChallengerModelOverride = "gpt-4.1-nano"
+        };
+        var (agent, clients) = CreateDebateAgent(
+            judgeJson: """{"finalRiskLevel":"Moderate","finalConfidence":0.5}""",
+            debateOptions: options);
+        var riskResult = CreateRiskResult(confidence: 0.5);
+
+        var result = await agent.DebateAsync(riskResult, "Test note");
+
+        // Challenger model should reflect the override
+        result.ChallengerModel.Should().Be("gpt-4.1-nano");
+        // Factory should have been called with the overridden deployment name
+        clients.Factory.Received().CreateChatClient(
+            Arg.Is<ModelSelection>(s => s.DeploymentName == "gpt-4.1-nano"
+                && s.Provider == ModelProvider.AzureAIServices));
+    }
+
+    [Fact]
+    public void BuildJudgePrompt_SingleRound_ProducesValidPrompt()
+    {
+        var rounds = new List<DebateRound> { new(1, "advocate opening", "challenger opening") };
+        var result = RiskDebatePrompts.BuildJudgePrompt(rounds, "{risk}");
+
+        result.Should().Contain("Round 1:");
+        result.Should().Contain("advocate opening");
+        result.Should().Contain("challenger opening");
+        result.Should().NotContain("Round 2:");
     }
 
     // --- Helpers ---
@@ -391,7 +457,8 @@ public class RiskDebateAgentTests
         string? judgeJson = null,
         bool advocateBlocked = false,
         bool challengerBlocked = false,
-        bool judgeBlocked = false)
+        bool judgeBlocked = false,
+        RiskDebateOptions? debateOptions = null)
     {
         var advocateClient = Substitute.For<IChatClient>();
         var challengerClient = Substitute.For<IChatClient>();
@@ -411,17 +478,26 @@ public class RiskDebateAgentTests
         modelRouter.SelectModel(ModelTask.RiskDebateJudge)
             .Returns(new ModelSelection("gpt-4.1-mini", ModelProvider.AzureOpenAI));
 
-        clientFactory.CreateChatClient(Arg.Is<ModelSelection>(s => s.DeploymentName == "gpt-4.1-nano"))
-            .Returns(advocateClient);
-        clientFactory.CreateChatClient(Arg.Is<ModelSelection>(s => s.DeploymentName == "Mistral-Large-3"))
-            .Returns(challengerClient);
-        clientFactory.CreateChatClient(Arg.Is<ModelSelection>(s => s.DeploymentName == "gpt-4.1-mini"))
-            .Returns(judgeClient);
+        clientFactory.CreateChatClient(Arg.Any<ModelSelection>())
+            .Returns(args =>
+            {
+                var sel = args.Arg<ModelSelection>();
+                return sel.DeploymentName switch
+                {
+                    "gpt-4.1-nano" => advocateClient,
+                    "Mistral-Large-3" => challengerClient,
+                    "gpt-4.1-mini" => judgeClient,
+                    _ => advocateClient // fallback for overrides
+                };
+            });
+
+        var optionsMonitor = Substitute.For<IOptionsMonitor<RiskDebateOptions>>();
+        optionsMonitor.CurrentValue.Returns(debateOptions ?? new RiskDebateOptions());
 
         var logger = Substitute.For<ILogger<RiskDebateAgent>>();
-        var agent = new RiskDebateAgent(clientFactory, modelRouter, logger);
+        var agent = new RiskDebateAgent(clientFactory, modelRouter, optionsMonitor, logger);
 
-        return (agent, new MockClients(advocateClient, challengerClient, judgeClient));
+        return (agent, new MockClients(advocateClient, challengerClient, judgeClient, clientFactory));
     }
 
     private static void SetupChatClient(IChatClient client, string responseText, bool blocked)
@@ -441,7 +517,7 @@ public class RiskDebateAgentTests
             .Returns(response);
     }
 
-    private record MockClients(IChatClient Advocate, IChatClient Challenger, IChatClient Judge);
+    private record MockClients(IChatClient Advocate, IChatClient Challenger, IChatClient Judge, IAIFoundryClientFactory Factory);
 
     private static RiskAssessmentResult CreateRiskResult(double confidence, bool requiresReview = false)
     {

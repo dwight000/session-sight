@@ -1,3 +1,6 @@
+using System.Globalization;
+using SessionSight.Agents.Models;
+
 namespace SessionSight.Agents.Prompts;
 
 public static class RiskDebatePrompts
@@ -63,25 +66,22 @@ public static class RiskDebatePrompts
         Rebut this argument specifically with evidence. Limit your response to 500 tokens.
         """;
 
-    public static string BuildJudgePrompt(DebateTranscript transcript, string riskJson) =>
-        $"""
-        Original risk assessment:
-        {riskJson}
+    public static string BuildJudgePrompt(IReadOnlyList<DebateRound> rounds, string riskJson)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Original risk assessment:");
+        sb.AppendLine(riskJson);
+        sb.AppendLine();
 
-        Round 1:
-        Advocate: {transcript.AdvocateArgument1}
-        Challenger: {transcript.ChallengerArgument1}
+        foreach (var round in rounds)
+        {
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Round {round.RoundNumber}:");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Advocate: {round.AdvocateArgument}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Challenger: {round.ChallengerArgument}");
+            sb.AppendLine();
+        }
 
-        Round 2:
-        Advocate: {transcript.AdvocateArgument2}
-        Challenger: {transcript.ChallengerArgument2}
-
-        Synthesize a final risk assessment considering both sides. Return JSON only.
-        """;
-
-    public record DebateTranscript(
-        string AdvocateArgument1,
-        string ChallengerArgument1,
-        string AdvocateArgument2,
-        string ChallengerArgument2);
+        sb.AppendLine("Synthesize a final risk assessment considering both sides. Return JSON only.");
+        return sb.ToString();
+    }
 }
