@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.40.2.10011",
-      "templateHash": "18275577984544141048"
+      "templateHash": "6218301292516453869"
     }
   },
   "parameters": {
@@ -987,7 +987,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.40.2.10011",
-              "templateHash": "372316223504793970"
+              "templateHash": "7852339271983375349"
             }
           },
           "parameters": {
@@ -1082,7 +1082,8 @@
               "properties": {
                 "model": {
                   "format": "Mistral AI",
-                  "name": "Mistral-Large-3"
+                  "name": "Mistral-Large-3",
+                  "version": "1"
                 }
               },
               "dependsOn": [
@@ -3708,7 +3709,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.40.2.10011",
-              "templateHash": "372316223504793970"
+              "templateHash": "7852339271983375349"
             }
           },
           "parameters": {
@@ -3803,7 +3804,8 @@
               "properties": {
                 "model": {
                   "format": "Mistral AI",
-                  "name": "Mistral-Large-3"
+                  "name": "Mistral-Large-3",
+                  "version": "1"
                 }
               },
               "dependsOn": [
