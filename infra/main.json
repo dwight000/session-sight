@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.40.2.10011",
-      "templateHash": "12745819411651641800"
+      "templateHash": "3927716240139440591"
     }
   },
   "parameters": {
@@ -69,13 +69,11 @@
     "sqlAdminPasswordUnused": "[format('P{0}!', uniqueString(subscription().subscriptionId, variables('resourceGroupName')))]",
     "storageAccountName": "[format('{0}storage{1}', variables('prefix'), parameters('environmentName'))]",
     "sharedSqlServerName": "[format('{0}-sql-dev', variables('prefix'))]",
-    "sharedOpenaiName": "[format('{0}-openai-dev', variables('prefix'))]",
     "sharedSearchName": "[format('{0}-search-dev', variables('prefix'))]",
     "sharedDocIntName": "[format('{0}-docint-dev', variables('prefix'))]",
     "sharedAiServicesName": "[format('{0}-aiservices-dev', variables('prefix'))]",
     "sqlDatabaseName": "[if(variables('isDevEnvironment'), 'sessionsight', format('sessionsight-{0}', parameters('environmentName')))]",
     "searchIndexName": "[if(variables('isDevEnvironment'), 'sessionsight-sessions', format('sessionsight-sessions-{0}', parameters('environmentName')))]",
-    "openaiEndpointValue": "[format('https://{0}.openai.azure.com/', variables('sharedOpenaiName'))]",
     "searchEndpointValue": "[format('https://{0}.search.windows.net', variables('sharedSearchName'))]",
     "docIntelligenceEndpointValue": "[format('https://{0}.cognitiveservices.azure.com/', variables('sharedDocIntName'))]",
     "aiServicesEndpointValue": "[format('https://{0}.cognitiveservices.azure.com/', variables('sharedAiServicesName'))]"
@@ -690,271 +688,6 @@
       "condition": "[variables('isDevEnvironment')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
-      "name": "openai",
-      "resourceGroup": "[variables('resourceGroupName')]",
-      "properties": {
-        "expressionEvaluationOptions": {
-          "scope": "inner"
-        },
-        "mode": "Incremental",
-        "parameters": {
-          "name": {
-            "value": "[variables('sharedOpenaiName')]"
-          },
-          "location": {
-            "value": "[parameters('location')]"
-          },
-          "tags": {
-            "value": "[variables('tags')]"
-          }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "metadata": {
-            "_generator": {
-              "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "8940938165302442812"
-            }
-          },
-          "parameters": {
-            "name": {
-              "type": "string",
-              "metadata": {
-                "description": "Name of the Azure OpenAI resource"
-              }
-            },
-            "location": {
-              "type": "string",
-              "defaultValue": "[resourceGroup().location]",
-              "metadata": {
-                "description": "Location for the Azure OpenAI resource"
-              }
-            },
-            "tags": {
-              "type": "object",
-              "defaultValue": {},
-              "metadata": {
-                "description": "Tags to apply to the resource"
-              }
-            },
-            "skuName": {
-              "type": "string",
-              "defaultValue": "S0",
-              "metadata": {
-                "description": "SKU name for the Azure OpenAI resource"
-              }
-            },
-            "deployGpt41Mini": {
-              "type": "bool",
-              "defaultValue": true,
-              "metadata": {
-                "description": "Deploy GPT-4.1-mini model (replaces gpt-4o)"
-              }
-            },
-            "deployGpt41Nano": {
-              "type": "bool",
-              "defaultValue": true,
-              "metadata": {
-                "description": "Deploy GPT-4.1-nano model (replaces gpt-4o-mini)"
-              }
-            },
-            "deployGpt41": {
-              "type": "bool",
-              "defaultValue": true,
-              "metadata": {
-                "description": "Deploy GPT-4.1 model"
-              }
-            },
-            "deployEmbeddings": {
-              "type": "bool",
-              "defaultValue": true,
-              "metadata": {
-                "description": "Deploy text-embedding-3-large model"
-              }
-            },
-            "gpt41MiniCapacity": {
-              "type": "int",
-              "defaultValue": 50,
-              "metadata": {
-                "description": "GPT-4.1-mini deployment capacity (TPM in thousands)"
-              }
-            },
-            "gpt41NanoCapacity": {
-              "type": "int",
-              "defaultValue": 50,
-              "metadata": {
-                "description": "GPT-4.1-nano deployment capacity (TPM in thousands)"
-              }
-            },
-            "gpt41Capacity": {
-              "type": "int",
-              "defaultValue": 50,
-              "metadata": {
-                "description": "GPT-4.1 deployment capacity (TPM in thousands)"
-              }
-            },
-            "embeddingsCapacity": {
-              "type": "int",
-              "defaultValue": 50,
-              "metadata": {
-                "description": "Embeddings deployment capacity (TPM in thousands)"
-              }
-            },
-            "cognitiveServicesUserPrincipalId": {
-              "type": "string",
-              "defaultValue": "",
-              "metadata": {
-                "description": "Principal ID to grant Cognitive Services User role (e.g., AI Project managed identity)"
-              }
-            }
-          },
-          "resources": [
-            {
-              "type": "Microsoft.CognitiveServices/accounts",
-              "apiVersion": "2024-10-01",
-              "name": "[parameters('name')]",
-              "location": "[parameters('location')]",
-              "tags": "[parameters('tags')]",
-              "kind": "OpenAI",
-              "sku": {
-                "name": "[parameters('skuName')]"
-              },
-              "properties": {
-                "customSubDomainName": "[parameters('name')]",
-                "publicNetworkAccess": "Enabled",
-                "networkAcls": {
-                  "defaultAction": "Allow"
-                }
-              }
-            },
-            {
-              "condition": "[parameters('deployGpt41Mini')]",
-              "type": "Microsoft.CognitiveServices/accounts/deployments",
-              "apiVersion": "2024-10-01",
-              "name": "[format('{0}/{1}', parameters('name'), 'gpt-4.1-mini')]",
-              "sku": {
-                "name": "Standard",
-                "capacity": "[parameters('gpt41MiniCapacity')]"
-              },
-              "properties": {
-                "model": {
-                  "format": "OpenAI",
-                  "name": "gpt-4.1-mini",
-                  "version": "2025-04-14"
-                },
-                "raiPolicyName": "Microsoft.DefaultV2"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4.1')]",
-                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
-              ]
-            },
-            {
-              "condition": "[parameters('deployGpt41')]",
-              "type": "Microsoft.CognitiveServices/accounts/deployments",
-              "apiVersion": "2024-10-01",
-              "name": "[format('{0}/{1}', parameters('name'), 'gpt-4.1')]",
-              "sku": {
-                "name": "GlobalStandard",
-                "capacity": "[parameters('gpt41Capacity')]"
-              },
-              "properties": {
-                "model": {
-                  "format": "OpenAI",
-                  "name": "gpt-4.1",
-                  "version": "2025-04-14"
-                },
-                "raiPolicyName": "Microsoft.DefaultV2"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
-              ]
-            },
-            {
-              "condition": "[parameters('deployGpt41Nano')]",
-              "type": "Microsoft.CognitiveServices/accounts/deployments",
-              "apiVersion": "2024-10-01",
-              "name": "[format('{0}/{1}', parameters('name'), 'gpt-4.1-nano')]",
-              "sku": {
-                "name": "GlobalStandard",
-                "capacity": "[parameters('gpt41NanoCapacity')]"
-              },
-              "properties": {
-                "model": {
-                  "format": "OpenAI",
-                  "name": "gpt-4.1-nano",
-                  "version": "2025-04-14"
-                },
-                "raiPolicyName": "Microsoft.DefaultV2"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4.1-mini')]",
-                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
-              ]
-            },
-            {
-              "condition": "[parameters('deployEmbeddings')]",
-              "type": "Microsoft.CognitiveServices/accounts/deployments",
-              "apiVersion": "2024-10-01",
-              "name": "[format('{0}/{1}', parameters('name'), 'text-embedding-3-large')]",
-              "sku": {
-                "name": "Standard",
-                "capacity": "[parameters('embeddingsCapacity')]"
-              },
-              "properties": {
-                "model": {
-                  "format": "OpenAI",
-                  "name": "text-embedding-3-large",
-                  "version": "1"
-                }
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4.1-nano')]",
-                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
-              ]
-            },
-            {
-              "condition": "[not(empty(parameters('cognitiveServicesUserPrincipalId')))]",
-              "type": "Microsoft.Authorization/roleAssignments",
-              "apiVersion": "2022-04-01",
-              "scope": "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]",
-              "name": "[guid(resourceId('Microsoft.CognitiveServices/accounts', parameters('name')), parameters('cognitiveServicesUserPrincipalId'), 'Cognitive Services User')]",
-              "properties": {
-                "principalId": "[parameters('cognitiveServicesUserPrincipalId')]",
-                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'a97b65f3-24c7-4388-baec-2e87135dc908')]",
-                "principalType": "ServicePrincipal"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
-              ]
-            }
-          ],
-          "outputs": {
-            "name": {
-              "type": "string",
-              "value": "[parameters('name')]"
-            },
-            "id": {
-              "type": "string",
-              "value": "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
-            },
-            "endpoint": {
-              "type": "string",
-              "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('name')), '2024-10-01').endpoint]"
-            }
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', 'resourceGroup')]"
-      ]
-    },
-    {
-      "condition": "[variables('isDevEnvironment')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
       "name": "aiServices",
       "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
@@ -987,7 +720,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.40.2.10011",
-              "templateHash": "13349258726443100810"
+              "templateHash": "17698580772582744381"
             }
           },
           "parameters": {
@@ -1030,6 +763,62 @@
               "defaultValue": 8,
               "metadata": {
                 "description": "Mistral-Large-3 deployment capacity (TPM in thousands). Debate needs 3+ sequential calls; capacity 1 allows only 1 req/60s."
+              }
+            },
+            "deployGpt41": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Deploy GPT-4.1 model"
+              }
+            },
+            "gpt41Capacity": {
+              "type": "int",
+              "defaultValue": 50,
+              "metadata": {
+                "description": "GPT-4.1 deployment capacity (TPM in thousands)"
+              }
+            },
+            "deployGpt41Mini": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Deploy GPT-4.1-mini model"
+              }
+            },
+            "gpt41MiniCapacity": {
+              "type": "int",
+              "defaultValue": 50,
+              "metadata": {
+                "description": "GPT-4.1-mini deployment capacity (TPM in thousands)"
+              }
+            },
+            "deployGpt41Nano": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Deploy GPT-4.1-nano model"
+              }
+            },
+            "gpt41NanoCapacity": {
+              "type": "int",
+              "defaultValue": 50,
+              "metadata": {
+                "description": "GPT-4.1-nano deployment capacity (TPM in thousands)"
+              }
+            },
+            "deployEmbeddings": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Deploy text-embedding-3-large model"
+              }
+            },
+            "embeddingsCapacity": {
+              "type": "int",
+              "defaultValue": 50,
+              "metadata": {
+                "description": "Embeddings deployment capacity (TPM in thousands)"
               }
             },
             "cognitiveServicesUserPrincipalId": {
@@ -1088,6 +877,93 @@
               },
               "dependsOn": [
                 "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
+              ]
+            },
+            {
+              "condition": "[parameters('deployGpt41')]",
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'gpt-4.1')]",
+              "sku": {
+                "name": "GlobalStandard",
+                "capacity": "[parameters('gpt41Capacity')]"
+              },
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "gpt-4.1",
+                  "version": "2025-04-14"
+                },
+                "raiPolicyName": "Microsoft.DefaultV2"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]",
+                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'Mistral-Large-3')]"
+              ]
+            },
+            {
+              "condition": "[parameters('deployGpt41Mini')]",
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'gpt-4.1-mini')]",
+              "sku": {
+                "name": "Standard",
+                "capacity": "[parameters('gpt41MiniCapacity')]"
+              },
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "gpt-4.1-mini",
+                  "version": "2025-04-14"
+                },
+                "raiPolicyName": "Microsoft.DefaultV2"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]",
+                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4.1')]"
+              ]
+            },
+            {
+              "condition": "[parameters('deployGpt41Nano')]",
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'gpt-4.1-nano')]",
+              "sku": {
+                "name": "GlobalStandard",
+                "capacity": "[parameters('gpt41NanoCapacity')]"
+              },
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "gpt-4.1-nano",
+                  "version": "2025-04-14"
+                },
+                "raiPolicyName": "Microsoft.DefaultV2"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]",
+                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4.1-mini')]"
+              ]
+            },
+            {
+              "condition": "[parameters('deployEmbeddings')]",
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'text-embedding-3-large')]",
+              "sku": {
+                "name": "Standard",
+                "capacity": "[parameters('embeddingsCapacity')]"
+              },
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "text-embedding-3-large",
+                  "version": "1"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]",
+                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4.1-nano')]"
               ]
             },
             {
@@ -1688,10 +1564,10 @@
             "value": "openai-connection"
           },
           "openaiResourceId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.id.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'aiServices'), '2025-04-01').outputs.id.value]"
           },
           "openaiEndpoint": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.endpoint.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'aiServices'), '2025-04-01').outputs.endpoint.value]"
           }
         },
         "template": {
@@ -1756,14 +1632,14 @@
       },
       "dependsOn": [
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'aiHub')]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'openai')]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'aiServices')]"
       ]
     },
     {
       "condition": "[variables('isDevEnvironment')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
-      "name": "openai-role-assignment",
+      "name": "aiservices-role-aiproject",
       "resourceGroup": "[variables('resourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1772,13 +1648,16 @@
         "mode": "Incremental",
         "parameters": {
           "name": {
-            "value": "[variables('sharedOpenaiName')]"
+            "value": "[variables('sharedAiServicesName')]"
           },
           "location": {
             "value": "[parameters('location')]"
           },
           "tags": {
             "value": "[variables('tags')]"
+          },
+          "deployMistralLarge3": {
+            "value": false
           },
           "deployGpt41": {
             "value": false
@@ -1794,6 +1673,9 @@
           },
           "cognitiveServicesUserPrincipalId": {
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'aiProject'), '2025-04-01').outputs.principalId.value]"
+          },
+          "cognitiveServicesUserPrincipalType": {
+            "value": "ServicePrincipal"
           }
         },
         "template": {
@@ -1803,21 +1685,21 @@
             "_generator": {
               "name": "bicep",
               "version": "0.40.2.10011",
-              "templateHash": "8940938165302442812"
+              "templateHash": "17698580772582744381"
             }
           },
           "parameters": {
             "name": {
               "type": "string",
               "metadata": {
-                "description": "Name of the Azure OpenAI resource"
+                "description": "Name of the Azure AI Services resource"
               }
             },
             "location": {
               "type": "string",
               "defaultValue": "[resourceGroup().location]",
               "metadata": {
-                "description": "Location for the Azure OpenAI resource"
+                "description": "Location for the Azure AI Services resource"
               }
             },
             "tags": {
@@ -1831,21 +1713,21 @@
               "type": "string",
               "defaultValue": "S0",
               "metadata": {
-                "description": "SKU name for the Azure OpenAI resource"
+                "description": "SKU name for the Azure AI Services resource"
               }
             },
-            "deployGpt41Mini": {
+            "deployMistralLarge3": {
               "type": "bool",
               "defaultValue": true,
               "metadata": {
-                "description": "Deploy GPT-4.1-mini model (replaces gpt-4o)"
+                "description": "Deploy Mistral-Large-3 model"
               }
             },
-            "deployGpt41Nano": {
-              "type": "bool",
-              "defaultValue": true,
+            "mistralLarge3Capacity": {
+              "type": "int",
+              "defaultValue": 8,
               "metadata": {
-                "description": "Deploy GPT-4.1-nano model (replaces gpt-4o-mini)"
+                "description": "Mistral-Large-3 deployment capacity (TPM in thousands). Debate needs 3+ sequential calls; capacity 1 allows only 1 req/60s."
               }
             },
             "deployGpt41": {
@@ -1855,11 +1737,18 @@
                 "description": "Deploy GPT-4.1 model"
               }
             },
-            "deployEmbeddings": {
+            "gpt41Capacity": {
+              "type": "int",
+              "defaultValue": 50,
+              "metadata": {
+                "description": "GPT-4.1 deployment capacity (TPM in thousands)"
+              }
+            },
+            "deployGpt41Mini": {
               "type": "bool",
               "defaultValue": true,
               "metadata": {
-                "description": "Deploy text-embedding-3-large model"
+                "description": "Deploy GPT-4.1-mini model"
               }
             },
             "gpt41MiniCapacity": {
@@ -1869,6 +1758,13 @@
                 "description": "GPT-4.1-mini deployment capacity (TPM in thousands)"
               }
             },
+            "deployGpt41Nano": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Deploy GPT-4.1-nano model"
+              }
+            },
             "gpt41NanoCapacity": {
               "type": "int",
               "defaultValue": 50,
@@ -1876,11 +1772,11 @@
                 "description": "GPT-4.1-nano deployment capacity (TPM in thousands)"
               }
             },
-            "gpt41Capacity": {
-              "type": "int",
-              "defaultValue": 50,
+            "deployEmbeddings": {
+              "type": "bool",
+              "defaultValue": true,
               "metadata": {
-                "description": "GPT-4.1 deployment capacity (TPM in thousands)"
+                "description": "Deploy text-embedding-3-large model"
               }
             },
             "embeddingsCapacity": {
@@ -1894,7 +1790,18 @@
               "type": "string",
               "defaultValue": "",
               "metadata": {
-                "description": "Principal ID to grant Cognitive Services User role (e.g., AI Project managed identity)"
+                "description": "Principal ID to grant Cognitive Services User role"
+              }
+            },
+            "cognitiveServicesUserPrincipalType": {
+              "type": "string",
+              "defaultValue": "User",
+              "allowedValues": [
+                "User",
+                "ServicePrincipal"
+              ],
+              "metadata": {
+                "description": "Principal type for the role assignment"
               }
             }
           },
@@ -1905,7 +1812,7 @@
               "name": "[parameters('name')]",
               "location": "[parameters('location')]",
               "tags": "[parameters('tags')]",
-              "kind": "OpenAI",
+              "kind": "AIServices",
               "sku": {
                 "name": "[parameters('skuName')]"
               },
@@ -1918,24 +1825,22 @@
               }
             },
             {
-              "condition": "[parameters('deployGpt41Mini')]",
+              "condition": "[parameters('deployMistralLarge3')]",
               "type": "Microsoft.CognitiveServices/accounts/deployments",
               "apiVersion": "2024-10-01",
-              "name": "[format('{0}/{1}', parameters('name'), 'gpt-4.1-mini')]",
+              "name": "[format('{0}/{1}', parameters('name'), 'Mistral-Large-3')]",
               "sku": {
-                "name": "Standard",
-                "capacity": "[parameters('gpt41MiniCapacity')]"
+                "name": "GlobalStandard",
+                "capacity": "[parameters('mistralLarge3Capacity')]"
               },
               "properties": {
                 "model": {
-                  "format": "OpenAI",
-                  "name": "gpt-4.1-mini",
-                  "version": "2025-04-14"
-                },
-                "raiPolicyName": "Microsoft.DefaultV2"
+                  "format": "Mistral AI",
+                  "name": "Mistral-Large-3",
+                  "version": "1"
+                }
               },
               "dependsOn": [
-                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4.1')]",
                 "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
               ]
             },
@@ -1957,7 +1862,30 @@
                 "raiPolicyName": "Microsoft.DefaultV2"
               },
               "dependsOn": [
-                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]",
+                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'Mistral-Large-3')]"
+              ]
+            },
+            {
+              "condition": "[parameters('deployGpt41Mini')]",
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'gpt-4.1-mini')]",
+              "sku": {
+                "name": "Standard",
+                "capacity": "[parameters('gpt41MiniCapacity')]"
+              },
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "gpt-4.1-mini",
+                  "version": "2025-04-14"
+                },
+                "raiPolicyName": "Microsoft.DefaultV2"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]",
+                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4.1')]"
               ]
             },
             {
@@ -1978,8 +1906,8 @@
                 "raiPolicyName": "Microsoft.DefaultV2"
               },
               "dependsOn": [
-                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4.1-mini')]",
-                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]",
+                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4.1-mini')]"
               ]
             },
             {
@@ -1999,8 +1927,8 @@
                 }
               },
               "dependsOn": [
-                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4.1-nano')]",
-                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]",
+                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4.1-nano')]"
               ]
             },
             {
@@ -2012,7 +1940,7 @@
               "properties": {
                 "principalId": "[parameters('cognitiveServicesUserPrincipalId')]",
                 "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'a97b65f3-24c7-4388-baec-2e87135dc908')]",
-                "principalType": "ServicePrincipal"
+                "principalType": "[parameters('cognitiveServicesUserPrincipalType')]"
               },
               "dependsOn": [
                 "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
@@ -2037,7 +1965,7 @@
       },
       "dependsOn": [
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'aiProject')]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'openai')]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'aiServices')]"
       ]
     },
     {
@@ -2583,9 +2511,6 @@
           "sqlConnectionString": {
             "value": "[format('Server={0}.database.windows.net;Database={1};Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;', variables('sharedSqlServerName'), variables('sqlDatabaseName'))]"
           },
-          "openaiEndpoint": {
-            "value": "[variables('openaiEndpointValue')]"
-          },
           "searchEndpoint": {
             "value": "[variables('searchEndpointValue')]"
           },
@@ -2595,7 +2520,9 @@
           "storageBlobEndpoint": {
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.blobEndpoint.value]"
           },
-          "aiServicesEndpoint": "[if(variables('isDevEnvironment'), createObject('value', variables('aiServicesEndpointValue')), createObject('value', ''))]"
+          "aiServicesEndpoint": {
+            "value": "[variables('aiServicesEndpointValue')]"
+          }
         },
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -2604,7 +2531,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.40.2.10011",
-              "templateHash": "6884595300389966636"
+              "templateHash": "17422640897480297927"
             }
           },
           "parameters": {
@@ -2689,12 +2616,6 @@
                 "description": "SQL Server connection string (Managed Identity — no secrets)"
               }
             },
-            "openaiEndpoint": {
-              "type": "string",
-              "metadata": {
-                "description": "Azure OpenAI endpoint"
-              }
-            },
             "searchEndpoint": {
               "type": "string",
               "metadata": {
@@ -2715,9 +2636,8 @@
             },
             "aiServicesEndpoint": {
               "type": "string",
-              "defaultValue": "",
               "metadata": {
-                "description": "Azure AI Services endpoint (for non-OpenAI models like Mistral). Empty string if not provisioned."
+                "description": "Azure AI Services endpoint (consolidated — hosts all models: OpenAI + Mistral)"
               }
             }
           },
@@ -2777,7 +2697,40 @@
                         "cpu": "[json('0.5')]",
                         "memory": "1Gi"
                       },
-                      "env": "[flatten(createArray(createArray(createObject('name', 'ConnectionStrings__sessionsight', 'value', parameters('sqlConnectionString')), createObject('name', 'AzureOpenAI__Endpoint', 'value', parameters('openaiEndpoint')), createObject('name', 'AzureSearch__Endpoint', 'value', parameters('searchEndpoint')), createObject('name', 'AzureSearch__IndexName', 'value', parameters('searchIndexName')), createObject('name', 'DocumentIntelligence__Endpoint', 'value', parameters('docIntelligenceEndpoint')), createObject('name', 'ConnectionStrings__documents', 'value', parameters('storageBlobEndpoint'))), if(empty(parameters('aiServicesEndpoint')), createArray(), createArray(createObject('name', 'AzureAIServices__Endpoint', 'value', parameters('aiServicesEndpoint')))), createArray(createObject('name', 'ASPNETCORE_ENVIRONMENT', 'value', parameters('aspnetEnvironment')), createObject('name', 'ASPNETCORE_URLS', 'value', 'http://+:8080'))))]"
+                      "env": [
+                        {
+                          "name": "ConnectionStrings__sessionsight",
+                          "value": "[parameters('sqlConnectionString')]"
+                        },
+                        {
+                          "name": "AzureAIServices__Endpoint",
+                          "value": "[parameters('aiServicesEndpoint')]"
+                        },
+                        {
+                          "name": "AzureSearch__Endpoint",
+                          "value": "[parameters('searchEndpoint')]"
+                        },
+                        {
+                          "name": "AzureSearch__IndexName",
+                          "value": "[parameters('searchIndexName')]"
+                        },
+                        {
+                          "name": "DocumentIntelligence__Endpoint",
+                          "value": "[parameters('docIntelligenceEndpoint')]"
+                        },
+                        {
+                          "name": "ConnectionStrings__documents",
+                          "value": "[parameters('storageBlobEndpoint')]"
+                        },
+                        {
+                          "name": "ASPNETCORE_ENVIRONMENT",
+                          "value": "[parameters('aspnetEnvironment')]"
+                        },
+                        {
+                          "name": "ASPNETCORE_URLS",
+                          "value": "http://+:8080"
+                        }
+                      ]
                     }
                   ],
                   "scale": {
@@ -2907,287 +2860,6 @@
       "dependsOn": [
         "[subscriptionResourceId('Microsoft.Resources/deployments', 'resourceGroup')]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'storage')]"
-      ]
-    },
-    {
-      "condition": "[parameters('deployContainerApps')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "containerApps-openai-role",
-      "resourceGroup": "[variables('resourceGroupName')]",
-      "properties": {
-        "expressionEvaluationOptions": {
-          "scope": "inner"
-        },
-        "mode": "Incremental",
-        "parameters": {
-          "name": {
-            "value": "[variables('sharedOpenaiName')]"
-          },
-          "location": {
-            "value": "[parameters('location')]"
-          },
-          "tags": {
-            "value": "[variables('tags')]"
-          },
-          "deployGpt41": {
-            "value": false
-          },
-          "deployGpt41Mini": {
-            "value": false
-          },
-          "deployGpt41Nano": {
-            "value": false
-          },
-          "deployEmbeddings": {
-            "value": false
-          },
-          "cognitiveServicesUserPrincipalId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'containerApps'), '2025-04-01').outputs.apiPrincipalId.value]"
-          }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "metadata": {
-            "_generator": {
-              "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "8940938165302442812"
-            }
-          },
-          "parameters": {
-            "name": {
-              "type": "string",
-              "metadata": {
-                "description": "Name of the Azure OpenAI resource"
-              }
-            },
-            "location": {
-              "type": "string",
-              "defaultValue": "[resourceGroup().location]",
-              "metadata": {
-                "description": "Location for the Azure OpenAI resource"
-              }
-            },
-            "tags": {
-              "type": "object",
-              "defaultValue": {},
-              "metadata": {
-                "description": "Tags to apply to the resource"
-              }
-            },
-            "skuName": {
-              "type": "string",
-              "defaultValue": "S0",
-              "metadata": {
-                "description": "SKU name for the Azure OpenAI resource"
-              }
-            },
-            "deployGpt41Mini": {
-              "type": "bool",
-              "defaultValue": true,
-              "metadata": {
-                "description": "Deploy GPT-4.1-mini model (replaces gpt-4o)"
-              }
-            },
-            "deployGpt41Nano": {
-              "type": "bool",
-              "defaultValue": true,
-              "metadata": {
-                "description": "Deploy GPT-4.1-nano model (replaces gpt-4o-mini)"
-              }
-            },
-            "deployGpt41": {
-              "type": "bool",
-              "defaultValue": true,
-              "metadata": {
-                "description": "Deploy GPT-4.1 model"
-              }
-            },
-            "deployEmbeddings": {
-              "type": "bool",
-              "defaultValue": true,
-              "metadata": {
-                "description": "Deploy text-embedding-3-large model"
-              }
-            },
-            "gpt41MiniCapacity": {
-              "type": "int",
-              "defaultValue": 50,
-              "metadata": {
-                "description": "GPT-4.1-mini deployment capacity (TPM in thousands)"
-              }
-            },
-            "gpt41NanoCapacity": {
-              "type": "int",
-              "defaultValue": 50,
-              "metadata": {
-                "description": "GPT-4.1-nano deployment capacity (TPM in thousands)"
-              }
-            },
-            "gpt41Capacity": {
-              "type": "int",
-              "defaultValue": 50,
-              "metadata": {
-                "description": "GPT-4.1 deployment capacity (TPM in thousands)"
-              }
-            },
-            "embeddingsCapacity": {
-              "type": "int",
-              "defaultValue": 50,
-              "metadata": {
-                "description": "Embeddings deployment capacity (TPM in thousands)"
-              }
-            },
-            "cognitiveServicesUserPrincipalId": {
-              "type": "string",
-              "defaultValue": "",
-              "metadata": {
-                "description": "Principal ID to grant Cognitive Services User role (e.g., AI Project managed identity)"
-              }
-            }
-          },
-          "resources": [
-            {
-              "type": "Microsoft.CognitiveServices/accounts",
-              "apiVersion": "2024-10-01",
-              "name": "[parameters('name')]",
-              "location": "[parameters('location')]",
-              "tags": "[parameters('tags')]",
-              "kind": "OpenAI",
-              "sku": {
-                "name": "[parameters('skuName')]"
-              },
-              "properties": {
-                "customSubDomainName": "[parameters('name')]",
-                "publicNetworkAccess": "Enabled",
-                "networkAcls": {
-                  "defaultAction": "Allow"
-                }
-              }
-            },
-            {
-              "condition": "[parameters('deployGpt41Mini')]",
-              "type": "Microsoft.CognitiveServices/accounts/deployments",
-              "apiVersion": "2024-10-01",
-              "name": "[format('{0}/{1}', parameters('name'), 'gpt-4.1-mini')]",
-              "sku": {
-                "name": "Standard",
-                "capacity": "[parameters('gpt41MiniCapacity')]"
-              },
-              "properties": {
-                "model": {
-                  "format": "OpenAI",
-                  "name": "gpt-4.1-mini",
-                  "version": "2025-04-14"
-                },
-                "raiPolicyName": "Microsoft.DefaultV2"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4.1')]",
-                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
-              ]
-            },
-            {
-              "condition": "[parameters('deployGpt41')]",
-              "type": "Microsoft.CognitiveServices/accounts/deployments",
-              "apiVersion": "2024-10-01",
-              "name": "[format('{0}/{1}', parameters('name'), 'gpt-4.1')]",
-              "sku": {
-                "name": "GlobalStandard",
-                "capacity": "[parameters('gpt41Capacity')]"
-              },
-              "properties": {
-                "model": {
-                  "format": "OpenAI",
-                  "name": "gpt-4.1",
-                  "version": "2025-04-14"
-                },
-                "raiPolicyName": "Microsoft.DefaultV2"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
-              ]
-            },
-            {
-              "condition": "[parameters('deployGpt41Nano')]",
-              "type": "Microsoft.CognitiveServices/accounts/deployments",
-              "apiVersion": "2024-10-01",
-              "name": "[format('{0}/{1}', parameters('name'), 'gpt-4.1-nano')]",
-              "sku": {
-                "name": "GlobalStandard",
-                "capacity": "[parameters('gpt41NanoCapacity')]"
-              },
-              "properties": {
-                "model": {
-                  "format": "OpenAI",
-                  "name": "gpt-4.1-nano",
-                  "version": "2025-04-14"
-                },
-                "raiPolicyName": "Microsoft.DefaultV2"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4.1-mini')]",
-                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
-              ]
-            },
-            {
-              "condition": "[parameters('deployEmbeddings')]",
-              "type": "Microsoft.CognitiveServices/accounts/deployments",
-              "apiVersion": "2024-10-01",
-              "name": "[format('{0}/{1}', parameters('name'), 'text-embedding-3-large')]",
-              "sku": {
-                "name": "Standard",
-                "capacity": "[parameters('embeddingsCapacity')]"
-              },
-              "properties": {
-                "model": {
-                  "format": "OpenAI",
-                  "name": "text-embedding-3-large",
-                  "version": "1"
-                }
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4.1-nano')]",
-                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
-              ]
-            },
-            {
-              "condition": "[not(empty(parameters('cognitiveServicesUserPrincipalId')))]",
-              "type": "Microsoft.Authorization/roleAssignments",
-              "apiVersion": "2022-04-01",
-              "scope": "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]",
-              "name": "[guid(resourceId('Microsoft.CognitiveServices/accounts', parameters('name')), parameters('cognitiveServicesUserPrincipalId'), 'Cognitive Services User')]",
-              "properties": {
-                "principalId": "[parameters('cognitiveServicesUserPrincipalId')]",
-                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'a97b65f3-24c7-4388-baec-2e87135dc908')]",
-                "principalType": "ServicePrincipal"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
-              ]
-            }
-          ],
-          "outputs": {
-            "name": {
-              "type": "string",
-              "value": "[parameters('name')]"
-            },
-            "id": {
-              "type": "string",
-              "value": "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
-            },
-            "endpoint": {
-              "type": "string",
-              "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('name')), '2024-10-01').endpoint]"
-            }
-          }
-        }
-      },
-      "dependsOn": [
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'containerApps')]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'openai-role-assignment')]"
       ]
     },
     {
@@ -3672,7 +3344,7 @@
       ]
     },
     {
-      "condition": "[and(parameters('deployContainerApps'), variables('isDevEnvironment'))]",
+      "condition": "[parameters('deployContainerApps')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "containerApps-aiservices-role",
@@ -3695,6 +3367,18 @@
           "deployMistralLarge3": {
             "value": false
           },
+          "deployGpt41": {
+            "value": false
+          },
+          "deployGpt41Mini": {
+            "value": false
+          },
+          "deployGpt41Nano": {
+            "value": false
+          },
+          "deployEmbeddings": {
+            "value": false
+          },
           "cognitiveServicesUserPrincipalId": {
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'containerApps'), '2025-04-01').outputs.apiPrincipalId.value]"
           },
@@ -3709,7 +3393,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.40.2.10011",
-              "templateHash": "13349258726443100810"
+              "templateHash": "17698580772582744381"
             }
           },
           "parameters": {
@@ -3752,6 +3436,62 @@
               "defaultValue": 8,
               "metadata": {
                 "description": "Mistral-Large-3 deployment capacity (TPM in thousands). Debate needs 3+ sequential calls; capacity 1 allows only 1 req/60s."
+              }
+            },
+            "deployGpt41": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Deploy GPT-4.1 model"
+              }
+            },
+            "gpt41Capacity": {
+              "type": "int",
+              "defaultValue": 50,
+              "metadata": {
+                "description": "GPT-4.1 deployment capacity (TPM in thousands)"
+              }
+            },
+            "deployGpt41Mini": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Deploy GPT-4.1-mini model"
+              }
+            },
+            "gpt41MiniCapacity": {
+              "type": "int",
+              "defaultValue": 50,
+              "metadata": {
+                "description": "GPT-4.1-mini deployment capacity (TPM in thousands)"
+              }
+            },
+            "deployGpt41Nano": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Deploy GPT-4.1-nano model"
+              }
+            },
+            "gpt41NanoCapacity": {
+              "type": "int",
+              "defaultValue": 50,
+              "metadata": {
+                "description": "GPT-4.1-nano deployment capacity (TPM in thousands)"
+              }
+            },
+            "deployEmbeddings": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Deploy text-embedding-3-large model"
+              }
+            },
+            "embeddingsCapacity": {
+              "type": "int",
+              "defaultValue": 50,
+              "metadata": {
+                "description": "Embeddings deployment capacity (TPM in thousands)"
               }
             },
             "cognitiveServicesUserPrincipalId": {
@@ -3813,6 +3553,93 @@
               ]
             },
             {
+              "condition": "[parameters('deployGpt41')]",
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'gpt-4.1')]",
+              "sku": {
+                "name": "GlobalStandard",
+                "capacity": "[parameters('gpt41Capacity')]"
+              },
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "gpt-4.1",
+                  "version": "2025-04-14"
+                },
+                "raiPolicyName": "Microsoft.DefaultV2"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]",
+                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'Mistral-Large-3')]"
+              ]
+            },
+            {
+              "condition": "[parameters('deployGpt41Mini')]",
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'gpt-4.1-mini')]",
+              "sku": {
+                "name": "Standard",
+                "capacity": "[parameters('gpt41MiniCapacity')]"
+              },
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "gpt-4.1-mini",
+                  "version": "2025-04-14"
+                },
+                "raiPolicyName": "Microsoft.DefaultV2"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]",
+                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4.1')]"
+              ]
+            },
+            {
+              "condition": "[parameters('deployGpt41Nano')]",
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'gpt-4.1-nano')]",
+              "sku": {
+                "name": "GlobalStandard",
+                "capacity": "[parameters('gpt41NanoCapacity')]"
+              },
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "gpt-4.1-nano",
+                  "version": "2025-04-14"
+                },
+                "raiPolicyName": "Microsoft.DefaultV2"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]",
+                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4.1-mini')]"
+              ]
+            },
+            {
+              "condition": "[parameters('deployEmbeddings')]",
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'text-embedding-3-large')]",
+              "sku": {
+                "name": "Standard",
+                "capacity": "[parameters('embeddingsCapacity')]"
+              },
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "text-embedding-3-large",
+                  "version": "1"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]",
+                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4.1-nano')]"
+              ]
+            },
+            {
               "condition": "[not(empty(parameters('cognitiveServicesUserPrincipalId')))]",
               "type": "Microsoft.Authorization/roleAssignments",
               "apiVersion": "2022-04-01",
@@ -3845,7 +3672,7 @@
         }
       },
       "dependsOn": [
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'aiServices')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'aiservices-role-aiproject')]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'containerApps')]"
       ]
     }
@@ -3882,14 +3709,6 @@
     "sqlDatabaseName": {
       "type": "string",
       "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'sql'), '2025-04-01').outputs.databaseName.value]"
-    },
-    "openaiName": {
-      "type": "string",
-      "value": "[variables('sharedOpenaiName')]"
-    },
-    "openaiEndpoint": {
-      "type": "string",
-      "value": "[variables('openaiEndpointValue')]"
     },
     "searchName": {
       "type": "string",

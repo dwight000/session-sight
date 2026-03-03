@@ -1,5 +1,5 @@
-// AI Hub to Azure OpenAI connection
-// Creates a connection from AI Foundry Hub to Azure OpenAI for agent access
+// AI Hub to Azure AI Services connection
+// Creates a connection from AI Foundry Hub to Azure AI Services for agent access
 
 @description('Name of the AI Hub workspace')
 param hubName string

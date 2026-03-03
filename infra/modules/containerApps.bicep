@@ -42,9 +42,6 @@ param aspnetEnvironment string = 'Production'
 @description('SQL Server connection string (Managed Identity — no secrets)')
 param sqlConnectionString string
 
-@description('Azure OpenAI endpoint')
-param openaiEndpoint string
-
 @description('Azure AI Search endpoint')
 param searchEndpoint string
 
@@ -54,8 +51,8 @@ param docIntelligenceEndpoint string
 @description('Azure Blob Storage endpoint')
 param storageBlobEndpoint string
 
-@description('Azure AI Services endpoint (for non-OpenAI models like Mistral). Empty string if not provisioned.')
-param aiServicesEndpoint string = ''
+@description('Azure AI Services endpoint (consolidated — hosts all models: OpenAI + Mistral)')
+param aiServicesEndpoint string
 
 // === Container Apps Environment ===
 
@@ -115,16 +112,12 @@ resource apiApp 'Microsoft.App/containerApps@2024-10-02-preview' = {
           env: [
             // Connection strings (MI auth — no secrets)
             { name: 'ConnectionStrings__sessionsight', value: sqlConnectionString }
-            // Azure service endpoints (uses managed identity for auth)
-            { name: 'AzureOpenAI__Endpoint', value: openaiEndpoint }
+            // Azure AI Services endpoint (consolidated — all models: OpenAI + Mistral)
+            { name: 'AzureAIServices__Endpoint', value: aiServicesEndpoint }
             { name: 'AzureSearch__Endpoint', value: searchEndpoint }
             { name: 'AzureSearch__IndexName', value: searchIndexName }
             { name: 'DocumentIntelligence__Endpoint', value: docIntelligenceEndpoint }
             { name: 'ConnectionStrings__documents', value: storageBlobEndpoint }
-            // Azure AI Services endpoint (Mistral, etc.) — empty when not provisioned
-            ...(empty(aiServicesEndpoint) ? [] : [
-              { name: 'AzureAIServices__Endpoint', value: aiServicesEndpoint }
-            ])
             // ASP.NET Core settings
             { name: 'ASPNETCORE_ENVIRONMENT', value: aspnetEnvironment }
             { name: 'ASPNETCORE_URLS', value: 'http://+:8080' }
