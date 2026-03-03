@@ -20,15 +20,11 @@ public partial class AIFoundryClientFactory : IAIFoundryClientFactory
     private readonly AzureOpenAIClient _openAIClient;
     private readonly IConfiguration _config;
     private readonly ILogger<AIFoundryClientFactory> _logger;
-    private readonly CircuitBreakerRegistry _circuitBreakerRegistry;
-    private AzureOpenAIClient? _aiServicesClient;
-    private readonly object _aiServicesLock = new();
 
     public AIFoundryClientFactory(IConfiguration config, ILogger<AIFoundryClientFactory> logger, CircuitBreakerRegistry circuitBreakerRegistry)
     {
         _config = config;
         _logger = logger;
-        _circuitBreakerRegistry = circuitBreakerRegistry;
 
         var openAIEndpointStr = config["AzureOpenAI:Endpoint"]
             ?? throw new InvalidOperationException("AzureOpenAI:Endpoint not configured");
@@ -51,8 +47,7 @@ public partial class AIFoundryClientFactory : IAIFoundryClientFactory
     {
         ModelProvider.AzureOpenAI => _openAIClient
             .GetChatClient(selection.DeploymentName).AsIChatClient(),
-        ModelProvider.AzureAIServices => GetAIServicesClient()
-            .GetChatClient(selection.DeploymentName).AsIChatClient(),
+        ModelProvider.AzureAIServices => CreateModelInferenceClient(selection.DeploymentName),
         _ => throw new NotSupportedException($"Unknown provider: {selection.Provider}")
     };
 
@@ -65,31 +60,15 @@ public partial class AIFoundryClientFactory : IAIFoundryClientFactory
         return _openAIClient.GetEmbeddingClient(deploymentName);
     }
 
-    private AzureOpenAIClient GetAIServicesClient()
+    private AzureModelInferenceChatClient CreateModelInferenceClient(string modelName)
     {
-        if (_aiServicesClient is not null)
-            return _aiServicesClient;
+        var endpointStr = _config["AzureAIServices:Endpoint"];
+        if (string.IsNullOrWhiteSpace(endpointStr))
+            throw new InvalidOperationException(
+                "AzureAIServices:Endpoint not configured. Required for non-OpenAI models (e.g. Mistral-Large-3).");
 
-        lock (_aiServicesLock)
-        {
-            if (_aiServicesClient is not null)
-                return _aiServicesClient;
-
-            var endpointStr = _config["AzureAIServices:Endpoint"];
-            if (string.IsNullOrWhiteSpace(endpointStr))
-                throw new InvalidOperationException(
-                    "AzureAIServices:Endpoint not configured. Required for non-OpenAI models (e.g. Mistral-Large-3).");
-
-            var endpoint = new Uri(endpointStr);
-            var credential = new DefaultAzureCredential();
-            var breaker = _circuitBreakerRegistry.Get("aiservices");
-            var options = AzureRetryDefaults.ConfigureRetryPolicy(
-                new AzureOpenAIClientOptions(), _logger, breaker, "aiservices");
-
-            _aiServicesClient = new AzureOpenAIClient(endpoint, credential, options);
-            LogAIServicesClientCreated(_logger, endpointStr);
-            return _aiServicesClient;
-        }
+        LogAIServicesClientCreated(_logger, endpointStr);
+        return new AzureModelInferenceChatClient(endpointStr, modelName);
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "AIFoundryClientFactory configured with retry: MaxRetries={MaxRetries}, Delay={Delay}, MaxDelay={MaxDelay}")]
