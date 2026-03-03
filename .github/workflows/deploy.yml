@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - 'src/SessionSight.Api/**'
       - 'src/SessionSight.Web/**'
@@ -147,7 +147,7 @@ jobs:
   deploy-stage:
     name: Deploy to Stage
     needs: build-and-push
-    if: github.event.inputs.rollback_tag == '' && (github.event.inputs.environment == 'stage' || github.event_name == 'push')
+    if: github.event.inputs.rollback_tag == '' && (github.event.inputs.environment == 'stage' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
     runs-on: ubuntu-latest
     environment: stage
     concurrency:
