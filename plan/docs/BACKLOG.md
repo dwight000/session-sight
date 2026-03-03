@@ -7,11 +7,11 @@
 ## Current Status
 
 **Phase**: Phase 7 (Multi-Model Agent Debate) - IN PROGRESS
-**Next Action**: B-115 (Cleanup)
+**Next Action**: B-115 (Cleanup: consolidate AIServices + OpenAI resources, remove deprecated packages/spike code, rename Bicep modules)
 
-**Last Updated**: March 2, 2026
+**Last Updated**: March 3, 2026
 
-**Milestone**: B-113 + B-114 complete. RiskDebate transcript visible in UI (advocate/challenger/judge per round), E2E assertions debate-aware (6 or 7 steps), AIServices endpoint wired into Container Apps Bicep. B-115 (cleanup) is next.
+**Milestone**: Phase 7 feature-complete. B-107–B-114 all done + plan addendum (orchestrator tests, frontend progress counter fix, debate-aware assertions) all done. Golden files updated for debate side-effects: `risk-test-023` accepts Moderate (debate judge override), `qa-019` narrowed `must_not_contain` (LLM uses "active suicidal" while explaining it's NOT active). Full E2E suite 19/19 green. Next: B-115 cleanup.
 
 ---
 
@@ -19,7 +19,7 @@
 
 <!-- When you start a task, move it here. Only ONE task at a time. -->
 
-_(none — B-112 complete; next: B-113 or B-114)_
+_(Phase 7 feature-complete; B-115 cleanup next)_
 
 ---
 
@@ -1392,6 +1392,8 @@ TriggerMode options: `"always"`, `"borderline"` (confidence in threshold range),
 
 | Date | What Happened |
 |------|---------------|
+| 2026-03-03 | **Phase 7 E2E suite fully green (19/19).** PR #140 merged. Full validation: 233 backend tests (83.2%), frontend checks all pass, CI-mirror gate pass. Ran full `--backend` E2E: 17/19 passed, 2 debate side-effect failures. Fixed: `risk-test-023` golden file — debate judge overrides Low→Moderate on `risk_final` stage, added "moderate" to accept list (extractor/re-extracted stages stay Low-only). Fixed: `qa-019` golden file — LLM answer correctly says "distinguished from active suicidality" but `must_not_contain: "active suicidal"` was too broad, narrowed to `"is actively suicidal"`. Reran both: green. Plan addendum items (orchestrator tests, frontend progress counter, debate-aware assertions) confirmed already implemented from prior sessions. |
+| 2026-03-03 | **AIServices endpoint working end-to-end.** PR #139 merged (Bicep `model.version` fix). Debugged 404→401→429 chain: `AzureOpenAIClient` uses wrong path for non-OpenAI models, `Azure.AI.Inference` SDK breaks token audience when `/models` appended to URL. Created `AzureModelInferenceChatClient` using raw `HttpClient` with correct `/models/chat/completions` path and `cognitiveservices.azure.com` token scope. Added exponential backoff retry (3 retries, 7s base) matching `AzureRetryDefaults`. Bumped Mistral-Large-3 capacity 1→8 (1 req/60s insufficient for 3 sequential debate calls). Made E2E `riskLevelOverall` assertion debate-aware (judge can override). Removed unused `Azure.AI.Inference` package. E2E passes: 7 steps, debate verdict High/85% confidence, visible in UI. PR #140. |
 | 2026-03-02 | **B-111 complete: RiskDebate pipeline step.** Implemented the full multi-model adversarial debate pipeline. 5 new files: `RiskDebateAgent.cs` (IRiskDebateAgent + implementation — 5 sequential LLM calls: advocate→challenger→rebuttals→judge), `RiskDebateOptions.cs` (TriggerMode enum + options), `RiskDebateResult.cs` (DebateRound record + result model), `RiskDebatePrompts.cs` (5 prompt builders), `RiskDebateAgentTests.cs` (29 tests). Modified 6 files: `ExtractionStepName` (+RiskDebate enum), `ExtractionOrchestrator` (expanded ExtractionAgents record, non-fatal step 5, renumbered Summarize→6/SearchIndex→7, ShouldTriggerDebate + BuildMergedRiskFromDebate helpers), `Program.cs` (DI registration), `appsettings.json` (RiskDebate section disabled by default), both orchestrator test files (mock updates). Multi-model: advocate=gpt-4.1-nano, challenger=Mistral-Large-3 via AIServices, judge=gpt-4.1-mini. Content filter: graceful for advocate/challenger, throws for judge (orchestrator catches). 942 tests pass, 83.5% coverage. |
 | 2026-03-02 | **B-109 complete (+ B-108/B-110 backlog catch-up).** B-109: ModelRouter multi-family routing — added `ModelProvider` enum (`AzureOpenAI`, `AzureAIServices`), `ModelSelection` record, 3 new `ModelTask` debate values (Advocate/Challenger/Judge), `MistralLarge3` constant. `AIFoundryClientFactory` now holds dual clients with lazy-init AIServices client (fail-fast only when non-OpenAI model requested). Updated all 6 agent call sites + `EmbeddingService`. Config: `AzureAIServices:Endpoint` in appsettings + AppHost env wire. Tests: `ModelRouterTests` expanded (11 tasks + provider assertions), `SummarizerAgentTests` mock fixed (stale `gpt-4o-mini` → `ModelSelection`), `IntegrationTestBase` stub updated. 914 unit tests pass, 0 errors. Also marked B-108 and B-110 Done in backlog (committed in prior session but backlog not updated). B-111 (RiskDebate pipeline step) now unblocked. |
 | 2026-02-26 | **B-004/P5-002 complete + Dependabot batch merge.** Merged 10 Dependabot PRs (#120-#129): Aspire 13.1.1→13.1.2, EF Core 9.0.4→9.0.13, Azure Storage, Functions Worker SDK. 6 merged directly, 4 had conflicts resolved via manual PR #130. Fixed breaking change from Aspire.Azure.Storage.Blobs 13.1.2 (`AddAzureBlobClient` → `AddAzureBlobServiceClient`) via PR #131. Also split UI Upload diagram into two at async boundary in `docs/ARCHITECTURE.md`. All tests pass: unit (737+), frontend (TS + Vitest + 83% coverage + smoke + build), E2E extraction pipeline (4/4). |

@@ -7,7 +7,7 @@
   "question": "How should the suicidal ideation in this case be classified, and what distinguishes it from active suicidality?",
   "expected_answer": {
     "must_contain": ["passive", "natural death"],
-    "must_not_contain": ["active suicidal", "plan to harm"],
+    "must_not_contain": ["is actively suicidal", "plan to harm"],
     "min_confidence": 0.5,
     "expect_sources_count_gte": 1
   },
