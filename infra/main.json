@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.40.2.10011",
-      "templateHash": "6218301292516453869"
+      "templateHash": "12745819411651641800"
     }
   },
   "parameters": {
@@ -987,7 +987,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.40.2.10011",
-              "templateHash": "7852339271983375349"
+              "templateHash": "13349258726443100810"
             }
           },
           "parameters": {
@@ -1027,9 +1027,9 @@
             },
             "mistralLarge3Capacity": {
               "type": "int",
-              "defaultValue": 1,
+              "defaultValue": 8,
               "metadata": {
-                "description": "Mistral-Large-3 deployment capacity (TPM in thousands)"
+                "description": "Mistral-Large-3 deployment capacity (TPM in thousands). Debate needs 3+ sequential calls; capacity 1 allows only 1 req/60s."
               }
             },
             "cognitiveServicesUserPrincipalId": {
@@ -3709,7 +3709,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.40.2.10011",
-              "templateHash": "7852339271983375349"
+              "templateHash": "13349258726443100810"
             }
           },
           "parameters": {
@@ -3749,9 +3749,9 @@
             },
             "mistralLarge3Capacity": {
               "type": "int",
-              "defaultValue": 1,
+              "defaultValue": 8,
               "metadata": {
-                "description": "Mistral-Large-3 deployment capacity (TPM in thousands)"
+                "description": "Mistral-Large-3 deployment capacity (TPM in thousands). Debate needs 3+ sequential calls; capacity 1 allows only 1 req/60s."
               }
             },
             "cognitiveServicesUserPrincipalId": {

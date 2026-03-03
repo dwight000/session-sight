@@ -17,8 +17,8 @@ param skuName string = 'S0'
 @description('Deploy Mistral-Large-3 model')
 param deployMistralLarge3 bool = true
 
-@description('Mistral-Large-3 deployment capacity (TPM in thousands)')
-param mistralLarge3Capacity int = 1
+@description('Mistral-Large-3 deployment capacity (TPM in thousands). Debate needs 3+ sequential calls; capacity 1 allows only 1 req/60s.')
+param mistralLarge3Capacity int = 8
 
 @description('Principal ID to grant Cognitive Services User role')
 param cognitiveServicesUserPrincipalId string = ''

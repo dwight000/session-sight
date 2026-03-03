@@ -1,9 +1,11 @@
+using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Azure.Core;
 using Azure.Identity;
 using Microsoft.Extensions.AI;
+using SessionSight.Core.Resilience;
 
 namespace SessionSight.Agents.Services;
 
@@ -74,16 +76,9 @@ public sealed class AzureModelInferenceChatClient : IChatClient
             requestBody.ResponseFormat = new InferenceResponseFormat { Type = "json_object" };
 
         var url = $"{_endpoint}/models/chat/completions?api-version=2024-05-01-preview";
-        using var request = new HttpRequestMessage(HttpMethod.Post, url);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Token);
-        request.Content = new StringContent(
-            JsonSerializer.Serialize(requestBody, JsonOptions), System.Text.Encoding.UTF8, "application/json");
+        var jsonPayload = JsonSerializer.Serialize(requestBody, JsonOptions);
 
-        using var response = await HttpClient.SendAsync(request, cancellationToken);
-        var body = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"HTTP {(int)response.StatusCode} ({response.ReasonPhrase})\n\n{body}");
+        var body = await SendWithRetryAsync(url, token.Token, jsonPayload, cancellationToken);
 
         var result = JsonSerializer.Deserialize<InferenceResponse>(body, JsonOptions)
             ?? throw new InvalidOperationException("Failed to deserialize inference response");
@@ -118,6 +113,36 @@ public sealed class AzureModelInferenceChatClient : IChatClient
     public object? GetService(Type serviceType, object? serviceKey = null) => null;
 
     public void Dispose() { }
+
+    private static async Task<string> SendWithRetryAsync(
+        string url, string bearerToken, string jsonPayload, CancellationToken ct)
+    {
+        var maxAttempts = AzureRetryDefaults.MaxRetries + 1;
+        for (var attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+            request.Content = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
+
+            using var response = await HttpClient.SendAsync(request, ct);
+            var body = await response.Content.ReadAsStringAsync(ct);
+
+            if (response.IsSuccessStatusCode)
+                return body;
+
+            var statusCode = (int)response.StatusCode;
+            var isLastAttempt = attempt == maxAttempts - 1;
+            if (isLastAttempt || (statusCode != 429 && statusCode < 500))
+                throw new HttpRequestException($"HTTP {statusCode} ({response.ReasonPhrase})\n\n{body}");
+
+            var delay = AzureRetryDefaults.Delay * Math.Pow(2, attempt);
+            var jitter = (Random.Shared.NextDouble() * 2 - 1) * AzureRetryDefaults.Jitter.TotalMilliseconds;
+            var waitMs = Math.Min(delay.TotalMilliseconds + jitter, AzureRetryDefaults.MaxDelay.TotalMilliseconds);
+            await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(waitMs, 0)), ct);
+        }
+
+        throw new UnreachableException("Retry loop exited without returning or throwing");
+    }
 
     // ── Request/response DTOs (match Azure AI Model Inference API) ──
 
