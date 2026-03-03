@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.40.2.10011",
-      "templateHash": "1429288400026388791"
+      "templateHash": "18275577984544141048"
     }
   },
   "parameters": {
@@ -973,7 +973,7 @@
             "value": "[variables('tags')]"
           },
           "deployMistralLarge3": {
-            "value": false
+            "value": true
           },
           "cognitiveServicesUserPrincipalId": "[if(not(empty(parameters('developerUserObjectId'))), createObject('value', parameters('developerUserObjectId')), createObject('value', ''))]",
           "cognitiveServicesUserPrincipalType": {
