@@ -1,6 +1,6 @@
 using System.Text.Json;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
-using OpenAI.Chat;
 using SessionSight.Agents.Helpers;
 using SessionSight.Agents.Models;
 using SessionSight.Agents.Prompts;
@@ -49,36 +49,37 @@ public partial class IntakeAgent : IIntakeAgent
 
     public async Task<IntakeResult> ProcessAsync(ParsedDocument document, CancellationToken cancellationToken = default)
     {
-        var modelName = _modelRouter.SelectModel(ModelTask.DocumentIntake);
+        var selection = _modelRouter.SelectModel(ModelTask.DocumentIntake);
+        var modelName = selection.DeploymentName;
         LogProcessingDocument(_logger, modelName);
 
-        var chatClient = _clientFactory.CreateChatClient(modelName);
+        var chatClient = _clientFactory.CreateChatClient(selection);
 
         var messages = new List<ChatMessage>
         {
-            new SystemChatMessage(IntakePrompts.SystemPrompt),
-            new UserChatMessage(IntakePrompts.BuildUserPrompt(document))
+            new(ChatRole.System, IntakePrompts.SystemPrompt),
+            new(ChatRole.User, IntakePrompts.BuildUserPrompt(document))
         };
 
-        var options = new ChatCompletionOptions
+        var options = new ChatOptions
         {
             Temperature = 0.1f,
-            MaxOutputTokenCount = 1024,
-            ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
+            MaxOutputTokens = 1024,
+            ResponseFormat = ChatResponseFormat.Json
         };
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        var response = await chatClient.CompleteChatAsync(messages, options, cancellationToken);
+        var response = await chatClient.GetResponseAsync(messages, options, cancellationToken);
         sw.Stop();
-        var content = response.Value.Content[0].Text;
+        var content = response.Text!;
 
         var result = ParseResponse(content, document, modelName);
 
-        if (response.Value.Usage is not null)
+        if (response.Usage is not null)
         {
-            result.InputTokens = response.Value.Usage.InputTokenCount;
-            result.OutputTokens = response.Value.Usage.OutputTokenCount;
-            result.TotalTokens = response.Value.Usage.TotalTokenCount;
+            result.InputTokens = (int)(response.Usage.InputTokenCount ?? 0);
+            result.OutputTokens = (int)(response.Usage.OutputTokenCount ?? 0);
+            result.TotalTokens = (int)(response.Usage.TotalTokenCount ?? 0);
         }
 
         result.LlmTraces =

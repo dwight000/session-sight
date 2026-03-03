@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ExtractionStepCard } from '../../../src/components/extraction/ExtractionStepCard'
-import { makeStep } from '../../../src/test/fixtures/extractionSteps'
+import { makeStep, makeDebateStep } from '../../../src/test/fixtures/extractionSteps'
 import type { ReactElement } from 'react'
 
 function renderWithQuery(ui: ReactElement) {
@@ -209,5 +209,21 @@ describe('ExtractionStepCard', () => {
     )
     const bar = container.querySelector('.bg-green-400')
     expect(bar).toBeInTheDocument()
+  })
+
+  it('renders DebateTranscriptView for RiskDebate step when expanded', () => {
+    const step = makeDebateStep()
+    renderWithQuery(
+      <ExtractionStepCard stepName="RiskDebate" step={step} isCurrentStep={false} defaultExpanded={true} showSubSectionsOpen={true} sessionId="sess-001" />,
+    )
+    expect(screen.getByText(/Debate Transcript/)).toBeInTheDocument()
+  })
+
+  it('shows debate verdict summary in header for RiskDebate step', () => {
+    const step = makeDebateStep()
+    renderWithQuery(
+      <ExtractionStepCard stepName="RiskDebate" step={step} isCurrentStep={false} defaultExpanded={false} sessionId="sess-001" />,
+    )
+    expect(screen.getByText(/Verdict: High \(82% confidence, 2 rounds\)/)).toBeInTheDocument()
   })
 })

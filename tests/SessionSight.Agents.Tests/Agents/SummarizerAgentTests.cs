@@ -1,7 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using OpenAI.Chat;
+using Microsoft.Extensions.AI;
 using SessionSight.Agents.Agents;
 using SessionSight.Agents.Models;
 using SessionSight.Agents.Routing;
@@ -29,7 +29,8 @@ public class SummarizerAgentTests
         _sessionRepository = Substitute.For<ISessionRepository>();
         _logger = Substitute.For<ILogger<SummarizerAgent>>();
 
-        _modelRouter.SelectModel(ModelTask.Summarization).Returns("gpt-4o-mini");
+        _modelRouter.SelectModel(ModelTask.Summarization)
+            .Returns(new ModelSelection(ModelRouter.Gpt41Nano, ModelProvider.AzureOpenAI));
 
         _agent = new SummarizerAgent(
             _clientFactory,

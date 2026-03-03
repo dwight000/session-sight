@@ -6,12 +6,12 @@
 
 ## Current Status
 
-**Phase**: Phase 6 (Deployment) - IN PROGRESS
-**Next Action**: Pick next task (B-104, B-090, or B-092)
+**Phase**: Phase 7 (Multi-Model Agent Debate) - IN PROGRESS
+**Next Action**: B-115 (Cleanup)
 
-**Last Updated**: February 25, 2026
+**Last Updated**: March 2, 2026
 
-**Milestone**: B-004 + P5-002 complete — updated 2 stale extraction diagrams (dispatcher, 202 async, failure classification) and added 3 new data flow diagrams (document lifecycle state machine, data transformation pipeline, entity relationship). B-084 follow-ups (B-098–B-103) all merged.
+**Milestone**: B-113 + B-114 complete. RiskDebate transcript visible in UI (advocate/challenger/judge per round), E2E assertions debate-aware (6 or 7 steps), AIServices endpoint wired into Container Apps Bicep. B-115 (cleanup) is next.
 
 ---
 
@@ -19,7 +19,7 @@
 
 <!-- When you start a task, move it here. Only ONE task at a time. -->
 
-_(none)_
+_(none — B-112 complete; next: B-113 or B-114)_
 
 ---
 
@@ -205,6 +205,16 @@ _(none)_
 | **Adversarial Test Fixes (B-105–B-106)** |||||
 | B-105 | Fix adversarial prompt injection golden tests — assert content_filter_blocked instead of optional/skip | M | 5 | Ready | - |
 | B-106 | Fix adversarial exfiltration golden tests — assert LLM response doesn't leak system prompt | M | 5 | Ready | - |
+| **Phase 7: Multi-Model Agent Debate** |||||
+| B-107 | Research spike: multi-model SDK feasibility, Foundry marketplace models, IChatClient abstraction, Bicep | XL | Spike | **Done** | - |
+| B-108 | Refactor AgentLoopRunner to accept IChatClient (Microsoft.Extensions.AI) instead of OpenAI ChatClient | L | 7 | **Done** | B-107 |
+| B-109 | Extend ModelRouter for multi-family routing — add model provider + deployment config per ModelTask | M | 7 | **Done** | B-108 |
+| B-110 | Bicep module for Foundry marketplace model deployments (Claude, Gemini serverless endpoints) | M | 7 | **Done** | B-107 |
+| B-111 | Implement RiskDebate pipeline step — configurable advocate/challenger/judge with multi-model support | XL | 7 | **Done** | B-108, B-109, B-110 |
+| B-112 | RiskDebate configuration — MaxRounds, per-role model overrides, IOptionsMonitor hot-reload, local dev defaults | S | 7 | **Done** | B-111 |
+| B-113 | RiskDebate UI — debate transcript visualization in extraction step card | M | 7 | Done | B-111 |
+| B-114 | Integration tests for multi-model debate (golden file + cost assertions) | M | 7 | Done | B-111 |
+| B-115 | Cleanup: consolidate AIServices + OpenAI resources, remove deprecated packages/spike code, rename Bicep modules | M | 7 | Ready | B-114 |
 
 ---
 
@@ -1024,6 +1034,174 @@ In the document repository, passing `errorMessage: null` to `UpdateDocumentStatu
 - Investigate: Check if golden tests use `fixture.LongClient` (5-min timeout) or regular client. May need to extend timeout for extraction-heavy golden cases.
 - Rate limit mitigation already in place: Retry base delay increased from 1s to 3s (~93s total window) via `SpacedRetryPolicy`.
 
+### B-107 Details (Multi-Model Research Spike) — COMPLETED
+
+**Result:** PASS WITH REVISED APPROACH (March 2, 2026)
+**Spike report:** `plan/spike/multi-model/SPIKE-REPORT.md`
+
+**Key findings that changed the plan:**
+1. `Azure.AI.Inference` is **deprecated** (retiring May 30, 2026) — remove from packages
+2. Claude requires **Enterprise/MCA-E subscription** — user doesn't have this, Claude blocked
+3. Gemini **not available** on Azure AI Foundry — Google Vertex AI only
+4. **Simplification:** All non-Claude Foundry models (Mistral, Llama, Grok, DeepSeek) use OpenAI-compatible `/chat/completions` API — same SDK handles everything
+5. `Microsoft.Extensions.AI` is **GA at v10.3.0** — the OpenAI adapter handles all models through one `IChatClient`
+6. No custom adapters needed. No additional SDKs beyond M.E.AI + M.E.AI.OpenAI
+7. Bicep: marketplace models deploy as same resource type (`Microsoft.CognitiveServices/accounts/deployments`) with different `format` property
+8. `AgentLoopRunner` refactor is mechanical — type-for-type replacement (`ChatClient` → `IChatClient`)
+
+### B-108 Details (Refactor AgentLoopRunner → IChatClient)
+
+**Problem:** `AgentLoopRunner.RunCoreAsync` takes `OpenAI.Chat.ChatClient`. All 3 overloads of `RunAsync` pass this through. This locks us to OpenAI models only.
+
+**Approach:** Replace `ChatClient` with `Microsoft.Extensions.AI.IChatClient` (GA v10.3.0). Mechanical type mapping (from B-107 spike):
+
+| Current (OpenAI) | M.E.AI equivalent |
+|------|------|
+| `ChatClient` | `IChatClient` |
+| `CompleteChatAsync()` | `GetResponseAsync()` |
+| `ChatCompletion` | `ChatResponse` |
+| `ChatToolCall` | `FunctionCallContent` (in message contents) |
+| `ChatTokenUsage` | `UsageDetails` (`.InputTokenCount`, `.OutputTokenCount`) |
+| `ChatFinishReason.Stop/ToolCalls/ContentFilter` | Same names, struct instead of enum |
+| `ChatResponseFormat.CreateJsonObjectFormat()` | `ChatResponseFormat.Json` |
+| `ChatCompletionOptions` | `ChatOptions` |
+| `ChatTool.CreateFunctionTool()` | `AIFunctionFactory.Create()` |
+
+Keep our custom tool-calling loop (don't use `FunctionInvokingChatClient`) — we need per-round callbacks, content filter retry, and trace capture.
+
+**Also in this task:** Add `Microsoft.Extensions.AI` v10.3.0 + `Microsoft.Extensions.AI.OpenAI` v10.3.0 to `Directory.Packages.props`. Remove `Azure.AI.Inference`, `Azure.AI.Projects`, `Azure.AI.Agents.Persistent`.
+
+**Risk:** Touches every agent. Must not break existing GPT pipeline. Run full test suite after.
+
+### B-109 Details (Extend ModelRouter for Multi-Family Routing)
+
+**Problem:** `ModelRouter.SelectModel()` returns a string deployment name (e.g., `"gpt-4.1-mini"`). For multi-model, we also need to know which provider/endpoint to use.
+
+**Approach:** Return a `ModelSelection` record instead of a string:
+```csharp
+record ModelSelection(string DeploymentName, ModelProvider Provider, string? EndpointOverride = null);
+enum ModelProvider { AzureOpenAI, AzureFoundryClaude, AzureFoundryGemini }
+```
+Add new `ModelTask` values: `RiskDebateChallenger`, `RiskDebateJudge`. Config-driven mapping so models can be swapped without code changes.
+
+### B-110 Details (Bicep for Foundry Marketplace Models)
+
+**Finding from B-107:** All Foundry models deploy as same resource type — `Microsoft.CognitiveServices/accounts/deployments@2024-04-01-preview`. The differentiator is the `format` property.
+
+**Verified format strings:** `'OpenAI'`, `'Mistral AI'` (note space), `'xAI'`, `'Meta'`, `'Microsoft'`, `'DeepSeek'`
+
+**Approach:** Add challenger model deployment to existing `infra/modules/openai.bicep`:
+```bicep
+resource challengerDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-04-01-preview' = {
+  parent: openai
+  name: 'Mistral-Large-3'
+  sku: { name: 'GlobalStandard', capacity: 1 }
+  properties: { model: { format: 'Mistral AI', name: 'Mistral-Large-3', version: '1' } }
+}
+```
+
+**BLOCKER FOUND (March 2, 2026):** The existing resource (`sessionsight-openai-dev`) is `kind: 'OpenAI'` — it ONLY supports OpenAI models. Verified via `az cognitiveservices account list-models`: returns only `format: 'OpenAI'` entries. Mistral, Grok, Llama are not available.
+
+**Solution:** Create a SECOND CognitiveServices resource with `kind: 'AIServices'` for non-OpenAI models. Keep existing `kind: 'OpenAI'` resource untouched (zero risk to current pipeline).
+
+**New Bicep module:** `infra/modules/ai-services.bicep`
+```bicep
+resource aiServices 'Microsoft.CognitiveServices/accounts@2024-04-01-preview' = {
+  name: '${baseName}-aiservices'
+  location: location
+  kind: 'AIServices'          // <-- enables all model providers
+  sku: { name: 'S0' }
+  properties: {
+    customSubDomainName: '${baseName}-aiservices'
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
+resource challengerDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-04-01-preview' = {
+  parent: aiServices
+  name: 'Mistral-Large-3'
+  sku: { name: 'GlobalStandard', capacity: 1 }
+  properties: {
+    model: { format: 'Mistral AI', name: 'Mistral-Large-3', version: '1' }
+  }
+}
+```
+
+**Also needed:** `Cognitive Services User` role assignment on the new resource for DefaultAzureCredential auth. Copy pattern from existing `openai.bicep`.
+
+**New connection string / endpoint** for the challenger: `https://${baseName}-aiservices.services.ai.azure.com/` — `ModelRouter` must return the correct endpoint per model.
+
+**B-115 will consolidate** — after everything works, consider migrating OpenAI models into the AIServices resource and deleting the old OpenAI resource.
+
+### B-111 Details (RiskDebate Pipeline Step)
+
+**Architecture decision:** Option B — debate fires AFTER RiskAssessor, not replacing it. RiskAssessor does the initial single-pass assessment. Debate is an optional validation layer that fires based on configurable triggers.
+
+**Pipeline placement:**
+```
+Intake → Extractor → RiskAssessor → [RiskDebate if triggered] → Summarizer → Embedding
+```
+
+**Debate is TEXT-ONLY** — receives RiskAssessor output as input, no tool calling. Any model works regardless of tool-calling support.
+
+**Debate structure (2 rounds + judge):**
+1. Advocate (GPT-4.1-nano) — defends the RiskAssessor's initial assessment, citing evidence
+2. Challenger (Mistral-Large-3 or configurable non-OpenAI model) — argues the opposing position
+3. Advocate rebuts challenger's points
+4. Challenger rebuts advocate's points
+5. Judge (GPT-4.1-mini) — weighs both sides, produces final risk level + confidence
+
+**Persistence:** New `ExtractionStep` row with step name `RiskDebate`, consistent with existing pipeline steps. Both original RiskAssessor result AND debate result are preserved (audit trail), but debate result overrides the active risk assessment.
+
+**Verified non-OpenAI models (East US 2, sold directly by Azure):**
+- `Mistral-Large-3` (format: `'Mistral AI'`) — strong reasoning
+- `grok-3-mini` (format: `'xAI'`) — cheap, fast
+- `Llama-3.3-70B-Instruct` (format: `'Meta'`) — viable for text-only
+
+**Note:** These models are NOT yet deployed in the tenant. B-110 adds the Bicep deployment. All callable through existing `Azure.AI.OpenAI` SDK — same endpoint, same auth.
+
+**Cost:** ~$0.02 per debate (5 LLM calls with Mistral-Large-3). Adds ~$0.004-0.006 per average extraction with borderline trigger.
+
+### B-112 Details (RiskDebate Configuration)
+
+**Config shape:**
+```json
+{
+  "RiskDebate": {
+    "Enabled": true,
+    "TriggerMode": "borderline",
+    "ConfidenceThreshold": [0.3, 0.7],
+    "MaxRounds": 2,
+    "AdvocateModel": "gpt-4.1-nano",
+    "ChallengerModel": "claude-sonnet",
+    "JudgeModel": "gemini-pro"
+  }
+}
+```
+TriggerMode options: `"always"`, `"borderline"` (confidence in threshold range), `"flagged"` (only when risk flags present), `"off"`
+
+### B-115 Details (Cleanup & Consolidation)
+
+**After everything works**, clean up the dual-resource setup and remove legacy artifacts:
+
+1. **Consolidate resources** — migrate OpenAI model deployments from `kind: 'OpenAI'` resource into `kind: 'AIServices'` resource. Delete the old OpenAI resource. Single endpoint for all models.
+2. **Rename Bicep** — `openai.bicep` → `ai-models.bicep`, remove `ai-services.bicep`, single module for all model deployments.
+3. **Remove deprecated packages** from `Directory.Packages.props`: `Azure.AI.Inference`, `Azure.AI.Projects`, `Azure.AI.Agents.Persistent` (if not already done in B-108).
+4. **Remove spike code** — `plan/spike/agent-framework/` (old spike) can be archived or deleted. `plan/spike/multi-model/` spike report stays (it's documentation).
+5. **Update connection strings** — AppHost, appsettings, user-secrets all point to single AIServices endpoint.
+6. **Update CLAUDE.md** — architecture overview, key paths, troubleshooting sections to reflect multi-model setup.
+7. **Test full pipeline end-to-end** after consolidation to verify zero regression.
+
+**Risk:** Migrating OpenAI deployments between resource kinds may require delete+recreate of deployments. Schedule during low-usage window. Test in dev first.
+
+### B-113 Details (RiskDebate UI)
+
+**Scope:** New view in the extraction step card for the RiskDebate step, consistent with existing pipeline step UX. Shows the debate transcript — advocate argument, challenger argument, rebuttals, and judge synthesis. Color-coded by role (advocate/challenger/judge). Collapsible rounds. Must show both original RiskAssessor result and debate-revised result for historical audit trail, with the debate result marked as the active override.
+
+### B-114 Details (Multi-Model Debate Integration Tests)
+
+**Scope:** Golden file tests for the debate step. Assert that debate produces a final risk level, confidence, and transcript. Cost assertion to ensure debate stays under $0.02 per invocation. Test all trigger modes.
+
 ### P5-001 / B-038 Investigation Notes (2026-02-10)
 - Harness file: `tests/SessionSight.FunctionalTests/GoldenExtractionTests.cs` is currently marked `[Theory(Skip = ...)]` while strict v2 expectation tuning continues.
 - Current contract: v2 risk files use stage-aware expectations (`expected_by_stage`) with top-level `assert_stages` and `assert_fields`.
@@ -1199,6 +1377,14 @@ In the document repository, passing `errorMessage: null` to `UpdateDocumentStatu
 | B-011 | Idempotent job IDs for blob trigger — already implemented via JobKey unique index in ExtractionJobDispatcher (B-103) and TryTransition atomic status checks (B-064), backlog was stale | 2026-02-26 |
 | B-003 | Synthetic data generator script — already implemented: 8 sample therapy note PDFs generated via fpdf2, sample document picker in Upload UI (B-082) | 2026-02-26 |
 | B-014 | Reindex/backfill job for AI Search — POST /api/admin/reindex endpoint with optional patientId/sessionId filters, background ReindexService that bridges Core→Agent models and calls SessionIndexingService, per-session IndexingStatus updates | 2026-02-26 |
+| B-107 | Research spike: multi-model SDK feasibility, Foundry marketplace models, IChatClient abstraction, Bicep — Phase 7 planning complete | 2026-03-02 |
+| B-108 | Refactor AgentLoopRunner to accept IChatClient (Microsoft.Extensions.AI) — all agents, tools, tests migrated from OpenAI ChatClient | 2026-03-02 |
+| B-110 | AIServices Bicep resource — `Microsoft.CognitiveServices/accounts` with `kind:AIServices` for non-OpenAI model deployments (Mistral-Large-3) | 2026-03-02 |
+| B-109 | ModelRouter multi-family routing — `ModelProvider` enum, `ModelSelection` record, dual-client `AIFoundryClientFactory`, 3 debate `ModelTask` values, lazy AIServices client | 2026-03-02 |
+| B-111 | RiskDebate pipeline step — 5-call debate (advocate/challenger/rebuttals/judge) with GPT-4.1-nano advocate, Mistral-Large-3 challenger, GPT-4.1-mini judge. Configurable triggers (Off/Always/Flagged/Borderline), graceful degradation on failure, content filter handling. Step 5 between RiskAssess and Summarize (renumbered 6/7). 29 new tests, 83.5% coverage. | 2026-03-02 |
+| B-112 | RiskDebate configuration — MaxRounds (configurable round count replacing hardcoded 2), per-role model overrides (AdvocateModelOverride/ChallengerModelOverride/JudgeModelOverride), IOptionsMonitor hot-reload in orchestrator+agent, local dev defaults (Enabled+Always). 3 new tests, 83.5% coverage. | 2026-03-02 |
+| B-113 | RiskDebate UI — DebateTranscriptView component with per-round advocate/challenger blocks, judge synthesis, review reasons. Dynamic displaySteps in pipeline view (shows debate card only when API returns it). 8 new frontend tests. | 2026-03-02 |
+| B-114 | Integration tests — ExtractionAssertions rewritten for debate-aware pipeline (6 or 7 steps), AssertDebateStep with structural + cost guard (< 50k tokens). AIServices endpoint wired into Container Apps Bicep with MI role assignment. | 2026-03-02 |
 
 ---
 
@@ -1206,6 +1392,8 @@ In the document repository, passing `errorMessage: null` to `UpdateDocumentStatu
 
 | Date | What Happened |
 |------|---------------|
+| 2026-03-02 | **B-111 complete: RiskDebate pipeline step.** Implemented the full multi-model adversarial debate pipeline. 5 new files: `RiskDebateAgent.cs` (IRiskDebateAgent + implementation — 5 sequential LLM calls: advocate→challenger→rebuttals→judge), `RiskDebateOptions.cs` (TriggerMode enum + options), `RiskDebateResult.cs` (DebateRound record + result model), `RiskDebatePrompts.cs` (5 prompt builders), `RiskDebateAgentTests.cs` (29 tests). Modified 6 files: `ExtractionStepName` (+RiskDebate enum), `ExtractionOrchestrator` (expanded ExtractionAgents record, non-fatal step 5, renumbered Summarize→6/SearchIndex→7, ShouldTriggerDebate + BuildMergedRiskFromDebate helpers), `Program.cs` (DI registration), `appsettings.json` (RiskDebate section disabled by default), both orchestrator test files (mock updates). Multi-model: advocate=gpt-4.1-nano, challenger=Mistral-Large-3 via AIServices, judge=gpt-4.1-mini. Content filter: graceful for advocate/challenger, throws for judge (orchestrator catches). 942 tests pass, 83.5% coverage. |
+| 2026-03-02 | **B-109 complete (+ B-108/B-110 backlog catch-up).** B-109: ModelRouter multi-family routing — added `ModelProvider` enum (`AzureOpenAI`, `AzureAIServices`), `ModelSelection` record, 3 new `ModelTask` debate values (Advocate/Challenger/Judge), `MistralLarge3` constant. `AIFoundryClientFactory` now holds dual clients with lazy-init AIServices client (fail-fast only when non-OpenAI model requested). Updated all 6 agent call sites + `EmbeddingService`. Config: `AzureAIServices:Endpoint` in appsettings + AppHost env wire. Tests: `ModelRouterTests` expanded (11 tasks + provider assertions), `SummarizerAgentTests` mock fixed (stale `gpt-4o-mini` → `ModelSelection`), `IntegrationTestBase` stub updated. 914 unit tests pass, 0 errors. Also marked B-108 and B-110 Done in backlog (committed in prior session but backlog not updated). B-111 (RiskDebate pipeline step) now unblocked. |
 | 2026-02-26 | **B-004/P5-002 complete + Dependabot batch merge.** Merged 10 Dependabot PRs (#120-#129): Aspire 13.1.1→13.1.2, EF Core 9.0.4→9.0.13, Azure Storage, Functions Worker SDK. 6 merged directly, 4 had conflicts resolved via manual PR #130. Fixed breaking change from Aspire.Azure.Storage.Blobs 13.1.2 (`AddAzureBlobClient` → `AddAzureBlobServiceClient`) via PR #131. Also split UI Upload diagram into two at async boundary in `docs/ARCHITECTURE.md`. All tests pass: unit (737+), frontend (TS + Vitest + 83% coverage + smoke + build), E2E extraction pipeline (4/4). |
 | 2026-02-25 | **B-004 + P5-002 complete: Architecture diagram update + data flow diagrams.** Updated 2 stale extraction sequence diagrams to reflect B-084/B-103 refactors (ExtractionJobDispatcher, 202 Accepted, polling, FailureKind classification, PartiallyCompleted resume). Split UI Upload diagram into 2 sub-diagrams at the async boundary (1a: Request & Dispatch — 6 lanes, 1b: Pipeline Execution — 13 lanes) to reduce width. Added 3 new data flow diagrams: (5) Document Lifecycle stateDiagram-v2 with nested Transient/Permanent failure states, (6) Data Transformation Pipeline flowchart LR with subgraphs per step showing agent/model/output, (7) Entity Relationship erDiagram with 10 entities. All 7 diagrams validated via Node.js mermaid.parse() and Mermaid Live Editor. Also marked B-098–B-103 as Done in backlog (all shipped in PR #91 and #92). PR #116. |
 | 2026-02-20 | **B-086 complete: Patient longitudinal summary on timeline page.** Frontend-only change — `GET /api/summary/patient/{id}` already existed but was never called. Added `PatientSummary` + `GoalProgress` types to `types/index.ts`, `getPatientSummary()` API function in `api/summary.ts`, `usePatientSummary` query hook, and summary card panel on `PatientTimeline.tsx` between stats bar and session list. Panel shows progress narrative, mood trend badge, effective interventions, recurring themes, goal progress, risk trend summary, and recommended focus. Loading spinner during fetch, hidden on 404 (patients with no extraction data). Tests: 202 frontend unit (7 new: 3 hook, 2 API, 2 page), 17 Playwright smoke (patient summary route mock added). |

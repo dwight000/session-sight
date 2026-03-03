@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ExtractionStep, ExtractionStepName, StepViewMode, DocumentParseResult, SearchIndexResult, RiskAssessResult } from '../../types/extractionSteps'
+import type { ExtractionStep, ExtractionStepName, StepViewMode, DocumentParseResult, SearchIndexResult, RiskAssessResult, DebateResultSummary } from '../../types/extractionSteps'
 import { STEP_DISPLAY_NAMES, formatDurationMs, formatResultSummary, estimateCost } from './stepConfig'
 import { ToolCallSection } from './ToolCallSection'
 import { LlmTraceSection } from './LlmTraceSection'
@@ -9,6 +9,7 @@ import { SummaryView } from './SummaryView'
 import { DocumentPreview } from './DocumentPreview'
 import { ConfidenceHeatmap } from './ConfidenceHeatmap'
 import { RiskMergeView } from './RiskMergeView'
+import { DebateTranscriptView } from './DebateTranscriptView'
 import { useExtractionResult } from '../../hooks/useExtractionResult'
 
 function getRiskBadge(json: string | null): { text: string; color: string } | null {
@@ -281,6 +282,12 @@ export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpan
           {stepName === 'RiskAssess' && extractionResult?.riskDiagnostics?.fieldDecisions?.length && (
             <RiskMergeView diagnostics={extractionResult.riskDiagnostics} defaultOpen={showSubSectionsOpen} />
           )}
+          {stepName === 'RiskDebate' && step.resultSummaryJson && (() => {
+            try {
+              const summary: DebateResultSummary = JSON.parse(step.resultSummaryJson)
+              return <DebateTranscriptView summary={summary} defaultOpen={showSubSectionsOpen} />
+            } catch { return null }
+          })()}
         </div>
       )}
     </div>

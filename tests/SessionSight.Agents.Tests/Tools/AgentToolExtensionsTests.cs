@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.AI;
 using NSubstitute;
 using SessionSight.Agents.Tools;
 
@@ -7,35 +8,34 @@ namespace SessionSight.Agents.Tests.Tools;
 public class AgentToolExtensionsTests
 {
     [Fact]
-    public void ToChatTool_ConvertsToolCorrectly()
+    public void ToAITool_ConvertsToolCorrectly()
     {
         var tool = Substitute.For<IAgentTool>();
         tool.Name.Returns("test_tool");
         tool.Description.Returns("A test tool for testing");
         tool.InputSchema.Returns(BinaryData.FromString("""{"type": "object", "properties": {}}"""));
 
-        var chatTool = tool.ToChatTool();
+        var aiTool = tool.ToAITool();
 
-        chatTool.Should().NotBeNull();
-        chatTool.Kind.ToString().Should().Be("Function");
+        aiTool.Should().NotBeNull();
+        aiTool.Should().BeAssignableTo<AITool>();
     }
 
     [Fact]
-    public void ToChatTool_PreservesToolName()
+    public void ToAITool_PreservesToolName()
     {
         var tool = Substitute.For<IAgentTool>();
         tool.Name.Returns("my_custom_tool");
         tool.Description.Returns("Description");
         tool.InputSchema.Returns(BinaryData.FromString("""{"type": "object"}"""));
 
-        var chatTool = tool.ToChatTool();
+        var aiTool = tool.ToAITool();
 
-        // ChatTool doesn't expose name directly, but we can verify it's created without error
-        chatTool.Should().NotBeNull();
+        aiTool.Name.Should().Be("my_custom_tool");
     }
 
     [Fact]
-    public void ToChatTools_ConvertsCollectionCorrectly()
+    public void ToAITools_ConvertsCollectionCorrectly()
     {
         var tool1 = Substitute.For<IAgentTool>();
         tool1.Name.Returns("tool1");
@@ -49,32 +49,32 @@ public class AgentToolExtensionsTests
 
         var tools = new[] { tool1, tool2 };
 
-        var chatTools = tools.ToChatTools().ToList();
+        var aiTools = tools.ToAITools().ToList();
 
-        chatTools.Should().HaveCount(2);
-        chatTools.Should().AllSatisfy(ct => ct.Should().NotBeNull());
+        aiTools.Should().HaveCount(2);
+        aiTools.Should().AllSatisfy(ct => ct.Should().NotBeNull());
     }
 
     [Fact]
-    public void ToChatTools_EmptyCollection_ReturnsEmpty()
+    public void ToAITools_EmptyCollection_ReturnsEmpty()
     {
         var tools = Array.Empty<IAgentTool>();
 
-        var chatTools = tools.ToChatTools().ToList();
+        var aiTools = tools.ToAITools().ToList();
 
-        chatTools.Should().BeEmpty();
+        aiTools.Should().BeEmpty();
     }
 
     [Fact]
-    public void ToChatTools_SingleTool_ReturnsSingleElement()
+    public void ToAITools_SingleTool_ReturnsSingleElement()
     {
         var tool = Substitute.For<IAgentTool>();
         tool.Name.Returns("single_tool");
         tool.Description.Returns("Single tool");
         tool.InputSchema.Returns(BinaryData.FromString("""{"type": "object"}"""));
 
-        var chatTools = new[] { tool }.ToChatTools().ToList();
+        var aiTools = new[] { tool }.ToAITools().ToList();
 
-        chatTools.Should().HaveCount(1);
+        aiTools.Should().HaveCount(1);
     }
 }
