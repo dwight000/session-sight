@@ -472,6 +472,8 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                     CompleteStep(stepDebate, swDebate.ElapsedMilliseconds);
                     stepDebate.ResultSummaryJson = JsonSerializer.Serialize(new
                     {
+                        originalRiskLevel = riskResult.DeterminedRiskLevel.ToString(),
+                        originalConfidence = riskResult.FinalExtraction.RiskLevelOverall.Confidence,
                         finalRiskLevel = debateResult.FinalRiskLevel.ToString(),
                         finalConfidence = debateResult.FinalConfidence,
                         requiresReview = debateResult.RequiresReview,

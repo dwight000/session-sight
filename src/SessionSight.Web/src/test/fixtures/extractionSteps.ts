@@ -67,6 +67,8 @@ export function makeDebateStep(overrides: Partial<ExtractionStep> = {}): Extract
     outputTokens: 1400,
     totalTokens: 3200,
     resultSummaryJson: JSON.stringify({
+      originalRiskLevel: 'Low',
+      originalConfidence: 0.6,
       finalRiskLevel: 'High',
       finalConfidence: 0.82,
       requiresReview: true,

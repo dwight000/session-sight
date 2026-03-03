@@ -224,6 +224,6 @@ describe('ExtractionStepCard', () => {
     renderWithQuery(
       <ExtractionStepCard stepName="RiskDebate" step={step} isCurrentStep={false} defaultExpanded={false} sessionId="sess-001" />,
     )
-    expect(screen.getByText(/Verdict: High \(82% confidence, 2 rounds\)/)).toBeInTheDocument()
+    expect(screen.getByText(/Low .* High \(82%\), 2 rounds/)).toBeInTheDocument()
   })
 })

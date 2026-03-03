@@ -6,6 +6,8 @@ import type { DebateResultSummary } from '../../../src/types/extractionSteps'
 
 function makeSummary(overrides: Partial<DebateResultSummary> = {}): DebateResultSummary {
   return {
+    originalRiskLevel: 'Low',
+    originalConfidence: 0.6,
     finalRiskLevel: 'High',
     finalConfidence: 0.82,
     requiresReview: true,
@@ -73,6 +75,16 @@ describe('DebateTranscriptView', () => {
     expect(screen.getByText('Review Reasons')).toBeInTheDocument()
     expect(screen.getByText('Conflicting risk signals')).toBeInTheDocument()
     expect(screen.getByText('Low confidence score')).toBeInTheDocument()
+  })
+
+  it('shows original vs final risk comparison when expanded', async () => {
+    const user = userEvent.setup()
+    render(<DebateTranscriptView summary={makeSummary()} />)
+
+    await user.click(screen.getByRole('button'))
+
+    expect(screen.getByText(/Original: Low/)).toBeInTheDocument()
+    expect(screen.getByText(/Verdict: High/)).toBeInTheDocument()
   })
 
   it('defaults collapsed and expands on click', async () => {

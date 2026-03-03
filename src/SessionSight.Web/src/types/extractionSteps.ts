@@ -129,6 +129,8 @@ export interface DebateRound {
 }
 
 export interface DebateResultSummary {
+  originalRiskLevel?: string
+  originalConfidence?: number
   finalRiskLevel: string
   finalConfidence: number
   requiresReview: boolean

@@ -26,6 +26,20 @@ export function DebateTranscriptView({ summary, defaultOpen = false }: DebateTra
 
       {open && (
         <div className="mt-2 space-y-3">
+          {/* Original vs Final comparison */}
+          {summary.originalRiskLevel && (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-700 font-medium">
+                Original: {summary.originalRiskLevel}
+                {summary.originalConfidence != null && ` (${Math.round(summary.originalConfidence * 100)}%)`}
+              </span>
+              <span className="text-gray-400">{'\u2192'}</span>
+              <span className="px-2 py-0.5 rounded bg-violet-100 text-violet-800 font-medium">
+                Verdict: {summary.finalRiskLevel} ({Math.round(summary.finalConfidence * 100)}%)
+              </span>
+            </div>
+          )}
+
           {summary.rounds.map((round) => (
             <div key={round.roundNumber} className="space-y-1.5">
               <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">
