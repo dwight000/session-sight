@@ -141,6 +141,36 @@ export const mockExtractionStepsComplete: ExtractionStepsResponse = {
   ],
 }
 
+export const mockExtractionStepsWithDebate: ExtractionStepsResponse = {
+  extractionId: 'ext-005',
+  documentStatus: 'Completed',
+  failureKind: null,
+  errorMessage: null,
+  steps: [
+    mockExtractionStepsComplete.steps[0], // DocumentParse (order 0)
+    mockExtractionStepsComplete.steps[1], // Intake (order 1)
+    mockExtractionStepsComplete.steps[2], // ClinicalExtract (order 2)
+    mockExtractionStepsComplete.steps[3], // RiskAssess (order 3)
+    makeDebateStep(),                     // RiskDebate (order 5)
+    makeStep('Summarize', 6, {
+      durationMs: 5200,
+      modelUsed: 'gpt-4.1-nano',
+      inputTokens: 800,
+      outputTokens: 200,
+      totalTokens: 1000,
+      resultSummaryJson: '{"oneLiner":"Patient shows improved mood with consistent CBT engagement","interventionsUsed":["CBT","Breathing exercises"],"keyPoints":"Mood improved, CBT techniques reinforced","nextSessionFocus":"Continue CBT exposure work","riskLevel":"Low"}',
+    }),
+    makeStep('SearchIndex', 7, {
+      durationMs: 800,
+      modelUsed: 'text-embedding-3-large',
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      resultSummaryJson: '{"indexed":true,"error":null}',
+    }),
+  ],
+}
+
 export const mockExtractionStepsPartial: ExtractionStepsResponse = {
   extractionId: 'ext-002',
   documentStatus: 'Processing',

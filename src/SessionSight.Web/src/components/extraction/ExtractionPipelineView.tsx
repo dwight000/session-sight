@@ -58,8 +58,9 @@ export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipeline
     ? STEP_ORDER[completedCount]
     : null
 
-  // Progress label for live mode
-  const totalSteps = STEP_ORDER.length
+  // Progress label for live mode — totalSteps includes optional steps (e.g. RiskDebate)
+  // already present in the response
+  const totalSteps = STEP_ORDER.length + Array.from(stepMap.keys()).filter(n => !STEP_ORDER.includes(n)).length
   const progressLabel = isLive
     ? `${completedCount}/${totalSteps}${currentStepName ? ` \u2014 ${STEP_DISPLAY_NAMES[currentStepName]}` : ''}`
     : null
@@ -67,8 +68,9 @@ export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipeline
   // U-1: Max duration for proportional bars
   const maxDurationMs = data ? Math.max(...data.steps.map(s => s.durationMs), 1) : 0
 
-  // B-1: Pipeline summary stats (only for completed pipelines — 6 without debate, 7 with)
-  const pipelineComplete = data && !isLive && (data.steps.length === 6 || data.steps.length === 7)
+  // B-1: Pipeline summary stats — pipeline complete when all returned steps are terminal
+  const pipelineComplete = data && !isLive && data.steps.length >= STEP_ORDER.length
+    && data.steps.every(s => s.status === 'Succeeded' || s.status === 'Failed')
   const pipelineStats = pipelineComplete ? (() => {
     const steps = data!.steps
     const totalDuration = steps.reduce((sum, s) => sum + s.durationMs, 0)
