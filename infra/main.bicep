@@ -145,7 +145,7 @@ module openai 'modules/openai.bicep' = if (isDevEnvironment) {
   dependsOn: [rg]
 }
 
-module aiServices 'modules/ai-services.bicep' = if (isDevEnvironment) {
+module aiServices 'modules/aiServices.bicep' = if (isDevEnvironment) {
   name: 'aiServices'
   scope: resourceGroup(resourceGroupName)
   params: {
@@ -363,7 +363,7 @@ module containerAppsStorageRole 'modules/storage.bicep' = if (deployContainerApp
   }
 }
 
-module containerAppsAIServicesRole 'modules/ai-services.bicep' = if (deployContainerApps && isDevEnvironment) {
+module containerAppsAIServicesRole 'modules/aiServices.bicep' = if (deployContainerApps && isDevEnvironment) {
   name: 'containerApps-aiservices-role'
   scope: resourceGroup(resourceGroupName)
   params: {

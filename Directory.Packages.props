@@ -6,9 +6,6 @@
     <!-- Azure AI -->
     <PackageVersion Include="Azure.AI.DocumentIntelligence" Version="1.0.0" />
 <PackageVersion Include="Azure.AI.OpenAI" Version="2.1.0" />
-    <!-- Deprecated: only referenced by plan/spike/agent-framework/AgentSpike — remove when spike is deleted -->
-    <PackageVersion Include="Azure.AI.Agents.Persistent" Version="1.2.0-beta.9" />
-    <PackageVersion Include="Azure.AI.Projects" Version="1.2.0-beta.5" />
     <!-- Microsoft.Extensions.AI abstraction layer (IChatClient) -->
     <PackageVersion Include="Microsoft.Extensions.AI" Version="10.3.0" />
     <PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.3.0" />
