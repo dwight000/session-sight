@@ -475,7 +475,16 @@ public partial class ExtractionOrchestrator : IExtractionOrchestrator
                         finalRiskLevel = debateResult.FinalRiskLevel.ToString(),
                         finalConfidence = debateResult.FinalConfidence,
                         requiresReview = debateResult.RequiresReview,
-                        rounds = debateResult.Rounds.Count,
+                        reviewReasons = debateResult.ReviewReasons,
+                        advocateModel = debateResult.AdvocateModel,
+                        challengerModel = debateResult.ChallengerModel,
+                        judgeModel = debateResult.JudgeModel,
+                        rounds = debateResult.Rounds.Select(r => new
+                        {
+                            roundNumber = r.RoundNumber,
+                            advocateArgument = r.AdvocateArgument,
+                            challengerArgument = r.ChallengerArgument
+                        }).ToList(),
                         judgeSynthesis = debateResult.JudgeSynthesis
                     }, JsonOptions);
 

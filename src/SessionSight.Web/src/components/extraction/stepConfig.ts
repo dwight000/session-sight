@@ -4,6 +4,7 @@ import type {
   IntakeResult,
   ClinicalExtractResult,
   RiskAssessResult,
+  DebateResultSummary,
   SummarizeResult,
   SearchIndexResult,
 } from '../../types/extractionSteps'
@@ -22,6 +23,7 @@ export const STEP_DISPLAY_NAMES: Record<ExtractionStepName, string> = {
   Intake: 'Intake',
   ClinicalExtract: 'Clinical Extract',
   RiskAssess: 'Risk Assess',
+  RiskDebate: 'Risk Debate',
   Summarize: 'Summarize',
   SearchIndex: 'Search Index',
 }
@@ -70,6 +72,10 @@ export function formatResultSummary(stepName: ExtractionStepName, json: string |
       case 'RiskAssess': {
         const r = JSON.parse(json) as RiskAssessResult
         return r.requiresReview ? `${r.riskLevel} — requires review` : r.riskLevel
+      }
+      case 'RiskDebate': {
+        const r = JSON.parse(json) as DebateResultSummary
+        return `Verdict: ${r.finalRiskLevel} (${Math.round(r.finalConfidence * 100)}% confidence, ${r.rounds.length} round${r.rounds.length !== 1 ? 's' : ''})`
       }
       case 'Summarize': {
         const r = JSON.parse(json) as SummarizeResult

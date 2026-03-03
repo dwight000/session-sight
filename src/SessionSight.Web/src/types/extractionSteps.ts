@@ -13,6 +13,7 @@ export type ExtractionStepName =
   | 'Intake'
   | 'ClinicalExtract'
   | 'RiskAssess'
+  | 'RiskDebate'
   | 'Summarize'
   | 'SearchIndex'
 
@@ -119,4 +120,22 @@ export interface SummarizeResult {
 export interface SearchIndexResult {
   indexed: boolean
   error: string | null
+}
+
+export interface DebateRound {
+  roundNumber: number
+  advocateArgument: string
+  challengerArgument: string
+}
+
+export interface DebateResultSummary {
+  finalRiskLevel: string
+  finalConfidence: number
+  requiresReview: boolean
+  reviewReasons: string[]
+  advocateModel: string
+  challengerModel: string
+  judgeModel: string
+  rounds: DebateRound[]
+  judgeSynthesis: string
 }

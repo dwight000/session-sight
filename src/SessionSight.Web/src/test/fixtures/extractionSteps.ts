@@ -59,6 +59,31 @@ export const mockLlmTrace: ExtractionLlmTrace = {
   calledAt: '2025-06-01T10:00:02Z',
 }
 
+export function makeDebateStep(overrides: Partial<ExtractionStep> = {}): ExtractionStep {
+  return makeStep('RiskDebate', 5, {
+    durationMs: 6200,
+    modelUsed: 'gpt-4.1-mini',
+    inputTokens: 1800,
+    outputTokens: 1400,
+    totalTokens: 3200,
+    resultSummaryJson: JSON.stringify({
+      finalRiskLevel: 'High',
+      finalConfidence: 0.82,
+      requiresReview: true,
+      reviewReasons: [],
+      advocateModel: 'gpt-4.1-nano',
+      challengerModel: 'Mistral-Large-3',
+      judgeModel: 'gpt-4.1-mini',
+      rounds: [
+        { roundNumber: 1, advocateArgument: 'Advocate opening arg', challengerArgument: 'Challenger opening arg' },
+        { roundNumber: 2, advocateArgument: 'Advocate rebuttal', challengerArgument: 'Challenger rebuttal' },
+      ],
+      judgeSynthesis: 'Risk is elevated based on the evidence presented.',
+    }),
+    ...overrides,
+  })
+}
+
 export const mockExtractionStepsComplete: ExtractionStepsResponse = {
   extractionId: 'ext-001',
   documentStatus: 'Completed',

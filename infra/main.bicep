@@ -300,6 +300,7 @@ module containerApps 'modules/containerApps.bicep' = if (deployContainerApps) {
     searchEndpoint: searchEndpointValue
     docIntelligenceEndpoint: docIntelligenceEndpointValue
     storageBlobEndpoint: storage.outputs.blobEndpoint
+    aiServicesEndpoint: isDevEnvironment ? aiServicesEndpointValue : ''
   }
   dependsOn: [rg]
 }
@@ -359,6 +360,20 @@ module containerAppsStorageRole 'modules/storage.bicep' = if (deployContainerApp
     tags: tags
     contributorObjectId: containerApps.outputs.apiPrincipalId
   }
+}
+
+module containerAppsAIServicesRole 'modules/ai-services.bicep' = if (deployContainerApps && isDevEnvironment) {
+  name: 'containerApps-aiservices-role'
+  scope: resourceGroup(resourceGroupName)
+  params: {
+    name: sharedAiServicesName
+    location: location
+    tags: tags
+    deployMistralLarge3: false
+    cognitiveServicesUserPrincipalId: containerApps.outputs.apiPrincipalId
+    cognitiveServicesUserPrincipalType: 'ServicePrincipal'
+  }
+  dependsOn: [aiServices]
 }
 
 // === Outputs ===

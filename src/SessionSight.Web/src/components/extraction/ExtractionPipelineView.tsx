@@ -10,6 +10,7 @@ const GANTT_COLORS: Record<ExtractionStepName, string> = {
   Intake: 'bg-sky-400',
   ClinicalExtract: 'bg-indigo-500',
   RiskAssess: 'bg-amber-500',
+  RiskDebate: 'bg-violet-400',
   Summarize: 'bg-emerald-400',
   SearchIndex: 'bg-gray-400',
 }
@@ -66,8 +67,8 @@ export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipeline
   // U-1: Max duration for proportional bars
   const maxDurationMs = data ? Math.max(...data.steps.map(s => s.durationMs), 1) : 0
 
-  // B-1: Pipeline summary stats (only for completed pipelines)
-  const pipelineComplete = data?.steps.length === 6 && !isLive
+  // B-1: Pipeline summary stats (only for completed pipelines — 6 without debate, 7 with)
+  const pipelineComplete = data && !isLive && (data.steps.length === 6 || data.steps.length === 7)
   const pipelineStats = pipelineComplete ? (() => {
     const steps = data!.steps
     const totalDuration = steps.reduce((sum, s) => sum + s.durationMs, 0)
@@ -139,19 +140,29 @@ export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipeline
         </div>
       )}
 
-      {STEP_ORDER.map((name) => (
-        <ExtractionStepCard
-          key={name}
-          stepName={name}
-          step={stepMap.get(name)}
-          isCurrentStep={name === currentStepName}
-          defaultExpanded={true}
-          showSubSectionsOpen={true}
-          sessionId={sessionId}
-          viewMode={viewMode}
-          maxDurationMs={maxDurationMs}
-        />
-      ))}
+      {/* Always-visible steps + any optional steps present in this extraction (e.g. RiskDebate) */}
+      {[
+        ...STEP_ORDER,
+        ...Array.from(stepMap.keys()).filter((name) => !STEP_ORDER.includes(name)),
+      ]
+        .sort((a, b) => {
+          const aOrder = stepMap.get(a)?.stepOrder ?? STEP_ORDER.indexOf(a) * 10
+          const bOrder = stepMap.get(b)?.stepOrder ?? STEP_ORDER.indexOf(b) * 10
+          return aOrder - bOrder
+        })
+        .map((name) => (
+          <ExtractionStepCard
+            key={name}
+            stepName={name}
+            step={stepMap.get(name)}
+            isCurrentStep={name === currentStepName}
+            defaultExpanded={true}
+            showSubSectionsOpen={true}
+            sessionId={sessionId}
+            viewMode={viewMode}
+            maxDurationMs={maxDurationMs}
+          />
+        ))}
     </div>
   )
 }

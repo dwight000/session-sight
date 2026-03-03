@@ -7,11 +7,11 @@
 ## Current Status
 
 **Phase**: Phase 7 (Multi-Model Agent Debate) - IN PROGRESS
-**Next Action**: B-113 (RiskDebate UI)
+**Next Action**: B-115 (Cleanup)
 
 **Last Updated**: March 2, 2026
 
-**Milestone**: B-112 (RiskDebate configuration) complete. Debate internals fully configurable via appsettings: MaxRounds, per-role model overrides, hot-reload via IOptionsMonitor. Local dev defaults to Enabled+Always. 83.5% coverage. B-113 (UI) and B-114 (integration tests) are next.
+**Milestone**: B-113 + B-114 complete. RiskDebate transcript visible in UI (advocate/challenger/judge per round), E2E assertions debate-aware (6 or 7 steps), AIServices endpoint wired into Container Apps Bicep. B-115 (cleanup) is next.
 
 ---
 
@@ -212,8 +212,8 @@ _(none — B-112 complete; next: B-113 or B-114)_
 | B-110 | Bicep module for Foundry marketplace model deployments (Claude, Gemini serverless endpoints) | M | 7 | **Done** | B-107 |
 | B-111 | Implement RiskDebate pipeline step — configurable advocate/challenger/judge with multi-model support | XL | 7 | **Done** | B-108, B-109, B-110 |
 | B-112 | RiskDebate configuration — MaxRounds, per-role model overrides, IOptionsMonitor hot-reload, local dev defaults | S | 7 | **Done** | B-111 |
-| B-113 | RiskDebate UI — debate transcript visualization in extraction step card | M | 7 | Ready | B-111 |
-| B-114 | Integration tests for multi-model debate (golden file + cost assertions) | M | 7 | Ready | B-111 |
+| B-113 | RiskDebate UI — debate transcript visualization in extraction step card | M | 7 | Done | B-111 |
+| B-114 | Integration tests for multi-model debate (golden file + cost assertions) | M | 7 | Done | B-111 |
 | B-115 | Cleanup: consolidate AIServices + OpenAI resources, remove deprecated packages/spike code, rename Bicep modules | M | 7 | Ready | B-114 |
 
 ---
@@ -1383,6 +1383,8 @@ TriggerMode options: `"always"`, `"borderline"` (confidence in threshold range),
 | B-109 | ModelRouter multi-family routing — `ModelProvider` enum, `ModelSelection` record, dual-client `AIFoundryClientFactory`, 3 debate `ModelTask` values, lazy AIServices client | 2026-03-02 |
 | B-111 | RiskDebate pipeline step — 5-call debate (advocate/challenger/rebuttals/judge) with GPT-4.1-nano advocate, Mistral-Large-3 challenger, GPT-4.1-mini judge. Configurable triggers (Off/Always/Flagged/Borderline), graceful degradation on failure, content filter handling. Step 5 between RiskAssess and Summarize (renumbered 6/7). 29 new tests, 83.5% coverage. | 2026-03-02 |
 | B-112 | RiskDebate configuration — MaxRounds (configurable round count replacing hardcoded 2), per-role model overrides (AdvocateModelOverride/ChallengerModelOverride/JudgeModelOverride), IOptionsMonitor hot-reload in orchestrator+agent, local dev defaults (Enabled+Always). 3 new tests, 83.5% coverage. | 2026-03-02 |
+| B-113 | RiskDebate UI — DebateTranscriptView component with per-round advocate/challenger blocks, judge synthesis, review reasons. Dynamic displaySteps in pipeline view (shows debate card only when API returns it). 8 new frontend tests. | 2026-03-02 |
+| B-114 | Integration tests — ExtractionAssertions rewritten for debate-aware pipeline (6 or 7 steps), AssertDebateStep with structural + cost guard (< 50k tokens). AIServices endpoint wired into Container Apps Bicep with MI role assignment. | 2026-03-02 |
 
 ---
 

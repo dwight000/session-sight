@@ -54,6 +54,9 @@ param docIntelligenceEndpoint string
 @description('Azure Blob Storage endpoint')
 param storageBlobEndpoint string
 
+@description('Azure AI Services endpoint (for non-OpenAI models like Mistral). Empty string if not provisioned.')
+param aiServicesEndpoint string = ''
+
 // === Container Apps Environment ===
 
 resource newEnv 'Microsoft.App/managedEnvironments@2024-10-02-preview' = if (createEnvironment) {
@@ -118,6 +121,10 @@ resource apiApp 'Microsoft.App/containerApps@2024-10-02-preview' = {
             { name: 'AzureSearch__IndexName', value: searchIndexName }
             { name: 'DocumentIntelligence__Endpoint', value: docIntelligenceEndpoint }
             { name: 'ConnectionStrings__documents', value: storageBlobEndpoint }
+            // Azure AI Services endpoint (Mistral, etc.) — empty when not provisioned
+            ...(empty(aiServicesEndpoint) ? [] : [
+              { name: 'AzureAIServices__Endpoint', value: aiServicesEndpoint }
+            ])
             // ASP.NET Core settings
             { name: 'ASPNETCORE_ENVIRONMENT', value: aspnetEnvironment }
             { name: 'ASPNETCORE_URLS', value: 'http://+:8080' }
