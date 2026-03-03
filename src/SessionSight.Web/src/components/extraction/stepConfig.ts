@@ -76,7 +76,9 @@ export function formatResultSummary(stepName: ExtractionStepName, json: string |
       }
       case 'RiskDebate': {
         const r = JSON.parse(json) as DebateResultSummary
-        return `Verdict: ${r.finalRiskLevel} (${Math.round(r.finalConfidence * 100)}% confidence, ${r.rounds.length} round${r.rounds.length !== 1 ? 's' : ''})`
+        const verdict = `${r.finalRiskLevel} (${Math.round(r.finalConfidence * 100)}%)`
+        const original = r.originalRiskLevel ? `${r.originalRiskLevel} \u2192 ` : ''
+        return `${original}${verdict}, ${r.rounds.length} round${r.rounds.length !== 1 ? 's' : ''}`
       }
       case 'Summarize': {
         const r = JSON.parse(json) as SummarizeResult

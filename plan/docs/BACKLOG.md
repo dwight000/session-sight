@@ -7,7 +7,7 @@
 ## Current Status
 
 **Phase**: Phase 7 (Multi-Model Agent Debate) - COMPLETE
-**Next Action**: B-115 (Cleanup: consolidate AIServices + OpenAI resources, remove deprecated packages/spike code, rename Bicep modules)
+**Next Action**: Phase 7 cleanup complete. Resource consolidation discussion pending.
 
 **Last Updated**: March 3, 2026
 
@@ -214,7 +214,7 @@ _(Phase 7 complete; B-115 cleanup next)_
 | B-112 | RiskDebate configuration — MaxRounds, per-role model overrides, IOptionsMonitor hot-reload, local dev defaults | S | 7 | **Done** | B-111 |
 | B-113 | RiskDebate UI — debate transcript visualization in extraction step card | M | 7 | Done | B-111 |
 | B-114 | Integration tests for multi-model debate (golden file + cost assertions) | M | 7 | Done | B-111 |
-| B-115 | Cleanup: consolidate AIServices + OpenAI resources, remove deprecated packages/spike code, rename Bicep modules | M | 7 | Ready | B-114 |
+| B-115 | Cleanup: remove spike code/deprecated packages, rename Bicep modules, delete ARM artifact | S | 7 | **Done** | B-114 |
 
 ---
 
@@ -1385,6 +1385,7 @@ TriggerMode options: `"always"`, `"borderline"` (confidence in threshold range),
 | B-112 | RiskDebate configuration — MaxRounds (configurable round count replacing hardcoded 2), per-role model overrides (AdvocateModelOverride/ChallengerModelOverride/JudgeModelOverride), IOptionsMonitor hot-reload in orchestrator+agent, local dev defaults (Enabled+Always). 3 new tests, 83.5% coverage. | 2026-03-02 |
 | B-113 | RiskDebate UI — DebateTranscriptView component with per-round advocate/challenger blocks, judge synthesis, review reasons. Dynamic displaySteps in pipeline view (shows debate card only when API returns it). 8 new frontend tests. | 2026-03-02 |
 | B-114 | Integration tests — ExtractionAssertions rewritten for debate-aware pipeline (6 or 7 steps), AssertDebateStep with structural + cost guard (< 50k tokens). AIServices endpoint wired into Container Apps Bicep with MI role assignment. | 2026-03-02 |
+| B-115 | Cleanup: deleted spike project (plan/spike/agent-framework/), removed deprecated Azure.AI.Agents.Persistent + Azure.AI.Projects packages, deleted stale ARM artifact, renamed ai-services.bicep → aiServices.bicep, cleaned solution file. | 2026-03-03 |
 
 ---
 

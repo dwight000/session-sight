@@ -26,8 +26,8 @@ public partial class AIFoundryClientFactory : IAIFoundryClientFactory
         _config = config;
         _logger = logger;
 
-        var openAIEndpointStr = config["AzureOpenAI:Endpoint"]
-            ?? throw new InvalidOperationException("AzureOpenAI:Endpoint not configured");
+        var openAIEndpointStr = config["AzureAIServices:Endpoint"]
+            ?? throw new InvalidOperationException("AzureAIServices:Endpoint not configured");
 
         var endpoint = new Uri(openAIEndpointStr);
         var credential = new DefaultAzureCredential();
@@ -53,7 +53,7 @@ public partial class AIFoundryClientFactory : IAIFoundryClientFactory
 
     /// <summary>
     /// Creates an EmbeddingClient for the specified deployment.
-    /// Embeddings are always served from the Azure OpenAI endpoint.
+    /// Embeddings are always served from the Azure AI Services endpoint.
     /// </summary>
     public EmbeddingClient CreateEmbeddingClient(string deploymentName)
     {

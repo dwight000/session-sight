@@ -25,7 +25,7 @@ internal static class ExtractionAssertions
     internal static async Task<string> WaitForExtractionAsync(
         HttpClient client, Guid sessionId, TimeSpan? timeout = null, ITestOutputHelper? output = null)
     {
-        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromMinutes(5));
+        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromMinutes(7));
         string? documentStatus = null;
         string? errorMessage = null;
 

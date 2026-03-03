@@ -45,13 +45,13 @@ dotnet user-secrets set "Parameters:sql-password" "LocalDev#2026!"
 cd src/SessionSight.Api
 dotnet user-secrets set "DocumentIntelligence:Endpoint" "https://sessionsight-docint-dev.cognitiveservices.azure.com/"
 dotnet user-secrets set "AIFoundry:ProjectEndpoint" "https://eastus2.api.azureml.ms/agents/v1.0/subscriptions/<sub-id>/resourceGroups/rg-sessionsight-dev/providers/Microsoft.MachineLearningServices/workspaces/sessionsight-aiproject-dev"
-dotnet user-secrets set "AzureOpenAI:Endpoint" "https://sessionsight-openai-dev.openai.azure.com/"
+dotnet user-secrets set "AzureAIServices:Endpoint" "https://sessionsight-aiservices-dev.cognitiveservices.azure.com/"
 dotnet user-secrets set "AzureSearch:Endpoint" "https://sessionsight-search-dev.search.windows.net"
 ```
 
 Replace `<sub-id>` with your Azure subscription ID.
 
-**Why AzureOpenAI:Endpoint?** The AI Foundry SDK's `GetChatCompletionsClient()` only discovers Serverless connections, but we deploy Azure OpenAI as a Cognitive Services resource (AzureOpenAI connection). The code calls Azure OpenAI directly to work around this SDK limitation.
+**Why AzureAIServices:Endpoint?** The AI Foundry SDK's `GetChatCompletionsClient()` only discovers Serverless connections, but we deploy models on a Cognitive Services resource (kind: AIServices). The code calls the AI Services endpoint directly via `AzureOpenAIClient` to work around this SDK limitation. A single AIServices resource hosts both OpenAI models (gpt-4.1-*, embeddings) and non-OpenAI models (Mistral-Large-3).
 
 **AzureSearch:Endpoint** enables the embedding pipeline (P3-003) for semantic search. Without it, session indexing is skipped but extraction still works.
 
@@ -210,7 +210,7 @@ The `Pipeline_FullExtraction_ReturnsSuccess` test verifies the complete extracti
 **Prerequisites:**
 - Bicep deployed with role assignments (`B-041`) and project connection (`B-042`)
 - Azure CLI logged in: `az login`
-- User has Cognitive Services User role on Doc Intel and OpenAI resources
+- User has Cognitive Services User role on Doc Intel and AI Services resources
 
 **Run the extraction test:**
 
@@ -318,7 +318,7 @@ dotnet run --project src/SessionSight.AppHost
 **Solution**:
 1. Ensure you're logged in with `az login`
 2. Verify the AI Project connection exists in Azure Portal
-3. Check that your user has Cognitive Services User role on both Doc Intelligence and OpenAI resources
+3. Check that your user has Cognitive Services User role on both Doc Intelligence and AI Services resources
 
 ## Quick Reference
 
@@ -341,5 +341,5 @@ dotnet run --project src/SessionSight.AppHost
 | SessionSight.AppHost | `Parameters:sql-password` | SQL Server SA password |
 | SessionSight.Api | `DocumentIntelligence:Endpoint` | Azure Doc Intelligence URL |
 | SessionSight.Api | `AIFoundry:ProjectEndpoint` | Azure AI Project URL (for Agents) |
-| SessionSight.Api | `AzureOpenAI:Endpoint` | Azure OpenAI URL (for chat completions) |
+| SessionSight.Api | `AzureAIServices:Endpoint` | Azure AI Services URL (all models: OpenAI + Mistral) |
 | SessionSight.Api | `AzureSearch:Endpoint` | Azure AI Search URL (for embedding/RAG) |

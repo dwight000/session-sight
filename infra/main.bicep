@@ -54,7 +54,6 @@ var storageAccountName = '${prefix}storage${environmentName}'
 
 // Shared resource names (always dev-suffixed, created by dev deployment)
 var sharedSqlServerName = '${prefix}-sql-dev'
-var sharedOpenaiName = '${prefix}-openai-dev'
 var sharedSearchName = '${prefix}-search-dev'
 var sharedDocIntName = '${prefix}-docint-dev'
 var sharedAiServicesName = '${prefix}-aiservices-dev'
@@ -64,7 +63,6 @@ var sqlDatabaseName = isDevEnvironment ? 'sessionsight' : 'sessionsight-${enviro
 var searchIndexName = isDevEnvironment ? 'sessionsight-sessions' : 'sessionsight-sessions-${environmentName}'
 
 // Computed endpoints for shared AI services (predictable Azure naming)
-var openaiEndpointValue = 'https://${sharedOpenaiName}.openai.azure.com/'
 var searchEndpointValue = 'https://${sharedSearchName}.search.windows.net'
 var docIntelligenceEndpointValue = 'https://${sharedDocIntName}.cognitiveservices.azure.com/'
 var aiServicesEndpointValue = 'https://${sharedAiServicesName}.cognitiveservices.azure.com/'
@@ -134,18 +132,7 @@ module sql 'modules/sql.bicep' = {
 // === Shared AI Services (dev only) ===
 // These are stateless — stage reuses dev's instances via computed endpoints
 
-module openai 'modules/openai.bicep' = if (isDevEnvironment) {
-  name: 'openai'
-  scope: resourceGroup(resourceGroupName)
-  params: {
-    name: sharedOpenaiName
-    location: location
-    tags: tags
-  }
-  dependsOn: [rg]
-}
-
-module aiServices 'modules/ai-services.bicep' = if (isDevEnvironment) {
+module aiServices 'modules/aiServices.bicep' = if (isDevEnvironment) {
   name: 'aiServices'
   scope: resourceGroup(resourceGroupName)
   params: {
@@ -215,27 +202,29 @@ module aiHubConnection 'modules/aiHubConnection.bicep' = if (isDevEnvironment) {
   params: {
     hubName: aiHub.outputs.name
     connectionName: 'openai-connection'
-    openaiResourceId: openai.outputs.id
-    openaiEndpoint: openai.outputs.endpoint
+    openaiResourceId: aiServices.outputs.id
+    openaiEndpoint: aiServices.outputs.endpoint
   }
 }
 
 // === Role Assignments for AI Project Managed Identity (dev only) ===
 
-module openaiRoleAssignment 'modules/openai.bicep' = if (isDevEnvironment) {
-  name: 'openai-role-assignment'
+module aiServicesProjectRole 'modules/aiServices.bicep' = if (isDevEnvironment) {
+  name: 'aiservices-role-aiproject'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: sharedOpenaiName
+    name: sharedAiServicesName
     location: location
     tags: tags
+    deployMistralLarge3: false
     deployGpt41: false
     deployGpt41Mini: false
     deployGpt41Nano: false
     deployEmbeddings: false
     cognitiveServicesUserPrincipalId: aiProject.outputs.principalId
+    cognitiveServicesUserPrincipalType: 'ServicePrincipal'
   }
-  dependsOn: [openai]
+  dependsOn: [aiServices]
 }
 
 module docIntelligenceRoleAssignment 'modules/docintell.bicep' = if (isDevEnvironment) {
@@ -297,11 +286,10 @@ module containerApps 'modules/containerApps.bicep' = if (deployContainerApps) {
     aspnetEnvironment: aspnetEnvironment
     // Pass Azure service endpoints (shared AI services, per-env storage)
     sqlConnectionString: 'Server=${sharedSqlServerName}.database.windows.net;Database=${sqlDatabaseName};Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;'
-    openaiEndpoint: openaiEndpointValue
     searchEndpoint: searchEndpointValue
     docIntelligenceEndpoint: docIntelligenceEndpointValue
     storageBlobEndpoint: storage.outputs.blobEndpoint
-    aiServicesEndpoint: isDevEnvironment ? aiServicesEndpointValue : ''
+    aiServicesEndpoint: aiServicesEndpointValue
   }
   dependsOn: [rg]
 }
@@ -309,22 +297,6 @@ module containerApps 'modules/containerApps.bicep' = if (deployContainerApps) {
 // === Container Apps Role Assignments ===
 // Grant the API managed identity access to shared AI services + per-env storage
 // Role assignment modules are idempotent — re-deploying shared resources is a no-op
-
-module containerAppsOpenaiRole 'modules/openai.bicep' = if (deployContainerApps) {
-  name: 'containerApps-openai-role'
-  scope: resourceGroup(resourceGroupName)
-  params: {
-    name: sharedOpenaiName
-    location: location
-    tags: tags
-    deployGpt41: false
-    deployGpt41Mini: false
-    deployGpt41Nano: false
-    deployEmbeddings: false
-    cognitiveServicesUserPrincipalId: containerApps.outputs.apiPrincipalId
-  }
-  dependsOn: [openaiRoleAssignment] // Prevent concurrent writes to same OpenAI resource
-}
 
 module containerAppsDocIntelRole 'modules/docintell.bicep' = if (deployContainerApps) {
   name: 'containerApps-docintell-role'
@@ -363,7 +335,7 @@ module containerAppsStorageRole 'modules/storage.bicep' = if (deployContainerApp
   }
 }
 
-module containerAppsAIServicesRole 'modules/ai-services.bicep' = if (deployContainerApps && isDevEnvironment) {
+module containerAppsAIServicesRole 'modules/aiServices.bicep' = if (deployContainerApps) {
   name: 'containerApps-aiservices-role'
   scope: resourceGroup(resourceGroupName)
   params: {
@@ -371,10 +343,14 @@ module containerAppsAIServicesRole 'modules/ai-services.bicep' = if (deployConta
     location: location
     tags: tags
     deployMistralLarge3: false
+    deployGpt41: false
+    deployGpt41Mini: false
+    deployGpt41Nano: false
+    deployEmbeddings: false
     cognitiveServicesUserPrincipalId: containerApps.outputs.apiPrincipalId
     cognitiveServicesUserPrincipalType: 'ServicePrincipal'
   }
-  dependsOn: [aiServices]
+  dependsOn: [aiServicesProjectRole]
 }
 
 // === Outputs ===
@@ -387,8 +363,6 @@ output storageBlobEndpoint string = storage.outputs.blobEndpoint
 output sqlServerName string = sql.outputs.serverName
 output sqlServerFqdn string = sql.outputs.serverFqdn
 output sqlDatabaseName string = sql.outputs.databaseName
-output openaiName string = sharedOpenaiName
-output openaiEndpoint string = openaiEndpointValue
 output searchName string = sharedSearchName
 output searchEndpoint string = searchEndpointValue
 output searchIndexName string = searchIndexName

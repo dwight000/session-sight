@@ -5,7 +5,7 @@ using SessionSight.Agents.Routing;
 namespace SessionSight.Agents.Services;
 
 /// <summary>
-/// Service for generating text embeddings using Azure OpenAI.
+/// Service for generating text embeddings using Azure AI Services.
 /// </summary>
 public interface IEmbeddingService
 {
@@ -19,7 +19,7 @@ public interface IEmbeddingService
 }
 
 /// <summary>
-/// Azure OpenAI implementation of embedding generation.
+/// Azure AI Services implementation of embedding generation.
 /// Uses text-embedding-3-large model (3072 dimensions).
 /// </summary>
 public partial class EmbeddingService : IEmbeddingService

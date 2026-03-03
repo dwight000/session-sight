@@ -70,6 +70,7 @@ public sealed class AzureModelInferenceChatClient : IChatClient
                 return new InferenceMessage { Role = role, Content = m.Text ?? string.Empty };
             }).ToList(),
             Temperature = options?.Temperature,
+            MaxTokens = options?.MaxOutputTokens,
         };
 
         if (options?.ResponseFormat is ChatResponseFormatJson)
@@ -162,6 +163,7 @@ public sealed class AzureModelInferenceChatClient : IChatClient
         public string? Model { get; set; }
         public List<InferenceMessage>? Messages { get; set; }
         public float? Temperature { get; set; }
+        public int? MaxTokens { get; set; }
         public InferenceResponseFormat? ResponseFormat { get; set; }
     }
 
