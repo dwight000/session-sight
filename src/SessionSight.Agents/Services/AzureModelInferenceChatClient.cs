@@ -83,10 +83,12 @@ public sealed class AzureModelInferenceChatClient : IChatClient
         var result = JsonSerializer.Deserialize<InferenceResponse>(body, JsonOptions)
             ?? throw new InvalidOperationException("Failed to deserialize inference response");
 
-        var content = result.Choices?.FirstOrDefault()?.Message?.Content ?? string.Empty;
+        var firstChoice = result.Choices?.FirstOrDefault();
+        var content = firstChoice?.Message?.Content ?? string.Empty;
         var chatResponse = new ChatResponse(new ChatMessage(ChatRole.Assistant, content))
         {
             ModelId = result.Model,
+            FinishReason = MapFinishReason(firstChoice?.FinishReason),
         };
 
         if (result.Usage is not null)
@@ -113,6 +115,15 @@ public sealed class AzureModelInferenceChatClient : IChatClient
     public object? GetService(Type serviceType, object? serviceKey = null) => null;
 
     public void Dispose() { }
+
+    private static ChatFinishReason? MapFinishReason(string? finishReason) => finishReason switch
+    {
+        "stop" => ChatFinishReason.Stop,
+        "length" => ChatFinishReason.Length,
+        "content_filter" => ChatFinishReason.ContentFilter,
+        "tool_calls" => ChatFinishReason.ToolCalls,
+        _ => null,
+    };
 
     private static async Task<string> SendWithRetryAsync(
         string url, string bearerToken, string jsonPayload, CancellationToken ct)
@@ -170,7 +181,7 @@ public sealed class AzureModelInferenceChatClient : IChatClient
         List<InferenceChoice>? Choices,
         InferenceUsage? Usage);
 
-    private sealed record InferenceChoice(InferenceMessage? Message);
+    private sealed record InferenceChoice(InferenceMessage? Message, string? FinishReason);
 
     private sealed record InferenceUsage(
         int PromptTokens,
