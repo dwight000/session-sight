@@ -14,17 +14,17 @@ public class ModelRouter : IModelRouter
 
     public ModelSelection SelectModel(ModelTask task) => task switch
     {
-        ModelTask.DocumentIntake    => new(Gpt41Nano,    ModelProvider.AzureOpenAI),
-        ModelTask.Extraction        => new(Gpt41Mini,    ModelProvider.AzureOpenAI),
-        ModelTask.ExtractionSimple  => new(Gpt41Nano,    ModelProvider.AzureOpenAI),
-        ModelTask.RiskAssessment    => new(Gpt41Mini,    ModelProvider.AzureOpenAI),
-        ModelTask.Summarization     => new(Gpt41Nano,    ModelProvider.AzureOpenAI),
-        ModelTask.Embedding         => new(Embedding,    ModelProvider.AzureOpenAI),
-        ModelTask.QASimple          => new(Gpt41Nano,    ModelProvider.AzureOpenAI),
-        ModelTask.QAComplex         => new(Gpt41Mini,    ModelProvider.AzureOpenAI),
-        ModelTask.RiskDebateAdvocate   => new(Gpt41Nano,    ModelProvider.AzureOpenAI),
+        ModelTask.DocumentIntake => new(Gpt41Nano, ModelProvider.AzureOpenAI),
+        ModelTask.Extraction => new(Gpt41Mini, ModelProvider.AzureOpenAI),
+        ModelTask.ExtractionSimple => new(Gpt41Nano, ModelProvider.AzureOpenAI),
+        ModelTask.RiskAssessment => new(Gpt41Mini, ModelProvider.AzureOpenAI),
+        ModelTask.Summarization => new(Gpt41Nano, ModelProvider.AzureOpenAI),
+        ModelTask.Embedding => new(Embedding, ModelProvider.AzureOpenAI),
+        ModelTask.QASimple => new(Gpt41Nano, ModelProvider.AzureOpenAI),
+        ModelTask.QAComplex => new(Gpt41Mini, ModelProvider.AzureOpenAI),
+        ModelTask.RiskDebateAdvocate => new(Gpt41Nano, ModelProvider.AzureOpenAI),
         ModelTask.RiskDebateChallenger => new(MistralLarge3, ModelProvider.AzureAIServices),
-        ModelTask.RiskDebateJudge      => new(Gpt41Mini,    ModelProvider.AzureOpenAI),
+        ModelTask.RiskDebateJudge => new(Gpt41Mini, ModelProvider.AzureOpenAI),
         _ => new(Gpt41Mini, ModelProvider.AzureOpenAI)
     };
 }
