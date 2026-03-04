@@ -172,9 +172,10 @@ public partial class AgentLoopRunner
 
                     LogAgentToolCalls(_logger, functionCalls.Count, toolCallCount);
 
-                    // Execute tools in parallel with timing
-                    var tasks = functionCalls.Select(fc => ExecuteToolCallAsync(toolArray, fc, loopRound, linkedToken));
-                    var results = await Task.WhenAll(tasks);
+                    // Execute tools sequentially — scoped tools share a DbContext which is not thread-safe
+                    var results = new List<(string CallId, ToolResult Result, string ToolName, int LoopRound, long DurationMs, string? InputJson)>();
+                    foreach (var fc in functionCalls)
+                        results.Add(await ExecuteToolCallAsync(toolArray, fc, loopRound, linkedToken));
 
                     // Record trace entries and add tool results to conversation
                     var roundToolCalls = new List<ToolCallEntry>();
