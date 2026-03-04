@@ -116,7 +116,7 @@ describe('ActivityView', () => {
     const tools = [
       { ...makeToolCall(0, 'lookup_diagnosis_code'), outputJson: '{"Code":"F41.1","IsValid":true,"Description":"GAD"}' },
       { ...makeToolCall(0, 'validate_and_score'), outputJson: '{"Errors":[]}' },
-      { ...makeToolCall(0, 'validate_and_score'), outputJson: '{"Errors":["Missing field"]}' },
+      { ...makeToolCall(0, 'validate_and_score'), outputJson: '{"Errors":[{"Field":"mood","Message":"Missing field","Severity":"Error"}]}' },
       { ...makeToolCall(0, 'check_risk_keywords'), outputJson: '{"SuicidalMatches":[]}' },
       { ...makeToolCall(0, 'some_tool'), outputJson: '{"short":"val"}' },
     ]

@@ -4,6 +4,9 @@ import { useExtractionSteps } from '../../hooks/useExtractionSteps'
 import { STEP_ORDER, DISPLAY_ORDER, STEP_DISPLAY_NAMES, estimateCost, formatDurationMs } from './stepConfig'
 import { ExtractionStepCard } from './ExtractionStepCard'
 import { ViewModeSelector } from './ViewModeSelector'
+import { ConfidenceHeatmap } from './ConfidenceHeatmap'
+import { RiskMergeView } from './RiskMergeView'
+import { useExtractionResult } from '../../hooks/useExtractionResult'
 
 const GANTT_COLORS: Record<ExtractionStepName, string> = {
   DocumentParse: 'bg-slate-400',
@@ -23,6 +26,21 @@ interface ExtractionPipelineViewProps {
 export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipelineViewProps) {
   const [viewMode, setViewMode] = useState<StepViewMode>('activity')
   const { data, isLoading, isError } = useExtractionSteps(sessionId, isLive)
+
+  // Pipeline finished: documentStatus is the source of truth (see isPipelineFinished in useExtractionSteps)
+  const pipelineFinished = (() => {
+    if (!data || data.steps.length === 0) return false
+    if (data.documentStatus === 'Failed' || data.documentStatus === 'Completed' || data.documentStatus === 'PartiallyCompleted') return true
+    if (data.steps.some((s) => s.status === 'Failed')) return true
+    return false
+  })()
+
+  // Extraction result — field confidence + risk merge panels (pipeline-level, only after final data is written)
+  const { data: extractionResult, isLoading: extractionLoading } = useExtractionResult(
+    sessionId,
+    pipelineFinished,
+    pipelineFinished,
+  )
 
   // Historical mode: no data or 404
   if (!isLive && (isError || (!isLoading && !data))) {
@@ -60,15 +78,6 @@ export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipeline
   const currentStepName = isLive && !hasFailed && !pipelineCrashed && completedCount < STEP_ORDER.length && !anyRunning
     ? STEP_ORDER[completedCount]
     : null
-
-  // Pipeline finished: mirrors isPipelineFinished from useExtractionSteps
-  const pipelineFinished = (() => {
-    if (!data || data.steps.length === 0) return false
-    if (data.documentStatus === 'Failed' || data.documentStatus === 'Completed' || data.documentStatus === 'PartiallyCompleted') return true
-    if (data.steps.some((s) => s.status === 'Failed')) return true
-    return data.steps.length >= STEP_ORDER.length &&
-      data.steps.every((s) => s.status === 'Succeeded' || s.status === 'Failed' || s.status === 'Skipped')
-  })()
 
   // Progress label for live mode — totalSteps includes optional steps (e.g. RiskDebate)
   // already present in the response
@@ -174,11 +183,23 @@ export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipeline
             sessionId={sessionId}
             viewMode={viewMode}
             maxDurationMs={maxDurationMs}
-            pipelineFinished={pipelineFinished}
             skippedReason={skippedReason}
           />
         )
       })}
+
+      {/* Pipeline results — field confidence + risk merge (only after final data is saved) */}
+      {extractionLoading && pipelineFinished && (
+        <div className="h-4 w-32 animate-pulse rounded bg-gray-200" />
+      )}
+      {extractionResult && (
+        <>
+          <ConfidenceHeatmap data={extractionResult.data} defaultOpen={true} />
+          {extractionResult.riskDiagnostics?.fieldDecisions?.length ? (
+            <RiskMergeView diagnostics={extractionResult.riskDiagnostics} defaultOpen={true} />
+          ) : null}
+        </>
+      )}
     </div>
   )
 }

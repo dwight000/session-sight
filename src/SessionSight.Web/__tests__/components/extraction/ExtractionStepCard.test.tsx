@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ExtractionStepCard } from '../../../src/components/extraction/ExtractionStepCard'
-import { makeStep, makeDebateStep } from '../../../src/test/fixtures/extractionSteps'
+import { makeStep, makeDebateStep, mockToolCall } from '../../../src/test/fixtures/extractionSteps'
 import type { ReactElement } from 'react'
 
 function renderWithQuery(ui: ReactElement) {
@@ -60,6 +60,26 @@ describe('ExtractionStepCard', () => {
     expect(screen.queryByText(/0 in \/ 0 out/)).not.toBeInTheDocument()
   })
 
+  it('shows tool calls instead of shimmer when running with round data', () => {
+    const step = makeStep('ClinicalExtract', 2, {
+      status: 'Running',
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      durationMs: 0,
+      toolCalls: [mockToolCall],
+    })
+    renderWithQuery(
+      <ExtractionStepCard stepName="ClinicalExtract" step={step} isCurrentStep={false} defaultExpanded={true} sessionId="sess-001" viewMode="activity" />,
+    )
+    // Should NOT show shimmer placeholders
+    expect(screen.queryByText('--')).not.toBeInTheDocument()
+    // Should NOT show "0 in / 0 out" metadata
+    expect(screen.queryByText(/0 in \/ 0 out/)).not.toBeInTheDocument()
+    // Should show the tool call in the activity view
+    expect(screen.getByText(/ExtractMoodTool/)).toBeInTheDocument()
+  })
+
   it('renders completed step with duration', () => {
     const step = makeStep('DocumentParse', 0, { durationMs: 1200 })
     renderWithQuery(
@@ -112,28 +132,6 @@ describe('ExtractionStepCard', () => {
       <ExtractionStepCard stepName="DocumentParse" step={step} isCurrentStep={false} defaultExpanded={false} sessionId="sess-001" />,
     )
     expect(screen.getByText('2 pages, 44 KB, OCR 99%')).toBeInTheDocument()
-  })
-
-  it('shows confidence heatmap for ClinicalExtract step when expanded', async () => {
-    const step = makeStep('ClinicalExtract', 2, { durationMs: 15000 })
-    renderWithQuery(
-      <ExtractionStepCard stepName="ClinicalExtract" step={step} isCurrentStep={false} defaultExpanded={true} sessionId="sess-001" pipelineFinished={true} />,
-    )
-
-    await waitFor(() => {
-      expect(screen.getByText(/Field Confidence/)).toBeInTheDocument()
-    })
-  })
-
-  it('shows risk merge view for RiskAssess step when expanded', async () => {
-    const step = makeStep('RiskAssess', 3, { durationMs: 4500 })
-    renderWithQuery(
-      <ExtractionStepCard stepName="RiskAssess" step={step} isCurrentStep={false} defaultExpanded={true} sessionId="sess-001" pipelineFinished={true} />,
-    )
-
-    await waitFor(() => {
-      expect(screen.getByText(/Risk Merge/)).toBeInTheDocument()
-    })
   })
 
   it('shows non-LLM metadata for DocumentParse (pages, OCR, size)', () => {

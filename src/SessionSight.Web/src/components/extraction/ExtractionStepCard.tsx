@@ -7,10 +7,7 @@ import { ConversationView } from './ConversationView'
 import { ActivityView } from './ActivityView'
 import { SummaryView } from './SummaryView'
 import { DocumentPreview } from './DocumentPreview'
-import { ConfidenceHeatmap } from './ConfidenceHeatmap'
-import { RiskMergeView } from './RiskMergeView'
 import { DebateTranscriptView } from './DebateTranscriptView'
-import { useExtractionResult } from '../../hooks/useExtractionResult'
 
 function getRiskBadge(json: string | null): { text: string; color: string } | null {
   if (!json) return null
@@ -33,11 +30,10 @@ interface ExtractionStepCardProps {
   sessionId?: string
   viewMode?: StepViewMode
   maxDurationMs?: number
-  pipelineFinished?: boolean
   skippedReason?: string
 }
 
-export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpanded, showSubSectionsOpen, sessionId, viewMode = 'raw', maxDurationMs, pipelineFinished, skippedReason }: ExtractionStepCardProps) {
+export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpanded, showSubSectionsOpen, sessionId, viewMode = 'raw', maxDurationMs, skippedReason }: ExtractionStepCardProps) {
   const [open, setOpen] = useState(defaultExpanded)
 
   const isSkipped = !step && !isCurrentStep && !!skippedReason
@@ -48,13 +44,8 @@ export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpan
 
   // Running step with no data yet — show shimmer instead of "0 in / 0 out"
   const isRunningEmpty = isRunning && !!step && step.inputTokens === 0 && step.outputTokens === 0
-
-  const needsExtractionData = (stepName === 'ClinicalExtract' || stepName === 'RiskAssess') && isCompleted && pipelineFinished !== false
-  const { data: extractionResult, isLoading: extractionLoading } = useExtractionResult(
-    sessionId ?? '',
-    open && !!needsExtractionData,
-    pipelineFinished ?? true,
-  )
+  // Tool calls/traces arrive incrementally during agent loop rounds (before step completes)
+  const hasRoundData = !!step && (step.toolCalls.length > 0 || step.llmTraces.length > 0)
 
   const summary = step ? formatResultSummary(stepName, step.resultSummaryJson) : null
 
@@ -144,7 +135,7 @@ export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpan
       )}
 
       {/* Level 1 — placeholder body for pending/running steps without data */}
-      {open && !isSkipped && (!step || isRunningEmpty) && (
+      {open && !isSkipped && (!step || (isRunningEmpty && !hasRoundData)) && (
         <div className="border-t border-gray-200 px-4 py-3">
           <div
             className="grid grid-cols-2 gap-x-6 gap-y-1 rounded p-2 text-xs sm:grid-cols-4"
@@ -175,9 +166,10 @@ export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpan
       )}
 
       {/* Level 1 — expanded details with real data */}
-      {open && step && !isRunningEmpty && (
+      {open && step && (!isRunningEmpty || hasRoundData) && (
         <div className="animate-fade-in border-t border-gray-200 px-4 py-3 space-y-3">
-          {/* S-2: Step-aware metadata grid */}
+          {/* S-2: Step-aware metadata grid — hidden when running with no token data yet */}
+          {!isRunningEmpty && (<>
           {step.inputTokens === 0 && step.outputTokens === 0 && step.resultSummaryJson && stepName === 'DocumentParse' ? (() => {
             try {
               const r = JSON.parse(step.resultSummaryJson) as DocumentParseResult
@@ -270,6 +262,7 @@ export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpan
           {step.errorMessage && (
             <div className="rounded bg-red-50 p-2 text-xs text-red-700">{step.errorMessage}</div>
           )}
+          </>)}
 
           {/* Document preview (DocumentParse only) */}
           {stepName === 'DocumentParse' && sessionId && (
@@ -293,16 +286,6 @@ export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpan
             <SummaryView toolCalls={step.toolCalls} traces={step.llmTraces} />
           )}
 
-          {/* Extraction detail panels */}
-          {needsExtractionData && extractionLoading && (
-            <div className="h-4 w-32 animate-pulse rounded bg-gray-200" />
-          )}
-          {stepName === 'ClinicalExtract' && extractionResult && (
-            <ConfidenceHeatmap data={extractionResult.data} defaultOpen={showSubSectionsOpen} />
-          )}
-          {stepName === 'RiskAssess' && extractionResult?.riskDiagnostics?.fieldDecisions?.length && (
-            <RiskMergeView diagnostics={extractionResult.riskDiagnostics} defaultOpen={showSubSectionsOpen} />
-          )}
           {stepName === 'RiskDebate' && step.resultSummaryJson && (() => {
             try {
               const summary: DebateResultSummary = JSON.parse(step.resultSummaryJson)

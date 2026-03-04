@@ -58,7 +58,8 @@ function getToolSummary(tc: ExtractionToolCall): string {
       case 'lookup_diagnosis_code':
         return `${out.Code ?? '?'} \u2192 ${out.IsValid ? 'Valid' : 'Invalid'}${out.Description ? ` (${out.Description})` : ''}`
       case 'validate_and_score':
-        return (out.Errors?.length ?? 0) === 0 ? 'Passed' : `Failed: ${out.Errors?.join(', ')}`
+        if ((out.Errors?.length ?? 0) === 0) return 'Passed'
+        return `Failed: ${out.Errors.map((e: { Message?: string; Field?: string }) => e.Message ?? e.Field ?? '?').join(', ')}`
       default:
         return tc.outputJson.length > 80 ? tc.outputJson.slice(0, 80) + '\u2026' : tc.outputJson
     }
