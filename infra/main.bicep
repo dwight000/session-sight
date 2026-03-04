@@ -31,6 +31,9 @@ param ghcrToken string = ''
 @description('Enable Container Apps deployment (requires ghcrToken)')
 param deployContainerApps bool = false
 
+@description('Deploy AI model resources (GPT, Mistral, embeddings). Set false to skip model deployments — useful when models already exist and RTFP blocks revalidation.')
+param deployAIModels bool = true
+
 // === Variables ===
 
 var prefix = 'sessionsight'
@@ -139,7 +142,11 @@ module aiServices 'modules/aiServices.bicep' = if (isDevEnvironment) {
     name: sharedAiServicesName
     location: location
     tags: tags
-    deployMistralLarge3: true
+    deployMistralLarge3: deployAIModels
+    deployGpt41: deployAIModels
+    deployGpt41Mini: deployAIModels
+    deployGpt41Nano: deployAIModels
+    deployEmbeddings: deployAIModels
     cognitiveServicesUserPrincipalId: !empty(developerUserObjectId) ? developerUserObjectId : ''
     cognitiveServicesUserPrincipalType: 'User'
   }
