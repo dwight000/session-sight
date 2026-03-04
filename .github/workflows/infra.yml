@@ -68,7 +68,8 @@ jobs:
             --location eastus2 \
             --template-file infra/main.bicep \
             --parameters infra/main.parameters.dev.json \
-            --parameters servicePrincipalObjectId='00000000-0000-0000-0000-000000000000'
+            --parameters servicePrincipalObjectId='00000000-0000-0000-0000-000000000000' \
+            --parameters deployAIModels=false
 
       - name: ARM Validate (stage parameters)
         run: |
@@ -76,7 +77,8 @@ jobs:
             --location eastus2 \
             --template-file infra/main.bicep \
             --parameters infra/main.parameters.stage.json \
-            --parameters servicePrincipalObjectId='00000000-0000-0000-0000-000000000000'
+            --parameters servicePrincipalObjectId='00000000-0000-0000-0000-000000000000' \
+            --parameters deployAIModels=false
 
   deploy:
     name: Deploy Infrastructure
@@ -117,7 +119,8 @@ jobs:
             --parameters infra/main.parameters.${ENV}.json \
             --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
             --parameters deployContainerApps=${{ github.event.inputs.deployContainerApps || 'false' }} \
-            --parameters ghcrToken='${{ github.event.inputs.ghcrToken || secrets.GHCR_TOKEN }}'
+            --parameters ghcrToken='${{ github.event.inputs.ghcrToken || secrets.GHCR_TOKEN }}' \
+            --parameters deployAIModels=false
 
       - name: Deploy Infrastructure
         if: github.event.inputs.mode != 'what-if'
@@ -130,7 +133,8 @@ jobs:
             --parameters infra/main.parameters.${ENV}.json \
             --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
             --parameters deployContainerApps=${{ github.event.inputs.deployContainerApps || (github.event_name == 'push' && 'true') || 'false' }} \
-            --parameters ghcrToken='${{ github.event.inputs.ghcrToken || secrets.GHCR_TOKEN }}'
+            --parameters ghcrToken='${{ github.event.inputs.ghcrToken || secrets.GHCR_TOKEN }}' \
+            --parameters deployAIModels=false
 
       - name: Provision Managed Identity SQL users
         if: github.event.inputs.mode != 'what-if'
@@ -236,6 +240,7 @@ jobs:
             --template-file infra/main.bicep \
             --parameters infra/main.parameters.dev.json \
             --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
+            --parameters deployAIModels=false \
             --no-pretty-print 2>&1 | tail -200 > /tmp/whatif-dev.txt || true
 
       - name: Infrastructure What-If (Stage)
@@ -245,6 +250,7 @@ jobs:
             --template-file infra/main.bicep \
             --parameters infra/main.parameters.stage.json \
             --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
+            --parameters deployAIModels=false \
             --no-pretty-print 2>&1 | tail -200 > /tmp/whatif-stage.txt || true
 
       - name: Comment PR with What-If Results

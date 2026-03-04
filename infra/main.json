@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.40.2.10011",
-      "templateHash": "3927716240139440591"
+      "templateHash": "7515036885760858476"
     }
   },
   "parameters": {
@@ -53,6 +53,13 @@
       "defaultValue": false,
       "metadata": {
         "description": "Enable Container Apps deployment (requires ghcrToken)"
+      }
+    },
+    "deployAIModels": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Deploy AI model resources (GPT, Mistral, embeddings). Set false to skip model deployments — useful when models already exist and RTFP blocks revalidation."
       }
     }
   },
@@ -706,7 +713,19 @@
             "value": "[variables('tags')]"
           },
           "deployMistralLarge3": {
-            "value": true
+            "value": "[parameters('deployAIModels')]"
+          },
+          "deployGpt41": {
+            "value": "[parameters('deployAIModels')]"
+          },
+          "deployGpt41Mini": {
+            "value": "[parameters('deployAIModels')]"
+          },
+          "deployGpt41Nano": {
+            "value": "[parameters('deployAIModels')]"
+          },
+          "deployEmbeddings": {
+            "value": "[parameters('deployAIModels')]"
           },
           "cognitiveServicesUserPrincipalId": "[if(not(empty(parameters('developerUserObjectId'))), createObject('value', parameters('developerUserObjectId')), createObject('value', ''))]",
           "cognitiveServicesUserPrincipalType": {
