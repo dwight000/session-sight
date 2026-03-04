@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.40.2.10011",
-      "templateHash": "7515036885760858476"
+      "templateHash": "7787031651163222650"
     }
   },
   "parameters": {
@@ -2550,7 +2550,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.40.2.10011",
-              "templateHash": "17422640897480297927"
+              "templateHash": "17630536193614742962"
             }
           },
           "parameters": {
@@ -2740,6 +2740,18 @@
                         {
                           "name": "ConnectionStrings__documents",
                           "value": "[parameters('storageBlobEndpoint')]"
+                        },
+                        {
+                          "name": "RiskDebate__Enabled",
+                          "value": "true"
+                        },
+                        {
+                          "name": "RiskDebate__TriggerMode",
+                          "value": "Always"
+                        },
+                        {
+                          "name": "PipelineDiagnostics__StoreLlmTraces",
+                          "value": "true"
                         },
                         {
                           "name": "ASPNETCORE_ENVIRONMENT",
