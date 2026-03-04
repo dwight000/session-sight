@@ -28,7 +28,7 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.11" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.13" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.4" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.4" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.13" />
     <!-- Azure Storage -->
     <PackageVersion Include="Azure.Storage.Blobs" Version="12.26.0" />
     <!-- OpenAPI -->
