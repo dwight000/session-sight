@@ -36,11 +36,6 @@ on:
       - 'infra/**'
       - '.github/workflows/infra.yml'
 
-# Prevent concurrent deployments to the same environment
-concurrency:
-  group: infra-${{ github.event.inputs.environment || 'dev' }}
-  cancel-in-progress: false
-
 jobs:
   validate:
     name: Validate Bicep
