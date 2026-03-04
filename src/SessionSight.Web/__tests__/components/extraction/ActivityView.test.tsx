@@ -63,6 +63,20 @@ describe('ActivityView', () => {
     expect(screen.getByText('Complete')).toBeInTheDocument()
   })
 
+  it('shows Processing footer when isStepComplete is false', () => {
+    render(<ActivityView toolCalls={[]} traces={[makeTrace(0)]} isStepComplete={false} />)
+
+    expect(screen.getByText('Processing...')).toBeInTheDocument()
+    expect(screen.queryByText('Complete')).not.toBeInTheDocument()
+  })
+
+  it('shows Complete footer when isStepComplete is true', () => {
+    render(<ActivityView toolCalls={[]} traces={[makeTrace(0)]} isStepComplete={true} />)
+
+    expect(screen.getByText('Complete')).toBeInTheDocument()
+    expect(screen.queryByText('Processing...')).not.toBeInTheDocument()
+  })
+
   it('expands details when clicked', async () => {
     render(<ActivityView toolCalls={[]} traces={[makeTrace(0)]} />)
 

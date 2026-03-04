@@ -33,20 +33,27 @@ interface ExtractionStepCardProps {
   sessionId?: string
   viewMode?: StepViewMode
   maxDurationMs?: number
+  pipelineFinished?: boolean
+  skippedReason?: string
 }
 
-export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpanded, showSubSectionsOpen, sessionId, viewMode = 'raw', maxDurationMs }: ExtractionStepCardProps) {
+export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpanded, showSubSectionsOpen, sessionId, viewMode = 'raw', maxDurationMs, pipelineFinished, skippedReason }: ExtractionStepCardProps) {
   const [open, setOpen] = useState(defaultExpanded)
 
-  const isPending = !step && !isCurrentStep
-  const isRunning = isCurrentStep && (!step || step.status === 'Running')
+  const isSkipped = !step && !isCurrentStep && !!skippedReason
+  const isPending = !step && !isCurrentStep && !isSkipped
+  const isRunning = (isCurrentStep && !step) || step?.status === 'Running'
   const isCompleted = step?.status === 'Succeeded'
   const isFailed = step?.status === 'Failed'
 
-  const needsExtractionData = (stepName === 'ClinicalExtract' || stepName === 'RiskAssess') && isCompleted
+  // Running step with no data yet — show shimmer instead of "0 in / 0 out"
+  const isRunningEmpty = isRunning && !!step && step.inputTokens === 0 && step.outputTokens === 0
+
+  const needsExtractionData = (stepName === 'ClinicalExtract' || stepName === 'RiskAssess') && isCompleted && pipelineFinished !== false
   const { data: extractionResult, isLoading: extractionLoading } = useExtractionResult(
     sessionId ?? '',
     open && !!needsExtractionData,
+    pipelineFinished ?? true,
   )
 
   const summary = step ? formatResultSummary(stepName, step.resultSummaryJson) : null
@@ -55,6 +62,7 @@ export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpan
     <div
       className={[
         'rounded-lg border border-l-4',
+        isSkipped ? 'border-dashed border-gray-300 bg-gray-50/50 border-l-gray-300' :
         isRunning ? 'border-blue-300 bg-blue-50/30 border-l-blue-400 animate-pulse-border' :
         isFailed ? 'border-red-300 bg-red-50/30 border-l-red-500' :
         isCompleted ? 'border-gray-200 border-l-green-500' :
@@ -69,6 +77,7 @@ export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpan
         }`}
       >
         {/* Status icon */}
+        {isSkipped && <span className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-dashed border-gray-300 text-gray-400 text-xs">{'\u2014'}</span>}
         {isPending && <span className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-gray-300" />}
         {isRunning && (
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
@@ -82,6 +91,11 @@ export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpan
 
         {/* Step name */}
         <span className="font-medium">{STEP_DISPLAY_NAMES[stepName]}</span>
+
+        {/* Skipped reason */}
+        {isSkipped && skippedReason && (
+          <span className="text-xs text-gray-400 italic">{skippedReason}</span>
+        )}
 
         {/* Duration */}
         {step && step.durationMs > 0 && (
@@ -122,8 +136,15 @@ export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpan
         </div>
       )}
 
+      {/* Level 1 — skipped explanation */}
+      {open && !step && isSkipped && (
+        <div className="border-t border-dashed border-gray-200 px-4 py-3">
+          <p className="text-xs text-gray-400 italic">This step was not triggered during extraction.</p>
+        </div>
+      )}
+
       {/* Level 1 — placeholder body for pending/running steps without data */}
-      {open && !step && (
+      {open && !isSkipped && (!step || isRunningEmpty) && (
         <div className="border-t border-gray-200 px-4 py-3">
           <div
             className="grid grid-cols-2 gap-x-6 gap-y-1 rounded p-2 text-xs sm:grid-cols-4"
@@ -154,7 +175,7 @@ export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpan
       )}
 
       {/* Level 1 — expanded details with real data */}
-      {open && step && (
+      {open && step && !isRunningEmpty && (
         <div className="animate-fade-in border-t border-gray-200 px-4 py-3 space-y-3">
           {/* S-2: Step-aware metadata grid */}
           {step.inputTokens === 0 && step.outputTokens === 0 && step.resultSummaryJson && stepName === 'DocumentParse' ? (() => {
@@ -266,7 +287,7 @@ export function ExtractionStepCard({ stepName, step, isCurrentStep, defaultExpan
             <ConversationView toolCalls={step.toolCalls} traces={step.llmTraces} defaultOpen={showSubSectionsOpen} />
           )}
           {viewMode === 'activity' && (
-            <ActivityView toolCalls={step.toolCalls} traces={step.llmTraces} defaultOpen={showSubSectionsOpen} />
+            <ActivityView toolCalls={step.toolCalls} traces={step.llmTraces} defaultOpen={showSubSectionsOpen} isStepComplete={isCompleted} />
           )}
           {viewMode === 'summary' && (
             <SummaryView toolCalls={step.toolCalls} traces={step.llmTraces} />

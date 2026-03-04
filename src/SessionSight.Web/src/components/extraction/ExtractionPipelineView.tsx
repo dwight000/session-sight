@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ExtractionStep, ExtractionStepName, StepViewMode, ClinicalExtractResult } from '../../types/extractionSteps'
 import { useExtractionSteps } from '../../hooks/useExtractionSteps'
-import { STEP_ORDER, STEP_DISPLAY_NAMES, estimateCost, formatDurationMs } from './stepConfig'
+import { STEP_ORDER, DISPLAY_ORDER, STEP_DISPLAY_NAMES, estimateCost, formatDurationMs } from './stepConfig'
 import { ExtractionStepCard } from './ExtractionStepCard'
 import { ViewModeSelector } from './ViewModeSelector'
 
@@ -54,15 +54,28 @@ export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipeline
   }).length
   const hasFailed = data?.steps.some((s) => s.status === 'Failed') ?? false
   const pipelineCrashed = data?.documentStatus === 'Failed' && !hasFailed
-  const currentStepName = isLive && !hasFailed && !pipelineCrashed && completedCount < STEP_ORDER.length
+  // Don't infer next step when a step already has Running status (e.g. RiskDebate) —
+  // that step shows as running via step?.status === 'Running' in ExtractionStepCard.
+  const anyRunning = data?.steps.some((s) => s.status === 'Running') ?? false
+  const currentStepName = isLive && !hasFailed && !pipelineCrashed && completedCount < STEP_ORDER.length && !anyRunning
     ? STEP_ORDER[completedCount]
     : null
+
+  // Pipeline finished: mirrors isPipelineFinished from useExtractionSteps
+  const pipelineFinished = (() => {
+    if (!data || data.steps.length === 0) return false
+    if (data.documentStatus === 'Failed' || data.documentStatus === 'Completed' || data.documentStatus === 'PartiallyCompleted') return true
+    if (data.steps.some((s) => s.status === 'Failed')) return true
+    return data.steps.length >= STEP_ORDER.length &&
+      data.steps.every((s) => s.status === 'Succeeded' || s.status === 'Failed' || s.status === 'Skipped')
+  })()
 
   // Progress label for live mode — totalSteps includes optional steps (e.g. RiskDebate)
   // already present in the response
   const totalSteps = STEP_ORDER.length + Array.from(stepMap.keys()).filter(n => !STEP_ORDER.includes(n)).length
+  const activeStepName = currentStepName ?? data?.steps.find((s) => s.status === 'Running')?.stepName ?? null
   const progressLabel = isLive
-    ? `${completedCount}/${totalSteps}${currentStepName ? ` \u2014 ${STEP_DISPLAY_NAMES[currentStepName]}` : ''}`
+    ? `${completedCount}/${totalSteps}${activeStepName ? ` \u2014 ${STEP_DISPLAY_NAMES[activeStepName]}` : ''}`
     : null
 
   // U-1: Max duration for proportional bars
@@ -142,17 +155,15 @@ export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipeline
         </div>
       )}
 
-      {/* Always-visible steps + any optional steps present in this extraction (e.g. RiskDebate) */}
-      {[
-        ...STEP_ORDER,
-        ...Array.from(stepMap.keys()).filter((name) => !STEP_ORDER.includes(name)),
-      ]
-        .sort((a, b) => {
-          const aOrder = stepMap.get(a)?.stepOrder ?? STEP_ORDER.indexOf(a) * 10
-          const bOrder = stepMap.get(b)?.stepOrder ?? STEP_ORDER.indexOf(b) * 10
-          return aOrder - bOrder
-        })
-        .map((name) => (
+      {/* Always-visible steps (DISPLAY_ORDER includes RiskDebate placeholder) */}
+      {DISPLAY_ORDER.map((name) => {
+        // Skipped reason for RiskDebate: when RiskAssess succeeded but no debate data exists
+        const skippedReason = name === 'RiskDebate' && !stepMap.has('RiskDebate')
+          && stepMap.get('RiskAssess')?.status === 'Succeeded'
+          ? 'Not required for this extraction'
+          : undefined
+
+        return (
           <ExtractionStepCard
             key={name}
             stepName={name}
@@ -163,8 +174,11 @@ export function ExtractionPipelineView({ sessionId, isLive }: ExtractionPipeline
             sessionId={sessionId}
             viewMode={viewMode}
             maxDurationMs={maxDurationMs}
+            pipelineFinished={pipelineFinished}
+            skippedReason={skippedReason}
           />
-        ))}
+        )
+      })}
     </div>
   )
 }

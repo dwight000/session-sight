@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatDurationMs, formatResultSummary, estimateCost } from '../../../src/components/extraction/stepConfig'
+import { formatDurationMs, formatResultSummary, estimateCost, STEP_ORDER, DISPLAY_ORDER } from '../../../src/components/extraction/stepConfig'
 
 describe('formatDurationMs', () => {
   it('returns <1ms for 0', () => {
@@ -49,6 +49,22 @@ describe('formatResultSummary', () => {
   it('formats SearchIndex', () => {
     const json = '{"indexed":true,"error":null}'
     expect(formatResultSummary('SearchIndex', json)).toBe('Indexed successfully')
+  })
+})
+
+describe('DISPLAY_ORDER', () => {
+  it('contains all STEP_ORDER entries plus RiskDebate', () => {
+    for (const step of STEP_ORDER) {
+      expect(DISPLAY_ORDER).toContain(step)
+    }
+    expect(DISPLAY_ORDER).toContain('RiskDebate')
+    expect(DISPLAY_ORDER).toHaveLength(STEP_ORDER.length + 1)
+  })
+
+  it('places RiskDebate after RiskAssess', () => {
+    const riskAssessIdx = DISPLAY_ORDER.indexOf('RiskAssess')
+    const riskDebateIdx = DISPLAY_ORDER.indexOf('RiskDebate')
+    expect(riskDebateIdx).toBe(riskAssessIdx + 1)
   })
 })
 

@@ -73,7 +73,7 @@ public class ExtractionPipelineTests : IClassFixture<ApiFixture>
     /// Full end-to-end test: Create patient -> Create session -> Upload PDF -> Trigger extraction
     /// -> Verify fields -> Verify Q&A -> Verify search indexing.
     /// Sections 3-4 were merged from QATests and SearchIndexTests to share the single
-    /// extraction call (~$0.06 and ~4 min saved per run).
+    /// extraction call (~$0.02 and ~4 min saved per run).
     /// </summary>
     [Fact]
     public async Task Pipeline_FullExtraction_ReturnsSuccess()
@@ -178,7 +178,7 @@ public class ExtractionPipelineTests : IClassFixture<ApiFixture>
 
         // ── Section 3: Q&A over Extracted Session ───────────────────────
         // Originally: QATests.QA_AnswersQuestionAboutExtractedSession
-        // Merged here to share the extraction (~$0.03 saved per run).
+        // Merged here to share the extraction (~$0.01 saved per run).
         // Tests that the RAG Q&A pipeline can answer questions using the
         // extracted session data via vector search + LLM generation.
         // Retry loop: search index is near-real-time, not instant.
@@ -230,7 +230,7 @@ public class ExtractionPipelineTests : IClassFixture<ApiFixture>
 
         // ── Section 4: Search Index Verification ────────────────────────
         // Originally: SearchIndexTests.Extraction_IndexesSessionWithEmbedding
-        // Merged here to share the extraction (~$0.03 saved per run).
+        // Merged here to share the extraction (~$0.01 saved per run).
         // Tests that the embedding pipeline generated a 3072-dimension vector
         // (text-embedding-3-large) and indexed the session in Azure AI Search.
         // Retry loop: indexing is near-real-time, not instant.

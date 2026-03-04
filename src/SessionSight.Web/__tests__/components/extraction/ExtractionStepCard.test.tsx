@@ -42,6 +42,24 @@ describe('ExtractionStepCard', () => {
     expect(screen.getByText('Running...')).toBeInTheDocument()
   })
 
+  it('renders running state for step with Running status even without isCurrentStep', () => {
+    const step = makeStep('RiskDebate', 3.5, { status: 'Running', inputTokens: 0, outputTokens: 0, totalTokens: 0, durationMs: 0 })
+    renderWithQuery(
+      <ExtractionStepCard stepName="RiskDebate" step={step} isCurrentStep={false} defaultExpanded={false} sessionId="sess-001" />,
+    )
+    expect(screen.getByText('Running...')).toBeInTheDocument()
+  })
+
+  it('shows shimmer instead of zero tokens when running with no data', () => {
+    const step = makeStep('RiskDebate', 3.5, { status: 'Running', inputTokens: 0, outputTokens: 0, totalTokens: 0, durationMs: 0 })
+    renderWithQuery(
+      <ExtractionStepCard stepName="RiskDebate" step={step} isCurrentStep={false} defaultExpanded={true} sessionId="sess-001" />,
+    )
+    // Should show shimmer placeholders, not "0 in / 0 out"
+    expect(screen.getAllByText('--').length).toBeGreaterThanOrEqual(3)
+    expect(screen.queryByText(/0 in \/ 0 out/)).not.toBeInTheDocument()
+  })
+
   it('renders completed step with duration', () => {
     const step = makeStep('DocumentParse', 0, { durationMs: 1200 })
     renderWithQuery(
@@ -99,7 +117,7 @@ describe('ExtractionStepCard', () => {
   it('shows confidence heatmap for ClinicalExtract step when expanded', async () => {
     const step = makeStep('ClinicalExtract', 2, { durationMs: 15000 })
     renderWithQuery(
-      <ExtractionStepCard stepName="ClinicalExtract" step={step} isCurrentStep={false} defaultExpanded={true} sessionId="sess-001" />,
+      <ExtractionStepCard stepName="ClinicalExtract" step={step} isCurrentStep={false} defaultExpanded={true} sessionId="sess-001" pipelineFinished={true} />,
     )
 
     await waitFor(() => {
@@ -110,7 +128,7 @@ describe('ExtractionStepCard', () => {
   it('shows risk merge view for RiskAssess step when expanded', async () => {
     const step = makeStep('RiskAssess', 3, { durationMs: 4500 })
     renderWithQuery(
-      <ExtractionStepCard stepName="RiskAssess" step={step} isCurrentStep={false} defaultExpanded={true} sessionId="sess-001" />,
+      <ExtractionStepCard stepName="RiskAssess" step={step} isCurrentStep={false} defaultExpanded={true} sessionId="sess-001" pipelineFinished={true} />,
     )
 
     await waitFor(() => {
@@ -225,5 +243,19 @@ describe('ExtractionStepCard', () => {
       <ExtractionStepCard stepName="RiskDebate" step={step} isCurrentStep={false} defaultExpanded={false} sessionId="sess-001" />,
     )
     expect(screen.getByText(/Low .* High \(82%\), 2 rounds/)).toBeInTheDocument()
+  })
+
+  it('renders skipped state with reason text', () => {
+    renderWithQuery(
+      <ExtractionStepCard stepName="RiskDebate" step={undefined} isCurrentStep={false} defaultExpanded={false} sessionId="sess-001" skippedReason="Not required for this extraction" />,
+    )
+    expect(screen.getByText('Not required for this extraction')).toBeInTheDocument()
+  })
+
+  it('shows explanation text when skipped step is expanded', () => {
+    renderWithQuery(
+      <ExtractionStepCard stepName="RiskDebate" step={undefined} isCurrentStep={false} defaultExpanded={true} sessionId="sess-001" skippedReason="Not required for this extraction" />,
+    )
+    expect(screen.getByText('This step was not triggered during extraction.')).toBeInTheDocument()
   })
 })

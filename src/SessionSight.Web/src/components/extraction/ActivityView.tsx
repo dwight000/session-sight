@@ -7,6 +7,7 @@ interface ActivityViewProps {
   toolCalls: ExtractionToolCall[]
   traces: ExtractionLlmTrace[]
   defaultOpen?: boolean
+  isStepComplete?: boolean
 }
 
 interface TimelineEvent {
@@ -66,7 +67,7 @@ function getToolSummary(tc: ExtractionToolCall): string {
   }
 }
 
-export function ActivityView({ toolCalls, traces, defaultOpen }: ActivityViewProps) {
+export function ActivityView({ toolCalls, traces, defaultOpen, isStepComplete }: ActivityViewProps) {
   const timeline = buildTimeline(toolCalls, traces)
   // Track manual overrides instead of open IDs.
   // When defaultOpen=true, everything is expanded by default — overrides = collapsed by user.
@@ -242,22 +243,33 @@ export function ActivityView({ toolCalls, traces, defaultOpen }: ActivityViewPro
     }
   }
 
-  // Complete footer
+  // Complete / Processing footer
+  const showComplete = isStepComplete !== false
   const totalDurationMs = traces.reduce((sum, t) => sum + t.durationMs, 0)
   const totalIn = traces.reduce((sum, t) => sum + t.inputTokens, 0)
   const totalOut = traces.reduce((sum, t) => sum + t.outputTokens, 0)
   const model = traces[0]?.modelUsed ?? ''
   const cost = estimateCost(model, totalIn, totalOut)
 
-  events.push({
-    id: 'complete',
-    type: 'complete',
-    title: 'Complete',
-    duration: formatDurationMs(totalDurationMs),
-    subtitle: cost !== null ? `$${cost.toFixed(4)}` : undefined,
-    dotClass: 'bg-green-500',
-    dotSize: 'h-4 w-4',
-  })
+  if (showComplete) {
+    events.push({
+      id: 'complete',
+      type: 'complete',
+      title: 'Complete',
+      duration: formatDurationMs(totalDurationMs),
+      subtitle: cost !== null ? `$${cost.toFixed(4)}` : undefined,
+      dotClass: 'bg-green-500',
+      dotSize: 'h-4 w-4',
+    })
+  } else {
+    events.push({
+      id: 'processing',
+      type: 'complete',
+      title: 'Processing...',
+      dotClass: 'bg-blue-500 animate-pulse',
+      dotSize: 'h-4 w-4',
+    })
+  }
 
   return (
     <div className="relative ml-3 border-l-2 border-gray-200 pl-4">
