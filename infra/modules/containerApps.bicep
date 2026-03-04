@@ -118,6 +118,10 @@ resource apiApp 'Microsoft.App/containerApps@2024-10-02-preview' = {
             { name: 'AzureSearch__IndexName', value: searchIndexName }
             { name: 'DocumentIntelligence__Endpoint', value: docIntelligenceEndpoint }
             { name: 'ConnectionStrings__documents', value: storageBlobEndpoint }
+            // Feature flags
+            { name: 'RiskDebate__Enabled', value: 'true' }
+            { name: 'RiskDebate__TriggerMode', value: 'Always' }
+            { name: 'PipelineDiagnostics__StoreLlmTraces', value: 'true' }
             // ASP.NET Core settings
             { name: 'ASPNETCORE_ENVIRONMENT', value: aspnetEnvironment }
             { name: 'ASPNETCORE_URLS', value: 'http://+:8080' }
