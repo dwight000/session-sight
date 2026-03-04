@@ -1,6 +1,6 @@
 using System.Text.Json;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
-using OpenAI.Chat;
 using SessionSight.Agents.Models;
 using SessionSight.Agents.Prompts;
 using SessionSight.Agents.Helpers;
@@ -69,14 +69,15 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
 
         LogStartingClinicalExtraction(_logger, sessionId);
 
-        var modelName = _modelRouter.SelectModel(ModelTask.Extraction);
-        var chatClient = _clientFactory.CreateChatClient(modelName);
+        var selection = _modelRouter.SelectModel(ModelTask.Extraction);
+        var modelName = selection.DeploymentName;
+        var chatClient = _clientFactory.CreateChatClient(selection);
 
         // Build initial messages with extraction prompt
         var messages = new List<ChatMessage>
         {
-            new SystemChatMessage(ExtractionPrompts.SystemPrompt),
-            new UserChatMessage($"""
+            new(ChatRole.System, ExtractionPrompts.SystemPrompt),
+            new(ChatRole.User, $"""
                 Extract clinical data from the following therapy note.
 
                 Use the available tools to:
@@ -94,7 +95,7 @@ public partial class ClinicalExtractorAgent : IClinicalExtractorAgent
 
         // JSON response format guarantees valid JSON from the API (see also: ExtractionPrompts.SystemPrompt CRITICAL instruction)
         var loopResult = await _agentLoopRunner.RunAsync(
-            chatClient, messages, ChatResponseFormat.CreateJsonObjectFormat(), temperature: 0.1f,
+            chatClient, messages, ChatResponseFormat.Json, temperature: 0.1f,
             onRoundComplete: onRoundComplete, ct: cancellationToken);
 
         LogAgentLoopCompleted(_logger, loopResult.ToolCallCount, loopResult.IsComplete);

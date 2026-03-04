@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using OpenAI.Chat;
+using Microsoft.Extensions.AI;
 using SessionSight.Agents.Helpers;
 using SessionSight.Agents.Models;
 using SessionSight.Agents.Prompts;
@@ -84,13 +84,14 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         var criteriaValidationAttemptsUsed = 1;
 
         // Step 1: Re-extract with focused safety prompt
-        var modelName = _modelRouter.SelectModel(ModelTask.RiskAssessment);
+        var selection = _modelRouter.SelectModel(ModelTask.RiskAssessment);
+        var modelName = selection.DeploymentName;
         result.ModelUsed = modelName;
         var contentFilterBlocked = false;
 
         try
         {
-            var reExtracted = await ReExtractRiskAsync(originalNoteText, modelName, extraction.SessionId, ct);
+            var reExtracted = await ReExtractRiskAsync(originalNoteText, selection, extraction.SessionId, ct);
             result.ValidatedExtraction = reExtracted.Risk;
             criteriaUsed = reExtracted.CriteriaUsed;
             reasoningUsed = reExtracted.ReasoningUsed;
@@ -166,37 +167,38 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
 
     private async Task<RiskReExtractionResponse> ReExtractRiskAsync(
         string noteText,
-        string modelName,
+        ModelSelection selection,
         string sessionId,
         CancellationToken ct)
     {
-        var chatClient = _clientFactory.CreateChatClient(modelName);
+        var modelName = selection.DeploymentName;
+        var chatClient = _clientFactory.CreateChatClient(selection);
         var prompt = RiskPrompts.GetRiskReExtractionPrompt(noteText);
         var messages = new List<ChatMessage>
         {
-            new SystemChatMessage(RiskPrompts.SystemPrompt),
-            new UserChatMessage(prompt)
+            new(ChatRole.System, RiskPrompts.SystemPrompt),
+            new(ChatRole.User, prompt)
         };
 
         // JSON response format guarantees valid JSON from the API (see also: RiskPrompts.SystemPrompt CRITICAL instruction)
-        var options = new ChatCompletionOptions
+        var options = new ChatOptions
         {
             Temperature = 0.1f,
-            MaxOutputTokenCount = 2048,
-            ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
+            MaxOutputTokens = 2048,
+            ResponseFormat = ChatResponseFormat.Json
         };
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        var response = await chatClient.CompleteChatAsync(messages, options, ct);
+        var response = await chatClient.GetResponseAsync(messages, options, ct);
         sw.Stop();
 
-        if (IsContentFilterBlocked(response.Value))
+        if (IsContentFilterBlocked(response))
         {
             LogRiskReExtractionContentFilter(_logger, sessionId, 1);
             sw.Restart();
-            response = await chatClient.CompleteChatAsync(messages, options, ct);
+            response = await chatClient.GetResponseAsync(messages, options, ct);
             sw.Stop();
-            if (IsContentFilterBlocked(response.Value))
+            if (IsContentFilterBlocked(response))
             {
                 LogRiskReExtractionContentFilterFinal(_logger, sessionId);
                 throw new InvalidOperationException(
@@ -204,7 +206,7 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
             }
         }
 
-        var content = response.Value.Content[0].Text;
+        var content = response.Text!;
         var parsed = ParseRiskResponseWithCriteria(content);
         if (parsed is null)
         {
@@ -213,11 +215,11 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
         }
         parsed.CriteriaValidationAttemptsUsed = 1;
 
-        if (response.Value.Usage is not null)
+        if (response.Usage is not null)
         {
-            parsed.InputTokens = response.Value.Usage.InputTokenCount;
-            parsed.OutputTokens = response.Value.Usage.OutputTokenCount;
-            parsed.TotalTokens = response.Value.Usage.TotalTokenCount;
+            parsed.InputTokens = (int)(response.Usage.InputTokenCount ?? 0);
+            parsed.OutputTokens = (int)(response.Usage.OutputTokenCount ?? 0);
+            parsed.TotalTokens = (int)(response.Usage.TotalTokenCount ?? 0);
         }
 
         parsed.LlmTraces =
@@ -1126,8 +1128,8 @@ public partial class RiskAssessorAgent : IRiskAssessorAgent
             : trimmed[..320];
     }
 
-    private static bool IsContentFilterBlocked(ChatCompletion completion) =>
-        ContentFilterHelper.IsContentFilterBlocked(completion);
+    private static bool IsContentFilterBlocked(ChatResponse response) =>
+        ContentFilterHelper.IsContentFilterBlocked(response);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Starting risk assessment for session {SessionId}")]
     private static partial void LogStartingRiskAssessment(ILogger logger, string sessionId);

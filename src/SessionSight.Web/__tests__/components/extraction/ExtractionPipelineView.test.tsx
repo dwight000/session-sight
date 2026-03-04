@@ -4,7 +4,12 @@ import { http, HttpResponse } from 'msw'
 import { server } from '../../../src/test/mocks/server'
 import { renderWithProviders } from '../../../src/test/render'
 import { ExtractionPipelineView } from '../../../src/components/extraction/ExtractionPipelineView'
-import { mockExtractionStepsPartial, mockExtractionStepsComplete } from '../../../src/test/fixtures/extractionSteps'
+import {
+  mockExtractionStepsPartial,
+  mockExtractionStepsComplete,
+  mockExtractionStepsWithDebate,
+  makeDebateStep,
+} from '../../../src/test/fixtures/extractionSteps'
 
 describe('ExtractionPipelineView', () => {
   it('renders all 6 step names', async () => {
@@ -104,5 +109,64 @@ describe('ExtractionPipelineView', () => {
       expect(screen.getByText('Document Parse')).toBeInTheDocument()
     })
     expect(screen.queryByText(/6 steps/)).not.toBeInTheDocument()
+  })
+
+  it('renders all 7 step names when debate is present', async () => {
+    server.use(
+      http.get('/api/sessions/:sessionId/extraction/steps', () => {
+        return HttpResponse.json(mockExtractionStepsWithDebate)
+      }),
+    )
+
+    renderWithProviders(<ExtractionPipelineView sessionId="sess-debate" isLive={false} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Risk Debate')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Document Parse')).toBeInTheDocument()
+    expect(screen.getByText('Summarize')).toBeInTheDocument()
+    expect(screen.getByText('Search Index')).toBeInTheDocument()
+  })
+
+  it('shows "7 steps" in pipeline totals banner with debate', async () => {
+    server.use(
+      http.get('/api/sessions/:sessionId/extraction/steps', () => {
+        return HttpResponse.json(mockExtractionStepsWithDebate)
+      }),
+    )
+
+    renderWithProviders(<ExtractionPipelineView sessionId="sess-debate-banner" isLive={false} />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/7 steps/)).toBeInTheDocument()
+    })
+    expect(screen.getByText(/tokens/)).toBeInTheDocument()
+  })
+
+  it('shows correct progress denominator with debate in live mode', async () => {
+    const partialWithDebate = {
+      extractionId: 'ext-006',
+      documentStatus: 'Processing',
+      failureKind: null,
+      errorMessage: null,
+      steps: [
+        mockExtractionStepsComplete.steps[0], // DocumentParse
+        mockExtractionStepsComplete.steps[1], // Intake
+        mockExtractionStepsComplete.steps[2], // ClinicalExtract
+        mockExtractionStepsComplete.steps[3], // RiskAssess
+        makeDebateStep(),                     // RiskDebate (optional)
+      ],
+    }
+    server.use(
+      http.get('/api/sessions/:sessionId/extraction/steps', () => {
+        return HttpResponse.json(partialWithDebate)
+      }),
+    )
+
+    renderWithProviders(<ExtractionPipelineView sessionId="sess-debate-live" isLive={true} />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/\/7/)).toBeInTheDocument()
+    })
   })
 })

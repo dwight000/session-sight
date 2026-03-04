@@ -4,6 +4,7 @@ import type {
   IntakeResult,
   ClinicalExtractResult,
   RiskAssessResult,
+  DebateResultSummary,
   SummarizeResult,
   SearchIndexResult,
 } from '../../types/extractionSteps'
@@ -22,6 +23,7 @@ export const STEP_DISPLAY_NAMES: Record<ExtractionStepName, string> = {
   Intake: 'Intake',
   ClinicalExtract: 'Clinical Extract',
   RiskAssess: 'Risk Assess',
+  RiskDebate: 'Risk Debate',
   Summarize: 'Summarize',
   SearchIndex: 'Search Index',
 }
@@ -30,6 +32,7 @@ export const STEP_DISPLAY_NAMES: Record<ExtractionStepName, string> = {
 const MODEL_PRICING: Record<string, [number, number]> = {
   'gpt-4.1-mini': [0.4, 1.6],
   'gpt-4.1-nano': [0.1, 0.4],
+  'Mistral-Large-3': [0.5, 1.5],
 }
 
 export function estimateCost(model: string, inputTokens: number, outputTokens: number): number | null {
@@ -70,6 +73,12 @@ export function formatResultSummary(stepName: ExtractionStepName, json: string |
       case 'RiskAssess': {
         const r = JSON.parse(json) as RiskAssessResult
         return r.requiresReview ? `${r.riskLevel} — requires review` : r.riskLevel
+      }
+      case 'RiskDebate': {
+        const r = JSON.parse(json) as DebateResultSummary
+        const verdict = `${r.finalRiskLevel} (${Math.round(r.finalConfidence * 100)}%)`
+        const original = r.originalRiskLevel ? `${r.originalRiskLevel} \u2192 ` : ''
+        return `${original}${verdict}, ${r.rounds.length} round${r.rounds.length !== 1 ? 's' : ''}`
       }
       case 'Summarize': {
         const r = JSON.parse(json) as SummarizeResult

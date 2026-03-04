@@ -174,7 +174,7 @@ public class ExtractionPipelineTests : IClassFixture<ApiFixture>
         // Verifies per-step persistence: 6 steps with timing, token usage,
         // and tool call traces. Reuses the extraction above (zero extra cost).
 
-        await ExtractionAssertions.AssertExtractionSteps(_client, sessionId);
+        await ExtractionAssertions.AssertExtractionSteps(_client, sessionId, _output);
 
         // ── Section 3: Q&A over Extracted Session ───────────────────────
         // Originally: QATests.QA_AnswersQuestionAboutExtractedSession

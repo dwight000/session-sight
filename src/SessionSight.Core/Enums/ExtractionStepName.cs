@@ -9,6 +9,7 @@ public enum ExtractionStepName
     Intake,
     ClinicalExtract,
     RiskAssess,
+    RiskDebate,
     Summarize,
     SearchIndex
 }

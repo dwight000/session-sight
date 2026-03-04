@@ -50,7 +50,7 @@ public static class ExtractionPrompts
 
         CRITICAL: Your final message MUST be ONLY the JSON object — no explanatory text, no markdown fences, no commentary before or after. Just raw JSON.
         """;
-    // NOTE: JSON output is also enforced via ChatResponseFormat.CreateJsonObjectFormat() in ClinicalExtractorAgent.
+    // NOTE: JSON output is also enforced via ChatResponseFormat.Json in ClinicalExtractorAgent.
     // This prompt instruction is kept as defense-in-depth for edge cases (token limits, content filters).
 
     /// <summary>

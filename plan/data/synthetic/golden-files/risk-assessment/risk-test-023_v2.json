@@ -73,7 +73,8 @@
         },
         "risk_level_overall": {
           "accept": [
-            "low"
+            "low",
+            "moderate"
           ]
         }
       }

@@ -59,6 +59,33 @@ export const mockLlmTrace: ExtractionLlmTrace = {
   calledAt: '2025-06-01T10:00:02Z',
 }
 
+export function makeDebateStep(overrides: Partial<ExtractionStep> = {}): ExtractionStep {
+  return makeStep('RiskDebate', 5, {
+    durationMs: 6200,
+    modelUsed: 'gpt-4.1-mini',
+    inputTokens: 1800,
+    outputTokens: 1400,
+    totalTokens: 3200,
+    resultSummaryJson: JSON.stringify({
+      originalRiskLevel: 'Low',
+      originalConfidence: 0.6,
+      finalRiskLevel: 'High',
+      finalConfidence: 0.82,
+      requiresReview: true,
+      reviewReasons: [],
+      advocateModel: 'gpt-4.1-nano',
+      challengerModel: 'Mistral-Large-3',
+      judgeModel: 'gpt-4.1-mini',
+      rounds: [
+        { roundNumber: 1, advocateArgument: 'Advocate opening arg', challengerArgument: 'Challenger opening arg' },
+        { roundNumber: 2, advocateArgument: 'Advocate rebuttal', challengerArgument: 'Challenger rebuttal' },
+      ],
+      judgeSynthesis: 'Risk is elevated based on the evidence presented.',
+    }),
+    ...overrides,
+  })
+}
+
 export const mockExtractionStepsComplete: ExtractionStepsResponse = {
   extractionId: 'ext-001',
   documentStatus: 'Completed',
@@ -106,6 +133,36 @@ export const mockExtractionStepsComplete: ExtractionStepsResponse = {
       resultSummaryJson: '{"oneLiner":"Patient shows improved mood with consistent CBT engagement","interventionsUsed":["CBT","Breathing exercises"],"keyPoints":"Mood improved, CBT techniques reinforced","nextSessionFocus":"Continue CBT exposure work","riskLevel":"Low"}',
     }),
     makeStep('SearchIndex', 5, {
+      durationMs: 800,
+      modelUsed: 'text-embedding-3-large',
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      resultSummaryJson: '{"indexed":true,"error":null}',
+    }),
+  ],
+}
+
+export const mockExtractionStepsWithDebate: ExtractionStepsResponse = {
+  extractionId: 'ext-005',
+  documentStatus: 'Completed',
+  failureKind: null,
+  errorMessage: null,
+  steps: [
+    mockExtractionStepsComplete.steps[0], // DocumentParse (order 0)
+    mockExtractionStepsComplete.steps[1], // Intake (order 1)
+    mockExtractionStepsComplete.steps[2], // ClinicalExtract (order 2)
+    mockExtractionStepsComplete.steps[3], // RiskAssess (order 3)
+    makeDebateStep(),                     // RiskDebate (order 5)
+    makeStep('Summarize', 6, {
+      durationMs: 5200,
+      modelUsed: 'gpt-4.1-nano',
+      inputTokens: 800,
+      outputTokens: 200,
+      totalTokens: 1000,
+      resultSummaryJson: '{"oneLiner":"Patient shows improved mood with consistent CBT engagement","interventionsUsed":["CBT","Breathing exercises"],"keyPoints":"Mood improved, CBT techniques reinforced","nextSessionFocus":"Continue CBT exposure work","riskLevel":"Low"}',
+    }),
+    makeStep('SearchIndex', 7, {
       durationMs: 800,
       modelUsed: 'text-embedding-3-large',
       inputTokens: 0,

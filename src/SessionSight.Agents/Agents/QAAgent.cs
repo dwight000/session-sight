@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using OpenAI.Chat;
+using Microsoft.Extensions.AI;
 using SessionSight.Agents.Helpers;
 using SessionSight.Agents.Models;
 using SessionSight.Agents.Prompts;
@@ -106,7 +106,7 @@ public partial class QAAgent : IQAAgent
                 Question = question,
                 Answer = "I don't have session data to answer this question. No indexed sessions were found for this patient.",
                 Confidence = 0,
-                ModelUsed = _modelRouter.SelectModel(ModelTask.QASimple),
+                ModelUsed = _modelRouter.SelectModel(ModelTask.QASimple).DeploymentName,
                 GeneratedAt = DateTime.UtcNow,
                 Diagnostics = diagnostics
             };
@@ -139,27 +139,28 @@ public partial class QAAgent : IQAAgent
         diagnostics.SearchResultCount = resultsList.Count;
 
         // Select model and call LLM
-        var modelName = _modelRouter.SelectModel(ModelTask.QASimple);
+        var selection = _modelRouter.SelectModel(ModelTask.QASimple);
+        var modelName = selection.DeploymentName;
 
         try
         {
-            var chatClient = _clientFactory.CreateChatClient(modelName);
+            var chatClient = _clientFactory.CreateChatClient(selection);
             var prompt = QAPrompts.GetAnswerPrompt(question, contextString);
 
             var messages = new List<ChatMessage>
             {
-                new SystemChatMessage(QAPrompts.SystemPrompt),
-                new UserChatMessage(prompt)
+                new(ChatRole.System, QAPrompts.SystemPrompt),
+                new(ChatRole.User, prompt)
             };
 
-            var options = new ChatCompletionOptions
+            var options = new ChatOptions
             {
                 Temperature = 0.2f,
-                MaxOutputTokenCount = 1024
+                MaxOutputTokens = 1024
             };
 
-            var response = await chatClient.CompleteChatAsync(messages, options, ct);
-            var content = response.Value.Content[0].Text;
+            var response = await chatClient.GetResponseAsync(messages, options, ct);
+            var content = response.Text!;
 
             var qaResponse = ParseQAResponse(content);
             qaResponse.Question = question;
@@ -194,16 +195,17 @@ public partial class QAAgent : IQAAgent
 
     private async Task<QAResponse> AnswerComplexAsync(string question, Guid patientId, QADiagnostics diagnostics, CancellationToken ct)
     {
-        var modelName = _modelRouter.SelectModel(ModelTask.QAComplex);
+        var selection = _modelRouter.SelectModel(ModelTask.QAComplex);
+        var modelName = selection.DeploymentName;
 
         try
         {
-            var chatClient = _clientFactory.CreateChatClient(modelName);
+            var chatClient = _clientFactory.CreateChatClient(selection);
 
             var messages = new List<ChatMessage>
             {
-                new SystemChatMessage(QAPrompts.AgenticSystemPrompt),
-                new UserChatMessage(QAPrompts.GetAgenticUserPrompt(question, patientId))
+                new(ChatRole.System, QAPrompts.AgenticSystemPrompt),
+                new(ChatRole.User, QAPrompts.GetAgenticUserPrompt(question, patientId))
             };
 
             // Scope tools to the requested patient to prevent cross-patient data access
@@ -384,23 +386,23 @@ public partial class QAAgent : IQAAgent
     {
         try
         {
-            var modelName = _modelRouter.SelectModel(ModelTask.QASimple);
-            var chatClient = _clientFactory.CreateChatClient(modelName);
+            var selection = _modelRouter.SelectModel(ModelTask.QASimple);
+            var chatClient = _clientFactory.CreateChatClient(selection);
 
             var messages = new List<ChatMessage>
             {
-                new SystemChatMessage(QAPrompts.ComplexityPrompt),
-                new UserChatMessage(question)
+                new(ChatRole.System, QAPrompts.ComplexityPrompt),
+                new(ChatRole.User, question)
             };
 
-            var options = new ChatCompletionOptions
+            var options = new ChatOptions
             {
                 Temperature = 0f,
-                MaxOutputTokenCount = 10
+                MaxOutputTokens = 10
             };
 
-            var response = await chatClient.CompleteChatAsync(messages, options, ct);
-            var result = response.Value.Content[0].Text.Trim().ToLowerInvariant();
+            var response = await chatClient.GetResponseAsync(messages, options, ct);
+            var result = response.Text!.Trim().ToLowerInvariant();
 
             return result.Contains("complex", StringComparison.OrdinalIgnoreCase);
         }

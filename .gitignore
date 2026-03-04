@@ -41,6 +41,9 @@ Thumbs.db
 # Azure
 .azure/
 
+# ARM template artifacts (compiled from Bicep)
+infra/modules/*.json
+
 # Node
 src/SessionSight.Web/node_modules/
 

@@ -26,6 +26,7 @@ public class ExtractionOrchestratorTests
     private readonly IIntakeAgent _intakeAgent;
     private readonly IClinicalExtractorAgent _extractorAgent;
     private readonly IRiskAssessorAgent _riskAssessor;
+    private readonly IRiskDebateAgent _riskDebate;
     private readonly ISummarizerAgent _summarizer;
     private readonly ISessionRepository _sessionRepository;
     private readonly IDocumentRepository _documentRepository;
@@ -42,6 +43,7 @@ public class ExtractionOrchestratorTests
         _intakeAgent = Substitute.For<IIntakeAgent>();
         _extractorAgent = Substitute.For<IClinicalExtractorAgent>();
         _riskAssessor = Substitute.For<IRiskAssessorAgent>();
+        _riskDebate = Substitute.For<IRiskDebateAgent>();
         _summarizer = Substitute.For<ISummarizerAgent>();
         _sessionRepository = Substitute.For<ISessionRepository>();
         _documentRepository = Substitute.For<IDocumentRepository>();
@@ -60,8 +62,10 @@ public class ExtractionOrchestratorTests
             Arg.Any<Guid>(), DocumentStatus.Pending, DocumentStatus.Processing)
             .Returns(true);
 
-        var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _summarizer);
+        var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _riskDebate, _summarizer);
         var diagOptions = Options.Create(new PipelineDiagnosticsOptions());
+        var debateMonitor = Substitute.For<IOptionsMonitor<RiskDebateOptions>>();
+        debateMonitor.CurrentValue.Returns(new RiskDebateOptions());
         _orchestrator = new ExtractionOrchestrator(
             _documentParser,
             agents,
@@ -72,6 +76,7 @@ public class ExtractionOrchestratorTests
             _documentStorage,
             _sessionIndexingService,
             diagOptions,
+            debateMonitor,
             _logger);
     }
 

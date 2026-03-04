@@ -22,6 +22,7 @@ public class ExtractionOrchestratorStepTests
     private readonly IIntakeAgent _intakeAgent;
     private readonly IClinicalExtractorAgent _extractorAgent;
     private readonly IRiskAssessorAgent _riskAssessor;
+    private readonly IRiskDebateAgent _riskDebate;
     private readonly ISummarizerAgent _summarizer;
     private readonly ISessionRepository _sessionRepository;
     private readonly IDocumentRepository _documentRepository;
@@ -37,6 +38,7 @@ public class ExtractionOrchestratorStepTests
         _intakeAgent = Substitute.For<IIntakeAgent>();
         _extractorAgent = Substitute.For<IClinicalExtractorAgent>();
         _riskAssessor = Substitute.For<IRiskAssessorAgent>();
+        _riskDebate = Substitute.For<IRiskDebateAgent>();
         _summarizer = Substitute.For<ISummarizerAgent>();
         _sessionRepository = Substitute.For<ISessionRepository>();
         _documentRepository = Substitute.For<IDocumentRepository>();
@@ -53,12 +55,14 @@ public class ExtractionOrchestratorStepTests
             Arg.Any<Guid>(), DocumentStatus.Pending, DocumentStatus.Processing)
             .Returns(true);
 
-        var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _summarizer);
+        var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _riskDebate, _summarizer);
         var diagOptions = Options.Create(new PipelineDiagnosticsOptions());
+        var debateMonitor = Substitute.For<IOptionsMonitor<RiskDebateOptions>>();
+        debateMonitor.CurrentValue.Returns(new RiskDebateOptions());
         _orchestrator = new ExtractionOrchestrator(
             _documentParser, agents, _sessionRepository, _documentRepository,
             _extractionResultRepository, _stepRepository,
-            _documentStorage, _sessionIndexingService, diagOptions, logger);
+            _documentStorage, _sessionIndexingService, diagOptions, debateMonitor, logger);
     }
 
     private void SetupFullPipeline(Guid sessionId)
@@ -137,7 +141,7 @@ public class ExtractionOrchestratorStepTests
         savedSteps.Should().HaveCount(12);
         // Deduplicate by Id (same entity saved twice — object is mutated between saves)
         var distinctSteps = savedSteps.DistinctBy(s => s.Id).ToList();
-        distinctSteps.Select(s => s.StepOrder).Should().BeEquivalentTo([1, 2, 3, 4, 5, 6]);
+        distinctSteps.Select(s => s.StepOrder).Should().BeEquivalentTo([1, 2, 3, 4, 6, 7]);
         distinctSteps.Select(s => s.StepName).Should().BeEquivalentTo([
             ExtractionStepName.DocumentParse,
             ExtractionStepName.Intake,
@@ -351,12 +355,14 @@ public class ExtractionOrchestratorStepTests
 
         // Create orchestrator with StoreLlmTraces enabled
         var diagOptions = Options.Create(new PipelineDiagnosticsOptions { StoreLlmTraces = true });
-        var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _summarizer);
+        var debateMonitor = Substitute.For<IOptionsMonitor<RiskDebateOptions>>();
+        debateMonitor.CurrentValue.Returns(new RiskDebateOptions());
+        var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _riskDebate, _summarizer);
         var logger = Substitute.For<ILogger<ExtractionOrchestrator>>();
         var orchestrator = new ExtractionOrchestrator(
             _documentParser, agents, _sessionRepository, _documentRepository,
             _extractionResultRepository, _stepRepository,
-            _documentStorage, _sessionIndexingService, diagOptions, logger);
+            _documentStorage, _sessionIndexingService, diagOptions, debateMonitor, logger);
 
         var savedSteps = new List<ExtractionStep>();
         await _stepRepository.SaveStepAsync(Arg.Do<ExtractionStep>(s => savedSteps.Add(s)), Arg.Any<CancellationToken>());
@@ -425,5 +431,154 @@ public class ExtractionOrchestratorStepTests
 
         // Verify the callback was passed
         capturedCallback.Should().NotBeNull();
+    }
+
+    // ── Debate-enabled pipeline ──────────────────────────────────────────
+
+    private ExtractionOrchestrator CreateOrchestratorWithDebate(RiskDebateOptions? options = null)
+    {
+        options ??= new RiskDebateOptions { Enabled = true, TriggerMode = RiskDebateTriggerMode.Always };
+        var debateMonitor = Substitute.For<IOptionsMonitor<RiskDebateOptions>>();
+        debateMonitor.CurrentValue.Returns(options);
+        var agents = new ExtractionAgents(_intakeAgent, _extractorAgent, _riskAssessor, _riskDebate, _summarizer);
+        return new ExtractionOrchestrator(
+            _documentParser, agents, _sessionRepository, _documentRepository,
+            _extractionResultRepository, _stepRepository,
+            _documentStorage, _sessionIndexingService,
+            Options.Create(new PipelineDiagnosticsOptions()),
+            debateMonitor,
+            Substitute.For<ILogger<ExtractionOrchestrator>>());
+    }
+
+    private RiskDebateResult MakeDebateResult(
+        RiskLevelOverall riskLevel = RiskLevelOverall.High,
+        double confidence = 0.9,
+        bool requiresReview = false,
+        List<string>? reviewReasons = null)
+    {
+        return new RiskDebateResult
+        {
+            FinalRiskLevel = riskLevel,
+            FinalConfidence = confidence,
+            RequiresReview = requiresReview,
+            ReviewReasons = reviewReasons ?? [],
+            JudgeModel = "gpt-4.1-mini",
+            AdvocateModel = "gpt-4.1-nano",
+            ChallengerModel = "Mistral-Large-3",
+            JudgeSynthesis = "Risk elevated based on evidence",
+            Rounds = [new DebateRound(1, "Advocate opening", "Challenger opening")]
+        };
+    }
+
+    [Fact]
+    public async Task DebateEnabled_Saves7Steps()
+    {
+        var sessionId = Guid.NewGuid();
+        SetupFullPipeline(sessionId);
+        _riskDebate.DebateAsync(Arg.Any<RiskAssessmentResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(MakeDebateResult());
+
+        var savedSteps = new List<ExtractionStep>();
+        await _stepRepository.SaveStepAsync(Arg.Do<ExtractionStep>(s => savedSteps.Add(s)), Arg.Any<CancellationToken>());
+
+        var orchestrator = CreateOrchestratorWithDebate();
+        await orchestrator.ProcessSessionAsync(sessionId);
+
+        // 14 saves: 7 steps × 2 (Running at start + Succeeded at end)
+        savedSteps.Should().HaveCount(14);
+        var distinctSteps = savedSteps.DistinctBy(s => s.Id).ToList();
+        distinctSteps.Should().HaveCount(7);
+        distinctSteps.Select(s => s.StepOrder).OrderBy(x => x)
+            .Should().BeEquivalentTo([1, 2, 3, 4, 5, 6, 7]);
+        distinctSteps.Select(s => s.StepName)
+            .Should().Contain(ExtractionStepName.RiskDebate);
+    }
+
+    [Fact]
+    public async Task DebateEnabled_OverridesRiskAssessment()
+    {
+        var sessionId = Guid.NewGuid();
+        SetupFullPipeline(sessionId);
+
+        // Risk assessor returns Low
+        _riskAssessor.AssessAsync(Arg.Any<AgentExtractionResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new RiskAssessmentResult
+            {
+                ModelUsed = "gpt-4.1-mini",
+                FinalExtraction = new RiskAssessmentExtracted
+                {
+                    RiskLevelOverall = new ExtractedField<RiskLevelOverall>
+                    {
+                        Value = RiskLevelOverall.Low,
+                        Confidence = 0.6
+                    }
+                },
+                Diagnostics = new RiskDiagnostics()
+            });
+
+        // Debate overrides to High
+        _riskDebate.DebateAsync(Arg.Any<RiskAssessmentResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(MakeDebateResult(RiskLevelOverall.High, 0.9));
+
+        CoreEntities.ExtractionResult? capturedResult = null;
+        _extractionResultRepository.UpdateExtractionResultAsync(
+            Arg.Do<CoreEntities.ExtractionResult>(r => capturedResult = r));
+
+        var orchestrator = CreateOrchestratorWithDebate();
+        await orchestrator.ProcessSessionAsync(sessionId);
+
+        capturedResult.Should().NotBeNull();
+        capturedResult!.Data.RiskAssessment.RiskLevelOverall.Value.Should().Be(RiskLevelOverall.High);
+        capturedResult.Data.RiskAssessment.RiskLevelOverall.Confidence.Should().Be(0.9);
+        capturedResult.Data.RiskAssessment.RiskLevelOverall.Source!.Text
+            .Should().Contain("RiskDebate judge");
+    }
+
+    [Fact]
+    public async Task DebateEnabled_PropagatesRequiresReview()
+    {
+        var sessionId = Guid.NewGuid();
+        SetupFullPipeline(sessionId);
+        _riskDebate.DebateAsync(Arg.Any<RiskAssessmentResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(MakeDebateResult(
+                requiresReview: true,
+                reviewReasons: ["Conflicting signals"]));
+
+        CoreEntities.ExtractionResult? capturedResult = null;
+        _extractionResultRepository.UpdateExtractionResultAsync(
+            Arg.Do<CoreEntities.ExtractionResult>(r => capturedResult = r));
+
+        var orchestrator = CreateOrchestratorWithDebate();
+        await orchestrator.ProcessSessionAsync(sessionId);
+
+        capturedResult.Should().NotBeNull();
+        capturedResult!.RequiresReview.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DebateFailure_ContinuesPipeline()
+    {
+        var sessionId = Guid.NewGuid();
+        SetupFullPipeline(sessionId);
+        _riskDebate.DebateAsync(Arg.Any<RiskAssessmentResult>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("AIServices endpoint unavailable"));
+
+        var savedSteps = new List<ExtractionStep>();
+        await _stepRepository.SaveStepAsync(Arg.Do<ExtractionStep>(s => savedSteps.Add(s)), Arg.Any<CancellationToken>());
+
+        var orchestrator = CreateOrchestratorWithDebate();
+        var result = await orchestrator.ProcessSessionAsync(sessionId);
+
+        result.Success.Should().BeTrue();
+        // 14 saves: 7 steps × 2 (Running + terminal status)
+        savedSteps.Should().HaveCount(14);
+
+        var debateStep = savedSteps.First(s => s.StepName == ExtractionStepName.RiskDebate);
+        debateStep.Status.Should().Be(ExtractionStepStatus.Failed);
+        debateStep.ErrorMessage.Should().Contain("AIServices endpoint unavailable");
+
+        // Pipeline continued: Summarize and SearchIndex still ran
+        savedSteps.Should().Contain(s => s.StepName == ExtractionStepName.Summarize);
+        savedSteps.Should().Contain(s => s.StepName == ExtractionStepName.SearchIndex);
     }
 }
