@@ -215,7 +215,18 @@ jobs:
           OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
           echo "object_id=$OBJECT_ID" >> $GITHUB_OUTPUT
 
+      - name: Deploy Infrastructure (What-If)
+        if: github.event.inputs.mode == 'what-if'
+        run: |
+          az deployment sub what-if \
+            --location eastus2 \
+            --template-file infra/main.bicep \
+            --parameters infra/main.parameters.stage.json \
+            --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
+            --parameters deployAIModels=false
+
       - name: Deploy Infrastructure
+        if: github.event.inputs.mode != 'what-if'
         run: |
           az deployment sub create \
             --location eastus2 \
@@ -228,6 +239,7 @@ jobs:
             --parameters deployAIModels=false
 
       - name: Provision Managed Identity SQL users
+        if: github.event.inputs.mode != 'what-if'
         run: |
           RG="rg-sessionsight-dev"
           SQL_SERVER="sessionsight-sql-dev"
@@ -267,6 +279,7 @@ jobs:
           echo "MI user [${API_APP}] provisioned in database [${DB_NAME}] with clientId ${MI_CLIENT_ID}"
 
       - name: Show Deployment Outputs
+        if: github.event.inputs.mode != 'what-if'
         run: |
           echo "## Deployment Outputs" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
