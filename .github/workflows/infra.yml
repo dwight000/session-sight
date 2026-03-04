@@ -36,11 +36,6 @@ on:
       - 'infra/**'
       - '.github/workflows/infra.yml'
 
-# Prevent concurrent deployments to the same environment
-concurrency:
-  group: infra-${{ github.event.inputs.environment || 'dev' }}
-  cancel-in-progress: false
-
 jobs:
   validate:
     name: Validate Bicep
@@ -80,16 +75,18 @@ jobs:
             --parameters servicePrincipalObjectId='00000000-0000-0000-0000-000000000000' \
             --parameters deployAIModels=false
 
-  deploy:
-    name: Deploy Infrastructure
+  deploy-dev:
+    name: Deploy Infrastructure (Dev)
     runs-on: ubuntu-latest
     needs: validate
-    # Only deploy on push to main/develop or manual trigger (not PRs)
-    if: github.event_name != 'pull_request'
-    environment: ${{ github.event.inputs.environment || 'dev' }}
+    if: github.event_name != 'pull_request' && github.event.inputs.environment != 'stage'
+    environment: dev
+    concurrency:
+      group: infra-dev
+      cancel-in-progress: false
 
     permissions:
-      id-token: write  # Required for OIDC
+      id-token: write
       contents: read
 
     steps:
@@ -105,18 +102,16 @@ jobs:
       - name: Get Service Principal Object ID
         id: sp
         run: |
-          # Get the object ID of the service principal for RBAC assignments
           OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
           echo "object_id=$OBJECT_ID" >> $GITHUB_OUTPUT
 
       - name: Deploy Infrastructure (What-If)
         if: github.event.inputs.mode == 'what-if'
         run: |
-          ENV=${{ github.event.inputs.environment || 'dev' }}
           az deployment sub what-if \
             --location eastus2 \
             --template-file infra/main.bicep \
-            --parameters infra/main.parameters.${ENV}.json \
+            --parameters infra/main.parameters.dev.json \
             --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
             --parameters deployContainerApps=${{ github.event.inputs.deployContainerApps || 'false' }} \
             --parameters ghcrToken='${{ github.event.inputs.ghcrToken || secrets.GHCR_TOKEN }}' \
@@ -125,12 +120,11 @@ jobs:
       - name: Deploy Infrastructure
         if: github.event.inputs.mode != 'what-if'
         run: |
-          ENV=${{ github.event.inputs.environment || 'dev' }}
           az deployment sub create \
             --location eastus2 \
             --name "sessionsight-infra-$(date +%Y%m%d-%H%M%S)" \
             --template-file infra/main.bicep \
-            --parameters infra/main.parameters.${ENV}.json \
+            --parameters infra/main.parameters.dev.json \
             --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
             --parameters deployContainerApps=${{ github.event.inputs.deployContainerApps || (github.event_name == 'push' && 'true') || 'false' }} \
             --parameters ghcrToken='${{ github.event.inputs.ghcrToken || secrets.GHCR_TOKEN }}' \
@@ -139,21 +133,17 @@ jobs:
       - name: Provision Managed Identity SQL users
         if: github.event.inputs.mode != 'what-if'
         run: |
-          ENV=${{ github.event.inputs.environment || 'dev' }}
-          RG="rg-sessionsight-dev"  # Shared RG for all environments (per main.bicep)
-          SQL_SERVER="sessionsight-sql-dev"  # Shared SQL server for all environments
-          DB_NAME=$( [ "$ENV" = "dev" ] && echo "sessionsight" || echo "sessionsight-${ENV}" )
-          API_APP="sessionsight-${ENV}-api"
+          RG="rg-sessionsight-dev"
+          SQL_SERVER="sessionsight-sql-dev"
+          DB_NAME="sessionsight"
+          API_APP="sessionsight-dev-api"
 
-          # Ensure CI SP has Directory.Read.All to resolve MI client ID
           CI_APP_ID=${{ secrets.AZURE_CLIENT_ID }}
-          # Grant is idempotent — safe to run every time
           az ad app permission add --id "${CI_APP_ID}" \
             --api 00000003-0000-0000-c000-000000000000 \
             --api-permissions 7ab1d382-f21e-4acd-a863-ba3e13f7da61=Role 2>/dev/null || true
           az ad app permission admin-consent --id "${CI_APP_ID}" 2>/dev/null || true
 
-          # Get MI client ID (appId) — Azure SQL matches tokens by client ID, not object ID
           MI_OBJECT_ID=$(az containerapp show -g ${RG} -n ${API_APP} --query "identity.principalId" -o tsv 2>/dev/null || true)
           if [ -z "$MI_OBJECT_ID" ]; then
             echo "Container App ${API_APP} not found or has no MI, skipping SQL user provisioning"
@@ -163,17 +153,13 @@ jobs:
           echo "MI objectId: ${MI_OBJECT_ID}"
           echo "MI clientId: ${MI_CLIENT_ID}"
 
-          # Convert client ID GUID to SQL Server SID hex (mixed-endian UNIQUEIDENTIFIER format)
           SID_HEX=$(python3 -c "import uuid; print('0x' + uuid.UUID('${MI_CLIENT_ID}').bytes_le.hex().upper())")
           echo "SID hex: ${SID_HEX}"
 
-          # Install Go-based sqlcmd (supports ActiveDirectoryDefault auth via az login)
           curl -s https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc
           sudo add-apt-repository "$(curl -s https://packages.microsoft.com/config/ubuntu/22.04/prod.list)"
           sudo apt-get update -y && sudo apt-get install -y sqlcmd
 
-          # Create MI user with explicit SID using client ID (not object ID).
-          # Uses pre-computed hex literal to avoid Go-sqlcmd T-SQL parsing issues.
           sqlcmd -S "${SQL_SERVER}.database.windows.net" -d "${DB_NAME}" \
             --authentication-method ActiveDirectoryDefault -b -V 11 \
             -Q "IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = '${API_APP}')
@@ -189,16 +175,119 @@ jobs:
         run: |
           echo "## Deployment Outputs" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Get the latest sessionsight deployment (reverse sort by name which includes timestamp)
           DEPLOYMENT_NAME=$(az deployment sub list \
             --query "[?starts_with(name, 'sessionsight-infra-')].name | reverse(@) | [0]" \
             -o tsv)
-
           echo "Deployment: $DEPLOYMENT_NAME" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          az deployment sub show \
+            --name "$DEPLOYMENT_NAME" \
+            --query properties.outputs \
+            -o json >> $GITHUB_STEP_SUMMARY
 
-          # Show outputs as JSON (more reliable than table format)
+  deploy-stage:
+    name: Deploy Infrastructure (Stage)
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event_name != 'pull_request' && (github.event.inputs.environment == 'stage' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
+    environment: stage
+    concurrency:
+      group: infra-stage
+      cancel-in-progress: false
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get Service Principal Object ID
+        id: sp
+        run: |
+          OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
+          echo "object_id=$OBJECT_ID" >> $GITHUB_OUTPUT
+
+      - name: Deploy Infrastructure (What-If)
+        if: github.event.inputs.mode == 'what-if'
+        run: |
+          az deployment sub what-if \
+            --location eastus2 \
+            --template-file infra/main.bicep \
+            --parameters infra/main.parameters.stage.json \
+            --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
+            --parameters deployAIModels=false
+
+      - name: Deploy Infrastructure
+        if: github.event.inputs.mode != 'what-if'
+        run: |
+          az deployment sub create \
+            --location eastus2 \
+            --name "sessionsight-infra-$(date +%Y%m%d-%H%M%S)" \
+            --template-file infra/main.bicep \
+            --parameters infra/main.parameters.stage.json \
+            --parameters servicePrincipalObjectId='${{ steps.sp.outputs.object_id }}' \
+            --parameters deployContainerApps=${{ github.event.inputs.deployContainerApps || (github.event_name == 'push' && 'true') || 'false' }} \
+            --parameters ghcrToken='${{ github.event.inputs.ghcrToken || secrets.GHCR_TOKEN }}' \
+            --parameters deployAIModels=false
+
+      - name: Provision Managed Identity SQL users
+        if: github.event.inputs.mode != 'what-if'
+        run: |
+          RG="rg-sessionsight-dev"
+          SQL_SERVER="sessionsight-sql-dev"
+          DB_NAME="sessionsight-stage"
+          API_APP="sessionsight-stage-api"
+
+          CI_APP_ID=${{ secrets.AZURE_CLIENT_ID }}
+          az ad app permission add --id "${CI_APP_ID}" \
+            --api 00000003-0000-0000-c000-000000000000 \
+            --api-permissions 7ab1d382-f21e-4acd-a863-ba3e13f7da61=Role 2>/dev/null || true
+          az ad app permission admin-consent --id "${CI_APP_ID}" 2>/dev/null || true
+
+          MI_OBJECT_ID=$(az containerapp show -g ${RG} -n ${API_APP} --query "identity.principalId" -o tsv 2>/dev/null || true)
+          if [ -z "$MI_OBJECT_ID" ]; then
+            echo "Container App ${API_APP} not found or has no MI, skipping SQL user provisioning"
+            exit 0
+          fi
+          MI_CLIENT_ID=$(az ad sp show --id "${MI_OBJECT_ID}" --query appId -o tsv)
+          echo "MI objectId: ${MI_OBJECT_ID}"
+          echo "MI clientId: ${MI_CLIENT_ID}"
+
+          SID_HEX=$(python3 -c "import uuid; print('0x' + uuid.UUID('${MI_CLIENT_ID}').bytes_le.hex().upper())")
+          echo "SID hex: ${SID_HEX}"
+
+          curl -s https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc
+          sudo add-apt-repository "$(curl -s https://packages.microsoft.com/config/ubuntu/22.04/prod.list)"
+          sudo apt-get update -y && sudo apt-get install -y sqlcmd
+
+          sqlcmd -S "${SQL_SERVER}.database.windows.net" -d "${DB_NAME}" \
+            --authentication-method ActiveDirectoryDefault -b -V 11 \
+            -Q "IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = '${API_APP}')
+                  DROP USER [${API_APP}];
+                CREATE USER [${API_APP}] WITH SID = ${SID_HEX}, TYPE = E;
+                ALTER ROLE db_owner ADD MEMBER [${API_APP}];
+                SELECT name, type_desc, sid FROM sys.database_principals WHERE name = '${API_APP}';"
+
+          echo "MI user [${API_APP}] provisioned in database [${DB_NAME}] with clientId ${MI_CLIENT_ID}"
+
+      - name: Show Deployment Outputs
+        if: github.event.inputs.mode != 'what-if'
+        run: |
+          echo "## Deployment Outputs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          DEPLOYMENT_NAME=$(az deployment sub list \
+            --query "[?starts_with(name, 'sessionsight-infra-')].name | reverse(@) | [0]" \
+            -o tsv)
+          echo "Deployment: $DEPLOYMENT_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           az deployment sub show \
             --name "$DEPLOYMENT_NAME" \
             --query properties.outputs \
