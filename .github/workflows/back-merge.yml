@@ -14,18 +14,23 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Merge main into develop
+      - name: Create back-merge PR
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout develop
-          git merge origin/main --no-edit || {
-            git merge --abort
-            gh pr create --base develop --head main \
-              --title "chore: Back-merge main into develop (conflicts)" \
-              --body "Auto back-merge failed due to conflicts. Please resolve manually."
+          # Check if main has commits not in develop
+          if git diff --quiet origin/develop..origin/main; then
+            echo "No changes to back-merge"
             exit 0
-          }
-          git push origin develop
+          fi
+
+          # Check if a back-merge PR already exists
+          EXISTING=$(gh pr list --base develop --head main --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            echo "Back-merge PR #${EXISTING} already exists"
+            exit 0
+          fi
+
+          gh pr create --base develop --head main \
+            --title "chore: Back-merge main into develop" \
+            --body "Automated back-merge of main into develop after release."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
