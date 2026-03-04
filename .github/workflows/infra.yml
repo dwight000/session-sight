@@ -29,10 +29,12 @@ on:
     branches: [main, develop]
     paths:
       - 'infra/**'
+      - '.github/workflows/infra.yml'
   pull_request:
     branches: [main, develop]
     paths:
       - 'infra/**'
+      - '.github/workflows/infra.yml'
 
 # Prevent concurrent deployments to the same environment
 concurrency:
