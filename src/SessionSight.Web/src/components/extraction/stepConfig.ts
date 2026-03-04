@@ -18,6 +18,17 @@ export const STEP_ORDER: ExtractionStepName[] = [
   'SearchIndex',
 ]
 
+/** Rendering order — includes optional steps (e.g. RiskDebate) as placeholders. */
+export const DISPLAY_ORDER: ExtractionStepName[] = [
+  'DocumentParse',
+  'Intake',
+  'ClinicalExtract',
+  'RiskAssess',
+  'RiskDebate',
+  'Summarize',
+  'SearchIndex',
+]
+
 export const STEP_DISPLAY_NAMES: Record<ExtractionStepName, string> = {
   DocumentParse: 'Document Parse',
   Intake: 'Intake',

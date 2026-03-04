@@ -63,6 +63,20 @@ describe('ActivityView', () => {
     expect(screen.getByText('Complete')).toBeInTheDocument()
   })
 
+  it('shows Processing footer when isStepComplete is false', () => {
+    render(<ActivityView toolCalls={[]} traces={[makeTrace(0)]} isStepComplete={false} />)
+
+    expect(screen.getByText('Processing...')).toBeInTheDocument()
+    expect(screen.queryByText('Complete')).not.toBeInTheDocument()
+  })
+
+  it('shows Complete footer when isStepComplete is true', () => {
+    render(<ActivityView toolCalls={[]} traces={[makeTrace(0)]} isStepComplete={true} />)
+
+    expect(screen.getByText('Complete')).toBeInTheDocument()
+    expect(screen.queryByText('Processing...')).not.toBeInTheDocument()
+  })
+
   it('expands details when clicked', async () => {
     render(<ActivityView toolCalls={[]} traces={[makeTrace(0)]} />)
 
@@ -102,7 +116,7 @@ describe('ActivityView', () => {
     const tools = [
       { ...makeToolCall(0, 'lookup_diagnosis_code'), outputJson: '{"Code":"F41.1","IsValid":true,"Description":"GAD"}' },
       { ...makeToolCall(0, 'validate_and_score'), outputJson: '{"Errors":[]}' },
-      { ...makeToolCall(0, 'validate_and_score'), outputJson: '{"Errors":["Missing field"]}' },
+      { ...makeToolCall(0, 'validate_and_score'), outputJson: '{"Errors":[{"Field":"mood","Message":"Missing field","Severity":"Error"}]}' },
       { ...makeToolCall(0, 'check_risk_keywords'), outputJson: '{"SuicidalMatches":[]}' },
       { ...makeToolCall(0, 'some_tool'), outputJson: '{"short":"val"}' },
     ]

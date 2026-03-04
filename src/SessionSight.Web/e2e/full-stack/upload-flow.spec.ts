@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url'
 /**
  * Full-stack E2E test for the complete upload flow.
  *
- * IMPORTANT: This test hits real Azure services and costs LLM tokens (~$0.05-0.10 per run).
+ * IMPORTANT: This test hits real Azure services and costs LLM tokens (~$0.01-0.02 per run).
  * Run sparingly - use mocked smoke tests for rapid iteration.
  *
  * Prerequisites:

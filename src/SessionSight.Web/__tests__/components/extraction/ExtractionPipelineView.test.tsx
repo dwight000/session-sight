@@ -12,7 +12,7 @@ import {
 } from '../../../src/test/fixtures/extractionSteps'
 
 describe('ExtractionPipelineView', () => {
-  it('renders all 6 step names', async () => {
+  it('renders all 7 step names including RiskDebate placeholder', async () => {
     renderWithProviders(<ExtractionPipelineView sessionId="sess-001" isLive={false} />)
 
     await waitFor(() => {
@@ -21,6 +21,7 @@ describe('ExtractionPipelineView', () => {
     expect(screen.getByText('Intake')).toBeInTheDocument()
     expect(screen.getByText('Clinical Extract')).toBeInTheDocument()
     expect(screen.getByText('Risk Assess')).toBeInTheDocument()
+    expect(screen.getByText('Risk Debate')).toBeInTheDocument()
     expect(screen.getByText('Summarize')).toBeInTheDocument()
     expect(screen.getByText('Search Index')).toBeInTheDocument()
   })
@@ -141,6 +142,20 @@ describe('ExtractionPipelineView', () => {
       expect(screen.getByText(/7 steps/)).toBeInTheDocument()
     })
     expect(screen.getByText(/tokens/)).toBeInTheDocument()
+  })
+
+  it('shows "Not required" for RiskDebate when debate was not triggered', async () => {
+    server.use(
+      http.get('/api/sessions/:sessionId/extraction/steps', () => {
+        return HttpResponse.json(mockExtractionStepsComplete)
+      }),
+    )
+
+    renderWithProviders(<ExtractionPipelineView sessionId="sess-norequired" isLive={false} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Not required for this extraction')).toBeInTheDocument()
+    })
   })
 
   it('shows correct progress denominator with debate in live mode', async () => {
