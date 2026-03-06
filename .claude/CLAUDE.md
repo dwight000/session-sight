@@ -97,7 +97,7 @@ Rollback:
 - EF migrations are NOT reversed — image rollback only
 
 **Frontend E2E notes (`--frontend`):**
-- **Cost:** ~$0.02-0.04 per run (LLM extraction uses gpt-4.1-mini/nano)
+- **Cost:** ~$0.01-0.02 per run (LLM extraction uses gpt-4.1-mini/nano/Mistral-Large-3)
 - **Duration:** ~2 minutes
 - **Debug failures:** Screenshots in `src/SessionSight.Web/test-results/`
 - **Test PDF:** `tests/SessionSight.FunctionalTests/TestData/sample-note.pdf`

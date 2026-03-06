@@ -7,11 +7,11 @@
 ## Current Status
 
 **Phase**: Phase 7 (Multi-Model Agent Debate) - COMPLETE
-**Next Action**: Phase 7 cleanup complete. Resource consolidation discussion pending.
+**Next Action**: All phases complete. Resource consolidation and CI/CD parity done. Both dev and stage environments deployed and healthy.
 
 **Last Updated**: March 3, 2026
 
-**Milestone**: Phase 7 complete. All items B-107–B-114 done. Post-implementation polish: fixed content filter blind spot in `AzureModelInferenceChatClient` (now maps `finish_reason` to `ChatFinishReason`), added Mistral-Large-3 pricing to frontend `MODEL_PRICING`, documented `AzureAIServices:Endpoint` user-secrets in dev config, tightened `qa-019` golden file guard (`"plan to harm"` → `"has a plan to harm"` to allow legitimate negation). Full E2E 19/19 green. Next: B-115 cleanup.
+**Milestone**: Post-Phase 7 consolidation complete. OpenAI→AIServices resource migration done (B-116). Cloud feature parity for RiskDebate/PipelineDiagnostics (B-117). DbContext concurrency fix for Q&A agent (B-118). CI/CD parity: auto-deploy on develop push, infra stage deploy with approval gate, back-merge PR fix, concurrency deadlock fix, stage what-if (B-119). Both dev and stage fully deployed and healthy. 30-point verification all green.
 
 ---
 
@@ -19,7 +19,7 @@
 
 <!-- When you start a task, move it here. Only ONE task at a time. -->
 
-_(Phase 7 complete; B-115 cleanup next)_
+_(No active work — all phases complete)_
 
 ---
 
@@ -215,6 +215,11 @@ _(Phase 7 complete; B-115 cleanup next)_
 | B-113 | RiskDebate UI — debate transcript visualization in extraction step card | M | 7 | Done | B-111 |
 | B-114 | Integration tests for multi-model debate (golden file + cost assertions) | M | 7 | Done | B-111 |
 | B-115 | Cleanup: remove spike code/deprecated packages, rename Bicep modules, delete ARM artifact | S | 7 | **Done** | B-114 |
+| **Post-Phase 7: Consolidation & CI/CD** |||||
+| B-116 | Resource consolidation: migrate OpenAI deployments into AIServices, purge old resource, update all endpoints | M | 7 | **Done** | B-115 |
+| B-117 | Cloud feature parity: RiskDebate + PipelineDiagnostics env vars in Container Apps Bicep | S | 7 | **Done** | B-116 |
+| B-118 | Fix DbContext concurrency in AgentLoopRunner — sequential tool execution instead of Task.WhenAll | S | 7 | **Done** | - |
+| B-119 | CI/CD parity: auto-deploy on develop push, infra stage deploy job, back-merge PR fix, concurrency deadlock fix, stage what-if | M | 6 | **Done** | - |
 
 ---
 
@@ -1386,6 +1391,10 @@ TriggerMode options: `"always"`, `"borderline"` (confidence in threshold range),
 | B-113 | RiskDebate UI — DebateTranscriptView component with per-round advocate/challenger blocks, judge synthesis, review reasons. Dynamic displaySteps in pipeline view (shows debate card only when API returns it). 8 new frontend tests. | 2026-03-02 |
 | B-114 | Integration tests — ExtractionAssertions rewritten for debate-aware pipeline (6 or 7 steps), AssertDebateStep with structural + cost guard (< 50k tokens). AIServices endpoint wired into Container Apps Bicep with MI role assignment. | 2026-03-02 |
 | B-115 | Cleanup: deleted spike project (plan/spike/agent-framework/), removed deprecated Azure.AI.Agents.Persistent + Azure.AI.Projects packages, deleted stale ARM artifact, renamed ai-services.bicep → aiServices.bicep, cleaned solution file. | 2026-03-03 |
+| B-116 | Resource consolidation: migrated all OpenAI model deployments (GPT-4.1-mini/nano, text-embedding-3-large) into AIServices resource, purged old `sessionsight-openai-dev`, updated all Bicep/AppHost/appsettings endpoints from `AzureOpenAI` → `AzureAIServices`, added `deployAIModels` param to bypass Azure RTFP block. PRs #144, #148. | 2026-03-03 |
+| B-117 | Cloud feature parity: added `RiskDebate__Enabled=true`, `RiskDebate__TriggerMode=Always`, `PipelineDiagnostics__StoreLlmTraces=true` env vars to containerApps.bicep for both dev and stage. PR #149. | 2026-03-03 |
+| B-118 | DbContext concurrency fix: changed `Task.WhenAll` to sequential `foreach` in `AgentLoopRunner.ExecuteToolCallAsync` — scoped tools share a non-thread-safe DbContext. PR #150. | 2026-03-03 |
+| B-119 | CI/CD parity: deploy.yml triggers on develop push (PR #145), deployContainerApps=true on push (#146), infra.yml self-trigger paths (#147), back-merge creates PR instead of direct push (#152), infra stage deploy job with approval gate (#152), concurrency deadlock fix (#153), stage what-if support (#153). First successful stage deploy (code + infra). PR #154 (develop→main). | 2026-03-03 |
 
 ---
 
@@ -1393,6 +1402,7 @@ TriggerMode options: `"always"`, `"borderline"` (confidence in threshold range),
 
 | Date | What Happened |
 |------|---------------|
+| 2026-03-03 | **Post-Phase 7 consolidation + CI/CD parity complete.** B-116: Consolidated OpenAI→AIServices — migrated all model deployments into single `kind:AIServices` resource, purged old OpenAI resource, updated all endpoints. Hit Azure RTFP (fraud protection) block on ARM validate — added `deployAIModels=false` parameter to bypass. B-117: Added RiskDebate + PipelineDiagnostics env vars to containerApps.bicep (were only in appsettings.Development.json). B-118: Fixed DbContext concurrency in Q&A agent — `Task.WhenAll` → sequential `foreach` (scoped tools share non-thread-safe DbContext). B-119: CI/CD parity — deploy.yml auto-deploys dev on develop push, infra.yml split into deploy-dev/deploy-stage with approval gate, back-merge creates PR instead of direct push (branch protection), fixed concurrency deadlock (workflow-level and job-level groups collided on same name), added what-if to deploy-stage. First successful stage deploy (code + infra). PRs #144–#154 (11 PRs). 30-point verification: all green — both environments healthy, no old resources, all workflows passing, main/develop in sync. |
 | 2026-03-03 | **Phase 7 E2E suite fully green (19/19).** PR #140 merged. Full validation: 233 backend tests (83.2%), frontend checks all pass, CI-mirror gate pass. Ran full `--backend` E2E: 17/19 passed, 2 debate side-effect failures. Fixed: `risk-test-023` golden file — debate judge overrides Low→Moderate on `risk_final` stage, added "moderate" to accept list (extractor/re-extracted stages stay Low-only). Fixed: `qa-019` golden file — LLM answer correctly says "distinguished from active suicidality" but `must_not_contain: "active suicidal"` was too broad, narrowed to `"is actively suicidal"`. Reran both: green. Plan addendum items (orchestrator tests, frontend progress counter, debate-aware assertions) confirmed already implemented from prior sessions. |
 | 2026-03-03 | **AIServices endpoint working end-to-end.** PR #139 merged (Bicep `model.version` fix). Debugged 404→401→429 chain: `AzureOpenAIClient` uses wrong path for non-OpenAI models, `Azure.AI.Inference` SDK breaks token audience when `/models` appended to URL. Created `AzureModelInferenceChatClient` using raw `HttpClient` with correct `/models/chat/completions` path and `cognitiveservices.azure.com` token scope. Added exponential backoff retry (3 retries, 7s base) matching `AzureRetryDefaults`. Bumped Mistral-Large-3 capacity 1→8 (1 req/60s insufficient for 3 sequential debate calls). Made E2E `riskLevelOverall` assertion debate-aware (judge can override). Removed unused `Azure.AI.Inference` package. E2E passes: 7 steps, debate verdict High/85% confidence, visible in UI. PR #140. |
 | 2026-03-02 | **B-111 complete: RiskDebate pipeline step.** Implemented the full multi-model adversarial debate pipeline. 5 new files: `RiskDebateAgent.cs` (IRiskDebateAgent + implementation — 5 sequential LLM calls: advocate→challenger→rebuttals→judge), `RiskDebateOptions.cs` (TriggerMode enum + options), `RiskDebateResult.cs` (DebateRound record + result model), `RiskDebatePrompts.cs` (5 prompt builders), `RiskDebateAgentTests.cs` (29 tests). Modified 6 files: `ExtractionStepName` (+RiskDebate enum), `ExtractionOrchestrator` (expanded ExtractionAgents record, non-fatal step 5, renumbered Summarize→6/SearchIndex→7, ShouldTriggerDebate + BuildMergedRiskFromDebate helpers), `Program.cs` (DI registration), `appsettings.json` (RiskDebate section disabled by default), both orchestrator test files (mock updates). Multi-model: advocate=gpt-4.1-nano, challenger=Mistral-Large-3 via AIServices, judge=gpt-4.1-mini. Content filter: graceful for advocate/challenger, throws for judge (orchestrator catches). 942 tests pass, 83.5% coverage. |

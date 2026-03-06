@@ -29,7 +29,7 @@
 #      - --all: Runs both
 #
 # Cost note (--frontend):
-#   Each frontend test run costs ~$0.05-0.10 in LLM tokens (extraction uses GPT-4o).
+#   Each frontend test run costs ~$0.01-0.02 in LLM tokens (extraction uses gpt-4.1-mini/nano).
 #   Run sparingly - use mocked smoke tests for rapid iteration.
 #
 # Troubleshooting:

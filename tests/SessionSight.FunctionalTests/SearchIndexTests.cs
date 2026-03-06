@@ -9,7 +9,7 @@ namespace SessionSight.FunctionalTests;
 /// Functional tests for Azure AI Search index configuration.
 /// Verifies the search index exists with correct schema.
 /// The embedding/indexing E2E test was merged into ExtractionPipelineTests
-/// to share the single extraction call (~$0.03 saved per run).
+/// to share the single extraction call (~$0.01 saved per run).
 /// </summary>
 [Trait("Category", "Functional")]
 public class SearchIndexTests
