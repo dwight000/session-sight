@@ -131,7 +131,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-10-02-preview' = {
       scale: {
         minReplicas: 0  // Scale to zero when idle to save costs
         maxReplicas: 3
-        cooldownPeriod: 3600  // 60 min of no traffic before scaling to zero
+        cooldownPeriod: 1800  // 30 min of no traffic before scaling to zero
         pollingInterval: 30
         rules: [
           {
@@ -193,7 +193,7 @@ resource webApp 'Microsoft.App/containerApps@2024-10-02-preview' = {
       scale: {
         minReplicas: 0  // Scale to zero when idle to save costs
         maxReplicas: 2
-        cooldownPeriod: 3600  // 60 min of no traffic before scaling to zero
+        cooldownPeriod: 1800  // 30 min of no traffic before scaling to zero
         pollingInterval: 30
         rules: [
           {
