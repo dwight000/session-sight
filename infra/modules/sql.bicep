@@ -100,7 +100,7 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
     maxSizeBytes: enableFreeTier ? 34359738368 : 1073741824 // 32GB for free tier, 1GB otherwise
     useFreeLimit: enableFreeTier
     freeLimitExhaustionBehavior: 'AutoPause'
-    autoPauseDelay: 30  // Minutes of inactivity before auto-pause
+    autoPauseDelay: 60  // Minutes of inactivity before auto-pause (free tier requires default)
     zoneRedundant: false
     readScale: 'Disabled'
     requestedBackupStorageRedundancy: 'Local'
