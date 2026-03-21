@@ -72,6 +72,6 @@
     <PackageVersion Include="Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore" Version="2.1.0" />
     <PackageVersion Include="Microsoft.Azure.Functions.Worker.Extensions.Storage.Blobs" Version="6.8.0" />
     <PackageVersion Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="3.3.0" />
-    <PackageVersion Include="Microsoft.Extensions.Http" Version="9.0.4" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.3" />
   </ItemGroup>
 </Project>
