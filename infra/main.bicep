@@ -66,10 +66,10 @@ var sqlDatabaseName = isDevEnvironment ? 'sessionsight' : 'sessionsight-${enviro
 var searchIndexName = isDevEnvironment ? 'sessionsight-sessions' : 'sessionsight-sessions-${environmentName}'
 
 // Computed endpoints for shared AI services (predictable Azure naming)
-// IP restrictions for stage — only allow known developer IPs (blocks bots that wake the DB)
-var stageIpRestrictions = [
-  { name: 'allow-home-ipv4', ipAddressRange: '71.244.137.37/32', action: 'Allow' }
-  { name: 'allow-home-ipv6', ipAddressRange: '2600:4040:b27a:eb00::/56', action: 'Allow' }
+// IP restrictions — only allow known developer IPs (blocks bots that wake containers + DB)
+// Container Apps doesn't support IPv6 — home IPv4 covers home access (browser falls back from IPv6)
+var ipRestrictions = [
+  { name: 'allow-home', ipAddressRange: '71.244.137.37/32', action: 'Allow' }
   { name: 'allow-work', ipAddressRange: '149.137.253.9/32', action: 'Allow' }
 ]
 
@@ -304,7 +304,7 @@ module containerApps 'modules/containerApps.bicep' = if (deployContainerApps) {
     docIntelligenceEndpoint: docIntelligenceEndpointValue
     storageBlobEndpoint: storage.outputs.blobEndpoint
     aiServicesEndpoint: aiServicesEndpointValue
-    ipSecurityRestrictions: isDevEnvironment ? [] : stageIpRestrictions
+    ipSecurityRestrictions: ipRestrictions
   }
   dependsOn: [rg]
 }
