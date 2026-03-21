@@ -37,8 +37,8 @@ param searchIndexName string = 'sessionsight-sessions'
 @description('ASP.NET Core environment name (Staging for cloud dev, Production for stage)')
 param aspnetEnvironment string = 'Production'
 
-@description('IP security restrictions for ingress (empty = allow all)')
-param ipSecurityRestrictions array = []
+@description('IP security restrictions for web ingress (empty = allow all). API is unrestricted — accessed via web proxy.')
+param webIpSecurityRestrictions array = []
 
 // === Azure service endpoints (passed from main.bicep) ===
 
@@ -91,7 +91,6 @@ resource apiApp 'Microsoft.App/containerApps@2024-10-02-preview' = {
         targetPort: 8080
         transport: 'http'
         allowInsecure: false
-        ipSecurityRestrictions: ipSecurityRestrictions
       }
       registries: [
         {
@@ -166,7 +165,7 @@ resource webApp 'Microsoft.App/containerApps@2024-10-02-preview' = {
         targetPort: 80
         transport: 'http'
         allowInsecure: false
-        ipSecurityRestrictions: ipSecurityRestrictions
+        ipSecurityRestrictions: webIpSecurityRestrictions
       }
       registries: [
         {
