@@ -304,7 +304,7 @@ module containerApps 'modules/containerApps.bicep' = if (deployContainerApps) {
     docIntelligenceEndpoint: docIntelligenceEndpointValue
     storageBlobEndpoint: storage.outputs.blobEndpoint
     aiServicesEndpoint: aiServicesEndpointValue
-    ipSecurityRestrictions: ipRestrictions
+    webIpSecurityRestrictions: ipRestrictions
   }
   dependsOn: [rg]
 }

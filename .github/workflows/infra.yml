@@ -41,6 +41,9 @@ jobs:
     name: Validate Bicep
     runs-on: ubuntu-latest
     environment: dev
+    concurrency:
+      group: infra-validate
+      cancel-in-progress: true
     permissions:
       id-token: write
       contents: read
@@ -300,6 +303,9 @@ jobs:
     # Only run what-if on PRs
     if: github.event_name == 'pull_request'
     environment: dev
+    concurrency:
+      group: infra-preview
+      cancel-in-progress: true
 
     permissions:
       id-token: write
