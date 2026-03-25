@@ -16,7 +16,7 @@
     <PackageVersion Include="Aspire.Hosting.Azure.CognitiveServices" Version="13.1.2" />
     <PackageVersion Include="Aspire.Hosting.Azure.Sql" Version="13.1.2" />
     <PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="13.1.2" />
-    <PackageVersion Include="Aspire.Hosting.Azure.ApplicationInsights" Version="13.1.2" />
+    <PackageVersion Include="Aspire.Hosting.Azure.ApplicationInsights" Version="13.2.0" />
     <PackageVersion Include="Aspire.Hosting.Azure.KeyVault" Version="13.1.2" />
     <PackageVersion Include="Aspire.Hosting.NodeJs" Version="9.5.2" />
     <!-- Aspire Components (client-side) -->
