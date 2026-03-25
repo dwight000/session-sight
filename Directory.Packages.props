@@ -12,7 +12,7 @@
     <PackageVersion Include="Azure.Core" Version="1.51.1" />
     <PackageVersion Include="Azure.Identity" Version="1.18.0" />
     <!-- Aspire Hosting -->
-    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.1.2" />
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.2.0" />
     <PackageVersion Include="Aspire.Hosting.Azure.CognitiveServices" Version="13.1.2" />
     <PackageVersion Include="Aspire.Hosting.Azure.Sql" Version="13.1.2" />
     <PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="13.1.2" />
