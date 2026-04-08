@@ -56,3 +56,7 @@ coverage/
 # Playwright
 test-results/
 playwright-report/
+.playwright-mcp/
+
+# Local agent/tool state
+.claude/settings.local.json
