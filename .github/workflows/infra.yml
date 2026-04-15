@@ -349,7 +349,7 @@ jobs:
             --no-pretty-print 2>&1 | tail -200 > /tmp/whatif-stage.txt || true
 
       - name: Comment PR with What-If Results
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
