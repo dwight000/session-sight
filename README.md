@@ -1,8 +1,41 @@
-# SessionSight
+# SessionSight: Enterprise AI Clinical Workflow Architecture
 
-AI-powered clinical session analysis tool. Extracts structured data from therapy session notes using Azure AI agents, with risk flagging, multi-level summaries, and RAG-powered Q&A.
+**SessionSight is an Azure-native, production-shaped AI workflow application designed to automate high-volume clinical note extraction and analysis.** It demonstrates how to assemble Azure AI Search, Document Intelligence, Azure OpenAI, and Container Apps into a resilient, enterprise-grade architecture.
 
-> **Portfolio project** — demonstrates enterprise AI architecture, cloud-native development, and modern DevOps practices. All patient data is synthetic.
+By deploying a multi-agent orchestration pattern, SessionSight securely extracts 80+ structured data points from unstructured therapy notes, flags critical patient risks, and enables multi-tool RAG (Retrieval-Augmented Generation) Q&A—drastically reducing manual processing time while enforcing strict architectural boundaries.
+
+> **Note on Data Privacy:** This repository serves as a reference architecture for enterprise cloud deployments. All patient data, clinical notes, and session logs used in this repository are strictly synthetic. No real PHI/PII is included or processed.
+
+## Product Preview
+*(Add 3-5 screenshots or a short demo GIF here showing the frontend dashboard, extraction pipeline, and RAG Q&A)*
+- `[Screenshot 1: Clinical Dashboard]`
+- `[Screenshot 2: AI Extraction Trace]`
+- `[Screenshot 3: RAG Q&A Interface]`
+
+## High-Level Architecture
+
+```mermaid
+graph TD
+    UI["React Frontend / Vite"] -->|REST API| API[".NET 9 API<br>Azure Container Apps"]
+    API -->|Document Upload| Blob["Azure Blob Storage"]
+    Blob -->|Event Trigger| Ingestion["Azure Functions<br>Ingestion Pipeline"]
+    Ingestion --> OCR["Azure AI Document Intelligence"]
+    
+    API --> Orchestrator["Multi-Agent Supervisor"]
+    Orchestrator --> OpenAI["Azure OpenAI<br>GPT-4.1-mini/nano"]
+    Orchestrator --> DB["Azure SQL<br>Managed Identity"]
+    
+    API --> RAG["RAG & Search Engine"]
+    RAG --> Embed["Azure OpenAI<br>Text Embeddings"]
+    RAG --> Search["Azure AI Search<br>Vector + Hybrid"]
+```
+
+## Enterprise Security & Privacy Boundaries
+As a healthcare-adjacent architecture, SessionSight is designed with zero-trust and data compartmentalization principles:
+- **Identity-Based Auth:** Zero shared secrets. All internal Azure service-to-service communication uses `DefaultAzureCredential` and Managed Identities.
+- **Data Residency:** All AI models run exclusively within isolated Azure OpenAI boundaries; no data is sent to public OpenAI endpoints.
+- **Secrets Management:** Environment variables and CI/CD secrets are securely backed by Azure Key Vault.
+- **Vulnerability Scanning:** Automated CodeQL and Dependabot pipelines enforce static analysis and dependency security before deployment.
 
 ## Skills & Patterns Demonstrated
 
@@ -16,7 +49,6 @@ AI-powered clinical session analysis tool. Extracts structured data from therapy
 - **Structured output** — JSON mode enforcing an 82-field clinical schema
 - **Confidence scoring & source mapping** — `ExtractedField<T>` with Value, Confidence, Source
 - **Dual-path Q&A routing** — simple questions → single-shot RAG, complex → agentic loop
-- **Agent debate** — adversarial agents argue opposing assessments to stress-test conclusions *(planned)*
 
 ### RAG & Search
 - **Retrieval-Augmented Generation** — Q&A agent grounded in patient session data
