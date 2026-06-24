@@ -68,12 +68,7 @@ jobs:
 
       - name: Check for vulnerable packages
         run: |
-          > vuln-report.txt
-          for proj in src/*/*.csproj tests/*/*.csproj; do
-            if [[ "$proj" != *"AppHost"* ]]; then
-              dotnet list "$proj" package --vulnerable --include-transitive >> vuln-report.txt 2>&1 || true
-            fi
-          done
+          dotnet list session-sight.sln package --vulnerable --include-transitive 2>&1 | tee vuln-report.txt
           # Fail on High/Critical, warn on Moderate/Low
           if grep -qE "High|Critical" vuln-report.txt; then
             echo "::error::High/Critical vulnerabilities found!"
