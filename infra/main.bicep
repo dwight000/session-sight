@@ -68,6 +68,8 @@ var searchIndexName = isDevEnvironment ? 'sessionsight-sessions' : 'sessionsight
 // Computed endpoints for shared AI services (predictable Azure naming)
 // IP restrictions — only allow known developer IPs (blocks bots that wake containers + DB)
 // Container Apps doesn't support IPv6 — home IPv4 covers home access (browser falls back from IPv6)
+// NOTE: IPv6 rules are not supported by Azure Container Apps (platform rejects them).
+// If browser hangs ~3 min before loading, it's IPv6 timeout. Fix: disable IPv6 in browser/OS or use IPv4.
 var ipRestrictions = [
   { name: 'allow-home', ipAddressRange: '71.244.137.37/32', action: 'Allow' }
   { name: 'allow-work', ipAddressRange: '149.137.253.9/32', action: 'Allow' }
@@ -304,7 +306,7 @@ module containerApps 'modules/containerApps.bicep' = if (deployContainerApps) {
     docIntelligenceEndpoint: docIntelligenceEndpointValue
     storageBlobEndpoint: storage.outputs.blobEndpoint
     aiServicesEndpoint: aiServicesEndpointValue
-    webIpSecurityRestrictions: ipRestrictions
+    webIpSecurityRestrictions: isDevEnvironment ? [] : ipRestrictions
   }
   dependsOn: [rg]
 }

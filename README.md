@@ -1,8 +1,53 @@
-# SessionSight
+# SessionSight: Enterprise AI Clinical Workflow Architecture
 
-AI-powered clinical session analysis tool. Extracts structured data from therapy session notes using Azure AI agents, with risk flagging, multi-level summaries, and RAG-powered Q&A.
+**SessionSight is an Azure-native, production-shaped AI workflow application designed to automate high-volume clinical note extraction and analysis.** It demonstrates how to assemble Azure AI Search, Document Intelligence, Azure OpenAI, and Container Apps into a resilient, enterprise-grade architecture.
 
-> **Portfolio project** — demonstrates enterprise AI architecture, cloud-native development, and modern DevOps practices. All patient data is synthetic.
+By deploying a multi-agent orchestration pattern, SessionSight securely extracts 80+ structured data points from unstructured therapy notes, flags critical patient risks, and enables multi-tool RAG (Retrieval-Augmented Generation) Q&A—drastically reducing manual processing time while enforcing strict architectural boundaries.
+
+> **Note on Data Privacy:** This repository serves as a reference architecture for enterprise cloud deployments. All patient data, clinical notes, and session logs used in this repository are strictly synthetic. No real PHI/PII is included or processed.
+
+## Product Preview
+
+**Upload & Extraction Pipeline** — upload a therapy note PDF and watch the AI pipeline process it in real time:
+
+![Upload pipeline with expected outcome card and document preview](docs/screenshots/01-upload-pipeline.png)
+
+![Intake agent trace — GPT-4.1-nano validates the therapy note](docs/screenshots/02-intake-agent.png)
+
+![Clinical extractor — tool calls for risk keywords and ICD-10 diagnosis codes](docs/screenshots/03-clinical-extract.png)
+
+**Risk Assessment & Debate** — the AI assesses risk level, then runs an adversarial debate to challenge its own conclusion:
+
+![Risk Assessor complete — Low risk verdict, all fields verified](docs/screenshots/04-risk-assess.png)
+
+![Risk Debate — Advocate vs Challenger, verdict upgraded to Moderate](docs/screenshots/05-risk-debate.png)
+
+![Round 2 debate transcript with Judge Synthesis and Review Reasons](docs/screenshots/06-risk-debate-round2.png)
+
+## High-Level Architecture
+
+```mermaid
+graph TD
+    UI["React Frontend / Vite"] -->|REST API| API[".NET 9 API<br>Azure Container Apps"]
+    API -->|Document Upload| Blob["Azure Blob Storage"]
+    Blob -->|Event Trigger| Ingestion["Azure Functions<br>Ingestion Pipeline"]
+    Ingestion --> OCR["Azure AI Document Intelligence"]
+    
+    API --> Orchestrator["Multi-Agent Supervisor"]
+    Orchestrator --> OpenAI["Azure OpenAI<br>GPT-4.1-mini/nano"]
+    Orchestrator --> DB["Azure SQL<br>Managed Identity"]
+    
+    API --> RAG["RAG & Search Engine"]
+    RAG --> Embed["Azure OpenAI<br>Text Embeddings"]
+    RAG --> Search["Azure AI Search<br>Vector + Hybrid"]
+```
+
+## Enterprise Security & Privacy Boundaries
+As a healthcare-adjacent architecture, SessionSight is designed with zero-trust and data compartmentalization principles:
+- **Identity-Based Auth:** Zero shared secrets. All internal Azure service-to-service communication uses `DefaultAzureCredential` and Managed Identities.
+- **Data Residency:** All AI models run exclusively within isolated Azure OpenAI boundaries; no data is sent to public OpenAI endpoints.
+- **Secrets Management:** Environment variables and CI/CD secrets are securely backed by Azure Key Vault.
+- **Vulnerability Scanning:** Automated CodeQL and Dependabot pipelines enforce static analysis and dependency security before deployment.
 
 ## Skills & Patterns Demonstrated
 
@@ -16,7 +61,6 @@ AI-powered clinical session analysis tool. Extracts structured data from therapy
 - **Structured output** — JSON mode enforcing an 82-field clinical schema
 - **Confidence scoring & source mapping** — `ExtractedField<T>` with Value, Confidence, Source
 - **Dual-path Q&A routing** — simple questions → single-shot RAG, complex → agentic loop
-- **Agent debate** — adversarial agents argue opposing assessments to stress-test conclusions *(planned)*
 
 ### RAG & Search
 - **Retrieval-Augmented Generation** — Q&A agent grounded in patient session data
