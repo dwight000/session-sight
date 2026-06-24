@@ -7,10 +7,14 @@ By deploying a multi-agent orchestration pattern, SessionSight securely extracts
 > **Note on Data Privacy:** This repository serves as a reference architecture for enterprise cloud deployments. All patient data, clinical notes, and session logs used in this repository are strictly synthetic. No real PHI/PII is included or processed.
 
 ## Product Preview
-*(Add 3-5 screenshots or a short demo GIF here showing the frontend dashboard, extraction pipeline, and RAG Q&A)*
-- `[Screenshot 1: Clinical Dashboard]`
-- `[Screenshot 2: AI Extraction Trace]`
-- `[Screenshot 3: RAG Q&A Interface]`
+![Clinical Dashboard](docs/assets/dashboard.png)
+*Clinical Dashboard showing risk trends and session analytics*
+
+![AI Extraction Trace](docs/assets/extraction.png)
+*AI Extraction Trace showing the multi-agent pipeline output*
+
+![RAG Q&A Interface](docs/assets/rag-qa.png)
+*Retrieval-Augmented Generation (RAG) Q&A Interface for patient history*
 
 ## High-Level Architecture
 
