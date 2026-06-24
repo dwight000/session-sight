@@ -307,7 +307,6 @@ module containerApps 'modules/containerApps.bicep' = if (deployContainerApps) {
     storageBlobEndpoint: storage.outputs.blobEndpoint
     aiServicesEndpoint: aiServicesEndpointValue
     webIpSecurityRestrictions: isDevEnvironment ? [] : ipRestrictions
-    minApiReplicas: isDevEnvironment ? 1 : 0
   }
   dependsOn: [rg]
 }

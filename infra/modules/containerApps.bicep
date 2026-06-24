@@ -40,7 +40,7 @@ param aspnetEnvironment string = 'Production'
 @description('IP security restrictions for web ingress (empty = allow all). API is unrestricted — accessed via web proxy.')
 param webIpSecurityRestrictions array = []
 
-@description('Minimum API replicas. Set to 1 to keep warm for demos; 0 to scale to zero and save costs.')
+@description('Minimum API replicas. 0 = scale to zero when idle (saves costs). Max is always 1.')
 param minApiReplicas int = 0
 
 // === Azure service endpoints (passed from main.bicep) ===
@@ -136,7 +136,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-10-02-preview' = {
       ]
       scale: {
         minReplicas: minApiReplicas
-        maxReplicas: 3
+        maxReplicas: 1
         cooldownPeriod: 1800  // 30 min of no traffic before scaling to zero
         pollingInterval: 30
         rules: [
@@ -199,7 +199,7 @@ resource webApp 'Microsoft.App/containerApps@2024-10-02-preview' = {
       ]
       scale: {
         minReplicas: 0  // Scale to zero when idle to save costs
-        maxReplicas: 2
+        maxReplicas: 1
         cooldownPeriod: 1800  // 30 min of no traffic before scaling to zero
         pollingInterval: 30
         rules: [
