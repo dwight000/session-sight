@@ -7,10 +7,22 @@ By deploying a multi-agent orchestration pattern, SessionSight securely extracts
 > **Note on Data Privacy:** This repository serves as a reference architecture for enterprise cloud deployments. All patient data, clinical notes, and session logs used in this repository are strictly synthetic. No real PHI/PII is included or processed.
 
 ## Product Preview
-*(Add 3-5 screenshots or a short demo GIF here showing the frontend dashboard, extraction pipeline, and RAG Q&A)*
-- `[Screenshot 1: Clinical Dashboard]`
-- `[Screenshot 2: AI Extraction Trace]`
-- `[Screenshot 3: RAG Q&A Interface]`
+
+**Upload & Extraction Pipeline** — upload a therapy note PDF and watch the AI pipeline process it in real time:
+
+![Upload pipeline with expected outcome card and document preview](docs/screenshots/01-upload-pipeline.png)
+
+![Intake agent trace — GPT-4.1-nano validates the therapy note](docs/screenshots/02-intake-agent.png)
+
+![Clinical extractor — tool calls for risk keywords and ICD-10 diagnosis codes](docs/screenshots/03-clinical-extract.png)
+
+**Risk Assessment & Debate** — the AI assesses risk level, then runs an adversarial debate to challenge its own conclusion:
+
+![Risk Assessor complete — Low risk verdict, all fields verified](docs/screenshots/04-risk-assess.png)
+
+![Risk Debate — Advocate vs Challenger, verdict upgraded to Moderate](docs/screenshots/05-risk-debate.png)
+
+![Round 2 debate transcript with Judge Synthesis and Review Reasons](docs/screenshots/06-risk-debate-round2.png)
 
 ## High-Level Architecture
 
